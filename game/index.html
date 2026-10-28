@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0d0a1a">
 <meta name="author" content="Nazhad Ibrahem – Happy Toons Studio">
 <meta name="copyright" content="© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
 <title>Happy Toons: Toonblade</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -24,7 +25,7 @@
     <div>ENEMIES <b id="left">0</b></div>
   </div>
   <div id="banner"></div>
-  <div id="hint">WASD move · Mouse look · Click/J attack · Right-click/K block · Space dodge · P pause</div>
+  <div id="hint">WASD move · Mouse look · Click/J attack · Right-click/K block · Space dodge · P/Esc pause · M mute</div>
   <div id="dmgFlash"></div>
 </div>
 
@@ -35,6 +36,10 @@
     <button id="bBlock" class="tb">🛡</button>
     <button id="bDodge" class="tb">⤿</button>
   </div>
+  <div id="topBtns">
+    <button id="bPause" class="tb sm" aria-label="Pause">⏸</button>
+    <button id="bMute" class="tb sm" aria-label="Sound on/off">🔊</button>
+  </div>
 </div>
 
 <div id="start" class="screen">
@@ -43,11 +48,13 @@
     <h1>TOONBLADE</h1>
     <p class="credit">by Happy Toons Studio</p>
     <p class="sub">Survive the waves of goblins and skeletons!</p>
+    <p id="sBestWrap" class="sub best hidden">🏆 Best: <b id="sBest">0</b></p>
     <button id="playBtn" class="btn">▶ PLAY</button>
     <div class="controls">
-      <div><b>Desktop:</b> WASD / Arrows move · Mouse look (Q/E also turn) · Click or J attack · Right‑click or K block · Space dodge</div>
-      <div><b>Phone:</b> left joystick move · drag right side to look · ⚔ attack · 🛡 block · ⤿ dodge</div>
+      <div><b>Desktop:</b> WASD / Arrows move · Mouse look (Q/E also turn) · Click or J attack · Right‑click or K block · Space dodge · P/Esc pause · M mute</div>
+      <div><b>Phone:</b> left joystick move · drag right side to look · ⚔ attack · 🛡 block · ⤿ dodge · ⏸ pause · 🔊 sound</div>
     </div>
+    <p class="ai">Made with AI-assisted tools</p>
     <p class="copy">© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.</p>
   </div>
 </div>
@@ -57,13 +64,22 @@
     <h1>Defeated</h1>
     <p class="sub">Wave <b id="oWave">1</b> · Score <b id="oScore">0</b></p>
     <p class="sub">Best: <b id="oBest">0</b></p>
+    <p id="oNew" class="newbest hidden">★ NEW BEST! ★</p>
     <button id="againBtn" class="btn">↻ PLAY AGAIN</button>
     <p class="credit">by Happy Toons Studio</p>
+    <p class="ai">Made with AI-assisted tools</p>
+    <p class="copy">© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.</p>
   </div>
 </div>
 
 <div id="pause" class="screen hidden">
-  <div class="panel"><h1>Paused</h1><button id="resumeBtn" class="btn">▶ RESUME</button></div>
+  <div class="panel">
+    <h1>Paused</h1>
+    <button id="resumeBtn" class="btn">▶ RESUME</button>
+    <p class="sub">Click / tap, Esc or P to resume</p>
+    <button id="pMute" class="btn small">🔊 Sound: On</button>
+    <p class="copy">© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.</p>
+  </div>
 </div>
 
 <div id="loading">Loading…</div>
