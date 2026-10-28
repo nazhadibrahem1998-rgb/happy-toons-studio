@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Happy Toons Studio | A Custom Cartoon Starring Your Child</title>
+<meta name="description" content="Custom 3D cartoon videos starring your child, with gentle life lessons. English, Kurdish (Sorani) or Arabic. Order on Fiverr.">
+<meta property="og:title" content="Happy Toons Studio">
+<meta property="og:image" content="g2.jpg">
+<meta property="og:description" content="A little cartoon where your child is the hero.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2b2350;--muted:#5d5880;--pink:#ff5fa2;--orange:#ff9f43;--yellow:#ffd23f;--teal:#2ec4b6;--blue:#4d7cff;--purple:#8b5cf6;--bg:#fffaf2;--card:#fff;--radius:24px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;overflow-x:hidden}
+h1,h2,h3,.logo{font-family:'Baloo 2',cursive;line-height:1.1}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 28px;border-radius:999px;font-weight:800;text-decoration:none;font-size:1.05rem;transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-3px) scale(1.02)}
+.btn-main{background:linear-gradient(135deg,var(--pink),var(--orange));color:#fff;box-shadow:0 10px 0 #c93d7c,0 18px 30px rgba(255,95,162,.35)}
+.btn-main:hover{box-shadow:0 13px 0 #c93d7c,0 22px 34px rgba(255,95,162,.4)}
+.btn-ghost{background:#fff;color:var(--ink);border:3px solid var(--ink);box-shadow:0 6px 0 var(--ink)}
+/* nav */
+nav{position:sticky;top:0;z-index:20;background:rgba(255,250,242,.88);backdrop-filter:blur(10px);border-bottom:2px dashed #f1e3cc}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:70px}
+.logo{font-size:1.55rem;font-weight:800;text-decoration:none;display:flex;align-items:center;gap:8px}
+.logo span.h{color:var(--pink)}.logo span.t{color:var(--blue)}.logo span.s{color:var(--teal)}
+.nav-links{display:flex;gap:22px;align-items:center}
+.nav-links a{text-decoration:none;font-weight:700;color:var(--muted)}
+.nav-links a:hover{color:var(--pink)}
+.nav-links .btn{padding:10px 20px;font-size:.95rem;box-shadow:0 5px 0 #c93d7c;white-space:nowrap}
+/* hero */
+.hero{position:relative;padding:70px 0 110px;overflow:hidden}
+.hero .wrap{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center}
+.pill{display:inline-block;background:#fff;border:2px solid var(--ink);border-radius:999px;padding:6px 16px;font-weight:800;font-size:.9rem;margin-bottom:18px;box-shadow:0 4px 0 var(--ink)}
+.hero h1{font-size:clamp(2.8rem,6.5vw,5rem);font-weight:800;margin-bottom:16px}
+.hero h1 .rb{background:linear-gradient(90deg,var(--pink),var(--orange),var(--yellow),var(--teal),var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{font-size:1.25rem;color:var(--muted);max-width:520px;margin-bottom:30px}
+.cta-row{display:flex;flex-wrap:wrap;gap:16px}
+.screen{position:relative;aspect-ratio:4/3.2;border-radius:32px;background:linear-gradient(160deg,#7fd4ff 0%,#bfe9ff 55%,#9be27a 56%,#6fcf5a 100%);border:6px solid var(--ink);box-shadow:0 16px 0 var(--ink);overflow:hidden}
+.screen .sun{position:absolute;top:9%;right:12%;width:70px;height:70px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 14px rgba(255,210,63,.35);animation:pulse 3s ease-in-out infinite}
+.cloud{position:absolute;background:#fff;border-radius:50px;height:28px;opacity:.95}
+.cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+.cloud::before{width:38px;height:38px;top:-18px;left:12px}.cloud::after{width:28px;height:28px;top:-12px;left:40px}
+.c1{width:90px;top:18%;left:-100px;animation:drift 16s linear infinite}
+.c2{width:70px;top:30%;left:-100px;animation:drift 22s linear infinite 5s}
+.char{position:absolute;font-size:clamp(3rem,7vw,5rem);filter:drop-shadow(0 8px 6px rgba(0,0,0,.18))}
+.ch1{bottom:12%;left:12%;animation:bounce 2.2s ease-in-out infinite}
+.ch2{bottom:14%;left:42%;animation:bounce 2.6s ease-in-out infinite .4s}
+.ch3{bottom:10%;right:10%;animation:bounce 2s ease-in-out infinite .8s}
+.play{position:absolute;top:50%;left:50%;transform:translate(-50%,-80%);width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;font-size:1.8rem;border:4px solid var(--ink)}
+.rec{position:absolute;top:14px;left:16px;background:var(--ink);color:#fff;font-weight:800;font-size:.8rem;padding:4px 12px;border-radius:999px}
+.rec::before{content:"● ";color:#ff4d6d}
+.blob{position:absolute;border-radius:50%;filter:blur(2px);opacity:.5;z-index:-1}
+.b1{width:300px;height:300px;background:#ffd6e8;top:-80px;left:-90px}
+.b2{width:240px;height:240px;background:#d4f5f1;bottom:-60px;right:30%}
+.b3{width:180px;height:180px;background:#fff0c2;top:30px;right:-50px}
+.stars span{position:absolute;font-size:1.6rem;animation:twinkle 2.5s ease-in-out infinite}
+.wave{position:absolute;bottom:-1px;left:0;width:100%;height:70px}
+/* sections */
+section{padding:90px 0}
+.sec-head{text-align:center;max-width:640px;margin:0 auto 50px}
+.sec-head .kicker{color:var(--pink);font-weight:800;text-transform:uppercase;letter-spacing:.12em;font-size:.85rem}
+.sec-head h2{font-size:clamp(2.1rem,4.5vw,3rem);margin:6px 0 10px}
+.sec-head p{color:var(--muted);font-size:1.1rem}
+.make{background:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px}
+.card{background:var(--card);border:3px solid var(--ink);border-radius:var(--radius);padding:30px 26px;box-shadow:0 8px 0 var(--ink);transition:transform .25s}
+.card:hover{transform:translateY(-6px) rotate(-1deg)}
+.card .ic{width:68px;height:68px;border-radius:20px;display:grid;place-items:center;font-size:2.1rem;margin-bottom:16px;border:3px solid var(--ink)}
+.card h3{font-size:1.45rem;margin-bottom:8px}
+.card p{color:var(--muted)}
+.i1{background:#ffe0ee}.i2{background:#dff3ff}.i3{background:#fff1c9}.i4{background:#dcf7ec}
+/* steps */
+.steps{background:linear-gradient(180deg,#f3edff,#fffaf2)}
+.step-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:26px;counter-reset:s}
+.step{position:relative;background:#fff;border-radius:var(--radius);padding:44px 24px 28px;text-align:center;border:3px dashed #c8b8f5}
+.step::before{counter-increment:s;content:counter(s);position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:52px;height:52px;border-radius:50%;background:var(--purple);color:#fff;font-family:'Baloo 2';font-weight:800;font-size:1.5rem;display:grid;place-items:center;border:3px solid var(--ink)}
+.step .e{font-size:2.4rem}
+.step h3{font-size:1.3rem;margin:6px 0}
+.step p{color:var(--muted);font-size:.98rem}
+/* showcase */
+.showcase{background:#fff}
+.reel{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+.frame{aspect-ratio:9/12;border-radius:26px;border:4px solid var(--ink);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:18px;color:#fff;box-shadow:0 8px 0 var(--ink)}
+.frame .big{position:absolute;top:22%;left:50%;transform:translateX(-50%);font-size:5rem;animation:bounce 2.4s ease-in-out infinite}
+.frame b{font-family:'Baloo 2';font-size:1.35rem;text-shadow:0 2px 0 rgba(0,0,0,.25)}
+.frame small{opacity:.95;font-weight:700}
+.f1{background:linear-gradient(180deg,#5b8cff,#8b5cf6)}
+.f2{background:linear-gradient(180deg,#ff9f43,#ff5fa2)}
+.f3{background:linear-gradient(180deg,#2ec4b6,#4d7cff)}
+.f4{background:linear-gradient(180deg,#1e2a5a,#5b3fa8)}
+.note{text-align:center;color:var(--muted);margin-top:26px;font-size:.98rem}
+/* why */
+.why ul{list-style:none;display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:760px;margin:0 auto}
+.why li{background:#fff;border-radius:18px;padding:18px 20px;font-weight:700;border:2px solid #f1e3cc;display:flex;gap:12px;align-items:center}
+.why li span{font-size:1.6rem}
+/* final cta */
+.final{padding:0 0 90px}
+.final .box{background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:36px;padding:60px 30px;text-align:center;color:#fff;border:4px solid var(--ink);box-shadow:0 14px 0 var(--ink);position:relative;overflow:hidden}
+.final h2{font-size:clamp(2rem,5vw,3.2rem);margin-bottom:10px}
+.final p{font-size:1.15rem;opacity:.95;margin-bottom:28px}
+.final .btn-main{box-shadow:0 8px 0 #9b2a5c}
+.final .btn-ghost{border-color:#fff;box-shadow:0 6px 0 rgba(0,0,0,.25)}
+.final .cta-row{justify-content:center}
+footer{background:var(--ink);color:#d8d3f5;padding:34px 0;text-align:center;font-size:.95rem}
+footer a{color:#fff;font-weight:700}
+footer .soc{display:flex;justify-content:center;gap:18px;margin-bottom:10px;flex-wrap:wrap}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+.frame .big{animation-name:bounceX}
+@keyframes bounceX{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-14px)}}
+@keyframes drift{to{left:110%}}
+@keyframes pulse{50%{box-shadow:0 0 0 22px rgba(255,210,63,.2)}}
+@keyframes twinkle{50%{opacity:.3;transform:scale(.8)}}
+@media(max-width:860px){.hero .wrap{grid-template-columns:1fr}.hero{padding:40px 0 90px;text-align:center}.hero p.lead{margin-left:auto;margin-right:auto}.cta-row{justify-content:center}.nav-links a:not(.btn){display:none}.logo{font-size:1.2rem}.nav-links .btn{padding:8px 14px;font-size:.85rem}}
+@media(max-width:560px){.why ul{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.phone{justify-self:center;width:min(300px,78vw);aspect-ratio:9/16;border-radius:36px;border:6px solid var(--ink);box-shadow:0 16px 0 var(--ink);overflow:hidden;position:relative;background:#fde7f1;transform:rotate(2deg)}
+.phone img{width:100%;height:100%;object-fit:cover;display:block}
+.phone .rec{z-index:2}
+.hero-visual{position:relative;display:grid}
+.sticker{position:absolute;background:#fff;border:3px solid var(--ink);border-radius:18px;padding:8px 14px;font-weight:800;box-shadow:0 5px 0 var(--ink);font-size:.95rem;z-index:3}
+.st1{left:2%;top:18%;transform:rotate(-6deg)}.st2{right:0;bottom:16%;transform:rotate(5deg)}
+.seller{margin-top:22px;display:flex;align-items:center;gap:12px;color:var(--muted);font-weight:700;font-size:.95rem}
+.seller .av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--yellow),var(--pink));display:grid;place-items:center;font-size:1.3rem;border:3px solid var(--ink)}
+.seller b{color:var(--ink)}
+.incl{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;max-width:980px;margin:0 auto}
+.incl li{background:#fff;border:3px solid var(--ink);border-radius:20px;padding:18px 20px;display:flex;gap:14px;align-items:flex-start;box-shadow:0 6px 0 var(--ink);font-weight:600}
+.incl li span{font-size:1.7rem;line-height:1}
+.made{text-align:center;margin-top:26px;color:var(--muted);font-weight:700}
+.pk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:26px;align-items:stretch}
+.pk{background:#fff;border:3px solid var(--ink);border-radius:28px;padding:30px 26px;box-shadow:0 10px 0 var(--ink);display:flex;flex-direction:column}
+.pk .tier{display:inline-block;align-self:flex-start;font-weight:800;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px;border:2px solid var(--ink)}
+.pk h3{font-size:1.6rem;margin:12px 0 4px}
+.pk .price{font-family:'Baloo 2';font-size:2.6rem;font-weight:800;line-height:1}
+.pk .price small{font-family:'Nunito';font-size:.95rem;color:var(--muted);font-weight:700}
+.pk .desc{color:var(--muted);margin:14px 0}
+.pk ul{list-style:none;margin:0 0 22px;display:grid;gap:8px;font-weight:700}
+.pk ul li::before{content:"✔ ";color:var(--teal)}
+.pk .btn{margin-top:auto;justify-content:center}
+.t1{background:#ffe0ee}.t2{background:#dff3ff}.t3{background:#fff1c9}
+.fine{text-align:center;color:var(--muted);margin-top:28px;font-size:.98rem}
+.gallery{display:grid;grid-template-columns:1fr 1.6fr;gap:22px;align-items:start}
+.gallery .col{display:grid;gap:22px}
+.gallery img{width:100%;display:block;border-radius:24px;border:4px solid var(--ink);box-shadow:0 8px 0 var(--ink)}
+.faq{max-width:780px;margin:0 auto;display:grid;gap:14px}
+.faq details{background:#fff;border:3px solid var(--ink);border-radius:20px;padding:18px 22px;box-shadow:0 5px 0 var(--ink)}
+.faq summary{font-family:'Baloo 2';font-weight:800;font-size:1.25rem;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px}
+.faq summary::after{content:"＋";color:var(--pink)}
+.faq details[open] summary::after{content:"－"}
+.faq p{color:var(--muted);margin-top:8px}
+#perfect .grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+@media(max-width:860px){.gallery{grid-template-columns:1fr}.st1{left:0}.seller{justify-content:center}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a href="#" class="logo">🎬 <span class="h">Happy</span><span class="t">Toons</span><span class="s">Studio</span></a>
+    <div class="nav-links">
+      <a href="#perfect">Perfect for</a>
+      <a href="#packages">Packages</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn btn-main" href="https://www.fiverr.com/ayubazizi_art/create-custom-ai-3d-cartoon-videos-and-stories-for-kids" target="_blank" rel="noopener">Order on Fiverr</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="wrap">
+    <div>
+      <span class="pill">✨ Animation for Kids</span>
+      <h1>A little cartoon where your child is <span class="rb">the hero.</span></h1>
+      <p class="lead">Custom 3D cartoon videos starring your child: their name, age and favourite things, with friendly Happy Toons characters. Gentle lessons in kindness, listening, sharing, helping at home and love for Mom and family.</p>
+      <div class="cta-row">
+        <a class="btn btn-main" href="https://www.fiverr.com/ayubazizi_art/create-custom-ai-3d-cartoon-videos-and-stories-for-kids" target="_blank" rel="noopener">🚀 Order on Fiverr</a>
+        <a class="btn btn-ghost" href="#packages">See packages</a>
+      </div>
+      <div class="seller"><div class="av">🎨</div><div><b>Ayub A.</b> · AI Cartoon Animator for Kids<br>🇬🇧 United Kingdom</div></div>
+    </div>
+    <div class="hero-visual">
+      <div class="phone"><span class="rec">HAPPY TOONS</span><img src="g1.jpg" alt="Happy Toons cartoon: a little bunny helping her mum, saying 'Oh, my sweet helper. Thank you, darling.'"></div>
+      <div class="sticker st1">🧒 Your child stars!</div>
+      <div class="sticker st2">💗 Gentle life lessons</div>
+    </div>
+  </div>
+  <div class="stars"><span style="top:12%;left:46%">⭐</span><span style="top:80%;left:6%;animation-delay:.8s">✨</span><span style="top:8%;right:4%;animation-delay:1.4s">🌟</span></div>
+  <svg class="wave" viewBox="0 0 1440 70" preserveAspectRatio="none"><path fill="#fff" d="M0,40 C240,80 480,0 720,30 C960,60 1200,10 1440,40 L1440,70 L0,70 Z"/></svg>
+</header>
+
+<section id="perfect" class="make">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Perfect for</div>
+      <h2>A custom cartoon starring your child</h2>
+      <p>“I will create a custom cartoon starring your child with gentle life lessons.”</p>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="ic i1">🎂</div><h3>Birthdays</h3><p>Birthdays and party surprises.</p></div>
+      <div class="card"><div class="ic i2">🌙</div><h3>Bedtime</h3><p>Bedtime stories with a warm message.</p></div>
+      <div class="card"><div class="ic i4">🧹</div><h3>Good habits</h3><p>Tidying up, please and thank you, being kind.</p></div>
+      <div class="card"><div class="ic i3">🔢</div><h3>Fun learning</h3><p>Colours, numbers, shapes, manners.</p></div>
+      <div class="card"><div class="ic i1">🎁</div><h3>A sweet gift</h3><p>A sweet gift for Mom, Dad or Grandma.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="included" class="steps">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Every order includes</div>
+      <h2>Made just for your little one</h2>
+    </div>
+    <ul class="incl">
+      <li><span>📖</span>A story written for your child (or your idea)</li>
+      <li><span>🧸</span>Original, child-safe characters (no copyrighted characters)</li>
+      <li><span>🗣️</span>Voice or text in English, Kurdish (Sorani) or Arabic</li>
+      <li><span>🎵</span>Soft kid-friendly music, HD, 16:9 or 9:16</li>
+      <li><span>🎨</span>A cartoon character inspired by your description (no photo needed)</li>
+    </ul>
+    <p class="made">🤖 + ✍️ Made with AI tools, then written, edited and checked by me.</p>
+  </div>
+</section>
+
+<section id="how" class="why">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">How it works</div>
+      <h2>From idea to cartoon</h2>
+    </div>
+    <div class="step-list">
+      <div class="step"><div class="e">🛒</div><h3>Choose a package</h3><p>Pick the package that fits on Fiverr.</p></div>
+      <div class="step"><div class="e">💬</div><h3>Tell me about your child</h3><p>Name, age, favourite things and how they look (hair, clothes, favourite colour).</p></div>
+      <div class="step"><div class="e">🎨</div><h3>I create the cartoon</h3><p>Your child becomes the hero of a gentle little story.</p></div>
+      <div class="step"><div class="e">🎉</div><h3>Watch &amp; share</h3><p>Share it with family and friends.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="packages" class="make">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Packages</div>
+      <h2>Choose your Little Star</h2>
+      <p>Prices shown are from-prices before Fiverr fees.</p>
+    </div>
+    <div class="pk-grid">
+      <div class="pk"><span class="tier t1">Basic</span><h3>Little Star Moment</h3><div class="price">$40 <small>+ Fiverr service fee</small></div>
+        <p class="desc">30s cartoon with your child's name and a sweet message (birthday, kindness or love for Mom).</p>
+        <ul><li>30-second cartoon</li><li>2-day delivery</li><li>2 revisions</li><li>1 character</li></ul>
+        <a class="btn btn-ghost" href="https://www.fiverr.com/ayubazizi_art/create-custom-ai-3d-cartoon-videos-and-stories-for-kids" target="_blank" rel="noopener">Order on Fiverr</a></div>
+      <div class="pk"><span class="tier t2">Standard</span><h3>Little Star Story</h3><div class="price">$55 <small>+ Fiverr service fee</small></div>
+        <p class="desc">60s story with your child as the hero who learns a gentle lesson, with voice and music.</p>
+        <ul><li>60-second story</li><li>2-day delivery</li><li>3 revisions</li><li>2 characters</li></ul>
+        <a class="btn btn-main" href="https://www.fiverr.com/ayubazizi_art/create-custom-ai-3d-cartoon-videos-and-stories-for-kids" target="_blank" rel="noopener">Order on Fiverr</a></div>
+      <div class="pk"><span class="tier t3">Premium</span><h3>Little Star Adventure</h3><div class="price">$75 <small>+ Fiverr service fee</small></div>
+        <p class="desc">90s custom story with family, pets and favourite things, up to 3 characters, personal end message.</p>
+        <ul><li>90-second story</li><li>3-day delivery</li><li>4 revisions</li><li>3 characters</li></ul>
+        <a class="btn btn-ghost" href="https://www.fiverr.com/ayubazizi_art/create-custom-ai-3d-cartoon-videos-and-stories-for-kids" target="_blank" rel="noopener">Order on Fiverr</a></div>
+    </div>
+    <p class="fine">⚡ Express 1-day delivery available (+$10 Basic/Standard, +$15 Premium). Prices before Fiverr's service fee.</p>
+  </div>
+</section>
+
+<section id="gallery" class="steps">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">From the studio</div>
+      <h2>Meet the Happy Toons</h2>
+    </div>
+    <div class="gallery">
+      <img src="g1.jpg" alt="Bunny cartoon scene: 'Oh, my sweet helper. Thank you, darling.'" loading="lazy">
+      <div class="col">
+        <img src="g2.jpg" alt="Happy Toons Studio: Custom 3D Cartoon Videos for Kids, your child the star of their own story" loading="lazy">
+        <img src="g3.jpg" alt="What you get: HD quality, natural voices and music, kids' name in the story" loading="lazy">
+      </div>
+    </div>
+    <p class="note">🎬 See more on TikTok <a href="https://www.tiktok.com/@happytoonsstudiok" target="_blank" rel="noopener"><b>@happytoonsstudiok</b></a></p>
+  </div>
+</section>
+
+<section id="faq" class="why">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">FAQ</div>
+      <h2>Questions parents ask</h2>
+    </div>
+    <div class="faq">
+      <details open><summary>Is the video made with AI?</summary><p>Yes. Scenes are made with AI tools, and I write, edit and check every video by hand.</p></details>
+      <details><summary>What lessons can the story teach?</summary><p>Kindness, sharing, listening, helping at home, saying thank you, loving Mom and family, plus colours, numbers and manners.</p></details>
+      <details><summary>Will it look like my child?</summary><p>Your child becomes a cute cartoon character inspired by your description (hair, clothes, favourite colour) with your child's name. It's not a copy of a photo, so no photo is needed.</p></details>
+      <details><summary>Can I share it?</summary><p>Yes, with family and friends and on your own social accounts.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <div class="box">
+      <h2>Make your child the star! 🌟</h2>
+      <p>Packages from $40 (plus Fiverr service fee). Order securely on Fiverr.</p>
+      <div class="cta-row">
+        <a class="btn btn-main" href="https://www.fiverr.com/ayubazizi_art/create-custom-ai-3d-cartoon-videos-and-stories-for-kids" target="_blank" rel="noopener">🚀 Order on Fiverr</a>
+        <a class="btn btn-ghost" href="https://www.tiktok.com/@happytoonsstudiok" target="_blank" rel="noopener">🎵 Watch on TikTok</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="soc">
+      <a href="https://www.fiverr.com/ayubazizi_art/create-custom-ai-3d-cartoon-videos-and-stories-for-kids" target="_blank" rel="noopener">Fiverr · ayubazizi_art</a>
+      <a href="https://www.tiktok.com/@happytoonsstudiok" target="_blank" rel="noopener">TikTok · @happytoonsstudiok</a>
+    </div>
+    <p>© <span id="y">2026</span> Happy Toons Studio · Custom cartoons starring your child, with gentle life lessons.</p>
+  </div>
+</footer>
+<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+</body>
+</html>
