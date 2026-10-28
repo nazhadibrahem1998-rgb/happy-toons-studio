@@ -1,0 +1,12 @@
+Happy Toons: Toonblade
+Copyright (c) 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.
+
+The game code, artwork, design, name "Toonblade", and the "Happy Toons Studio"
+brand in this folder are the property of Nazhad Ibrahem (Happy Toons Studio).
+No part of this work may be copied, modified, redistributed, or used
+commercially without prior written permission from the copyright holder.
+
+Third-party software:
+- three.js (vendor/three.module.min.js) is copyright the three.js authors and is
+  used under the MIT License. See vendor/three.LICENSE.txt. That license applies
+  only to the three.js file, not to the rest of this work.
