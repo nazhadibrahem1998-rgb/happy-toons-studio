@@ -16,6 +16,12 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 .stats b{color:#ffd45e;font-size:18px}
 #banner{position:absolute;top:22%;width:100%;text-align:center;font-size:clamp(28px,6vw,56px);font-weight:900;color:#ffd45e;text-shadow:0 4px 0 #7a4a00,0 6px 16px #000;opacity:0;transform:scale(.8);transition:opacity .35s ease,transform .45s cubic-bezier(.2,1.6,.4,1);letter-spacing:2px;will-change:transform,opacity}
 #banner.show{opacity:1;transform:scale(1)}
+#banner.boss{color:#ffb6ff;text-shadow:0 4px 0 #6a2088,0 6px 16px #000}
+#banner.win{color:#b8ff9a;text-shadow:0 4px 0 #1e6a20,0 6px 16px #000}
+#bossBar{position:absolute;top:max(76px,calc(env(safe-area-inset-top) + 64px));left:50%;transform:translateX(-50%);width:min(480px,86vw);text-align:center;pointer-events:none}
+#bossName{font-size:clamp(13px,2.4vw,18px);font-weight:900;letter-spacing:2px;color:#ffd45e;text-shadow:0 2px 0 #6a3a00,0 3px 8px #000;margin-bottom:4px}
+#bossTrack{height:18px;background:rgba(0,0,0,.62);border:3px solid #ffd45e;border-radius:12px;overflow:hidden;box-shadow:0 4px 0 rgba(80,20,90,.45)}
+#bossFill{height:100%;width:100%;background:linear-gradient(90deg,#7a2cff,#e86bff);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
 #hint{position:absolute;bottom:10px;width:100%;text-align:center;font-size:12px;opacity:.7;text-shadow:0 1px 2px #000}
 #dmgFlash{position:absolute;inset:0;box-shadow:inset 0 0 120px rgba(255,0,0,.9);opacity:0;transition:opacity .25s}
 .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(40,20,70,.55),rgba(5,3,12,.9));z-index:20;padding:16px}
