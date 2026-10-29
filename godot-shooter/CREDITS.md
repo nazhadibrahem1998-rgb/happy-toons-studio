@@ -23,7 +23,12 @@ Poly Haven, CC0. See `assets/textures/SOURCES.txt`.
 
 ## Models
 
-No third-party character or weapon models are included. Gurut, Iron Empire soldiers, the AK-style rifle, and the M16-style rifle are built from Godot primitives for this demo. The Iron Empire banner (black geometric crown on a dark red field) is an invented emblem, not a flag or insignia of any real country.
+No third-party character or weapon models are included. Gurut, Iron Empire soldiers, the AK-style rifle, and the M16-style rifle are built from Godot primitives for this demo.
+
+## Flags
+
+- The Kurdistan flag on the main menu, on Gurut's vest, and on the southern village houses and poles is an original procedural drawing made for this demo (red, white, and green horizontal stripes with a golden 21-ray sun). It is the player's side only.
+- The Iron Empire banner (black geometric crown on a dark red field) is an invented emblem. It is not a flag or insignia of any real country. No real nation is named or shown as the enemy.
 
 ## Engine
 

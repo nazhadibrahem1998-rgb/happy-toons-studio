@@ -16,7 +16,7 @@ Open the folder in Godot 4.7 and press Play, or from a shell:
 godot --path godot-shooter
 ```
 
-Clear the mountain village of the fictional **Iron Empire** (`ئیمپراتۆریەتی ئاسن`). There are no civilians. Soldiers fall and fade; there is no gore.
+Clear the mountain village of the fictional **Iron Empire** (`ئیمپراتۆریەتی ئاسن`). There are no civilians. Soldiers fall and fade; there is no gore. The player's side flies an original drawing of the Kurdistan flag (menu, southern houses and poles, and a patch on Gurut's vest). The occupiers keep the invented Iron Empire banner. No real nation is depicted as the enemy.
 
 | Action | Default |
 | --- | --- |

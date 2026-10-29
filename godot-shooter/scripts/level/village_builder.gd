@@ -76,21 +76,21 @@ static func _terraces(parent: Node3D) -> void:
 static func _houses(parent: Node3D) -> void:
 	# floor_y, x, z, width, depth, face_dir, roof_access
 	var houses: Array = [
-		[2.4, -18.0, -8.0, 6.6, 5.6, Vector3(1, 0, 0), true],
-		[2.4, -22.0, -28.0, 7.2, 6.0, Vector3(1, 0, 0), false],
-		[3.1, 17.0, -12.0, 6.8, 5.8, Vector3(-1, 0, 0), true],
-		[3.1, 22.0, -30.0, 7.4, 6.2, Vector3(-1, 0, 0), false],
-		[0.0, -12.0, -34.0, 6.4, 5.4, Vector3(1, 0, 0), false],
-		[0.0, 10.0, -36.0, 6.8, 5.6, Vector3(-1, 0, 0), true],
-		[1.4, -10.0, -54.0, 7.2, 6.0, Vector3(0, 0, 1), false],
-		[1.4, 9.0, -53.0, 9.0, 7.0, Vector3(0, 0, 1), true],
+		[2.4, -18.0, -8.0, 6.6, 5.6, Vector3(1, 0, 0), true, true],
+		[2.4, -22.0, -28.0, 7.2, 6.0, Vector3(1, 0, 0), false, false],
+		[3.1, 17.0, -12.0, 6.8, 5.8, Vector3(-1, 0, 0), true, true],
+		[3.1, 22.0, -30.0, 7.4, 6.2, Vector3(-1, 0, 0), false, false],
+		[0.0, -12.0, -34.0, 6.4, 5.4, Vector3(1, 0, 0), false, false],
+		[0.0, 10.0, -36.0, 6.8, 5.6, Vector3(-1, 0, 0), true, false],
+		[1.4, -10.0, -54.0, 7.2, 6.0, Vector3(0, 0, 1), false, false],
+		[1.4, 9.0, -53.0, 9.0, 7.0, Vector3(0, 0, 1), true, false],
 	]
 	for i in houses.size():
 		var h: Array = houses[i]
-		_house(parent, h[0], h[1], h[2], h[3], h[4], h[5], h[6], "House%d" % i)
+		_house(parent, h[0], h[1], h[2], h[3], h[4], h[5], h[6], "House%d" % i, h[7])
 
 
-static func _house(parent: Node3D, floor_y: float, x: float, z: float, width: float, depth: float, face: Vector3, roof_access: bool, node_name: String) -> void:
+static func _house(parent: Node3D, floor_y: float, x: float, z: float, width: float, depth: float, face: Vector3, roof_access: bool, node_name: String, village_flag: bool = false) -> void:
 	var body := _body(parent, node_name)
 	body.position = Vector3(x, floor_y, z)
 	if face.length() > 0.1:
@@ -128,6 +128,8 @@ static func _house(parent: Node3D, floor_y: float, x: float, z: float, width: fl
 		_solid(body, Vector3(0.18, parapet_h, depth + 0.9), Vector3(width * 0.5 + 0.3, roof_top + parapet_h * 0.5, 0), plaster_dark_cached())
 	_cover_marker(parent, body.global_position + body.global_transform.basis * Vector3(0, 0, -depth * 0.5 - 2.2))
 	_cover_marker(parent, body.global_position + body.global_transform.basis * Vector3(width * 0.5 + 1.6, 0, 0))
+	if village_flag:
+		_village_banner(body, width, front_z, wall_h)
 
 
 static func plaster_dark_cached() -> Material:
@@ -303,6 +305,30 @@ static func _dressing(parent: Node3D) -> void:
 	_banner_pole(parent, Vector3(0, 0, -46), 1.0)
 	_banner_pole(parent, Vector3(-12.5, 2.4, -1.5), 0.85)
 	_banner_pole(parent, Vector3(14.0, 3.1, -34.0), 0.85)
+	# Player's side only: the southern approach, before the occupied north.
+	_kurdistan_pole(parent, Vector3(-3.6, 0.0, 10.2), -12.0, 1.05)
+	_kurdistan_pole(parent, Vector3(4.8, 0.0, 8.4), 11.0, 1.0)
+	_kurdistan_pole(parent, Vector3(-1.1, 0.0, 4.6), -4.0, 0.92)
+
+
+static func _village_banner(body: Node3D, width: float, front_z: float, wall_h: float) -> void:
+	var banner := Node3D.new()
+	banner.name = "VillageBanner"
+	banner.position = Vector3(-width * 0.28, wall_h - 0.46, front_z - 0.34)
+	banner.add_to_group("kurdistan_flag")
+	body.add_child(banner)
+	KurdistanFlag.make_hanging(banner, 1.24, 0.83)
+
+
+static func _kurdistan_pole(parent: Node3D, pos: Vector3, yaw_deg: float, scale: float) -> void:
+	var root := Node3D.new()
+	root.name = "KurdistanFlag"
+	root.position = pos
+	root.rotation_degrees = Vector3(0, yaw_deg, 0)
+	root.scale = Vector3.ONE * scale
+	root.add_to_group("kurdistan_flag")
+	parent.add_child(root)
+	KurdistanFlag.make_pole(root, 1.62, 1.08)
 
 
 static func _banner_pole(parent: Node3D, pos: Vector3, scale: float) -> void:

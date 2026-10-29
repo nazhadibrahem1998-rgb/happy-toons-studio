@@ -24,6 +24,7 @@ var ads_forced: bool = false
 var hit_marker: float = 0.0
 var toast: String = ""
 var toast_left: float = 0.0
+var camera_distance_override: float = -1.0
 
 var yaw: float = 0.0
 var pitch: float = 0.0
@@ -254,7 +255,10 @@ func _update_pose(delta: float) -> void:
 	if rifle.reloading:
 		weapon_mount.rotation.x += 0.4
 		weapon_mount.position.y -= 0.06
-	spring.spring_length = lerpf(3.05, 1.95, ads_weight)
+	if camera_distance_override > 0.0:
+		spring.spring_length = camera_distance_override
+	else:
+		spring.spring_length = lerpf(3.05, 1.95, ads_weight)
 	camera.fov = lerpf(72.0, 50.0, ads_weight)
 	camera.position.x = lerpf(0.68, 0.62, ads_weight)
 	camera.position.y = lerpf(0.22, 0.38, ads_weight)
