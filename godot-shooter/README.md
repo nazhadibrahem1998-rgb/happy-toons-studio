@@ -6,7 +6,9 @@ Godot **4.7.2** third-person demo. The on-screen title is the Sorani placeholder
 
 Also keep `application/config/name` in `project.godot` and the Windows export product name in sync if you rename the build.
 
-UI is Sorani Kurdish, right to left, using Vazirmatn (OFL). The main menu shows `© 2026 Nazhad Ibrahem`. Studio name is intentionally blank.
+UI is Sorani Kurdish, right to left, using Vazirmatn (OFL). The main menu shows `© 2026 Nazhad Ibrahem – Happy Toons Studio`.
+
+Difficulty defaults to **Easy** (ئاسان). Normal is in Settings. Easy enemies shoot slower, miss more, and hit for less; the player has more health and regenerates after a few seconds out of combat.
 
 ## Play (Level 1)
 

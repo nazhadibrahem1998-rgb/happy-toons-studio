@@ -12,12 +12,15 @@ var patrol_points: Array[Vector3] = []
 var health: int = 100
 var max_health: int = 100
 var alive: bool = true
-var hit_damage: int = 8
-var spread_deg: float = 4.8
-var vision_range: float = 32.0
+var hit_damage: int = 6
+var spread_deg: float = 6.5
+var spread_per_m: float = 0.34
+var move_spread: float = 5.0
+var react: float = 1.1
+var vision_range: float = 28.0
 var hear_range: float = 42.0
-var fire_min: float = 0.42
-var fire_max: float = 0.72
+var fire_min: float = 1.35
+var fire_max: float = 1.95
 var walk_speed: float = 2.25
 var combat_speed: float = 3.5
 
@@ -40,6 +43,7 @@ var _configured: bool = false
 var body_mats: Array[StandardMaterial3D] = []
 var muzzle: Marker3D
 var flash: OmniLight3D
+var _flinch_tween: Tween
 
 @onready var agent: NavigationAgent3D = $NavigationAgent3D
 @onready var visual: Node3D = $Visual
@@ -84,26 +88,23 @@ func _ready() -> void:
 
 
 func _apply_stats() -> void:
+	var profile := GameConfig.enemy_profile(variant)
+	max_health = int(profile["health"])
+	hit_damage = int(profile["damage"])
+	spread_deg = float(profile["spread"])
+	spread_per_m = float(profile["spread_per_m"])
+	move_spread = float(profile["move_spread"])
+	fire_min = float(profile["fire_min"])
+	fire_max = float(profile["fire_max"])
+	react = float(profile["react"])
+	vision_range = float(profile["vision"])
+	hear_range = 48.0 if variant == "commander" else 40.0
 	if variant == "commander":
-		max_health = 170
-		hit_damage = 11
-		spread_deg = 2.3
-		vision_range = 40.0
-		hear_range = 48.0
-		fire_min = 0.55
-		fire_max = 0.9
 		walk_speed = 2.0
-		combat_speed = 3.05
+		combat_speed = 2.7
 	else:
-		max_health = 100
-		hit_damage = 8
-		spread_deg = 4.6
-		vision_range = 32.0
-		hear_range = 42.0
-		fire_min = 0.4
-		fire_max = 0.7
-		walk_speed = 2.3
-		combat_speed = 3.55
+		walk_speed = 2.15
+		combat_speed = 3.05
 	health = max_health
 
 
@@ -131,7 +132,7 @@ func kill() -> void:
 	_die()
 
 
-func apply_damage(amount: int, _from: Vector3) -> void:
+func apply_damage(amount: int, from: Vector3, _headshot: bool = false) -> void:
 	if not alive:
 		return
 	health -= amount
@@ -139,11 +140,15 @@ func apply_damage(amount: int, _from: Vector3) -> void:
 	if health <= 0:
 		_die()
 		return
+	_flinch()
 	alert = true
 	if state != State.COMBAT:
 		var player := _player()
 		if player:
 			investigate_pos = player.global_position
+			state = State.INVESTIGATE
+		else:
+			investigate_pos = from
 			state = State.INVESTIGATE
 
 
@@ -254,7 +259,7 @@ func _combat(delta: float) -> void:
 
 func _enter_combat() -> void:
 	if state != State.COMBAT:
-		shoot_cd = randf_range(0.35, 0.75)
+		shoot_cd = react
 	state = State.COMBAT
 	alert = true
 	lost_timer = 0.0
@@ -279,29 +284,69 @@ func _can_see_player() -> bool:
 	if state == State.PATROL and not alert:
 		if forward.dot(to / dist) < cos(deg_to_rad(55.0)):
 			return false
-	var query := PhysicsRayQueryParameters3D.create(eye, target, 1 | 2)
-	query.exclude = [get_rid()]
+	# Same sample points as the shot, so they never fire at a hidden body.
+	return _visible_point(player).y > -100.0
+
+
+func _shot_origin() -> Vector3:
+	# Eyes, not the muzzle, so a rifle clipping a corner cannot start the ray
+	# on the player's side of a wall.
+	var forward := -global_transform.basis.z
+	return global_position + Vector3(0, 1.48, 0) + forward * 0.28
+
+
+func _visible_point(player: Node3D) -> Vector3:
+	var origin := _shot_origin()
+	var heights: Array[float] = [1.15, 0.82, 1.62]
+	if bool(player.call("is_crouching")):
+		heights = [0.72, 0.42, 1.02]
+	for h in heights:
+		var target := player.global_position + Vector3(0, h, 0)
+		if _ray_hits_player(origin, target, player):
+			return target
+	return Vector3(0, -9999, 0)
+
+
+func _ray_hits_player(origin: Vector3, target: Vector3, player: Node3D) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(origin, target, 1 | 2, [get_rid()])
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.hit_from_inside = false
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
-		return true
+		return false
 	return hit.collider == player
 
 
 func _shoot() -> void:
 	var player := _player()
-	if player == null or muzzle == null:
+	if player == null:
 		return
-	var origin := muzzle.global_position
-	var aim := (player.global_position + Vector3(0, 1.25, 0) - origin).normalized()
-	var spread := deg_to_rad(spread_deg)
-	aim = aim.rotated(Vector3.UP, randf_range(-spread, spread))
-	var side := aim.cross(Vector3.UP)
-	if side.length() > 0.001:
-		aim = aim.rotated(side.normalized(), randf_range(-spread * 0.6, spread * 0.6))
+	var aim_point := _visible_point(player)
+	if aim_point.y < -100.0:
+		return
+	var origin := _shot_origin()
+	var aim := (aim_point - origin).normalized()
+	var dist := origin.distance_to(aim_point)
+	var spread_deg_now := spread_deg + dist * spread_per_m
+	var body := player as CharacterBody3D
+	var speed := 0.0
+	if body:
+		speed = Vector2(body.velocity.x, body.velocity.z).length()
+	if speed > 2.4:
+		spread_deg_now += move_spread
+	var spread := deg_to_rad(spread_deg_now)
+	if spread > 0.0001:
+		aim = aim.rotated(Vector3.UP, randf_range(-spread, spread))
+		var side := aim.cross(Vector3.UP)
+		if side.length() > 0.001:
+			aim = aim.rotated(side.normalized(), randf_range(-spread * 0.65, spread * 0.65))
 	aim = aim.normalized()
 	var end := origin + aim * 70.0
-	var query := PhysicsRayQueryParameters3D.create(origin, end, 1 | 2)
-	query.exclude = [get_rid()]
+	var query := PhysicsRayQueryParameters3D.create(origin, end, 1 | 2, [get_rid()])
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.hit_from_inside = false
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	AudioDirector.play_3d("m16", origin, -3.0)
 	if flash:
@@ -407,13 +452,23 @@ func _player() -> Node3D:
 	return get_tree().get_first_node_in_group("player")
 
 
+func _flinch() -> void:
+	if visual == null:
+		return
+	if _flinch_tween and _flinch_tween.is_valid():
+		_flinch_tween.kill()
+	visual.rotation.x = -0.22
+	_flinch_tween = create_tween()
+	_flinch_tween.tween_property(visual, "rotation:x", 0.0, 0.16)
+
+
 func _hit_flash() -> void:
 	for mat in body_mats:
 		mat.emission_enabled = true
-		mat.emission = Color(0.45, 0.36, 0.26)
-		mat.emission_energy_multiplier = 0.55
+		mat.emission = Color(1.0, 0.86, 0.55)
+		mat.emission_energy_multiplier = 2.2
 	var tw := create_tween()
-	tw.tween_interval(0.07)
+	tw.tween_interval(0.09)
 	tw.tween_callback(_clear_flash)
 
 

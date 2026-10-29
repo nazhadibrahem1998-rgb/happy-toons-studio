@@ -13,6 +13,7 @@
 - جوڵان و نیشانکردن و پڕکردنەوەی تفەنگ
 - ڕووکاری کوردی سۆرانی، ڕاست بۆ چەپ
 - ئاڵای کوردستان بۆ لای یاریزان؛ ئاڵای داڕێژراوی ئیمپراتۆریەتی ئاسن بۆ دوژمن
+- سەختی بنەڕەت: ئاسان (ئاسایی لە ڕێکخستنەکان)
 
 ## کۆنتڕۆڵ
 
@@ -41,7 +42,7 @@
 
 تێبینی ناوەڕۆک: ١٦+، توندوتیژی تفەنگ بە شێوەی ڕاستەقینە، بێ خوێنڕشتن.
 
-© 2026 Nazhad Ibrahem
+© 2026 Nazhad Ibrahem – Happy Toons Studio
 
 ---
 
@@ -60,6 +61,7 @@ The on-screen title is the placeholder **ناوی یاری**. The hero is **Guru
 - Move, aim, and reload
 - Sorani Kurdish UI, right to left
 - Kurdistan flag for the player; invented Iron Empire banner for the enemy
+- Easy difficulty by default (Normal is in Settings)
 
 ## Controls
 
@@ -88,7 +90,7 @@ AI-assisted: this demo was made with AI-assisted tools.
 
 Content note: 16+, realistic-style gun violence, no gore.
 
-© 2026 Nazhad Ibrahem
+© 2026 Nazhad Ibrahem – Happy Toons Studio
 
 ---
 

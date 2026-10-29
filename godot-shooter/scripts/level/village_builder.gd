@@ -161,14 +161,14 @@ static func _stairs(parent: Node3D, origin: Vector3, inward: Vector3, count: int
 
 static func _walls_and_cover(parent: Node3D) -> void:
 	var spots: Array = [
-		[Vector3(-3.5, 0.55, -1.5), Vector3(0.45, 1.1, 3.4)],
-		[Vector3(3.6, 0.55, -12.0), Vector3(0.42, 1.1, 3.8)],
-		[Vector3(-3.2, 0.55, -22.0), Vector3(3.6, 1.1, 0.42)],
-		[Vector3(2.4, 0.5, -30.5), Vector3(0.4, 1.0, 3.0)],
-		[Vector3(-1.5, 0.55, -41.0), Vector3(3.2, 1.1, 0.4)],
-		[Vector3(4.2, 1.95, -47.5), Vector3(0.4, 1.1, 2.8)],
-		[Vector3(-14.5, 2.95, -2.0), Vector3(2.8, 1.0, 0.4)],
-		[Vector3(13.5, 3.65, -6.5), Vector3(0.4, 1.0, 2.6)],
+		[Vector3(-3.5, 0.8, -1.5), Vector3(0.45, 1.6, 3.4)],
+		[Vector3(3.6, 0.8, -12.0), Vector3(0.42, 1.6, 3.8)],
+		[Vector3(-3.2, 0.8, -22.0), Vector3(3.6, 1.6, 0.42)],
+		[Vector3(2.4, 0.8, -30.5), Vector3(0.4, 1.6, 3.0)],
+		[Vector3(-1.5, 0.8, -41.0), Vector3(3.2, 1.6, 0.4)],
+		[Vector3(4.2, 2.2, -47.5), Vector3(0.4, 1.6, 2.8)],
+		[Vector3(-14.5, 3.25, -2.0), Vector3(2.8, 1.6, 0.4)],
+		[Vector3(13.5, 3.95, -6.5), Vector3(0.4, 1.6, 2.6)],
 	]
 	for spot in spots:
 		var body := _body(parent, "LowWall")
@@ -276,7 +276,11 @@ static func _rock(parent: Node3D, pos: Vector3, scale: float) -> void:
 		mi.scale = Vector3(1.3, 0.7, 1.1)
 		mi.gi_mode = GeometryInstance3D.GI_MODE_STATIC
 		body.add_child(mi)
-		_shape_only(body, size, pos + offset)
+		# Collision matches the scaled, rotated mesh so shots cannot pass
+		# through the part of the rock the player is hiding behind.
+		var rot := Vector3(8 * i, 40 * i, 12)
+		var col_size := Vector3(size.x * 1.3, size.y * 0.7, size.x * 1.1)
+		_shape_only(body, col_size, pos + offset, rot)
 
 
 static func _dressing(parent: Node3D) -> void:
@@ -439,10 +443,11 @@ static func _visual_only(body: Node3D, size: Vector3, pos: Vector3, mat: Materia
 	body.add_child(mi)
 
 
-static func _shape_only(body: StaticBody3D, size: Vector3, pos: Vector3) -> void:
+static func _shape_only(body: StaticBody3D, size: Vector3, pos: Vector3, rot: Vector3 = Vector3.ZERO) -> void:
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = size
 	col.shape = shape
 	col.position = pos
+	col.rotation_degrees = rot
 	body.add_child(col)

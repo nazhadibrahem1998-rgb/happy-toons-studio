@@ -12,6 +12,11 @@ func _ready() -> void:
 		add_child(driver)
 	if _flag("--smoke") or OS.get_environment("SHOOTER_SMOKE") == "1":
 		_run_smoke()
+	if _flag("--combat-test") or OS.get_environment("SHOOTER_COMBAT_TEST") == "1":
+		var combat: Node = load("res://scripts/tools/combat_test.gd").new()
+		combat.name = "CombatTest"
+		combat.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(combat)
 
 
 func _flag(arg: String) -> bool:

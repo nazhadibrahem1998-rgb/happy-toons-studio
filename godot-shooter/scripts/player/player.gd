@@ -25,6 +25,8 @@ var hit_marker: float = 0.0
 var toast: String = ""
 var toast_left: float = 0.0
 var camera_distance_override: float = -1.0
+var since_hurt: float = 10.0
+var regen_bank: float = 0.0
 
 var yaw: float = 0.0
 var pitch: float = 0.0
@@ -55,8 +57,12 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(50.0)
 	motion_mode = MOTION_MODE_GROUNDED
 	_shape = shape_node.shape as CapsuleShape3D
+	max_health = GameConfig.player_max_health()
+	health = max_health
 	HumanoidFactory.build(visual, "gurut")
 	rifle.bind(self)
+	if not Settings.settings_changed.is_connected(_on_settings_changed):
+		Settings.settings_changed.connect(_on_settings_changed)
 	camera.current = true
 	camera.far = 800.0
 	camera.near = 0.06
@@ -99,6 +105,8 @@ func add_ammo(amount: int) -> bool:
 func apply_damage(amount: int, from_pos: Vector3) -> void:
 	if not alive or invulnerable:
 		return
+	since_hurt = 0.0
+	regen_bank = 0.0
 	health = maxi(0, health - amount)
 	health_changed.emit(health, max_health)
 	damaged.emit(from_pos)
@@ -140,7 +148,8 @@ func _physics_process(delta: float) -> void:
 		_apply_look(look_delta)
 	look_delta = Vector2.ZERO
 	_decay_recoil(delta)
-	hit_marker = maxf(0.0, hit_marker - delta * 4.0)
+	hit_marker = maxf(0.0, hit_marker - delta * 3.2)
+	_regen(delta)
 	if toast_left > 0.0:
 		toast_left -= delta
 		if toast_left <= 0.0:
@@ -271,6 +280,32 @@ func _can_stand() -> bool:
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
 	query.exclude = [get_rid()]
 	return space.intersect_ray(query).is_empty()
+
+
+func _on_settings_changed() -> void:
+	var ratio := 1.0
+	if max_health > 0:
+		ratio = float(health) / float(max_health)
+	max_health = GameConfig.player_max_health()
+	health = clampi(int(round(ratio * float(max_health))), 0, max_health)
+	if alive and health <= 0:
+		health = max_health
+	health_changed.emit(health, max_health)
+
+
+func _regen(delta: float) -> void:
+	if not alive or invulnerable:
+		return
+	since_hurt += delta
+	if health >= max_health or since_hurt < GameConfig.regen_delay():
+		return
+	regen_bank += GameConfig.regen_per_second() * delta
+	if regen_bank < 1.0:
+		return
+	var gained := int(regen_bank)
+	regen_bank -= float(gained)
+	health = mini(max_health, health + gained)
+	health_changed.emit(health, max_health)
 
 
 func _die() -> void:
