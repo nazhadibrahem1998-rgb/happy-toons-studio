@@ -278,6 +278,43 @@ function buildWarrior() {
   return { root, body, legs, torso, head, cape, R, L, sword, blade, shield };
 }
 
+const HERO_NAME = 'Lang';
+function makeHeroNameTag(text) {
+  const w = 256, h = 80;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.font = '800 42px system-ui, "Segoe UI", sans-serif';
+  const tw = g.measureText(text).width;
+  const bw = Math.min(w - 8, tw + 56), bh = 56;
+  const x = (w - bw) / 2, y = (h - bh) / 2, r = bh / 2;
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + bw, y, x + bw, y + bh, r);
+  g.arcTo(x + bw, y + bh, x, y + bh, r);
+  g.arcTo(x, y + bh, x, y, r);
+  g.arcTo(x, y, x + bw, y, r);
+  g.closePath();
+  g.fillStyle = 'rgba(13,10,26,0.75)';
+  g.fill();
+  g.lineWidth = 4;
+  g.strokeStyle = '#e8c25a';
+  g.stroke();
+  g.fillStyle = '#ffd45e';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, w / 2, h / 2 + 1);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sprite.scale.set(1.05, 1.05 * (h / w), 1);
+  sprite.center.set(0.5, 0);
+  sprite.position.set(0, 2.82, 0);
+  sprite.renderOrder = 5;
+  sprite.visible = false;
+  return sprite;
+}
+
 function buildEnemy(type) {
   const root = new THREE.Group(); const body = new THREE.Group(); root.add(body);
   let parts = {};
@@ -335,6 +372,8 @@ function buildEnemy(type) {
 
 // ---------- Game state ----------
 const W = buildWarrior();
+const heroTag = makeHeroNameTag(HERO_NAME);
+W.root.add(heroTag);
 scene.add(W.root);
 
 const player = {
@@ -936,6 +975,7 @@ function loop() {
 }
 function update(dt) {
   for (const t of torches) t.scale.setScalar(1 + Math.sin(performance.now() * 0.02 + t.position.x) * 0.15);
+  heroTag.visible = (state === 'play' || state === 'pause') && !player.dead;
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) banner.classList.remove('show'); }
   if (bestPending && bannerT <= 0 && state === 'play') { bestPending = false; showBanner('NEW BEST!'); sfx.heal(); }
 
