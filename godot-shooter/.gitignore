@@ -1,0 +1,16 @@
+# Godot editor cache
+.godot/
+
+# Local exports — Windows build is uploaded as a PR artifact, not committed
+builds/
+exports/
+*.exe
+*.pck
+*.zip
+*.tmp
+
+export_credentials.cfg
+
+.DS_Store
+*~
+*.translation

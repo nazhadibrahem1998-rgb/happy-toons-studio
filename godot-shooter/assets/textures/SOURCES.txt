@@ -1,0 +1,9 @@
+CC0 textures and HDRI from Poly Haven (https://polyhaven.com). No attribution required; credited anyway.
+
+- ground/  brown_mud_leaves_01 (diffuse, normal GL, roughness)  https://polyhaven.com/a/brown_mud_leaves_01
+- plaster/ plastered_wall (diffuse, normal GL, roughness)       https://polyhaven.com/a/plastered_wall
+- wood/    wood_cabinet_worn_long (diffuse, normal GL, roughness) https://polyhaven.com/a/wood_cabinet_worn_long
+- rock/    aerial_rocks_02 (diffuse, normal GL, roughness)      https://polyhaven.com/a/aerial_rocks_02
+- sky.hdr  the_sky_is_on_fire 1K HDRI                            https://polyhaven.com/a/the_sky_is_on_fire
+
+Normal maps are OpenGL-style (nor_gl). Roughness maps are present for reference; the demo materials use constant roughness plus albedo and normal.
