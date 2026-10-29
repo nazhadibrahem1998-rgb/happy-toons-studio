@@ -5,6 +5,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;background:#0d0a1a;z-index:50}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:5}
 .bars{position:absolute;top:max(12px,env(safe-area-inset-top));left:14px;width:min(320px,46vw)}
+.hero-hud{margin:0 0 3px 2px;font-size:13px;font-weight:800;letter-spacing:1.4px;line-height:1;color:#ffd45e;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.65)}
 .bar{position:relative;height:18px;background:rgba(0,0,0,.55);border:2px solid #e8c25a;border-radius:10px;overflow:hidden;margin-bottom:6px}
 .bar.st{height:10px;border-width:1px;border-color:#9fd6ff}
 .bar>div{height:100%;width:100%;transition:width .18s ease-out}
@@ -43,6 +44,9 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 .tb.on{filter:brightness(1.6);transform:scale(.94)}
 body.touch #hint{display:none}
 .pre{font-size:clamp(16px,3.5vw,24px);font-weight:800;color:#ffb7e0;letter-spacing:6px;margin-bottom:6px;text-transform:uppercase}
+.hero-intro{margin:2px 0 6px;font-size:18px;font-weight:800;letter-spacing:.4px;color:#ffd45e;text-shadow:0 2px 0 #8a5200}
+.hero-intro b{font-weight:900}
+#over h1.fallen{font-size:clamp(32px,7vw,64px);letter-spacing:1px}
 .copy{margin-top:18px;font-size:11px;opacity:.55}
 /* v2 additions */
 .stats b{display:inline-block}
