@@ -7,9 +7,21 @@ const isTouch = matchMedia('(pointer: coarse)').matches;
 let touchUI = isTouch;
 if (isTouch) document.body.classList.add('touch');
 
+// CrazyGames portal. GitHub Pages never sets this, so every portal call below is a no-op.
+const portal = (globalThis.__TOONBLADE_BUILD === 'crazygames' && globalThis.__toonbladePortal)
+  ? globalThis.__toonbladePortal
+  : null;
+function portalCall(name, ...args) {
+  if (!portal || typeof portal[name] !== 'function') return undefined;
+  try { return portal[name](...args); } catch (_) { return undefined; }
+}
+let adHold = false, adSilenced = false, adBusy = false, revivedThisRun = false;
+
 // ---------- Renderer / scene ----------
 const canvas = $('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
+// ?shot=1 is only for offline cover renders. A normal visit never sets it.
+const shotMode = new URLSearchParams(location.search).has('shot');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance', preserveDrawingBuffer: shotMode });
 const maxDPR = isTouch ? 1.5 : 2;
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, maxDPR));
 renderer.shadowMap.enabled = true;
@@ -296,7 +308,7 @@ function setMuted(m) {
 }
 let noiseBuf = null;
 function noise(dur, f0, f1, vol = 0.3, type = 'bandpass') {
-  const a = actx; if (!a || muted) return;
+  const a = actx; if (!a || muted || adHold || adSilenced) return;
   if (!noiseBuf) { noiseBuf = a.createBuffer(1, a.sampleRate, a.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
   const s = a.createBufferSource(); s.buffer = noiseBuf;
   const f = a.createBiquadFilter(); f.type = type; f.Q.value = 1.2;
@@ -305,7 +317,7 @@ function noise(dur, f0, f1, vol = 0.3, type = 'bandpass') {
   s.connect(f).connect(g).connect(master); s.start(); s.stop(a.currentTime + dur);
 }
 function tone(dur, f0, f1, vol = 0.2, type = 'square') {
-  const a = actx; if (!a || muted) return;
+  const a = actx; if (!a || muted || adHold || adSilenced) return;
   const o = a.createOscillator(); o.type = type;
   o.frequency.setValueAtTime(f0, a.currentTime); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), a.currentTime + dur);
   const g = a.createGain(); g.gain.setValueAtTime(vol, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
@@ -692,7 +704,9 @@ addEventListener('keydown', e => {
   } else if (state === 'pause') {
     // ignore the same Esc press that released pointer lock and auto-paused
     if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat && performance.now() - pausedAt > 300) togglePause();
-  } else if ((state === 'menu' || state === 'over') && e.code === 'Enter' && !e.repeat && !(document.activeElement && document.activeElement.tagName === 'BUTTON')) startGame();
+  } else if ((state === 'menu' || state === 'over') && e.code === 'Enter' && !e.repeat && !(document.activeElement && document.activeElement.tagName === 'BUTTON')) {
+    if (state === 'over') onAgain(); else startGame();
+  }
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault(); // no page scroll inside itch.io iframe
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -833,7 +847,74 @@ function resetGame() {
   uiHp = uiSt = uiWave = uiScore = uiLeft = -1;
   runStartBest = best; newBestShown = false; bestPending = false;
   clearHeld();
+  revivedThisRun = false;
+  const rv = $('reviveBtn');
+  if (rv) { rv.classList.remove('hidden'); rv.disabled = false; }
+  const note = $('reviveNote');
+  if (note) { note.classList.remove('hidden'); note.textContent = 'Watch a short ad to continue this run with half health.'; }
   camBase.copy(camera.position); camLook.set(0, 1.4, 0); // smooth glide from menu/death camera
+}
+function silenceForAd(on) {
+  adSilenced = on;
+  if (!actx || !master) return;
+  // Mute only while an ad is actually playing. Do not write the player's mute setting.
+  master.gain.setTargetAtTime(on || muted ? 0 : 1, actx.currentTime, 0.02);
+}
+function requestPortalAd(type) {
+  if (!portal || typeof portal.requestAd !== 'function') return Promise.resolve('skip');
+  adHold = true; // pause the sim as soon as the ad is requested
+  let pending;
+  try { pending = portal.requestAd(type); }
+  catch (_) { adHold = false; silenceForAd(false); return Promise.resolve('error'); }
+  return Promise.resolve(pending).then(
+    (value) => { adHold = false; silenceForAd(false); return value || 'error'; },
+    () => { adHold = false; silenceForAd(false); return 'error'; }
+  );
+}
+function applyRevive() {
+  player.hp = 60; player.st = Math.max(player.st, 50);
+  player.dead = false; player.deadT = 0; player.hurtT = 0;
+  W.body.rotation.set(0, 0, 0); W.body.position.y = 0;
+  state = 'play';
+  $('over').classList.add('hidden');
+  $('hud').classList.remove('hidden');
+  if (touchUI) $('touch').classList.remove('hidden');
+  portalCall('gameplayStart');
+  clock.getDelta();
+}
+function onAgain() {
+  if (adBusy) return;
+  if (!portal || state !== 'over') { startGame(); return; }
+  adBusy = true;
+  const again = $('againBtn'), rv = $('reviveBtn');
+  if (again) again.disabled = true;
+  if (rv) rv.disabled = true;
+  requestPortalAd('midgame').then(() => {
+    adBusy = false;
+    if (again) again.disabled = false;
+    if (rv) rv.disabled = false;
+    startGame();
+  });
+}
+function onRevive() {
+  if (!portal || adBusy || revivedThisRun || state !== 'over') return;
+  adBusy = true;
+  const again = $('againBtn'), rv = $('reviveBtn'), note = $('reviveNote');
+  if (again) again.disabled = true;
+  if (rv) rv.disabled = true;
+  requestPortalAd('rewarded').then((result) => {
+    adBusy = false;
+    if (again) again.disabled = false;
+    if (result === 'finished') {
+      revivedThisRun = true;
+      if (rv) rv.classList.add('hidden');
+      if (note) note.classList.add('hidden');
+      applyRevive();
+    } else {
+      if (rv) rv.classList.add('hidden');
+      if (note) note.textContent = 'Revive is unavailable right now. Play again to start a new run.';
+    }
+  });
 }
 // Free public counter (Abacus). No account, no API key, no cookies, and no personal data.
 // A play is one press of Play or Play Again. A view is one page load. These are event counts, not unique people.
@@ -845,6 +926,8 @@ function resetGame() {
 const PLAY_COUNTER = 'https://abacus.jasoncameron.dev';
 const PLAY_COUNTER_NS = 'nazhadibrahem1998-rgb.github.io';
 function countHit(key) {
+  // Portal build: no third-party analytics. CrazyGames forbids outside ads and extra outbound calls.
+  if (portal || shotMode) return;
   if (!PLAY_COUNTER || !PLAY_COUNTER_NS || !key) return;
   try {
     fetch(PLAY_COUNTER + '/hit/' + encodeURIComponent(PLAY_COUNTER_NS) + '/' + encodeURIComponent(key), {
@@ -856,6 +939,7 @@ function countHit(key) {
 function startGame() {
   countHit('toonblade-plays');
   audio(); resetGame(); state = 'play';
+  portalCall('gameplayStart');
   const jump = readDebugWave();
   if (jump > 1) { wave = jump - 1; waveTimer = 0.08; skipNextClearBonus = true; }
   $('start').classList.add('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden');
@@ -870,23 +954,34 @@ function gameOver() {
   $('over').classList.remove('hidden'); $('touch').classList.add('hidden');
   clearHeld();
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  portalCall('gameplayStop');
 }
-function togglePause() {
+function togglePause(reason) {
   if (state === 'play') {
     state = 'pause'; pausedAt = performance.now(); clearHeld();
     $('pause').classList.remove('hidden');
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    // CrazyGames already tracks tab focus. Only report a pause the player chose.
+    if (reason !== 'visibility') portalCall('gameplayStop');
   } else if (state === 'pause') {
     state = 'play'; $('pause').classList.add('hidden'); clock.getDelta();
     if (!touchUI) requestLock(); // called from a click/key gesture
+    if (reason !== 'visibility') portalCall('gameplayStart');
   }
 }
 $('playBtn').addEventListener('click', startGame);
-$('againBtn').addEventListener('click', startGame);
+$('againBtn').addEventListener('click', onAgain);
+const reviveBtn = $('reviveBtn');
+if (reviveBtn) reviveBtn.addEventListener('click', (e) => { e.stopPropagation(); onRevive(); });
 // click / tap anywhere on the pause screen (incl. RESUME) resumes
 $('pause').addEventListener('click', () => { if (state === 'pause' && performance.now() - pausedAt > 150) togglePause(); });
 $('pMute').addEventListener('click', e => { e.stopPropagation(); audio(); setMuted(!muted); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { saveBest(); if (state === 'play') togglePause(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { saveBest(); if (state === 'play') togglePause('visibility'); } });
+if (portal) {
+  document.addEventListener('touchend', () => { if (actx && actx.state === 'suspended') actx.resume(); }, { passive: true });
+  portal.onAdStarted = () => silenceForAd(true);
+  portal.onAdEnded = () => silenceForAd(false);
+}
 addEventListener('pagehide', saveBest);
 updateMuteUI(); showStartBest();
 
@@ -1052,6 +1147,7 @@ function hitEnemy(e, dmg, nx, nz) {
       shake = Math.max(shake, 0.45);
       burst(tmpV.set(ep.x, 1.6, ep.z), 0xffd45e, 24, 8);
       burst(tmpV.set(ep.x, 1.1, ep.z), 0xfff6c8, 14, 6);
+      portalCall('happytime');
     } else sfx.die();
     score += pts; checkBest();
     const deathCol = e.type === 'skeleton' || e.type === 'king' ? 0xece4cf : e.type === 'brute' ? 0x7a5aa8 : e.type === 'archer' ? 0x3faf6a : 0x6cbf3a;
@@ -1392,7 +1488,7 @@ function loop() {
   renderer.render(scene, camera);
 }
 function update(dt) {
-  if (debugFreeze) return;
+  if (debugFreeze || adHold) return;
   for (const t of torches) t.scale.setScalar(1 + Math.sin(performance.now() * 0.02 + t.position.x) * 0.15);
   heroTag.visible = (state === 'play' || state === 'pause') && !player.dead;
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) banner.classList.remove('show'); }
@@ -1455,5 +1551,7 @@ window.__game = {
 };
 
 $('loading').remove();
+portalCall('loadingStop');
+portalCall('hideOutbound');
 countHit('toonblade-views');
 loop();
