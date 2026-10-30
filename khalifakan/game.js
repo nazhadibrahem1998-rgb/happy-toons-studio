@@ -5,6 +5,44 @@ const $ = id => document.getElementById(id);
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (isTouch) document.body.classList.add('touch');
 const Q = new URLSearchParams(location.search);
+const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+function fullscreenSupported() {
+  if (isIOSDevice) return false;
+  const el = document.documentElement;
+  return typeof el.requestFullscreen === 'function' || typeof el.webkitRequestFullscreen === 'function';
+}
+// Pinch / double-tap zoom. iOS Safari still zooms buttons when user-scalable=no.
+(function installZoomLock() {
+  const block = (e) => { if (e.cancelable) e.preventDefault(); };
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend', 'touchmove', 'dblclick']) {
+    document.addEventListener(type, block, { passive: false });
+  }
+  document.addEventListener('touchend', (e) => {
+    const t = e.target;
+    if (t && t.closest && t.closest('button') && e.cancelable) e.preventDefault();
+  }, { passive: false });
+})();
+(function setupIosHint() {
+  const el = $('iosHint');
+  if (!el) return;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem('khalifakan-ios-a2hs') === '1'; } catch (err) {}
+  const inSafariTab = typeof navigator.standalone === 'boolean' && navigator.standalone === false;
+  const installed = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+  if (!inSafariTab || installed || dismissed) return;
+  el.classList.remove('hidden');
+  const dismiss = () => {
+    el.classList.add('hidden');
+    try { localStorage.setItem('khalifakan-ios-a2hs', '1'); } catch (err) {}
+  };
+  const btn = $('iosHintDismiss');
+  if (btn) btn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); dismiss(); });
+})();
+if ('serviceWorker' in navigator) {
+  const base = new URL('./', import.meta.url);
+  navigator.serviceWorker.register(new URL('sw.js', base).href, { scope: base.href }).catch(() => {});
+}
+if ($('bFull')) { if (fullscreenSupported()) $('bFull').classList.remove('hidden'); else $('bFull').classList.add('hidden'); }
 
 // ---------- utils ----------
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -1107,17 +1145,51 @@ function togglePause(force) {
 }
 function toMenu() { clearAll(); player.reset(); player.pos.set(0, 0, 0); game.state = 'menu'; Audio.music(false); applyLook(0); ['end', 'pause', 'hud', 'touch'].forEach(id => $(id).classList.add('hidden')); $('start').classList.remove('hidden'); }
 async function goFull() {
-  if (!isTouch || Q.has('nofs')) return;
-  try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) { }
-  try { await screen.orientation.lock('landscape'); } catch (e) { }
+  if (!fullscreenSupported() || Q.has('nofs')) return;
+  const el = document.documentElement;
+  try {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }
+  } catch (e) {}
+  try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); } catch (e) {}
 }
-$('playBtn').addEventListener('click', () => { goFull(); startGame(+(Q.get('stage') || 0)); });
-$('resumeBtn').addEventListener('click', () => togglePause());
-$('restartBtn').addEventListener('click', () => startGame(0));
-$('menuBtn').addEventListener('click', toMenu);
-$('againBtn').addEventListener('click', () => { goFull(); startGame(0); });
-$('endMenuBtn').addEventListener('click', toMenu);
-const portrait = () => isTouch && innerHeight > innerWidth;
+function toggleFull() {
+  if (!fullscreenSupported() || Q.has('nofs')) return;
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) Promise.resolve(exit.call(document)).catch(() => {});
+    return;
+  }
+  goFull();
+}
+function syncFullBtn() {
+  const b = $('bFull');
+  if (!b) return;
+  b.setAttribute('aria-pressed', (document.fullscreenElement || document.webkitFullscreenElement) ? 'true' : 'false');
+}
+function onTap(el, fn) {
+  if (!el) return;
+  let lock = 0;
+  const run = () => { const now = performance.now(); if (now - lock < 400) return; lock = now; fn(); };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    run();
+    if (e.cancelable) e.preventDefault();
+  });
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); run(); } });
+}
+onTap($('playBtn'), () => { goFull(); startGame(+(Q.get('stage') || 0)); });
+onTap($('resumeBtn'), () => togglePause());
+onTap($('restartBtn'), () => startGame(0));
+onTap($('menuBtn'), () => toMenu());
+onTap($('againBtn'), () => { goFull(); startGame(0); });
+onTap($('endMenuBtn'), () => toMenu());
+onTap($('bFull'), () => toggleFull());
+document.addEventListener('fullscreenchange', syncFullBtn);
+document.addEventListener('webkitfullscreenchange', syncFullBtn);
+const portrait = () => { if (!isTouch) return false; const box = viewBox(); return box.h > box.w; };
 document.addEventListener('visibilitychange', () => { if (document.hidden && (game.state === 'play' || game.state === 'cine')) togglePause(); });
 
 // ---------- camera ----------
@@ -1159,11 +1231,28 @@ function updateCamera(dt, t) {
 }
 
 // ---------- loop ----------
+function viewBox() {
+  const vv = window.visualViewport;
+  if (!vv) return { w: innerWidth, h: innerHeight, top: 0, left: 0 };
+  return { w: vv.width, h: vv.height, top: vv.offsetTop, left: vv.offsetLeft };
+}
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
+  const box = viewBox();
+  const w = Math.max(1, Math.round(box.w)), h = Math.max(1, Math.round(box.h));
+  const root = document.documentElement;
+  root.style.setProperty('--vv-w', w + 'px');
+  root.style.setProperty('--vv-h', h + 'px');
+  root.style.setProperty('--vv-top', Math.round(box.top) + 'px');
+  root.style.setProperty('--vv-left', Math.round(box.left) + 'px');
+  renderer.setSize(w, h, false); camera.aspect = w / h;
   camera.fov = w / h < 1.5 ? 64 : 58; camera.updateProjectionMatrix();
 }
-addEventListener('resize', resize); addEventListener('orientationchange', () => setTimeout(resize, 200));
+addEventListener('resize', resize);
+addEventListener('orientationchange', () => { setTimeout(resize, 60); setTimeout(resize, 280); });
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', resize);
+  visualViewport.addEventListener('scroll', resize);
+}
 let last = performance.now(), perfAcc = 0, perfN = 0, perfLevel = 0, uiAcc = 0;
 function frame(now) {
   requestAnimationFrame(frame);

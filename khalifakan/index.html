@@ -3,15 +3,31 @@
 <html lang="ckb" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#120d0a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="خەلیفەکان">
 <meta name="description" content="خەلیفەکان — یارییەکی کوردیی سێ‌دی بۆ مۆبایل. Happy Toons Studio">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
 <link rel="preload" href="fonts/kurdish-bold.woff2" as="font" type="font/woff2" crossorigin>
 <title>خەلیفەکان — Happy Toons Studio</title>
 <link rel="stylesheet" href="style.css">
+<script>
+(function () {
+  function block(e) { if (e.cancelable) e.preventDefault(); }
+  ['gesturestart', 'gesturechange', 'gestureend', 'touchmove', 'dblclick'].forEach(function (type) {
+    document.addEventListener(type, block, { passive: false });
+  });
+  document.addEventListener('touchend', function (e) {
+    var n = e.target && e.target.closest && e.target.closest('button');
+    if (n && e.cancelable) e.preventDefault();
+  }, { passive: false });
+})();
+</script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -36,23 +52,28 @@
   <div id="stickZone"></div>
   <div id="stick"><div id="knob"></div></div>
   <div id="btns">
-    <button id="bAtk" class="tb big"><span class="ic">⚔</span><span class="lb">لێدان</span></button>
-    <button id="bHeavy" class="tb"><span class="ic">✦</span><span class="lb">قورس</span></button>
-    <button id="bDodge" class="tb"><span class="ic">⟲</span><span class="lb">خۆلادان</span></button>
-    <button id="bJump" class="tb"><span class="ic">⤒</span><span class="lb">بازدان</span></button>
+    <button type="button" id="bAtk" class="tb big"><span class="ic">⚔</span><span class="lb">لێدان</span></button>
+    <button type="button" id="bHeavy" class="tb"><span class="ic">✦</span><span class="lb">قورس</span></button>
+    <button type="button" id="bDodge" class="tb"><span class="ic">⟲</span><span class="lb">خۆلادان</span></button>
+    <button type="button" id="bJump" class="tb"><span class="ic">⤒</span><span class="lb">بازدان</span></button>
   </div>
   <div id="topBtns">
-    <button id="bPause" class="tb sm" aria-label="وەستان">❚❚</button>
-    <button id="bMute" class="tb sm" aria-label="دەنگ">♪</button>
+    <button type="button" id="bFull" class="tb sm hidden" aria-label="پڕشاشە" aria-pressed="false">⛶</button>
+    <button type="button" id="bPause" class="tb sm" aria-label="وەستان">❚❚</button>
+    <button type="button" id="bMute" class="tb sm" aria-label="دەنگ">♪</button>
   </div>
 </div>
 
 <div id="start" class="screen">
   <div class="panel">
+    <div id="iosHint" class="hidden">
+      <p>بۆ یاریکردن بە شاشەی تەواو، دوگمەی Share دابگرە، پاشان «Add to Home Screen».</p>
+      <button type="button" id="iosHintDismiss">باشە</button>
+    </div>
     <p class="pre">Happy Toons Studio پێشکەش دەکات</p>
     <h1>خەلیفەکان</h1>
     <p class="sub">گڕوت، پاڵەوانی چیاکان، دەبێت گوندەکەی لە دەستی خەلیفەکان ڕزگار بکات. دە جەنگاوەری خەلیفەکان و سەرۆکەکەیان <b>میران</b> چاوەڕێی دەکەن.</p>
-    <button id="playBtn" class="btn">▶ دەستپێکردن</button>
+    <button type="button" id="playBtn" class="btn">▶ دەستپێکردن</button>
     <div class="controls">
       <div>مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن · ڕاکێشانی لای ڕاست بۆ کامێرا · دوگمەکان بۆ لێدان، لێدانی قورس، خۆلادان و بازدان</div>
       <div class="kb">کیبۆرد: WASD ڕۆیشتن · ماوس کامێرا · J لێدان · K قورس · Shift خۆلادان · Space بازدان · P وەستان</div>
@@ -64,9 +85,9 @@
 <div id="pause" class="screen hidden">
   <div class="panel">
     <h2>وەستاندن</h2>
-    <button id="resumeBtn" class="btn">▶ بەردەوامبوون</button>
-    <button id="restartBtn" class="btn alt">↻ دەستپێکردنەوە</button>
-    <button id="menuBtn" class="btn alt">⌂ مێنیو</button>
+    <button type="button" id="resumeBtn" class="btn">▶ بەردەوامبوون</button>
+    <button type="button" id="restartBtn" class="btn alt">↻ دەستپێکردنەوە</button>
+    <button type="button" id="menuBtn" class="btn alt">⌂ مێنیو</button>
   </div>
 </div>
 
@@ -75,8 +96,8 @@
     <h2 id="endTitle"></h2>
     <p id="endSub" class="sub"></p>
     <p id="endStats" class="sub"></p>
-    <button id="againBtn" class="btn">↻ دووبارە</button>
-    <button id="endMenuBtn" class="btn alt">⌂ مێنیو</button>
+    <button type="button" id="againBtn" class="btn">↻ دووبارە</button>
+    <button type="button" id="endMenuBtn" class="btn alt">⌂ مێنیو</button>
   </div>
 </div>
 
