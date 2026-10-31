@@ -571,6 +571,78 @@ test('leave dialog Stay fits at 750x342', async ({ page }) => {
   assertClean(errors);
 });
 
+test('portrait HUD and controls fit, and the rotate tip can be dismissed', async ({ page }, info) => {
+  const errors = await openGame(page);
+  const phone = info.project.name !== 'desktop';
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (info.project.name === 'webkit') {
+    await page.screenshot({ path: `${ART}/screenshot_portrait_menu.png` });
+  }
+  await page.click('#playBtn');
+  const sizes = [[375, 667], [390, 844]];
+  for (const [width, height] of sizes) {
+    await page.setViewportSize({ width, height });
+    await expect(page.locator('#hud')).toBeVisible();
+    const floor = await page.locator('#floorLabel').boundingBox();
+    const gems = await page.locator('#gemBtn').boundingBox();
+    const pause = await page.locator('#pauseBtn').boundingBox();
+    const place = await page.locator('#placeRow').boundingBox();
+    const mid = (box) => box.y + box.height / 2;
+    for (const box of [floor, gems, pause, place]) {
+      expect(box, `${width}x${height}`).toBeTruthy();
+      expect(box.x, `${width}x${height}`).toBeGreaterThanOrEqual(-1);
+      expect(box.x + box.width, `${width}x${height}`).toBeLessThanOrEqual(width + 1);
+      expect(Math.abs(mid(box) - mid(floor)), `${width}x${height}`).toBeLessThan(10);
+    }
+    const hud = await page.locator('#hud').boundingBox();
+    expect(hud.height, `${width}x${height}`).toBeLessThan(52);
+    if (phone) {
+      await expect(page.locator('#rotate')).toBeVisible();
+      const tip = await page.locator('#rotate').boundingBox();
+      expect(tip.y).toBeGreaterThanOrEqual(hud.y + hud.height - 1);
+      const stick = await page.locator('#stickZone').boundingBox();
+      const jump = await page.locator('#jumpBtn').boundingBox();
+      expect(stick.width).toBeGreaterThanOrEqual(96);
+      expect(jump.width).toBeGreaterThanOrEqual(64);
+      expect(stick.y + stick.height).toBeLessThanOrEqual(height);
+      expect(jump.y + jump.height).toBeLessThanOrEqual(height);
+      expect(jump.x).toBeGreaterThan(stick.x + stick.width + 8);
+      expect(stick.x).toBeLessThan(width / 2);
+      expect(jump.x).toBeGreaterThan(width / 2);
+    }
+    if (info.project.name === 'webkit' && width === 390) {
+      await page.screenshot({ path: `${ART}/screenshot_portrait_play.png` });
+    }
+  }
+  if (phone) {
+    await page.click('#rotateDismiss');
+    await expect(page.locator('#rotate')).toBeHidden();
+    expect(await page.evaluate(() => localStorage.getItem('bt-rotate-ok'))).toBe('1');
+    await page.setViewportSize({ width: 375, height: 667 });
+    await expect(page.locator('#rotate')).toBeHidden();
+  }
+  if (info.project.name === 'webkit') {
+    const hint = page.locator('#iosHintText');
+    const english = await hint.evaluate((el) => el.textContent);
+    expect(english).toContain('Add to Home Screen');
+    expect(english).not.toMatch(/شاش/);
+    await page.click('#pauseBtn');
+    await page.click('#pauseMenu');
+    await page.click('#langCkb');
+    await expect(hint).toHaveAttribute('dir', 'rtl');
+    const sorani = await hint.evaluate((el) => el.textContent);
+    expect(sorani).toContain('شاشەی تەواو');
+    expect(sorani).not.toContain('Full screen:');
+  }
+  const lines = await page.locator('#rotate p').evaluateAll((els) => els.map((el) => ({
+    dir: el.getAttribute('dir'),
+    text: el.textContent,
+  })));
+  expect(lines.map((line) => line.dir)).toEqual(['ltr', 'rtl']);
+  expect(lines.some((line) => line.text.includes('·'))).toBe(false);
+  assertClean(errors);
+});
+
 test('fps stays usable with 4x CPU throttle', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'CDP throttling is Chromium desktop');
   const errors = await openGame(page);

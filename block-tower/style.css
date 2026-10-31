@@ -160,8 +160,7 @@ p { margin: 0 0 8px; line-height: 1.45; }
   font-size: 0.75rem;
   line-height: 1.25;
 }
-.ios-line p { margin: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
-.ios-en, .ios-ckb { display: block; unicode-bidi: isolate; }
+.ios-line p { margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ios-line button {
   flex: none;
   width: 28px;
@@ -208,10 +207,11 @@ textarea {
 #hud {
   position: fixed;
   z-index: 3;
-  inset: calc(8px + var(--safe-t)) calc(10px + var(--safe-r)) auto calc(10px + var(--safe-l));
+  inset: calc(8px + var(--safe-t)) calc(8px + var(--safe-r)) auto calc(8px + var(--safe-l));
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 6px;
   pointer-events: none;
 }
 #hud button { pointer-events: auto; }
@@ -291,21 +291,53 @@ textarea {
 #rotate {
   display: none;
   position: fixed;
-  z-index: 6;
-  top: calc(8px + var(--safe-t));
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(420px, calc(100% - 24px));
+  z-index: 4;
+  top: calc(58px + var(--safe-t));
+  left: calc(8px + var(--safe-l));
+  right: calc(8px + var(--safe-r));
+  width: auto;
+  max-width: 420px;
+  margin: 0 auto;
   pointer-events: none;
   background: rgba(7, 8, 18, 0.92);
   border: 1px solid var(--cyan);
-  border-radius: 16px;
-  text-align: center;
-  padding: 10px 14px;
+  border-radius: 12px;
+  padding: 4px 6px 4px 8px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
-#rotate.show { display: block; }
-#rotate .ph { font-size: 1.4rem; margin: 0; }
-#rotate p { margin: 2px 0; }
+#rotate.show { display: flex; }
+#rotate .rotate-copy { flex: 1; min-width: 0; }
+#rotate p { margin: 0; }
+#rotate button {
+  pointer-events: auto;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--cyan);
+  background: transparent;
+  color: var(--cyan);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+@media (max-width: 430px) {
+  #hud { align-items: center; flex-wrap: nowrap; }
+  .hud-top { flex-direction: row; align-items: center; gap: 6px; min-width: 0; }
+  .hud-top > div:first-child { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  #floorName, #timerLabel { display: none; }
+  #floorLabel, #placeRow, #timer { font-size: 0.78rem; white-space: nowrap; }
+  #placeRow { margin: 0; }
+  #timer { font-size: 0.78rem; }
+  .hud-actions { gap: 3px; flex: none; }
+  .hud-actions button, #gemBtn { min-width: 32px; min-height: 32px; padding: 0 4px; font-size: 0.85rem; }
+  #stickZone { width: 108px; height: 108px; left: calc(10px + var(--safe-l)); bottom: calc(12px + var(--safe-b)); }
+  #jumpBtn { width: 72px; height: 72px; right: calc(12px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); font-size: 0.82rem; }
+  #dashBtn { width: 54px; height: 54px; right: calc(90px + var(--safe-r)); bottom: calc(24px + var(--safe-b)); }
+}
 #flash {
   position: fixed;
   inset: 0;

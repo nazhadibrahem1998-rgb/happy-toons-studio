@@ -625,7 +625,29 @@ function resize() {
 function updateRotate() {
   const portrait = window.innerHeight > window.innerWidth + 40;
   const phone = mobileUI() && Math.min(window.innerWidth, window.innerHeight) < 920;
-  ui.rotate.classList.toggle('show', portrait && phone && mode === 'play');
+  const show = portrait && phone && mode === 'play' && !localStorage.getItem('bt-rotate-ok');
+  ui.rotate.classList.toggle('show', show);
+}
+
+function refreshIosHint() {
+  const el = document.getElementById('iosHintText');
+  if (!el) return;
+  el.replaceChildren();
+  if (lang === 'ckb') {
+    el.dir = 'rtl';
+    el.lang = 'ckb';
+    const share = document.createElement('bdi');
+    share.dir = 'ltr';
+    share.textContent = 'Share';
+    const add = document.createElement('bdi');
+    add.dir = 'ltr';
+    add.textContent = 'Add to Home Screen';
+    el.append('شاشەی تەواو: ', share, '، پاشان ', add);
+  } else {
+    el.dir = 'ltr';
+    el.lang = 'en';
+    el.textContent = 'Full screen: Share, then Add to Home Screen.';
+  }
 }
 
 function renderSwatches() {
@@ -707,6 +729,7 @@ function applyLang(next) {
   if (document.getElementById('finish') && !document.getElementById('finish').hidden) fillResults();
   if (ui.fbText && ui.fbCount) ui.fbCount.textContent = formatCount(ui.fbText.value.length);
   refreshRivalNames();
+  refreshIosHint();
 }
 
 function updateRecords() {
@@ -1165,6 +1188,10 @@ ui.langEn.addEventListener('click', () => applyLang('en'));
 document.getElementById('iosDismiss').addEventListener('click', () => {
   localStorage.setItem('bt-ios-ok', '1');
   document.getElementById('iosHint').hidden = true;
+});
+document.getElementById('rotateDismiss').addEventListener('click', () => {
+  localStorage.setItem('bt-rotate-ok', '1');
+  updateRotate();
 });
 
 document.getElementById('community').addEventListener('click', (e) => {

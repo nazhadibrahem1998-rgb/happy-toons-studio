@@ -78,19 +78,17 @@
 </div>
 
 <div id="rotate" aria-hidden="true">
-  <div class="ph" aria-hidden="true">📱</div>
-  <p>Turn your phone sideways</p>
-  <p dir="rtl">مۆبایلەکەت بە پانی بسوڕێنە</p>
-  <p class="small">This game is made for a wide screen · یارییەکە بۆ شاشەی پان دروستکراوە</p>
+  <div class="rotate-copy">
+    <p dir="ltr" lang="en">This game is made for a wide screen</p>
+    <p dir="rtl" lang="ckb">یارییەکە بۆ شاشەی پان دروستکراوە</p>
+  </div>
+  <button type="button" id="rotateDismiss" aria-label="Dismiss">×</button>
 </div>
 
 <div id="menu" class="screen">
   <div class="panel">
     <div id="iosHint" class="ios-line" hidden>
-      <p>
-        <span class="ios-en" dir="ltr" lang="en">Full screen: Share, then Add to Home Screen.</span>
-        <span class="ios-ckb" dir="rtl" lang="ckb">شاشەی تەواو: <bdi dir="ltr">Share</bdi>، پاشان <bdi dir="ltr">Add to Home Screen</bdi></span>
-      </p>
+      <p id="iosHintText" dir="ltr" lang="en">Full screen: Share, then Add to Home Screen.</p>
       <button type="button" id="iosDismiss" aria-label="Dismiss">×</button>
     </div>
     <p class="studio">Happy Toons Studio</p>
@@ -148,8 +146,8 @@
       <p dir="rtl">چۆن یاری دەکرێت</p>
       <p>Keyboard: WASD or arrows to move, Space to jump, drag the mouse to look. Click to lock the pointer. P or Esc to pause.</p>
       <p dir="rtl">کیبۆرد: WASD یان تیرەکان بۆ ڕۆیشتن، Space بۆ بازدان، ماوس ڕابکێشە بۆ کامێرا. کلیک قفڵی نیشاندەرە. P یان Esc بۆ وەستان.</p>
-      <p>Phone: left joystick to move, jump button on the right, drag on the screen to look. Play in landscape.</p>
-      <p dir="rtl">مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن، دوگمەی بازدان لە ڕاست، ڕاکێشانی سەر شاشە بۆ کامێرا. یارییەکە بە پانییە.</p>
+      <p>Phone: left joystick to move, jump button on the right, drag on the screen to look. Portrait and landscape both work.</p>
+      <p dir="rtl">مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن، دوگمەی بازدان لە ڕاست، ڕاکێشانی سەر شاشە بۆ کامێرا. ستوونی و پانی هەردووکیان دەکرێن.</p>
     </section>
     <section>
       <h3>FAQ</h3>
