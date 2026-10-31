@@ -1,0 +1,12 @@
+{
+  "name": "block-tower",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sim": "node sim-check.js && node feedback-worker/worker-check.js",
+    "test": "node sim-check.js && node feedback-worker/worker-check.js && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}

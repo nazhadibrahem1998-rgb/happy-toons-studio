@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Block Tower">
+  <rect width="800" height="450" fill="#070812"/>
+  <g fill="#141824">
+    <rect x="40" y="180" width="46" height="220"/>
+    <rect x="100" y="120" width="38" height="280"/>
+    <rect x="620" y="150" width="50" height="250"/>
+    <rect x="690" y="90" width="40" height="310"/>
+    <rect x="750" y="200" width="30" height="200"/>
+  </g>
+  <g>
+    <rect x="118" y="210" width="8" height="22" fill="#3ef0ff"/>
+    <rect x="708" y="160" width="8" height="18" fill="#ff3ec8"/>
+    <rect x="640" y="240" width="10" height="16" fill="#c6ff4a"/>
+  </g>
+  <rect x="392" y="70" width="16" height="320" fill="#1c2233"/>
+  <rect x="300" y="330" width="200" height="28" fill="#123844" stroke="#3ef0ff" stroke-width="3"/>
+  <rect x="330" y="270" width="150" height="26" fill="#3a1632" stroke="#ff3ec8" stroke-width="3"/>
+  <rect x="300" y="210" width="190" height="26" fill="#243214" stroke="#c6ff4a" stroke-width="3"/>
+  <rect x="360" y="150" width="90" height="24" fill="#3a3014" stroke="#ffd25a" stroke-width="3"/>
+  <rect x="430" y="338" width="22" height="28" fill="#d5e4f2"/>
+  <rect x="434" y="328" width="14" height="12" fill="#3ef0ff"/>
+</svg>
