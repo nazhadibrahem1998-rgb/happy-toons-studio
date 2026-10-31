@@ -303,7 +303,7 @@ function collectGems() {
   if (!picked) return;
   saveProgress(progress);
   updateGemButton();
-  toast(lang === 'en' ? 'Gem' : 'گەوهەر');
+  toast(lang === 'en' ? 'Gems +1' : 'گەوهەر +١');
 }
 
 function updateGemButton() {
@@ -322,9 +322,9 @@ function renderUpgrades() {
   const list = document.getElementById('upgradeList');
   const line = document.getElementById('gemLine');
   if (!list || !line) return;
-  line.textContent = lang === 'en'
-    ? `Gems: ${progress.gems}`
-    : `گەوهەر: ${progress.gems}`;
+    line.textContent = lang === 'en'
+      ? `Gems: ${progress.gems}`
+      : `${t(lang, 'gems')}: ${progress.gems}`;
   list.replaceChildren();
   for (const item of UPGRADES) {
     const rank = progress[item.id] || 0;
@@ -341,12 +341,16 @@ function renderUpgrades() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn';
+    const rankLine = document.createElement('p');
+    rankLine.className = 'rank';
     if (rank >= item.max) {
       btn.disabled = true;
-      btn.textContent = lang === 'en' ? 'Owned' : 'کراوە';
+      btn.textContent = t(lang, 'maxed');
+      rankLine.textContent = t(lang, 'maxed');
     } else {
       const cost = upgradeCost(progress, item.id);
-      btn.textContent = `${lang === 'en' ? 'Buy' : 'کڕین'} · ${cost}`;
+      rankLine.textContent = `${t(lang, 'rank')} ${rank}/${item.max} · ${t(lang, 'nextCost')} ${cost} ${t(lang, 'gems')}`;
+      btn.textContent = `${lang === 'en' ? 'Buy' : 'کڕین'} · ${cost} ${t(lang, 'gems')}`;
       btn.disabled = progress.gems < cost;
       btn.addEventListener('click', () => {
         if (!buyUpgrade(progress, item.id)) return;
@@ -356,7 +360,7 @@ function renderUpgrades() {
         renderUpgrades();
       });
     }
-    card.append(title, sub, detail, btn);
+    card.append(title, sub, rankLine, detail, btn);
     list.appendChild(card);
   }
 }
@@ -411,21 +415,35 @@ const rivalGeo = {
 const rivalDark = new THREE.MeshLambertMaterial({ color: 0x141820 });
 const rivalMeshes = [];
 
-function nameSprite(label, css) {
-  const board = document.createElement('canvas');
-  board.width = 128;
-  board.height = 32;
-  const ctx = board.getContext('2d');
-  ctx.clearRect(0, 0, 128, 32);
-  ctx.fillStyle = css;
-  ctx.font = '700 22px Segoe UI, Tahoma, sans-serif';
+const rivalNamePlates = [];
+
+function drawRivalName(plate) {
+  const ctx = plate.ctx;
+  ctx.clearRect(0, 0, plate.board.width, plate.board.height);
+  ctx.fillStyle = plate.css;
+  ctx.font = "700 28px 'HT Kurdish', 'Segoe UI', Tahoma, sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, 64, 16);
+  ctx.fillText(lang === 'ckb' ? plate.ckb : plate.en, plate.board.width / 2, plate.board.height / 2);
+  plate.tex.needsUpdate = true;
+}
+
+function refreshRivalNames() {
+  rivalNamePlates.forEach(drawRivalName);
+}
+
+function nameSprite(en, ckb, css) {
+  const board = document.createElement('canvas');
+  board.width = 256;
+  board.height = 64;
+  const ctx = board.getContext('2d');
   const tex = new THREE.CanvasTexture(board);
   tex.generateMipmaps = false;
   tex.minFilter = THREE.LinearFilter;
   tex.magFilter = THREE.LinearFilter;
+  const plate = { board, ctx, tex, css, en, ckb };
+  rivalNamePlates.push(plate);
+  drawRivalName(plate);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
   sprite.position.y = 2.05;
   sprite.scale.set(1.8, 0.46, 1);
@@ -433,7 +451,7 @@ function nameSprite(label, css) {
   return sprite;
 }
 
-function makeRivalMesh(color, label) {
+function makeRivalMesh(color, en, ckb) {
   const group = new THREE.Group();
   const css = `#${color.toString(16).padStart(6, '0')}`;
   const mat = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.22 });
@@ -449,7 +467,7 @@ function makeRivalMesh(color, label) {
   legL.position.set(-0.14, 0.26, 0);
   const legR = new THREE.Mesh(rivalGeo.leg, rivalDark);
   legR.position.set(0.14, 0.26, 0);
-  group.add(torso, head, armL, armR, legL, legR, nameSprite(label, css));
+  group.add(torso, head, armL, armR, legL, legR, nameSprite(en, ckb, css));
   group.traverse((obj) => { obj.frustumCulled = false; });
   group.visible = false;
   scene.add(group);
@@ -465,10 +483,10 @@ if (renderer) {
   buildGems(world.ents);
   player = makePlayer();
   for (const who of [
-    { color: 0xff3ec8, en: 'Nari' },
-    { color: 0xc6ff4a, en: 'Peko' },
-    { color: 0x7aa2ff, en: 'Vilo' },
-  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en));
+    { color: 0xff3ec8, en: 'Nari', ckb: 'ناری' },
+    { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ' },
+    { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ' },
+  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb));
   buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
   applyQuality();
@@ -644,9 +662,24 @@ function renderLinks() {
   }
 }
 
+function formatCount(n) {
+  const text = `${n} / 500`;
+  if (lang !== 'ckb') return text;
+  return text.replace(/[0-9]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'[digit]);
+}
+
+function refreshRunButtons() {
+  const going = !!(world && world.playTime > 0.25 && !world.won);
+  const play = document.getElementById('playBtn');
+  const fresh = document.getElementById('newRunBtn');
+  if (play) play.setAttribute('data-i18n', going ? 'continue' : 'play');
+  if (fresh) fresh.hidden = !going;
+}
+
 function applyLang(next) {
   lang = next === 'en' ? 'en' : 'ckb';
   localStorage.setItem('bt-lang', lang);
+  refreshRunButtons();
   document.documentElement.lang = lang === 'en' ? 'en' : 'ckb';
   document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
   document.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -672,6 +705,8 @@ function applyLang(next) {
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
   if (document.getElementById('finish') && !document.getElementById('finish').hidden) fillResults();
+  if (ui.fbText && ui.fbCount) ui.fbCount.textContent = formatCount(ui.fbText.value.length);
+  refreshRivalNames();
 }
 
 function updateRecords() {
@@ -741,6 +776,11 @@ function setMode(next) {
   ui.hud.hidden = !playing;
   ui.touch.hidden = !playing || !mobileUI();
   if (playing) keys.clear();
+  if (next === 'menu') {
+    refreshRunButtons();
+    const play = document.getElementById('playBtn');
+    if (play) play.textContent = t(lang, play.getAttribute('data-i18n'));
+  }
   updateHud();
   updateRotate();
   updateGemButton();
@@ -1062,6 +1102,7 @@ document.getElementById('gemBtn').addEventListener('click', openUpgrades);
 document.getElementById('upgradeClose').addEventListener('click', () => {
   document.getElementById('upgrades').hidden = true;
 });
+document.getElementById('newRunBtn').addEventListener('click', restart);
 
 function toggleMute() {
   setMuted(!isMuted());
@@ -1079,9 +1120,18 @@ document.getElementById('pauseMenu').addEventListener('click', () => setMode('me
 document.getElementById('finishMenu').addEventListener('click', () => setMode('menu'));
 function showPanel(id) {
   const root = document.getElementById(id);
-  const panel = root && root.querySelector('.panel');
-  if (panel) panel.scrollTop = 0;
-  if (root) root.hidden = false;
+  if (!root) return;
+  root.hidden = false;
+  const panel = root.querySelector('.panel');
+  if (!panel) return;
+  const reset = () => { panel.scrollTop = 0; };
+  reset();
+  requestAnimationFrame(() => requestAnimationFrame(reset));
+}
+
+function upgradesOpen() {
+  const root = document.getElementById('upgrades');
+  return !!(root && !root.hidden);
 }
 document.getElementById('helpBtn').addEventListener('click', () => { showPanel('help'); });
 document.getElementById('pauseHelp').addEventListener('click', () => { showPanel('help'); });
@@ -1123,7 +1173,7 @@ document.getElementById('community').addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('leaveUrl').textContent = link.getAttribute('href');
   ui.leave.dataset.url = link.href;
-  ui.leave.hidden = false;
+  showPanel('leave');
 });
 document.getElementById('community').addEventListener('auxclick', (e) => {
   if (e.target.closest('a')) e.preventDefault();
@@ -1146,7 +1196,7 @@ document.querySelectorAll('[data-score]').forEach((btn) => {
   });
 });
 ui.fbText.addEventListener('input', () => {
-  ui.fbCount.textContent = `${ui.fbText.value.length} / 500`;
+  ui.fbCount.textContent = formatCount(ui.fbText.value.length);
 });
 document.getElementById('fbSend').addEventListener('click', async () => {
   const result = await submitFeedback(score, ui.fbText.value);
@@ -1160,7 +1210,7 @@ document.getElementById('fbSend').addEventListener('click', async () => {
   if (result.stripped) msg += `\n${t(lang, 'stripped')} · ${t(other, 'stripped')}`;
   ui.fbStatus.textContent = msg;
   ui.fbText.value = '';
-  ui.fbCount.textContent = '0 / 500';
+  ui.fbCount.textContent = formatCount(0);
   score = 0;
   document.querySelectorAll('[data-score]').forEach((other) => {
     other.classList.remove('on');
@@ -1210,7 +1260,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (document.hidden) return;
-  if (mode === 'play' && !world.won) {
+  if (mode === 'play' && !world.won && !upgradesOpen()) {
     const beforeY = world.player.vy;
     const input = readInput();
     if (!holdRivals) decideRivals(world, dt);
@@ -1257,6 +1307,12 @@ async function installTestHook() {
   window.__BT = {
     ready: true,
     getState: () => snapshot(world),
+    raceClock() {
+      return {
+        playTime: world.playTime,
+        xs: (world.rivals || []).map((rival) => rival.x),
+      };
+    },
     simulate(untilFloor = 100) {
       const result = bot.run(world, step, { untilFloor, maxSteps: 40000 });
       after();

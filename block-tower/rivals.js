@@ -9,8 +9,8 @@ const ROSTER = [
 
 const MODES = {
   off: { count: 0, speed: 1, mistake: 0 },
-  easy: { count: 2, speed: 0.9, mistake: 0.1 },
-  medium: { count: 3, speed: 0.94, mistake: 0.035 },
+  easy: { count: 2, speed: 0.7, mistake: 0.1 },
+  medium: { count: 3, speed: 0.85, mistake: 0.035 },
   hard: { count: 3, speed: 0.98, mistake: 0.008 },
 };
 
@@ -30,7 +30,7 @@ export function createRivals(mode, world) {
       ckb: who.ckb,
       color: who.color,
       lane: who.lane,
-      speed: spec.speed * (1 - i * 0.015),
+      speed: spec.speed,
       mistake: spec.mistake,
       mistakeLeft: 0,
       cool: 0.8 + i * 0.25,
@@ -61,6 +61,18 @@ export function createRivals(mode, world) {
   }
   list.mode = rivalModeName(mode);
   return list;
+}
+
+function nearCrossing(state, rival) {
+  const ground = state.ents.find((ent) => ent.id === rival.groundId);
+  if (ground && (ground.move || ground.crumble)) return true;
+  for (let i = 0; i < state.ents.length; i++) {
+    const ent = state.ents[i];
+    if (ent.hazard !== 'spinner' && !(ent.kind === 'solid' && ent.move)) continue;
+    const dx = ent.cx - rival.x;
+    if (dx > -0.5 && dx < 3.4) return true;
+  }
+  return false;
 }
 
 function applyStyle(rival, input, dt) {
@@ -110,6 +122,7 @@ export function decideRivals(state, dt) {
       state.player = saved;
     }
     const styled = applyStyle(rival, input, dt);
+    if (styled.jump || nearCrossing(state, rival)) styled.speedScale = 1;
     rival._input = styled;
     rival._jump = styled.jump;
     rival.yaw = styled.yaw;

@@ -86,10 +86,12 @@
 
 <div id="menu" class="screen">
   <div class="panel">
-    <div id="iosHint" class="banner" hidden>
-      <p>For a full screen, tap Share, then Add to Home Screen.</p>
-      <p dir="rtl">بۆ یاری بە شاشەی تەواو، دوگمەی Share دابگرە، پاشان Add to Home Screen.</p>
-      <button type="button" id="iosDismiss">باشە · OK</button>
+    <div id="iosHint" class="ios-line" hidden>
+      <p>
+        <span class="ios-en" dir="ltr" lang="en">Full screen: Share, then Add to Home Screen.</span>
+        <span class="ios-ckb" dir="rtl" lang="ckb">شاشەی تەواو: <bdi dir="ltr">Share</bdi>، پاشان <bdi dir="ltr">Add to Home Screen</bdi></span>
+      </p>
+      <button type="button" id="iosDismiss" aria-label="Dismiss">×</button>
     </div>
     <p class="studio">Happy Toons Studio</p>
     <h1>بورجی خشت</h1>
@@ -97,6 +99,7 @@
     <p class="tag" data-i18n="tag">Climb a night-time neon tower.</p>
     <p class="age" data-i18n="age">For ages 15–18</p>
     <button type="button" id="playBtn" class="btn" data-i18n="play">Play</button>
+    <button type="button" id="newRunBtn" class="btn alt" data-i18n="newRun" hidden>New run</button>
     <div class="row">
       <button type="button" id="helpBtn" class="btn alt" data-i18n="help">Help</button>
       <button type="button" id="feedbackBtn" class="btn alt" data-i18n="feedback">Feedback</button>
@@ -132,7 +135,7 @@
         <div id="swatches" class="swatches"></div>
       </div>
     </div>
-    <p class="ai" id="aiNote">Made with AI assistance (code and graphics)<br>دروستکراو بە یارمەتی AI (کۆد و گرافیک)</p>
+    <p class="ai" id="aiNote"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
     <p class="legal" id="footerCredit">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
@@ -160,13 +163,16 @@
       <h4>How does feedback work?</h4>
       <p>It is optional and anonymous. No rewards, no colour unlocks, and no request for a store review. Before sending, we say what is collected and why.</p>
       <p dir="rtl">بۆچوون ئارەزوومەندانە و بێناوە. پاداشت، کردنەوەی ڕەنگ، یان داواکاری پێداچوونەوەی فرۆشگا نییە. پێش ناردن دەڵێین چی کۆدەکرێتەوە و بۆچی.</p>
+      <h4>What are the gems for?</h4>
+      <p>Gems on the tower buy upgrades. You can finish the tower without gems. Feedback does not give gems.</p>
+      <p dir="rtl">گەوهەرەکانی سەر بورج باشترکردن دەکڕن. دەتوانیت بەبێ گەوهەر تەواو بکەیت. بۆچوون گەوهەر نادات.</p>
       <h4>Who are the other climbers?</h4>
       <p>They are computer rivals on this device. Choose Easy, Medium, or Hard, or Off to race alone. They are not real people. The race stays in this browser: no server, no chat, and nothing is sent.</p>
       <p dir="rtl">ڕکابەرەکان کۆمپیوتەرن لەسەر ئەم ئامێرە. ئاسان، مامناوەند، یان قورس هەڵبژێرە، یان کوژاوە بۆ تەنها خۆت. کەسی ڕاستەقینە نین. پێشبڕکێکە لەم وێبگەڕەدا دەمێنێتەوە: سێرڤەر، گفتوگۆ، یان ناردن نییە.</p>
       <h4>Who made it?</h4>
       <p>Nazhad Ibrahem at Happy Toons Studio. It is an original game.</p>
       <p dir="rtl">نازهاد ئیبراهیم لە Happy Toons Studio. یارییەکی ڕەسەنە.</p>
-      <p class="ai">Made with AI assistance (code and graphics)<br>دروستکراو بە یارمەتی AI (کۆد و گرافیک)</p>
+      <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
     </section>
     <section>
       <h3>Community</h3>
@@ -237,7 +243,7 @@
     <ol id="raceResults" hidden></ol>
     <button type="button" id="finishAgain" class="btn" data-i18n="again">دووبارە</button>
     <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">مێنیو</button>
-    <p class="ai">Made with AI assistance (code and graphics)<br>دروستکراو بە یارمەتی AI (کۆد و گرافیک)</p>
+    <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
@@ -249,8 +255,10 @@
     <p>This link opens in your browser. The game does not send your information with it.</p>
     <p dir="rtl">ئەم بەستەرە لە وێبگەڕی سیستەمدا دەکرێتەوە. یارییەکە هیچ زانیارییەکت لەگەڵیدا نانێرێت.</p>
     <p id="leaveUrl" class="url"></p>
-    <button type="button" id="leaveGo" class="btn">Continue · بەردەوامبە</button>
-    <button type="button" id="leaveStay" class="btn alt">Stay · بمێنەرەوە</button>
+    <div class="row">
+      <button type="button" id="leaveGo" class="btn">Continue · بەردەوامبە</button>
+      <button type="button" id="leaveStay" class="btn alt">Stay · بمێنەرەوە</button>
+    </div>
   </div>
 </div>
 

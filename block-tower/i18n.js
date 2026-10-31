@@ -3,6 +3,8 @@
 export const STR = {
   ckb: {
     play: 'یاریکردن',
+    continue: 'بەردەوامبە',
+    newRun: 'یاریی نوێ',
     help: 'یارمەتی',
     feedback: 'بۆچوون',
     pause: 'وەستان',
@@ -40,9 +42,15 @@ export const STR = {
     rivalHard: 'قورس',
     place: 'شوێن',
     racing: 'هێشتا دەڕوات',
+    rank: 'پلە',
+    maxed: 'تەواو',
+    nextCost: 'دواتر',
+    gems: 'گەوهەر',
   },
   en: {
     play: 'Play',
+    continue: 'Continue',
+    newRun: 'New run',
     help: 'Help',
     feedback: 'Feedback',
     pause: 'Pause',
@@ -80,6 +88,10 @@ export const STR = {
     rivalHard: 'Hard',
     place: 'Place',
     racing: 'Still climbing',
+    rank: 'Rank',
+    maxed: 'Max',
+    nextCost: 'next',
+    gems: 'gems',
   },
 };
 

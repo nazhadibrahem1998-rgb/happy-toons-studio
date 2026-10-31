@@ -348,7 +348,7 @@ test('overlays scroll by touch and the bottom button is reachable', async ({ pag
   test.skip(info.project.name === 'desktop', 'phone touch scroll');
   test.setTimeout(180000);
   const errors = await openGame(page);
-  const sizes = [[390, 844], [844, 390], [375, 667], [667, 375]];
+  const sizes = [[390, 844], [844, 390], [375, 667], [667, 375], [390, 664], [750, 342]];
   for (const [width, height] of sizes) {
     await page.setViewportSize({ width, height });
     for (const [open, root, bottom] of [
@@ -490,6 +490,84 @@ test('rivals race offline and the results list places', async ({ page }, info) =
   await page.evaluate(() => window.__BT.restart());
   await expect(page.locator('#placeRow')).toBeHidden();
   await expect(page.locator('#raceResults')).toBeHidden();
+  assertClean(errors);
+});
+
+test('gem upgrades pause the timer and the rivals', async ({ page }, info) => {
+  const errors = await openGame(page);
+  await page.evaluate(() => window.__BT.setRivals('easy'));
+  await page.click('#playBtn');
+  await page.waitForTimeout(350);
+  await page.click('#gemBtn');
+  await expect(page.locator('#upgrades')).toBeVisible();
+  await expect(page.locator('#upgrades')).toContainText('Rank 0/2');
+  await expect(page.locator('#upgrades')).toContainText('gems');
+  const held = await page.evaluate(() => window.__BT.raceClock());
+  await page.waitForTimeout(450);
+  const still = await page.evaluate(() => window.__BT.raceClock());
+  expect(still.playTime).toBe(held.playTime);
+  expect(still.xs[0]).toBeCloseTo(held.xs[0], 2);
+  if (info.project.name === 'webkit') {
+    await page.screenshot({ path: `${ART}/screenshot_upgrades_paused.png` });
+  }
+  await page.click('#upgradeClose');
+  await expect(page.locator('#upgrades')).toBeHidden();
+  await page.waitForTimeout(400);
+  const later = await page.evaluate(() => window.__BT.raceClock());
+  expect(later.playTime).toBeGreaterThan(held.playTime + 0.2);
+  assertClean(errors);
+});
+
+test('landscape menu keeps Play on screen', async ({ page }, info) => {
+  const errors = await openGame(page);
+  const sizes = [[844, 390], [750, 342], [667, 375], [390, 664], [390, 844]];
+  for (const [width, height] of sizes) {
+    await page.setViewportSize({ width, height });
+    const play = await page.locator('#playBtn').boundingBox();
+    expect(play, `${width}x${height}`).toBeTruthy();
+    expect(play.y, `${width}x${height}`).toBeGreaterThanOrEqual(0);
+    expect(play.y + play.height, `${width}x${height}`).toBeLessThanOrEqual(height);
+    expect(await page.locator('#menu .panel').evaluate((el) => el.scrollTop)).toBe(0);
+    if (info.project.name === 'webkit' && width === 750 && height === 342) {
+      const hint = page.locator('#iosHint');
+      await expect(hint).toBeVisible();
+      const box = await hint.boundingBox();
+      expect(box.height).toBeLessThan(78);
+      await page.screenshot({ path: `${ART}/screenshot_menu_landscape_750.png` });
+    }
+  }
+  assertClean(errors);
+});
+
+test('panels reopen at the top', async ({ page }) => {
+  const errors = await openGame(page);
+  await page.click('#helpBtn');
+  const panel = page.locator('#help .panel');
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const scrolled = await panel.evaluate((el) => {
+    el.scrollTop = 600;
+    return el.scrollTop;
+  });
+  expect(scrolled).toBeGreaterThan(200);
+  await page.click('#helpClose');
+  await page.click('#helpBtn');
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  expect(await panel.evaluate((el) => el.scrollTop)).toBe(0);
+  assertClean(errors);
+});
+
+test('leave dialog Stay fits at 750x342', async ({ page }) => {
+  const errors = await openGame(page);
+  await page.setViewportSize({ width: 750, height: 342 });
+  await page.click('#helpBtn');
+  await page.locator('a[data-link="website"]').click();
+  await expect(page.locator('#leave')).toBeVisible();
+  const stay = await page.locator('#leaveStay').boundingBox();
+  expect(stay).toBeTruthy();
+  expect(stay.y).toBeGreaterThanOrEqual(0);
+  expect(stay.y + stay.height).toBeLessThanOrEqual(342);
+  const go = await page.locator('#leaveGo').boundingBox();
+  expect(go.y + go.height).toBeLessThanOrEqual(342);
   assertClean(errors);
 });
 

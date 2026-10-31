@@ -148,6 +148,32 @@ p { margin: 0 0 8px; line-height: 1.45; }
   font-size: 0.92rem;
 }
 .banner { border: 1px solid var(--lime); background: rgba(198, 255, 74, 0.08); }
+.ios-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--lime);
+  border-radius: 10px;
+  padding: 4px 8px;
+  margin: 0 0 6px;
+  background: rgba(198, 255, 74, 0.08);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+.ios-line p { margin: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.ios-en, .ios-ckb { display: block; unicode-bidi: isolate; }
+.ios-line button {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--lime);
+  background: transparent;
+  color: var(--lime);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
 .notice { border: 1px solid var(--line); background: rgba(62, 240, 255, 0.06); }
 .warn { border: 1px solid var(--magenta); color: #ffd6f4; background: rgba(255, 62, 200, 0.08); }
 a { color: var(--cyan); }
@@ -349,7 +375,13 @@ textarea {
 .upgrade .sub { color: var(--muted); font-size: 0.88rem; margin: 2px 0 8px; }
 .upgrade .btn { margin: 0; }
 @media (max-height: 420px) {
-  h1 { font-size: 1.7rem; }
-  .panel { padding: 12px; }
-  .btn { padding: 8px 12px; margin: 5px 0; }
+  h1 { font-size: 1.45rem; }
+  h2 { font-size: 1.15rem; }
+  .panel { padding: 8px 10px; }
+  .btn { padding: 8px 12px; margin: 4px 0; }
+  #menu .studio, #menu .en-title, #menu .tag { font-size: 0.75rem; margin-bottom: 2px; }
+  #menu .age { margin-bottom: 4px; font-size: 0.72rem; }
+  #menu .tag { display: none; }
+  #leave p { margin-bottom: 4px; font-size: 0.8rem; line-height: 1.25; }
+  #leave h2 { margin-bottom: 4px; }
 }
