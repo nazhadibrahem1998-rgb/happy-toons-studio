@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!-- Happy Toons: Toonblade. © 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved. Three.js (vendor/) is © three.js authors, MIT license. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d0a1a">
+<meta name="author" content="Nazhad Ibrahem – Happy Toons Studio">
+<meta name="copyright" content="© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<title>Happy Toons: Toonblade</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+<script src="cg-bridge.js"></script>
+<canvas id="c"></canvas>
+
+<div id="hud" class="hidden">
+  <div class="bars">
+    <p class="hero-hud">Lang</p>
+    <div class="bar hp"><div id="hpFill"></div><span>HP</span></div>
+    <div class="bar st"><div id="stFill"></div><span>STAMINA</span></div>
+  </div>
+  <div class="stats">
+    <div>WAVE <b id="wave">1</b></div>
+    <div>SCORE <b id="score">0</b></div>
+    <div>ENEMIES <b id="left">0</b></div>
+  </div>
+  <div id="bossBar" class="hidden">
+    <div id="bossName">★ SKELETON KING ★</div>
+    <div id="bossTrack"><div id="bossFill"></div></div>
+  </div>
+  <div id="banner"></div>
+  <div id="hint">WASD move · Mouse look · Click/J attack · Right-click/K block · Space dodge · P/Esc pause · M mute</div>
+  <div id="dmgFlash"></div>
+</div>
+
+<div id="touch" class="hidden">
+  <div id="stick"><div id="knob"></div></div>
+  <div id="btns">
+    <button id="bAttack" class="tb big">⚔</button>
+    <button id="bBlock" class="tb">🛡</button>
+    <button id="bDodge" class="tb">⤿</button>
+  </div>
+  <div id="topBtns">
+    <button id="bPause" class="tb sm" aria-label="Pause">⏸</button>
+    <button id="bMute" class="tb sm" aria-label="Sound on/off">🔊</button>
+  </div>
+</div>
+
+<div id="start" class="screen">
+  <div class="panel">
+    <p class="pre">Happy Toons</p>
+    <h1>TOONBLADE</h1>
+    <p class="credit">by Happy Toons Studio</p>
+    <p class="sub">Survive the waves of goblins and skeletons. Dodge the archers — every 10th wave, the Skeleton King arrives!</p>
+    <p class="hero-intro">Play as <b>Lang</b></p>
+    <p id="sBestWrap" class="sub best hidden">🏆 Best: <b id="sBest">0</b></p>
+    <button id="playBtn" class="btn">▶ PLAY</button>
+    <div class="controls">
+      <div><b>Desktop:</b> WASD / Arrows move · Mouse look (Q/E also turn) · Click or J attack · Right‑click or K block · Space dodge · P/Esc pause · M mute</div>
+      <div><b>Phone:</b> left joystick move · drag right side to look · ⚔ attack · 🛡 block · ⤿ dodge · ⏸ pause · 🔊 sound</div>
+    </div>
+    <p class="ai">Made with AI-assisted tools</p>
+    <p class="copy">© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.</p>
+  </div>
+</div>
+
+<div id="over" class="screen hidden">
+  <div class="panel">
+    <h1 class="fallen">Lang has fallen</h1>
+    <p class="sub">Wave <b id="oWave">1</b> · Score <b id="oScore">0</b></p>
+    <p class="sub">Best: <b id="oBest">0</b></p>
+    <p id="oNew" class="newbest hidden">★ NEW BEST! ★</p>
+    <button id="againBtn" class="btn">↻ PLAY AGAIN</button>
+    <button id="reviveBtn" class="btn revive" type="button">♥ Revive</button>
+    <p id="reviveNote" class="revive-note">Watch a short ad to continue this run with half health.</p>
+    <p class="credit">by Happy Toons Studio</p>
+    <p class="ai">Made with AI-assisted tools</p>
+    <p class="copy">© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.</p>
+  </div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="panel">
+    <h1>Paused</h1>
+    <button id="resumeBtn" class="btn">▶ RESUME</button>
+    <p class="sub">Click / tap, Esc or P to resume</p>
+    <button id="pMute" class="btn small">🔊 Sound: On</button>
+    <p class="copy">© 2026 Nazhad Ibrahem – Happy Toons Studio. All rights reserved.</p>
+  </div>
+</div>
+
+<div id="loading">Loading…</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>
