@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://happytoonsstudio.com/sitemap.xml
