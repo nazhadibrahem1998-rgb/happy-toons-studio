@@ -12,15 +12,17 @@ var patrol_points: Array[Vector3] = []
 var health: int = 100
 var max_health: int = 100
 var alive: bool = true
-var hit_damage: int = 6
-var spread_deg: float = 6.5
-var spread_per_m: float = 0.34
-var move_spread: float = 5.0
-var react: float = 1.1
+var hit_damage: int = 10
+var telegraph: float = 1.05
+var recover: float = 1.3
+var reach: float = 1.72
+var react: float = 1.05
+var phase: int = 0
+var phase_left: float = 0.0
+var shove: Vector3 = Vector3.ZERO
+static var turn_id: int = 0
 var vision_range: float = 28.0
-var hear_range: float = 42.0
-var fire_min: float = 1.35
-var fire_max: float = 1.95
+var hear_range: float = 18.0
 var walk_speed: float = 2.25
 var combat_speed: float = 3.5
 
@@ -41,8 +43,6 @@ var _ai_on: bool = false
 var _configured: bool = false
 
 var body_mats: Array[StandardMaterial3D] = []
-var muzzle: Marker3D
-var flash: OmniLight3D
 var _flinch_tween: Tween
 
 @onready var agent: NavigationAgent3D = $NavigationAgent3D
@@ -52,6 +52,8 @@ var _flinch_tween: Tween
 
 
 func setup(kind: String, points: Array) -> void:
+	if kind == "rifleman":
+		kind = "soldier"
 	variant = kind
 	patrol_points.clear()
 	for p in points:
@@ -69,16 +71,14 @@ func _ready() -> void:
 	motion_mode = MOTION_MODE_GROUNDED
 	if not _configured:
 		_apply_stats()
-	body_mats = HumanoidFactory.build(visual, "commander" if variant == "commander" else "rifleman")
-	var gun := Node3D.new()
-	weapon_mount.add_child(gun)
-	muzzle = WeaponFactory.attach_m16(gun)
-	flash = OmniLight3D.new()
-	flash.light_color = Color(1.0, 0.75, 0.42)
-	flash.light_energy = 0.0
-	flash.omni_range = 3.2
-	flash.shadow_enabled = false
-	muzzle.add_child(flash)
+	var style := "commander" if variant == "commander" else "soldier"
+	body_mats = HumanoidFactory.build(visual, style)
+	var club := Node3D.new()
+	club.name = "Club"
+	weapon_mount.add_child(club)
+	WeaponFactory.attach_club(club)
+	if variant == "shield" or variant == "commander":
+		WeaponFactory.attach_shield(visual)
 	agent.path_desired_distance = 0.55
 	agent.target_desired_distance = 0.8
 	agent.radius = 0.4
@@ -91,20 +91,14 @@ func _apply_stats() -> void:
 	var profile := GameConfig.enemy_profile(variant)
 	max_health = int(profile["health"])
 	hit_damage = int(profile["damage"])
-	spread_deg = float(profile["spread"])
-	spread_per_m = float(profile["spread_per_m"])
-	move_spread = float(profile["move_spread"])
-	fire_min = float(profile["fire_min"])
-	fire_max = float(profile["fire_max"])
+	telegraph = float(profile["telegraph"])
+	recover = float(profile["recover"])
+	reach = float(profile["reach"])
 	react = float(profile["react"])
 	vision_range = float(profile["vision"])
-	hear_range = 48.0 if variant == "commander" else 40.0
-	if variant == "commander":
-		walk_speed = 2.0
-		combat_speed = 2.7
-	else:
-		walk_speed = 2.15
-		combat_speed = 3.05
+	hear_range = 18.0
+	walk_speed = 1.85
+	combat_speed = 2.35 if variant != "commander" else 2.05
 	health = max_health
 
 
@@ -137,6 +131,14 @@ func apply_damage(amount: int, from: Vector3, _headshot: bool = false) -> void:
 		return
 	health -= amount
 	_hit_flash()
+	var away := global_position - from
+	away.y = 0.0
+	if away.length() > 0.05:
+		shove += away.normalized() * 2.8
+	if phase == 1:
+		phase = 3
+		phase_left = 0.9
+		_release_turn()
 	if health <= 0:
 		_die()
 		return
@@ -173,6 +175,10 @@ func _physics_process(delta: float) -> void:
 		State.COMBAT:
 			_combat(delta)
 	_separate()
+	if shove.length() > 0.05:
+		velocity.x += shove.x
+		velocity.z += shove.z
+		shove = Vector3.ZERO
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	elif velocity.y < 0.0:
@@ -217,6 +223,8 @@ func _investigate(delta: float) -> void:
 func _combat(delta: float) -> void:
 	var player := _player()
 	if player == null or not bool(player.get("alive")):
+		_release_turn()
+		phase = 0
 		state = State.PATROL
 		return
 	var see := _can_see_player()
@@ -225,36 +233,54 @@ func _combat(delta: float) -> void:
 		last_seen = player.global_position
 	else:
 		lost_timer += delta
-		if lost_timer > 6.0:
+		if lost_timer > 4.5:
+			_release_turn()
+			phase = 0
 			state = State.INVESTIGATE
 			investigate_pos = last_seen
 			return
 	var flat := last_seen - global_position
 	flat.y = 0.0
 	var dist := flat.length()
-	_face_towards(last_seen, 1.0 - exp(-8.0 * delta))
-	cover_timer -= delta
-	if cover_timer <= 0.0:
-		cover_timer = randf_range(1.1, 2.1)
-		strafe_sign = -strafe_sign if randf() > 0.35 else strafe_sign
-		prefer_cover = randf() < 0.45
-		_pick_cover(player.global_position)
-	var dest := last_seen
-	var speed := combat_speed
-	if prefer_cover and has_cover and dist > 7.0:
-		dest = cached_cover
-	elif dist < 6.2:
-		var away := -flat.normalized() if dist > 0.2 else Vector3(0, 0, 1)
-		dest = global_position + away * 4.0
-	elif dist <= 18.0:
-		var side := Vector3(-flat.z, 0, flat.x).normalized() * strafe_sign
-		dest = global_position + side * 3.6
-	_move_to(dest, speed, delta, false)
-	if see and dist < 42.0:
-		shoot_cd -= delta
-		if shoot_cd <= 0.0:
-			_shoot()
-			shoot_cd = randf_range(fire_min, fire_max)
+	_face_towards(last_seen, 1.0 - exp(-6.0 * delta))
+	if not _ensure_turn():
+		phase = 0
+		_hold_back(last_seen, dist, delta)
+		_pose_weapon(0.1)
+		return
+	if phase == 0:
+		shoot_cd = maxf(0.0, shoot_cd - delta)
+		if dist > reach + 0.15:
+			_move_to(last_seen, combat_speed, delta, false)
+		else:
+			velocity.x = move_toward(velocity.x, 0.0, 7.0 * delta)
+			velocity.z = move_toward(velocity.z, 0.0, 7.0 * delta)
+		_pose_weapon(0.15)
+		if see and dist <= reach + 0.45 and shoot_cd <= 0.0 and _line_clear(player):
+			phase = 1
+			phase_left = telegraph
+	elif phase == 1:
+		velocity.x = move_toward(velocity.x, 0.0, 9.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 9.0 * delta)
+		var wind := 1.0 - clampf(phase_left / maxf(telegraph, 0.01), 0.0, 1.0)
+		_pose_weapon(lerpf(0.2, -1.2, wind))
+		phase_left -= delta
+		if dist > reach + 1.1 or not _line_clear(player):
+			phase = 0
+			shoot_cd = 0.45
+			return
+		if phase_left <= 0.0:
+			_melee_strike(player)
+			phase = 3
+			phase_left = recover
+	else:
+		var back := 1.0 - clampf(phase_left / maxf(recover, 0.01), 0.0, 1.0)
+		_pose_weapon(lerpf(0.55, 0.12, back))
+		phase_left -= delta
+		if phase_left <= 0.0:
+			phase = 0
+			shoot_cd = 0.4
+			_release_turn()
 
 
 func _enter_combat() -> void:
@@ -318,50 +344,90 @@ func _ray_hits_player(origin: Vector3, target: Vector3, player: Node3D) -> bool:
 	return hit.collider == player
 
 
-func _shoot() -> void:
+func _ensure_turn() -> bool:
+	_refresh_turn()
+	if turn_id == get_instance_id():
+		return true
+	if turn_id != 0:
+		return false
 	var player := _player()
 	if player == null:
+		return false
+	var best: EnemySoldier = null
+	var best_d := 1.0e9
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var other := node as EnemySoldier
+		if other == null or not other.alive or not other._can_see_player():
+			continue
+		var dist := other.global_position.distance_to(player.global_position)
+		if dist < best_d:
+			best_d = dist
+			best = other
+	if best == self:
+		turn_id = get_instance_id()
+		return true
+	return false
+
+
+func _refresh_turn() -> void:
+	if turn_id == 0:
 		return
-	var aim_point := _visible_point(player)
-	if aim_point.y < -100.0:
-		return
-	var origin := _shot_origin()
-	var aim := (aim_point - origin).normalized()
-	var dist := origin.distance_to(aim_point)
-	var spread_deg_now := spread_deg + dist * spread_per_m
-	var body := player as CharacterBody3D
-	var speed := 0.0
-	if body:
-		speed = Vector2(body.velocity.x, body.velocity.z).length()
-	if speed > 2.4:
-		spread_deg_now += move_spread
-	var spread := deg_to_rad(spread_deg_now)
-	if spread > 0.0001:
-		aim = aim.rotated(Vector3.UP, randf_range(-spread, spread))
-		var side := aim.cross(Vector3.UP)
-		if side.length() > 0.001:
-			aim = aim.rotated(side.normalized(), randf_range(-spread * 0.65, spread * 0.65))
-	aim = aim.normalized()
-	var end := origin + aim * 70.0
-	var query := PhysicsRayQueryParameters3D.create(origin, end, 1 | 2, [get_rid()])
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if node.get_instance_id() == turn_id and bool(node.get("alive")):
+			return
+	turn_id = 0
+
+
+func _release_turn() -> void:
+	if turn_id == get_instance_id():
+		turn_id = 0
+
+
+func _hold_back(target: Vector3, dist: float, delta: float) -> void:
+	if dist < 3.4:
+		var away := global_position - target
+		away.y = 0.0
+		if away.length() < 0.1:
+			away = Vector3(1, 0, 0)
+		_move_to(global_position + away.normalized() * 2.4, walk_speed, delta, false)
+	elif dist > 7.5:
+		_move_to(target, walk_speed, delta, false)
+	else:
+		var side := Vector3(-(target - global_position).z, 0, (target - global_position).x).normalized()
+		_move_to(global_position + side * strafe_sign * 2.0, walk_speed * 0.65, delta, false)
+
+
+func _line_clear(player: Node3D) -> bool:
+	var from := global_position + Vector3(0, 1.15, 0)
+	var to := player.global_position + Vector3(0, 1.15, 0)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
 	query.collide_with_areas = false
-	query.collide_with_bodies = true
 	query.hit_from_inside = false
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	AudioDirector.play_3d("m16", origin, -3.0)
-	if flash:
-		flash.light_energy = 5.0
-		var tw := create_tween()
-		tw.tween_property(flash, "light_energy", 0.0, 0.04)
-	if not hit.is_empty():
-		end = hit.position
-		var collider: Object = hit.collider
-		if collider is Node and (collider as Node).is_in_group("player") and (collider as Node).has_method("apply_damage"):
-			(collider as Node).call("apply_damage", hit_damage, global_position)
-		else:
-			ImpactEffect.spawn(hit.position, hit.normal, "world")
-	ImpactEffect.tracer(origin, end, Color(1.0, 0.86, 0.62))
-	get_tree().call_group("enemy", "hear_noise", origin, 26.0)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _melee_strike(player: Node3D) -> void:
+	if not _line_clear(player):
+		return
+	var flat := player.global_position - global_position
+	flat.y = 0.0
+	if flat.length() > reach + 0.4:
+		return
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	if flat.length() > 0.05 and forward.normalized().dot(flat.normalized()) < 0.15:
+		return
+	AudioDirector.play_3d("swing", global_position, -8.0)
+	if player.has_method("receive_hit"):
+		var result := str(player.call("receive_hit", hit_damage, global_position))
+		if result == "parry":
+			phase_left = 1.4
+			_pose_weapon(0.2)
+
+
+func _pose_weapon(pitch: float) -> void:
+	if weapon_mount:
+		weapon_mount.rotation.x = pitch
 
 
 func _pick_cover(player_pos: Vector3) -> void:
@@ -480,6 +546,7 @@ func _clear_flash() -> void:
 func _die() -> void:
 	if not alive:
 		return
+	_release_turn()
 	alive = false
 	_ai_on = false
 	set_physics_process(false)

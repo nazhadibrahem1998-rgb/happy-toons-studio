@@ -33,7 +33,13 @@ func _detect_quality() -> String:
 	var adapter := ""
 	if RenderingServer.has_method("get_video_adapter_name"):
 		adapter = RenderingServer.get_video_adapter_name().to_lower()
+	if OS.has_feature("mobile") or TouchMode.active():
+		return "low"
 	if adapter == "" or "llvmpipe" in adapter or "lavapipe" in adapter or "swiftshader" in adapter:
+		return "low"
+	var mem := OS.get_memory_info()
+	var physical := int(mem.get("physical", 0))
+	if physical > 0 and physical < 7 * 1024 * 1024 * 1024:
 		return "low"
 	return "high"
 

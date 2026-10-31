@@ -23,7 +23,7 @@ Poly Haven, CC0. See `assets/textures/SOURCES.txt`.
 
 ## Models
 
-No third-party character or weapon models are included. Gurut, Iron Empire soldiers, the AK-style rifle, and the M16-style rifle are built from Godot primitives for this demo.
+No third-party character or weapon models are included. Gurut, Iron Empire soldiers, the wooden sword, the metal sword, clubs, and shields are built from Godot primitives for this demo. There are no guns.
 
 ## Flags
 

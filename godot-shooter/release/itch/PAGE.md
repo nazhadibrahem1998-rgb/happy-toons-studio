@@ -19,20 +19,21 @@
 
 | کردار | دوگمە |
 | --- | --- |
-| جوڵە | W A S D یان تیری کیبۆرد |
-| سەیرکردن | ماوس |
-| تەقە | کلیکی چەپ |
-| نیشانکردن | کلیکی ڕاست |
-| پڕکردنەوە | R |
-| ڕاکردن | Shift |
+| جوڵە | W A S D یان جۆیستیکی چەپ |
+| سەیرکردن | ماوس یان ڕاکێشان لە ڕاست |
+| هێرشی سووک | کلیکی چەپ |
+| هێرشی قورس | F |
+| گرتن | کلیکی ڕاست |
+| خۆلادان | Q |
+| قوفڵ | V |
 | بازدان | Space |
-| چەمانەوە | C |
 | وەستان | Esc |
 
 ## سیستەم
 
-- ویندۆز ٦٤-بت
-- کارتی گرافیک کە Vulkan پشتگیری بکات
+- ویندۆز ٦٤-بت، ئەندرۆید، یان وێبگەڕ
+- بۆ ویندۆز: کارتی گرافیک Vulkan
+- مۆبایل: ئاسۆیی (landscape)
 
 ## تێبینییەکان
 
@@ -40,7 +41,7 @@
 
 ئاشکراکردن: ئەم دیمۆیە بە یارمەتی ئامرازی زیرەکی دەستکرد دروست کراوە (AI-assisted).
 
-تێبینی ناوەڕۆک: ١٦+، توندوتیژی تفەنگ بە شێوەی ڕاستەقینە، بێ خوێنڕشتن.
+تێبینی ناوەڕۆک: ١٦+، شەڕی شمشێر بە شێوەی نەرم، بێ خوێنڕشتن و بێ تفەنگ. دوژمنەکان لەهۆش دەچن.
 
 © 2026 Nazhad Ibrahem – Happy Toons Studio
 
@@ -56,9 +57,10 @@ The on-screen title is the placeholder **ناوی یاری**. The hero is **Guru
 
 ## Features
 
-- Third-person shooter, single player
+- Third-person melee, single player, wooden sword (metal sword optional)
 - Level 1: a mountain village
-- Move, aim, and reload
+- Light combo, heavy attack, block, dodge, soft lock-on
+- Touch controls in landscape on phones and mobile browsers
 - Sorani Kurdish UI, right to left
 - Kurdistan flag for the player; invented Iron Empire banner for the enemy
 - Easy difficulty by default (Normal is in Settings)
@@ -67,20 +69,20 @@ The on-screen title is the placeholder **ناوی یاری**. The hero is **Guru
 
 | Action | Binding |
 | --- | --- |
-| Move | W A S D or arrow keys |
-| Look | Mouse |
-| Fire | Left mouse |
-| Aim | Right mouse |
-| Reload | R |
-| Sprint | Shift |
+| Move | W A S D or arrow keys, or the left stick on touch screens |
+| Look | Mouse, or drag on the right side of a touch screen |
+| Light attack | Left mouse |
+| Heavy attack | F |
+| Block | Right mouse (hold) |
+| Dodge | Q |
+| Soft lock-on | V |
 | Jump | Space |
-| Crouch | C |
 | Pause | Esc |
 
 ## System requirements
 
-- Windows 64-bit
-- A GPU with Vulkan support
+- Windows 64-bit with a Vulkan GPU, or Android, or a WebGL2 browser
+- Phones: landscape. iPhone can use the web build; Godot's web export is single-threaded so it does not need cross-origin isolation headers.
 
 ## Notes
 
@@ -88,7 +90,7 @@ Demo: 1 level, placeholder models.
 
 AI-assisted: this demo was made with AI-assisted tools.
 
-Content note: 16+, realistic-style gun violence, no gore.
+Content note: 16+, stylized sword combat, enemies are knocked out, no gore, no guns.
 
 © 2026 Nazhad Ibrahem – Happy Toons Studio
 
@@ -100,8 +102,8 @@ Content note: 16+, realistic-style gun violence, no gore.
 - Classification: Game
 - Pricing: $0 (free). Donations optional (pay what you want, minimum $0, or the "no payment required" option with donations turned on)
 - Release status: In development, and mark the page as a Demo if that control is separate
-- Genre: Shooter
-- Tags: third-person, shooter, kurdish, godot, singleplayer
+- Genre: Action
+- Tags: third-person, action, melee, kurdish, godot, singleplayer
 - AI generation disclosure: Yes
 - Content rating / note: 16+
 - Uploaded build: Windows x86_64

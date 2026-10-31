@@ -3,8 +3,12 @@ extends Node
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	TranslationServer.set_locale("ckb")
+	_bind_combat_actions()
 	if DisplayServer.get_name() != "headless":
 		DisplayServer.window_set_title(GameConfig.GAME_TITLE)
+	if TouchMode.wants_bout():
+		TouchMode.forced = 1
+		call_deferred("_begin_bout")
 	if _flag("--screenshots") or OS.get_environment("SHOOTER_SCREENSHOTS") == "1":
 		var driver: Node = load("res://scripts/tools/screenshot_driver.gd").new()
 		driver.name = "ScreenshotDriver"
@@ -21,6 +25,29 @@ func _ready() -> void:
 
 func _flag(arg: String) -> bool:
 	return OS.get_cmdline_user_args().has(arg)
+
+
+func _bind_combat_actions() -> void:
+	_bind_key("attack", KEY_J)
+	_bind_key("heavy_attack", KEY_F)
+	_bind_key("block", KEY_K)
+	_bind_key("dodge", KEY_Q)
+	_bind_key("lock_on", KEY_V)
+
+
+func _bind_key(action: String, keycode: Key) -> void:
+	if not InputMap.has_action(action):
+		InputMap.add_action(action)
+	var event := InputEventKey.new()
+	event.physical_keycode = keycode
+	InputMap.action_add_event(action, event)
+
+
+func _begin_bout() -> void:
+	var assist: Node = load("res://scripts/tools/bout_assist.gd").new()
+	assist.name = "BoutAssist"
+	assist.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(assist)
 
 
 func _run_smoke() -> void:

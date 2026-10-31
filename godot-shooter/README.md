@@ -8,7 +8,7 @@ Also keep `application/config/name` in `project.godot` and the Windows export pr
 
 UI is Sorani Kurdish, right to left, using Vazirmatn (OFL). The main menu shows `© 2026 Nazhad Ibrahem – Happy Toons Studio`.
 
-Difficulty defaults to **Easy** (ئاسان). Normal is in Settings. Easy enemies shoot slower, miss more, and hit for less; the player has more health and regenerates after a few seconds out of combat.
+Difficulty defaults to **Easy** (ئاسان). Normal is in Settings. Gurut fights with a wooden sword (شمشێری دار). A metal sword can be picked up in the village. Enemies are Iron Empire soldiers with clubs and shields. They telegraph swings and take turns. There are no guns. Easy gives more health, slower enemy swings, and health regen.
 
 ## Play (Level 1)
 
@@ -22,17 +22,17 @@ Clear the mountain village of the fictional **Iron Empire** (`ئیمپراتۆر
 
 | Action | Default |
 | --- | --- |
-| Move | WASD |
-| Look | Mouse |
-| Fire | Left mouse |
-| Aim | Right mouse |
-| Reload | R |
-| Sprint | Shift |
+| Move | WASD, or the left stick on a touch screen |
+| Look | Mouse, or drag on the right side of a touch screen |
+| Light attack | Left mouse |
+| Heavy attack | F |
+| Block | Right mouse (hold) |
+| Dodge | Q |
+| Soft lock-on | V |
 | Jump | Space |
-| Crouch | C |
 | Pause | Esc |
 
-Input actions are named (`move_forward`, `fire`, `aim`, `reload`, …) so Android touch controls can emit the same actions later. Look input goes through `PlayerBody.add_look_delta()`.
+On a phone the game is landscape-only. Touch buttons cover attack, heavy attack, block, dodge, lock-on, and jump. Look sensitivity is in Settings. Quality drops to low on phones and on machines with under about 7 GB of RAM.
 
 Quality settings (low / medium / high) toggle SSAO, glow, volumetric fog, MSAA, and SDFGI. High enables SDFGI. The first launch picks high on a normal GPU and low on software Vulkan.
 

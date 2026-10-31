@@ -40,24 +40,39 @@ func _run() -> void:
 	player.aim_at(Vector3(0.2, 1.5, -4.0))
 	await get_tree().create_timer(0.7, true).timeout
 	await _shot(dir, "03_gameplay")
-	player.set_ads(true)
-	await get_tree().create_timer(0.55, true).timeout
-	await _shot(dir, "04_aiming")
-	player.set_ads(false)
 	var enemy := _path_enemy()
 	if enemy:
-		player.global_position = enemy.global_position + Vector3(0.35, 0.12, 3.6)
+		player.global_position = enemy.global_position + Vector3(0.0, 0.15, 1.7)
 		player.velocity = Vector3.ZERO
-		player.aim_at(enemy.global_position + Vector3(0, 1.35, 0))
+		player.snap_facing(enemy.global_position)
+		player.weapon.try_light()
+	await get_tree().create_timer(0.16, true).timeout
+	await _shot(dir, "04_sword")
+	if player.weapon:
+		player.weapon.busy = false
+	TouchMode.forced = 1
+	player.ensure_touch_hud()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await _shot(dir, "05_mobile_hud")
+	DisplayServer.window_set_size(Vector2i(844, 390))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await _shot(dir, "06_phone")
+	DisplayServer.window_set_size(Vector2i(1280, 720))
+	if enemy:
+		player.global_position = enemy.global_position + Vector3(0.35, 0.12, 3.2)
+		player.velocity = Vector3.ZERO
+		player.snap_facing(enemy.global_position + Vector3(0, 1.2, 0))
 		enemy.force_combat()
 	await get_tree().create_timer(0.7, true).timeout
-	await _shot(dir, "05_enemy")
+	await _shot(dir, "07_enemy")
 	var living := get_tree().get_nodes_in_group("enemy")
 	for node in living:
 		if node.has_method("kill"):
 			node.call("kill")
 	await get_tree().create_timer(1.6, true).timeout
-	await _shot(dir, "06_level_complete")
+	await _shot(dir, "08_level_complete")
 	print("SHOTS_DONE")
 	get_tree().quit(0)
 
@@ -101,7 +116,7 @@ func _path_enemy() -> EnemySoldier:
 	var best_z := -1.0e9
 	for node in get_tree().get_nodes_in_group("enemy"):
 		var soldier := node as EnemySoldier
-		if soldier == null or soldier.variant != "rifleman":
+		if soldier == null or soldier.variant == "commander":
 			continue
 		if soldier.global_position.y < 1.0 and soldier.global_position.z > best_z:
 			best_z = soldier.global_position.z

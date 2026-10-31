@@ -1,89 +1,115 @@
 extends Node
 
-# Headless check: a camera-center shot damages an enemy, a headshot kills,
-# and an enemy ray at a player behind a wall is blocked.
-
-
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	await _run()
 
 
 func _run() -> void:
-	var root := get_tree().root
-	root.size = Vector2i(1280, 720)
 	_floor()
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate() as PlayerBody
-	player.position = Vector3(0, 0.2, 4.0)
-	player.invulnerable = false
+	player.position = Vector3(0, 0.2, 2.0)
 	add_child(player)
-	var enemy := _soldier(Vector3(0, 0.2, -3.0))
+	var enemy := _soldier(Vector3(0, 0.2, 0.4))
 	for _i in 4:
 		await get_tree().physics_frame
 	player.set_physics_process(false)
 	enemy.set_physics_process(false)
-	player.velocity = Vector3.ZERO
-	var rifle: HitscanRifle = player.rifle
-	rifle.spread_scale = 0.0
+	player.snap_facing(enemy.global_position)
 	var before := enemy.health
-	_fire_at(player, rifle, enemy.global_position + Vector3(0, 1.0, 0))
-	if enemy.health != before - GameConfig.BODY_DAMAGE:
-		_fail("body shot health %s -> %s, expected -%s" % [before, enemy.health, GameConfig.BODY_DAMAGE])
+	var hits := player.weapon.debug_hit(0, false)
+	if hits < 1 or enemy.health != before - GameConfig.melee_damage(0, false, false):
+		_fail("hit health %s -> %s hits=%s" % [before, enemy.health, hits])
 		return
-	if not enemy.alive:
-		_fail("body shot killed; 3-4 shots should be required")
+	print("MELEE_HIT ", before, " -> ", enemy.health)
+	var combo := _soldier(Vector3(3, 0.2, 0.4))
+	await get_tree().physics_frame
+	combo.set_physics_process(false)
+	player.global_position = Vector3(3, 0.2, 2.0)
+	player.snap_facing(combo.global_position)
+	player.weapon.debug_hit(0, false)
+	player.weapon.debug_hit(1, false)
+	player.weapon.debug_hit(2, false)
+	if combo.alive:
+		_fail("combo left soldier alive health=%s" % combo.health)
 		return
-	print("COMBAT_BODY ", before, " -> ", enemy.health)
-	_fire_at(player, rifle, enemy.global_position + Vector3(0, 1.64, 0))
-	if enemy.alive or enemy.health > 0:
-		_fail("headshot left health %s alive=%s" % [enemy.health, enemy.alive])
+	print("MELEE_COMBO ok")
+	var hp := player.health
+	player.blocking = true
+	player.block_age = 1.0
+	player.iframe_left = 0.0
+	var blocked := player.receive_hit(20, Vector3.ZERO)
+	var blocked_loss := hp - player.health
+	if blocked != "block" or blocked_loss >= 20 or blocked_loss <= 0:
+		_fail("block result=%s loss=%s" % [blocked, blocked_loss])
 		return
-	print("COMBAT_HEAD ok")
-	var enemy_b := _soldier(Vector3(0, 0.2, -3.2))
-	var wall := _wall(Vector3(0, 1.3, 0.4))
-	for _j in 3:
+	print("MELEE_BLOCK ", blocked_loss)
+	hp = player.health
+	player.blocking = false
+	player.iframe_left = 0.4
+	var dodged := player.receive_hit(20, Vector3.ZERO)
+	if dodged != "dodge" or player.health != hp:
+		_fail("dodge result=%s health=%s" % [dodged, player.health])
+		return
+	print("MELEE_DODGE ok")
+	var wall := _wall(Vector3(0, 1.2, 1.2))
+	player.global_position = Vector3(0, 0.2, 2.2)
+	player.iframe_left = 0.0
+	for _w in 3:
 		await get_tree().physics_frame
-	enemy_b.spread_deg = 0.0
-	enemy_b.spread_per_m = 0.0
-	enemy_b.move_spread = 0.0
-	var hp_before := player.health
-	enemy_b._shoot()
-	if player.health != hp_before:
-		_fail("cover leaked damage %s -> %s" % [hp_before, player.health])
-		return
-	if enemy_b._visible_point(player).y > -100.0:
-		_fail("line of sight through the wall")
-		return
-	print("COMBAT_COVER blocked")
-	wall.global_position = Vector3(12, 1.3, 0.4)
-	for _k in 2:
+	var covered := enemy
+	if not covered.alive:
+		covered = _soldier(Vector3(0, 0.2, 0.3))
 		await get_tree().physics_frame
-	enemy_b._shoot()
-	if player.health >= hp_before:
-		_fail("open shot did no damage, health %s" % player.health)
+		covered.set_physics_process(false)
+	var cover_before := covered.health
+	player.snap_facing(covered.global_position)
+	player.weapon.debug_hit(0, false)
+	if covered.health != cover_before:
+		_fail("cover did not block sword %s -> %s" % [cover_before, covered.health])
 		return
-	print("COMBAT_OPEN ", hp_before, " -> ", player.health)
+	print("MELEE_COVER blocked")
+	for child in get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	LevelManager.start_game()
+	var frames := 0
+	while get_tree().get_nodes_in_group("enemy").size() < 10 and frames < 2400:
+		await get_tree().process_frame
+		frames += 1
+	var hero := get_tree().get_first_node_in_group("player") as PlayerBody
+	var foes := get_tree().get_nodes_in_group("enemy").duplicate()
+	if hero == null or foes.size() < 10:
+		_fail("level enemies %s" % foes.size())
+		return
+	hero.invulnerable = true
+	for node in foes:
+		var foe := node as Node3D
+		if foe == null:
+			continue
+		var guard := 0
+		while bool(foe.get("alive")) and guard < 8:
+			hero.global_position = foe.global_position + Vector3(0, 0.1, 1.35)
+			hero.velocity = Vector3.ZERO
+			hero.snap_facing(foe.global_position)
+			hero.weapon.debug_hit(guard % 3, false)
+			guard += 1
+		if bool(foe.get("alive")):
+			_fail("could not defeat %s health=%s" % [foe.name, foe.get("health")])
+			return
+	await get_tree().create_timer(0.2, true).timeout
+	var level := get_tree().current_scene
+	if int(level.get("alive")) != 0:
+		_fail("level still has %s enemies" % level.get("alive"))
+		return
+	print("MELEE_LEVEL_CLEAR")
 	print("COMBAT_OK")
 	get_tree().quit(0)
 
 
-func _fire_at(player: PlayerBody, rifle: HitscanRifle, point: Vector3) -> void:
-	var cam := Camera3D.new()
-	cam.fov = 60.0
-	add_child(cam)
-	# Sit the camera on the player-to-target line so the center ray is that line,
-	# including when it must pass the player's own capsule.
-	var through := player.global_position + Vector3(0, point.y - player.global_position.y, 0.4)
-	cam.global_position = through + (through - point).normalized() * 0.2
-	cam.look_at(point, Vector3.UP)
-	rifle.next_shot = 0.0
-	rifle.try_fire(cam, 1.0)
-	cam.queue_free()
-
-
 func _soldier(at: Vector3) -> EnemySoldier:
 	var enemy := (load("res://scenes/enemies/soldier.tscn") as PackedScene).instantiate() as EnemySoldier
-	enemy.setup("rifleman", [at, at + Vector3(0, 0, -2)])
+	enemy.setup("soldier", [at, at + Vector3(0, 0, -2)])
 	add_child(enemy)
 	enemy.global_position = at
 	enemy.set_physics_process(false)
@@ -105,10 +131,9 @@ func _floor() -> void:
 func _wall(at: Vector3) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
-	body.collision_mask = 0
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(8, 2.6, 0.6)
+	box.size = Vector3(6, 2.4, 0.45)
 	shape.shape = box
 	body.add_child(shape)
 	add_child(body)
