@@ -24,9 +24,24 @@ var ads_forced: bool = false
 var hit_marker: float = 0.0
 var toast: String = ""
 var toast_left: float = 0.0
+var camera_distance_override: float = -1.0
+var since_hurt: float = 10.0
+var regen_bank: float = 0.0
+var blocking: bool = false
+var block_age: float = 10.0
+var iframe_left: float = 0.0
+var dodge_left: float = 0.0
+var dodge_cd: float = 0.0
+var dodge_dir: Vector3 = Vector3.ZERO
+var lock_on: bool = false
+var shake: float = 0.0
+var attack_buffer: float = 0.0
+var heavy_buffer: float = 0.0
 
 var yaw: float = 0.0
 var pitch: float = 0.0
+var yaw_target: float = 0.0
+var pitch_target: float = 0.0
 var recoil_pitch: float = 0.0
 var recoil_yaw: float = 0.0
 var look_delta: Vector2 = Vector2.ZERO
@@ -36,7 +51,7 @@ var foot_time: float = 0.0
 @onready var shape_node: CollisionShape3D = $CollisionShape3D
 @onready var visual: Node3D = $Visual
 @onready var weapon_mount: Node3D = $Visual/WeaponMount
-@onready var rifle: HitscanRifle = $Visual/WeaponMount/Rifle
+@onready var weapon: MeleeWeapon = $Visual/WeaponMount/Sword
 @onready var head: Node3D = $HeadPivot
 @onready var spring: SpringArm3D = $HeadPivot/SpringArm3D
 @onready var camera: Camera3D = $HeadPivot/SpringArm3D/Boom/Camera3D
@@ -54,14 +69,23 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(50.0)
 	motion_mode = MOTION_MODE_GROUNDED
 	_shape = shape_node.shape as CapsuleShape3D
+	max_health = GameConfig.player_max_health()
+	health = max_health
 	HumanoidFactory.build(visual, "gurut")
-	rifle.bind(self)
+	weapon.bind(self)
+	if not Settings.settings_changed.is_connected(_on_settings_changed):
+		Settings.settings_changed.connect(_on_settings_changed)
 	camera.current = true
-	camera.far = 800.0
+	camera.far = 420.0
 	camera.near = 0.06
 	spring.collision_mask = 5
 	spring.margin = 0.18
-	if control_enabled and DisplayServer.get_name() != "headless":
+	if TouchMode.active():
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		ensure_touch_hud()
+		toast = GameConfig.STR["touch_hint"]
+		toast_left = 4.5
+	elif control_enabled and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -78,26 +102,62 @@ func is_crouching() -> bool:
 	return crouched
 
 
-func add_recoil(pitch_add: float, yaw_add: float) -> void:
-	recoil_pitch = minf(recoil_pitch + pitch_add, deg_to_rad(7.5))
-	recoil_yaw += yaw_add
+func add_recoil(pitch_add: float, _yaw_add: float) -> void:
+	shake = minf(shake + absf(pitch_add) * 6.0, 0.42)
 
 
 func notify_hit() -> void:
 	hit_marker = 1.0
 
 
-func add_ammo(amount: int) -> bool:
-	if not rifle.add_reserve(amount):
+func unlock_metal_sword() -> bool:
+	if weapon.style == "metal":
 		return false
-	toast = GameConfig.STR["ammo_gain"] % amount
-	toast_left = 1.6
+	weapon.equip_metal()
+	toast = GameConfig.STR["sword_metal"]
+	toast_left = 2.2
 	return true
+
+
+func snap_facing(point: Vector3) -> void:
+	aim_at(point)
+	yaw_target = yaw
+	pitch_target = pitch
+	rotation.y = yaw
+	head.rotation.x = pitch
+
+
+func receive_hit(amount: int, from_pos: Vector3) -> String:
+	if not alive:
+		return "dead"
+	if iframe_left > 0.0:
+		return "dodge"
+	if blocking:
+		if block_age < 0.22:
+			notify_hit()
+			shake = minf(shake + 0.12, 0.35)
+			return "parry"
+		apply_damage(maxi(1, int(round(float(amount) * 0.25))), from_pos)
+		return "block"
+	apply_damage(amount, from_pos)
+	return "hit"
+
+
+func ensure_touch_hud() -> void:
+	if not TouchMode.active():
+		return
+	if get_tree().root.get_node_or_null("TouchControls"):
+		return
+	var hud: Node = load("res://scripts/ui/touch_controls.gd").new()
+	hud.name = "TouchControls"
+	get_tree().root.add_child(hud)
 
 
 func apply_damage(amount: int, from_pos: Vector3) -> void:
 	if not alive or invulnerable:
 		return
+	since_hurt = 0.0
+	regen_bank = 0.0
 	health = maxi(0, health - amount)
 	health_changed.emit(health, max_health)
 	damaged.emit(from_pos)
@@ -120,9 +180,11 @@ func aim_at(point: Vector3) -> void:
 	yaw = atan2(-dir.x, -dir.z)
 	pitch = atan2(dir.y, flat.length())
 	pitch = clampf(pitch, deg_to_rad(-35.0), deg_to_rad(28.0))
+	yaw_target = yaw
+	pitch_target = pitch
 	rotation.y = yaw
 	head.rotation.x = pitch
-	weapon_mount.rotation.x = pitch
+	weapon_mount.rotation.x = 0.0
 	recoil_pitch = 0.0
 	recoil_yaw = 0.0
 
@@ -139,17 +201,22 @@ func _physics_process(delta: float) -> void:
 		_apply_look(look_delta)
 	look_delta = Vector2.ZERO
 	_decay_recoil(delta)
-	hit_marker = maxf(0.0, hit_marker - delta * 4.0)
+	hit_marker = maxf(0.0, hit_marker - delta * 2.4)
+	_regen(delta)
+	iframe_left = maxf(0.0, iframe_left - delta)
+	dodge_cd = maxf(0.0, dodge_cd - delta)
 	if toast_left > 0.0:
 		toast_left -= delta
 		if toast_left <= 0.0:
 			toast = ""
-	rifle.advance(delta)
+	_assist_lock(delta)
+	_smooth_look(delta)
+	weapon.advance(delta)
 	if control_enabled and alive:
 		_read_actions(delta)
 	else:
-		velocity.x = move_toward(velocity.x, 0.0, 18.0 * delta)
-		velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
+		velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	elif velocity.y < 0.0:
@@ -165,14 +232,15 @@ func _read_actions(delta: float) -> void:
 				crouched = false
 		else:
 			crouched = true
+	_poll_touch()
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	input_dir += TouchMode.move_vector
 	var wish := Vector3(input_dir.x, 0.0, input_dir.y)
 	if wish.length() > 1.0:
 		wish = wish.normalized()
-	wish = Basis(Vector3.UP, yaw) * wish
-	var aiming := _is_aiming()
+	wish = Basis(Vector3.UP, rotation.y) * wish
 	var sprinting := false
-	if Input.is_action_pressed("sprint") and wish.length() > 0.2 and is_on_floor() and not aiming:
+	if Input.is_action_pressed("sprint") and wish.length() > 0.2 and is_on_floor() and not blocking and not weapon.busy and dodge_left <= 0.0:
 		if crouched and _can_stand():
 			crouched = false
 		if not crouched:
@@ -182,26 +250,30 @@ func _read_actions(delta: float) -> void:
 		speed = CROUCH_SPEED
 	elif sprinting:
 		speed = SPRINT_SPEED
-	var accel := 16.0 if is_on_floor() else 4.0
+	if weapon.busy:
+		speed *= 0.42
+	elif blocking:
+		speed *= 0.62
+	var rate := 6.5 if is_on_floor() else 3.0
 	var horiz := Vector3(velocity.x, 0.0, velocity.z)
 	var target := wish * speed
-	var change := target - horiz
-	var max_change := accel * delta
-	if change.length() > max_change:
-		change = change.normalized() * max_change
-	horiz += change
+	horiz = horiz.lerp(target, 1.0 - exp(-rate * delta))
 	velocity.x = horiz.x
 	velocity.z = horiz.z
-	if Input.is_action_just_pressed("jump") and is_on_floor():
+	if dodge_left > 0.0:
+		dodge_left -= delta
+		velocity.x = dodge_dir.x * 8.0
+		velocity.z = dodge_dir.z * 8.0
+	if (Input.is_action_just_pressed("jump") or TouchMode.pulse_jump) and is_on_floor() and dodge_left <= 0.0:
+		TouchMode.pulse_jump = false
 		if crouched:
 			if _can_stand():
 				crouched = false
 		else:
 			velocity.y = JUMP_VELOCITY
-	if Input.is_action_just_pressed("reload"):
-		rifle.try_reload()
-	if Input.is_action_pressed("fire") and not sprinting:
-		rifle.try_fire(camera, ads_weight)
+	else:
+		TouchMode.pulse_jump = false
+	_poll_combat(delta, wish)
 	if is_on_floor() and horiz.length() > 1.2:
 		foot_time -= delta
 		if foot_time <= 0.0:
@@ -212,23 +284,116 @@ func _read_actions(delta: float) -> void:
 
 
 func _is_aiming() -> bool:
-	if ads_forced:
-		return true
-	if not control_enabled:
-		return false
-	return Input.is_action_pressed("aim") and not Input.is_action_pressed("sprint")
+	return blocking
+
+
+func _poll_touch() -> void:
+	if TouchMode.pulse_attack:
+		TouchMode.pulse_attack = false
+		attack_buffer = 0.24
+	if TouchMode.pulse_heavy:
+		TouchMode.pulse_heavy = false
+		heavy_buffer = 0.24
+	if TouchMode.pulse_lock:
+		TouchMode.pulse_lock = false
+		lock_on = not lock_on
+	if TouchMode.pulse_pause:
+		TouchMode.pulse_pause = false
+		Input.action_press("pause")
+		Input.action_release("pause")
+
+
+func _poll_combat(delta: float, wish: Vector3) -> void:
+	var want_block := TouchMode.hold_block or Input.is_action_pressed("block") or Input.is_action_pressed("aim")
+	if want_block and dodge_left <= 0.0 and not weapon.busy:
+		if not blocking:
+			block_age = 0.0
+		blocking = true
+		block_age += delta
+	else:
+		blocking = false
+		block_age = 10.0
+	if Input.is_action_just_pressed("heavy_attack"):
+		heavy_buffer = 0.24
+	if Input.is_action_just_pressed("attack") or Input.is_action_just_pressed("fire"):
+		attack_buffer = 0.24
+	if Input.is_action_just_pressed("dodge") or TouchMode.pulse_dodge:
+		TouchMode.pulse_dodge = false
+		_start_dodge(wish)
+	if Input.is_action_just_pressed("lock_on"):
+		lock_on = not lock_on
+	if heavy_buffer > 0.0:
+		heavy_buffer = maxf(0.0, heavy_buffer - delta)
+		if weapon.try_heavy():
+			heavy_buffer = 0.0
+			attack_buffer = 0.0
+	elif attack_buffer > 0.0:
+		attack_buffer = maxf(0.0, attack_buffer - delta)
+		if weapon.try_light():
+			attack_buffer = 0.0
+
+
+func _start_dodge(wish: Vector3) -> void:
+	if dodge_cd > 0.0 or dodge_left > 0.0 or not is_on_floor():
+		return
+	var dir := wish
+	if dir.length() < 0.15:
+		dir = -global_transform.basis.z
+	dir.y = 0.0
+	if dir.length() < 0.01:
+		return
+	dodge_dir = dir.normalized()
+	dodge_left = 0.42
+	iframe_left = 0.34
+	dodge_cd = 0.58
+	blocking = false
+	AudioDirector.play_3d("swing", global_position, -14.0)
+
+
+func _assist_lock(delta: float) -> void:
+	if not lock_on or not alive:
+		return
+	var nearest: Node3D = null
+	var best := 16.0
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Node3D
+		if enemy == null or not bool(enemy.get("alive")):
+			continue
+		var dist := global_position.distance_to(enemy.global_position)
+		if dist < best:
+			best = dist
+			nearest = enemy
+	if nearest == null:
+		return
+	var dir := nearest.global_position - global_position
+	dir.y = 0.0
+	if dir.length() < 0.05:
+		return
+	var target := atan2(-dir.x, -dir.z)
+	yaw_target = lerp_angle(yaw_target, target, 1.0 - exp(-5.2 * delta))
 
 
 func _apply_look(relative: Vector2) -> void:
 	var sens := Settings.sensitivity
-	yaw -= relative.x * sens
-	pitch -= relative.y * sens
-	pitch = clampf(pitch, deg_to_rad(-55.0), deg_to_rad(42.0))
-	yaw += recoil_yaw
+	if TouchMode.active():
+		sens *= 1.05
+	yaw_target -= relative.x * sens
+	pitch_target -= relative.y * sens
+	pitch_target = clampf(pitch_target, deg_to_rad(-50.0), deg_to_rad(38.0))
+	if relative.length() > 18.0:
+		lock_on = false
+
+
+func _smooth_look(delta: float) -> void:
+	var k := 1.0 - exp(-14.0 * delta)
+	yaw = lerp_angle(yaw, yaw_target, k)
+	pitch = lerpf(pitch, pitch_target, k)
+	shake = maxf(0.0, shake - delta * 1.6)
+	var wobble := shake * shake
+	var t := float(Time.get_ticks_msec()) * 0.02
 	rotation.y = yaw
-	var view_pitch := pitch + recoil_pitch
-	head.rotation.x = view_pitch
-	weapon_mount.rotation.x = view_pitch
+	head.rotation.x = pitch + sin(t) * wobble * 0.045
+	head.rotation.z = cos(t * 0.8) * wobble * 0.03
 
 
 func _decay_recoil(delta: float) -> void:
@@ -238,26 +403,26 @@ func _decay_recoil(delta: float) -> void:
 
 
 func _update_pose(delta: float) -> void:
-	var aim_target := 1.0 if _is_aiming() else 0.0
-	ads_weight = lerpf(ads_weight, aim_target, 1.0 - exp(-12.0 * delta))
+	ads_weight = lerpf(ads_weight, 1.0 if lock_on else 0.0, 1.0 - exp(-6.0 * delta))
 	var crouch_target := 1.0 if crouched else 0.0
-	crouch_weight = move_toward(crouch_weight, crouch_target, delta * 5.5)
+	crouch_weight = move_toward(crouch_weight, crouch_target, delta * 4.0)
 	var drop := 0.46 * crouch_weight
 	var height := lerpf(STAND_HEIGHT, CROUCH_HEIGHT, crouch_weight)
 	if _shape:
 		_shape.height = height
 		shape_node.position.y = height * 0.5
 	head.position.y = 1.62 - drop
-	var mount := _hip.lerp(_ads, ads_weight)
+	var mount := _hip
 	mount.y -= drop
-	weapon_mount.position = mount
-	if rifle.reloading:
-		weapon_mount.rotation.x += 0.4
-		weapon_mount.position.y -= 0.06
-	spring.spring_length = lerpf(3.05, 1.95, ads_weight)
-	camera.fov = lerpf(72.0, 50.0, ads_weight)
-	camera.position.x = lerpf(0.68, 0.62, ads_weight)
-	camera.position.y = lerpf(0.22, 0.38, ads_weight)
+	if blocking:
+		mount.z -= 0.12
+	weapon_mount.position = weapon_mount.position.lerp(mount, 1.0 - exp(-10.0 * delta))
+	if camera_distance_override > 0.0:
+		spring.spring_length = camera_distance_override
+	else:
+		spring.spring_length = lerpf(spring.spring_length, 3.45, 1.0 - exp(-4.0 * delta))
+	camera.fov = 66.0
+	camera.position = camera.position.lerp(Vector3(0.42, 0.26, 0), 1.0 - exp(-4.0 * delta))
 
 
 func _can_stand() -> bool:
@@ -267,6 +432,32 @@ func _can_stand() -> bool:
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
 	query.exclude = [get_rid()]
 	return space.intersect_ray(query).is_empty()
+
+
+func _on_settings_changed() -> void:
+	var ratio := 1.0
+	if max_health > 0:
+		ratio = float(health) / float(max_health)
+	max_health = GameConfig.player_max_health()
+	health = clampi(int(round(ratio * float(max_health))), 0, max_health)
+	if alive and health <= 0:
+		health = max_health
+	health_changed.emit(health, max_health)
+
+
+func _regen(delta: float) -> void:
+	if not alive or invulnerable:
+		return
+	since_hurt += delta
+	if health >= max_health or since_hurt < GameConfig.regen_delay():
+		return
+	regen_bank += GameConfig.regen_per_second() * delta
+	if regen_bank < 1.0:
+		return
+	var gained := int(regen_bank)
+	regen_bank -= float(gained)
+	health = mini(max_health, health + gained)
+	health_changed.emit(health, max_health)
 
 
 func _die() -> void:

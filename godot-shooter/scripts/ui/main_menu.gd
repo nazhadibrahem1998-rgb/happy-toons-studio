@@ -14,10 +14,10 @@ func _ready() -> void:
 	add_child(_menu)
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -260
-	panel.offset_top = -250
-	panel.offset_right = 260
-	panel.offset_bottom = 250
+	panel.offset_left = -280
+	panel.offset_top = -330
+	panel.offset_right = 280
+	panel.offset_bottom = 300
 	_menu.add_child(panel)
 	SoraniTheme.apply(panel)
 	var box := VBoxContainer.new()
@@ -27,6 +27,15 @@ func _ready() -> void:
 	rating.text = GameConfig.STR["rating"]
 	rating.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(rating)
+	var flag := TextureRect.new()
+	flag.texture = KurdistanFlag.texture()
+	flag.custom_minimum_size = Vector2(168, 112)
+	flag.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	flag.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	flag.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	flag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flag.layout_direction = Control.LAYOUT_DIRECTION_LTR
+	box.add_child(flag)
 	var title := Label.new()
 	title.text = GameConfig.GAME_TITLE_CKB
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
