@@ -360,6 +360,8 @@ function substep(state, input, dt) {
   const yaw = input.yaw || 0;
   const forward = input.forward || 0;
   const strafe = input.strafe || 0;
+  const move = PHYS.move * (1 + 0.08 * (state.runRank || 0));
+  const jumpV = PHYS.jumpV * (1 + 0.1 * (state.jumpRank || 0));
   let wx = Math.cos(yaw) * forward - Math.sin(yaw) * strafe;
   let wz = Math.sin(yaw) * forward + Math.cos(yaw) * strafe;
   const mag = Math.hypot(wx, wz);
@@ -368,21 +370,33 @@ function substep(state, input, dt) {
     wz /= mag;
   }
   const accel = (p.onGround ? PHYS.accel : PHYS.airAccel) * dt;
-  p.vx = approach(p.vx, wx * PHYS.move, accel);
-  p.vz = approach(p.vz, wz * PHYS.move, accel);
+  p.vx = approach(p.vx, wx * move, accel);
+  p.vz = approach(p.vz, wz * move, accel);
+  if (state.dashLeft > 0) {
+    const burst = move * 2.45;
+    p.vx = Math.cos(yaw) * burst;
+    p.vz = Math.sin(yaw) * burst;
+    state.dashLeft -= dt;
+  }
+  if (state.dashCd > 0) state.dashCd -= dt;
 
   if (p.onGround) state.coyote = PHYS.coyote;
   else state.coyote = Math.max(0, state.coyote - dt);
   state.jumpBuffer = Math.max(0, state.jumpBuffer - dt);
   if (state.jumpBuffer > 0 && state.coyote > 0 && !state.won) {
-    p.vy = PHYS.jumpV;
+    p.vy = jumpV;
     p.onGround = false;
     p.groundId = null;
     state.jumpBuffer = 0;
     state.coyote = 0;
+  } else if (state.jumpBuffer > 0 && state.doubleJump && (state.airJumps || 0) > 0 && !p.onGround && state.coyote <= 0) {
+    p.vy = jumpV * 0.92;
+    state.airJumps -= 1;
+    state.jumpBuffer = 0;
   }
 
   p.vy = Math.max(-PHYS.maxFall, p.vy - PHYS.g * dt);
+  if (state.hasGlide && input.jump && !p.onGround && p.vy < -3.2) p.vy = -3.2;
 
   p.onGround = false;
   const prevGround = p.groundId;
@@ -406,9 +420,18 @@ function substep(state, input, dt) {
     }
   }
 
-  if (p.onGround) state.coyote = PHYS.coyote;
+  if (p.onGround) {
+    state.coyote = PHYS.coyote;
+    state.airJumps = state.doubleJump ? 1 : 0;
+  }
 
   if (state.invuln <= 0 && !state.won && hitsHazardAt(state, p.x, p.y, p.z, state.time)) {
+    if (state.shieldReady) {
+      state.shieldReady = false;
+      state.invuln = 0.7;
+      p.vy = Math.max(p.vy, 7);
+      return;
+    }
     respawn(state);
     return;
   }
@@ -425,6 +448,7 @@ function substep(state, input, dt) {
       state.spawn = { x: pose.cx, y: pose.maxY, z: pose.cz, floor: ent.spawnFloor };
       if (ent.spawnFloor > state.highest) state.highest = ent.spawnFloor;
       state.checkpointSerial += 1;
+      if (state.shieldOwned) state.shieldReady = true;
     }
     if (ent && ent.finish) state.won = true;
   }
@@ -439,6 +463,13 @@ export function step(state, input, dt) {
   const pressed = !!input.jump && !state.jumpHeld;
   state.jumpHeld = !!input.jump;
   if (pressed) state.jumpBuffer = PHYS.buffer;
+  const dashPressed = !!input.dash && !state.dashHeld;
+  state.dashHeld = !!input.dash;
+  if (dashPressed && state.hasDash && (state.dashCd || 0) <= 0) {
+    const rank = state.dashRank || 1;
+    state.dashLeft = 0.16 + 0.07 * Math.max(0, rank - 1);
+    state.dashCd = 0.9;
+  }
   let left = clamped;
   const sub = 1 / 120;
   const deathsBefore = state.deaths;

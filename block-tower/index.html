@@ -21,12 +21,17 @@
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (type) {
     document.addEventListener(type, block, { passive: false });
   });
+  function inPanel(e) {
+    var t = e.target;
+    return t && t.closest && t.closest('.panel, textarea, input');
+  }
   document.addEventListener('touchmove', function (e) {
-    if (e.target && e.target.closest && e.target.closest('textarea, input')) return;
+    if (inPanel(e)) return;
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
   var last = 0;
   document.addEventListener('touchend', function (e) {
+    if (inPanel(e)) return;
     var now = Date.now();
     if (now - last < 300 && e.cancelable) e.preventDefault();
     last = now;
@@ -55,6 +60,8 @@
     </div>
   </div>
   <div class="hud-actions">
+    <button type="button" id="gemBtn" aria-label="Gems">◆ <span id="gemCount">0</span></button>
+    <span id="shieldPip" hidden aria-label="Shield">◆</span>
     <button type="button" id="muteBtn" aria-pressed="false">♪</button>
     <button type="button" id="fullBtn" aria-label="پڕشاشە">⛶</button>
     <button type="button" id="pauseBtn" aria-label="وەستان">❚❚</button>
@@ -65,7 +72,8 @@
   <div id="stickZone" aria-hidden="true">
     <div id="stick"><div id="knob"></div></div>
   </div>
-  <button type="button" id="jumpBtn"><span data-i18n="jump">بازدان</span></button>
+  <button type="button" id="dashBtn" hidden>Dash</button>
+  <button type="button" id="jumpBtn"><span data-i18n="jump">Jump</span></button>
 </div>
 
 <div id="rotate" aria-hidden="true">
@@ -91,6 +99,7 @@
     <div class="row">
       <button type="button" id="helpBtn" class="btn alt" data-i18n="help">Help</button>
       <button type="button" id="feedbackBtn" class="btn alt" data-i18n="feedback">Feedback</button>
+      <button type="button" id="upgradeBtn" class="btn alt">Upgrades</button>
     </div>
     <div class="records">
       <div><span data-i18n="best">Best time</span> <b id="menuBest">—</b></div>
@@ -195,7 +204,8 @@
   <div class="panel">
     <h2 data-i18n="pause">Pause</h2>
     <button type="button" id="resumeBtn" class="btn" data-i18n="resume">بەردەوامبوون</button>
-    <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">یارمەتی</button>
+    <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">Help</button>
+    <button type="button" id="pauseUpgrades" class="btn alt">Upgrades</button>
     <button type="button" id="restartBtn" class="btn alt" data-i18n="again">دووبارە</button>
     <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">مێنیو</button>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
@@ -230,7 +240,60 @@
   </div>
 </div>
 
+<div id="upgrades" class="screen" hidden>
+  <div class="panel">
+    <h2>Upgrades · باشترکردن</h2>
+    <p>Gems on the tower buy these. You can finish the tower without them.</p>
+    <p dir="rtl">گەوهەرەکانی سەر بورج ئەمانە دەکڕن. دەتوانیت بەبێ ئەوان بورجەکە تەواو بکەیت.</p>
+    <p id="gemLine"></p>
+    <div id="upgradeList"></div>
+    <button type="button" id="upgradeClose" class="btn">Close · داخستن</button>
+  </div>
+</div>
+
 <div id="perf" hidden>0</div>
+<script>
+/* Panels own vertical pans. A finger on a panel scrolls that panel even when
+   the page itself blocks touch scrolling. A short tap still clicks. */
+(function () {
+  function fieldOwnsScroll(target) {
+    var field = target && target.closest && target.closest('textarea, input');
+    return !!(field && field.scrollHeight > field.clientHeight + 8);
+  }
+  function yOf(touch) {
+    return typeof touch.clientY === 'number' ? touch.clientY : touch.pageY;
+  }
+  document.querySelectorAll('.panel').forEach(function (panel) {
+    var tracking = false;
+    var startY = 0;
+    var startTop = 0;
+    panel.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1 || fieldOwnsScroll(e.target)) {
+        tracking = false;
+        return;
+      }
+      tracking = true;
+      startY = yOf(e.touches[0]);
+      startTop = panel.scrollTop;
+    }, { passive: true });
+    panel.addEventListener('touchmove', function (e) {
+      if (!tracking || e.touches.length !== 1) return;
+      var max = panel.scrollHeight - panel.clientHeight;
+      if (max <= 0) return;
+      var dy = startY - yOf(e.touches[0]);
+      if (Math.abs(dy) < 8) return;
+      var next = startTop + dy;
+      if (next < 0) next = 0;
+      if (next > max) next = max;
+      panel.scrollTop = next;
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    function stop() { tracking = false; }
+    panel.addEventListener('touchend', stop, { passive: true });
+    panel.addEventListener('touchcancel', stop, { passive: true });
+  });
+})();
+</script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

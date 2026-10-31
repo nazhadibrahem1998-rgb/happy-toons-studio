@@ -280,7 +280,18 @@ export function buildLevel() {
     id: 'finish',
   });
 
-  return b.ents;
+  const ents = b.ents;
+  const seenFloor = new Set();
+  const gems = [];
+  for (const solid of ents) {
+    if (!solid.spawnFloor || seenFloor.has(solid.floor)) continue;
+    seenFloor.add(solid.floor);
+    gems.push(
+      { kind: 'gem', id: `gem-f${solid.floor}-a`, floor: solid.floor, x: solid.cx - 0.4, y: solid.top + 0.95, z: 1.7 },
+      { kind: 'gem', id: `gem-f${solid.floor}-b`, floor: solid.floor, x: solid.cx + 0.7, y: solid.top + 0.95, z: -1.7 },
+    );
+  }
+  return ents.concat(gems);
 }
 
 export const FLOOR_COUNT = 10;

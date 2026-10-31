@@ -9,6 +9,7 @@ import { t } from './i18n.js';
 import { FLOOR_COUNT, FLOOR_NAMES } from './levels.js';
 import { createState, hazardPose, placeAtCheckpoint, snapshot, solidPose, step } from './physics.js';
 import { submitFeedback } from './feedback.js';
+import { UPGRADES, applyProgress, buyUpgrade, loadProgress, saveProgress, upgradeCost } from './upgrades.js';
 import { isMuted, playCheckpoint, playDeath, playJump, playWin, setMuted, tone } from './audio.js';
 
 const canvas = document.getElementById('c');
@@ -49,7 +50,9 @@ let lang = localStorage.getItem('bt-lang') === 'ckb' ? 'ckb' : 'en';
 let quality = localStorage.getItem('bt-quality') || (mobileUI() ? 'low' : 'high');
 let colorId = localStorage.getItem('bt-color') || 'cyan';
 let mode = 'menu';
+let progress = loadProgress();
 let world = createState();
+applyProgress(world, progress);
 let seenSerial = world.checkpointSerial;
 let seenHighest = world.highest;
 let lastDeaths = 0;
@@ -59,6 +62,8 @@ let pitch = 0.38;
 let joyX = 0;
 let joyY = 0;
 let touchJump = false;
+let touchDash = false;
+let gemMesh = null;
 let score = 0;
 let toastTimer = 0;
 let menuAng = 0.6;
@@ -215,6 +220,7 @@ function buildScenery() {
 function buildLevelMeshes(ents) {
   const buckets = new Map();
   for (const ent of ents) {
+    if (ent.kind === 'gem') continue;
     if (ent.kind === 'solid' && !ent.move && !ent.crumble) {
       if (!buckets.has(ent.color)) buckets.set(ent.color, []);
       buckets.get(ent.color).push(ent);
@@ -248,6 +254,112 @@ function buildLevelMeshes(ents) {
     mesh.frustumCulled = false;
     scene.add(mesh);
   }
+}
+
+function buildGems(ents) {
+  const gems = ents.filter((ent) => ent.kind === 'gem');
+  if (!gems.length) return;
+  gemMesh = new THREE.InstancedMesh(box, new THREE.MeshBasicMaterial({ color: 0xc6ff4a }), gems.length);
+  gemMesh.frustumCulled = false;
+  gemMesh.userData.gems = gems;
+  scene.add(gemMesh);
+  syncGems();
+}
+
+function syncGems() {
+  if (!gemMesh) return;
+  const gems = gemMesh.userData.gems;
+  for (let i = 0; i < gems.length; i++) {
+    const gem = gems[i];
+    const got = progress.found.includes(gem.id);
+    dummy.position.set(gem.x, gem.y + Math.sin(world.time * 3 + i) * 0.08, gem.z);
+    dummy.rotation.set(world.time, world.time * 0.6, 0);
+    const s = got ? 0.001 : 0.36;
+    dummy.scale.set(s, s, s);
+    dummy.updateMatrix();
+    gemMesh.setMatrixAt(i, dummy.matrix);
+  }
+  gemMesh.instanceMatrix.needsUpdate = true;
+}
+
+function collectGems() {
+  if (!gemMesh || mode !== 'play') return;
+  const p = world.player;
+  let picked = false;
+  for (const gem of gemMesh.userData.gems) {
+    if (progress.found.includes(gem.id)) continue;
+    const dx = gem.x - p.x;
+    const dy = gem.y - (p.y + 0.8);
+    const dz = gem.z - p.z;
+    if (dx * dx + dy * dy + dz * dz > 0.7 * 0.7) continue;
+    progress.found.push(gem.id);
+    progress.gems += 1;
+    picked = true;
+  }
+  if (!picked) return;
+  saveProgress(progress);
+  updateGemButton();
+  toast(lang === 'en' ? 'Gem' : 'گەوهەر');
+}
+
+function updateGemButton() {
+  const count = document.getElementById('gemCount');
+  if (count) count.textContent = String(progress.gems);
+  const pip = document.getElementById('shieldPip');
+  if (pip) pip.hidden = !world.shieldReady;
+  const dashBtn = document.getElementById('dashBtn');
+  if (dashBtn) {
+    dashBtn.hidden = !world.hasDash;
+    dashBtn.textContent = (progress.dash || 0) > 1 ? 'Dash+' : 'Dash';
+  }
+}
+
+function renderUpgrades() {
+  const list = document.getElementById('upgradeList');
+  const line = document.getElementById('gemLine');
+  if (!list || !line) return;
+  line.textContent = lang === 'en'
+    ? `Gems: ${progress.gems}`
+    : `گەوهەر: ${progress.gems}`;
+  list.replaceChildren();
+  for (const item of UPGRADES) {
+    const rank = progress[item.id] || 0;
+    const card = document.createElement('div');
+    card.className = 'upgrade';
+    const title = document.createElement('strong');
+    title.textContent = lang === 'en' ? item.en : item.ckb;
+    const sub = document.createElement('p');
+    sub.className = 'sub';
+    sub.dir = lang === 'en' ? 'rtl' : 'ltr';
+    sub.textContent = lang === 'en' ? item.ckb : item.en;
+    const detail = document.createElement('p');
+    detail.textContent = lang === 'en' ? item.enDetail : item.ckbDetail;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn';
+    if (rank >= item.max) {
+      btn.disabled = true;
+      btn.textContent = lang === 'en' ? 'Owned' : 'کراوە';
+    } else {
+      const cost = upgradeCost(progress, item.id);
+      btn.textContent = `${lang === 'en' ? 'Buy' : 'کڕین'} · ${cost}`;
+      btn.disabled = progress.gems < cost;
+      btn.addEventListener('click', () => {
+        if (!buyUpgrade(progress, item.id)) return;
+        applyProgress(world, progress);
+        if (item.id === 'shield') world.shieldReady = true;
+        updateGemButton();
+        renderUpgrades();
+      });
+    }
+    card.append(title, sub, detail, btn);
+    list.appendChild(card);
+  }
+}
+
+function openUpgrades() {
+  renderUpgrades();
+  showPanel('upgrades');
 }
 
 function makePlayer() {
@@ -292,6 +404,7 @@ let signsReady = false;
 if (renderer) {
   buildScenery();
   buildLevelMeshes(world.ents);
+  buildGems(world.ents);
   player = makePlayer();
   buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
@@ -416,6 +529,7 @@ function applyQuality() {
 }
 
 function resize() {
+  document.documentElement.style.setProperty('--app-h', `${window.innerHeight}px`);
   updateRotate();
   if (!renderer) return;
   const vv = window.visualViewport;
@@ -430,7 +544,7 @@ function resize() {
 function updateRotate() {
   const portrait = window.innerHeight > window.innerWidth + 40;
   const phone = mobileUI() && Math.min(window.innerWidth, window.innerHeight) < 920;
-  ui.rotate.classList.toggle('show', portrait && phone);
+  ui.rotate.classList.toggle('show', portrait && phone && mode === 'play');
 }
 
 function renderSwatches() {
@@ -483,6 +597,12 @@ function applyLang(next) {
   updateHud();
   updateRecords();
   renderSwatches();
+  const upLabel = lang === 'en' ? 'Upgrades' : 'باشترکردن';
+  const upBtn = document.getElementById('upgradeBtn');
+  const pauseUp = document.getElementById('pauseUpgrades');
+  if (upBtn) upBtn.textContent = upLabel;
+  if (pauseUp) pauseUp.textContent = upLabel;
+  renderUpgrades();
 }
 
 function updateRecords() {
@@ -512,6 +632,8 @@ function setMode(next) {
   ui.touch.hidden = !playing || !mobileUI();
   if (playing) keys.clear();
   updateHud();
+  updateRotate();
+  updateGemButton();
 }
 
 function toast(text) {
@@ -578,6 +700,8 @@ function poll() {
 
 function restart() {
   world = createState();
+  applyProgress(world, progress);
+  if (world.shieldOwned) world.shieldReady = true;
   seenSerial = 0;
   seenHighest = world.highest;
   lastDeaths = 0;
@@ -585,6 +709,7 @@ function restart() {
   yaw = 0;
   pitch = 0.38;
   setMode('play');
+  syncGems();
 }
 
 function readInput() {
@@ -596,7 +721,7 @@ function readInput() {
   if (keys.has('KeyA') || keys.has('ArrowLeft')) strafe -= 1;
   if (Math.abs(joyY) > 0.12) forward = joyY;
   if (Math.abs(joyX) > 0.12) strafe = joyX;
-  return { forward, strafe, jump: keys.has('Space') || touchJump, yaw, timing: true };
+  return { forward, strafe, jump: keys.has('Space') || touchJump, dash: keys.has('ShiftLeft') || keys.has('ShiftRight') || touchDash, yaw, timing: true };
 }
 
 function syncDynamics() {
@@ -659,7 +784,9 @@ function syncPlayer(dt) {
   }
 }
 
+let freezeCam = false;
 function placeCamera(dt, snap) {
+  if (freezeCam && mode === 'play') return;
   const p = world.player;
   let tx;
   let ty;
@@ -732,7 +859,7 @@ canvas.addEventListener('pointermove', (e) => {
   const dy = locked ? e.movementY : e.clientY - lastY;
   lastX = e.clientX;
   lastY = e.clientY;
-  yaw -= dx * 0.005;
+  yaw += dx * 0.005;
   pitch = Math.max(0.18, Math.min(1.05, pitch + dy * 0.0035));
 });
 function endDrag(e) {
@@ -789,6 +916,22 @@ function jumpUp() { touchJump = false; }
 jumpBtn.addEventListener('pointerdown', jumpDown);
 jumpBtn.addEventListener('pointerup', jumpUp);
 jumpBtn.addEventListener('pointercancel', jumpUp);
+const dashBtn = document.getElementById('dashBtn');
+function dashDown(e) {
+  touchDash = true;
+  try { dashBtn.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  e.preventDefault();
+}
+function dashUp() { touchDash = false; }
+dashBtn.addEventListener('pointerdown', dashDown);
+dashBtn.addEventListener('pointerup', dashUp);
+dashBtn.addEventListener('pointercancel', dashUp);
+document.getElementById('upgradeBtn').addEventListener('click', openUpgrades);
+document.getElementById('pauseUpgrades').addEventListener('click', openUpgrades);
+document.getElementById('gemBtn').addEventListener('click', openUpgrades);
+document.getElementById('upgradeClose').addEventListener('click', () => {
+  document.getElementById('upgrades').hidden = true;
+});
 
 function toggleMute() {
   setMuted(!isMuted());
@@ -804,10 +947,16 @@ document.getElementById('restartBtn').addEventListener('click', restart);
 document.getElementById('finishAgain').addEventListener('click', restart);
 document.getElementById('pauseMenu').addEventListener('click', () => setMode('menu'));
 document.getElementById('finishMenu').addEventListener('click', () => setMode('menu'));
-document.getElementById('helpBtn').addEventListener('click', () => { ui.help.hidden = false; });
-document.getElementById('pauseHelp').addEventListener('click', () => { ui.help.hidden = false; });
+function showPanel(id) {
+  const root = document.getElementById(id);
+  const panel = root && root.querySelector('.panel');
+  if (panel) panel.scrollTop = 0;
+  if (root) root.hidden = false;
+}
+document.getElementById('helpBtn').addEventListener('click', () => { showPanel('help'); });
+document.getElementById('pauseHelp').addEventListener('click', () => { showPanel('help'); });
 document.getElementById('helpClose').addEventListener('click', () => { ui.help.hidden = true; });
-document.getElementById('feedbackBtn').addEventListener('click', () => { ui.feedback.hidden = false; });
+document.getElementById('feedbackBtn').addEventListener('click', () => { showPanel('feedback'); });
 document.getElementById('fbClose').addEventListener('click', () => { ui.feedback.hidden = true; });
 document.getElementById('muteBtn').addEventListener('click', toggleMute);
 document.getElementById('fullBtn').addEventListener('click', () => {
@@ -926,6 +1075,7 @@ function frame(now) {
     const input = readInput();
     step(world, input, dt);
     if (input.jump && world.player.vy > beforeY + 1) playJump();
+    collectGems();
     poll();
   }
   if (toastTimer > 0) {
@@ -933,6 +1083,7 @@ function frame(now) {
     if (toastTimer <= 0) ui.toast.classList.remove('on');
   }
   if (glLost) return;
+  syncGems();
   syncDynamics();
   syncPlayer(dt);
   placeCamera(dt, false);
@@ -1006,6 +1157,132 @@ async function installTestHook() {
       };
     },
     get signsReady() { return signsReady; },
+    setYaw(value) {
+      yaw = value;
+      pitch = 0.38;
+      const held = freezeCam;
+      freezeCam = false;
+      placeCamera(1, true);
+      freezeCam = held;
+    },
+    project(x, y, z) {
+      camera.updateMatrixWorld(true);
+      const v = new THREE.Vector3(x, y, z);
+      v.project(camera);
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (v.x * 0.5 + 0.5) * rect.width + rect.left,
+        y: (-v.y * 0.5 + 0.5) * rect.height + rect.top,
+      };
+    },
+    strafeStep(strafe, frames) {
+      const camNow = { x: cam.x, y: cam.y, z: cam.z };
+      const lookNow = look.clone();
+      for (let i = 0; i < frames; i++) {
+        step(world, { forward: 0, strafe, jump: false, yaw, timing: false }, 1 / 60);
+      }
+      cam.x = camNow.x;
+      cam.y = camNow.y;
+      cam.z = camNow.z;
+      camera.position.set(cam.x, cam.y, cam.z);
+      camera.lookAt(lookNow);
+      camera.updateMatrixWorld(true);
+      return snapshot(world);
+    },
+    resetFeet() {
+      const spawn = world.spawn;
+      world.player.x = spawn.x;
+      world.player.y = spawn.y;
+      world.player.z = spawn.z;
+      world.player.vx = 0;
+      world.player.vy = 0;
+      world.player.vz = 0;
+      world.player.onGround = true;
+      paint();
+      return snapshot(world);
+    },
+    giveGems(count) {
+      progress.gems += count;
+      saveProgress(progress);
+      updateGemButton();
+      return progress.gems;
+    },
+    resetProgress() {
+      progress.gems = 0;
+      progress.found = [];
+      progress.jump = 0;
+      progress.run = 0;
+      progress.doubleJump = 0;
+      progress.dash = 0;
+      progress.shield = 0;
+      progress.glide = 0;
+      saveProgress(progress);
+      restart();
+      paint();
+    },
+    shieldHit() {
+      const hazard = world.ents.find((ent) => ent.hazard === 'spinner');
+      world.player.x = hazard.cx;
+      world.player.y = hazard.pivot;
+      world.player.z = hazard.cz;
+      world.player.vx = 0;
+      world.player.vy = 0;
+      world.player.vz = 0;
+      world.invuln = 0;
+      const before = world.deaths;
+      step(world, { forward: 0, strafe: 0, jump: false, yaw, timing: false }, 1 / 60);
+      paint();
+      return { before, deaths: world.deaths, shieldReady: !!world.shieldReady, shieldOwned: !!world.shieldOwned };
+    },
+    airJump() {
+      const p = world.player;
+      p.vx = 0;
+      p.vy = 0;
+      p.vz = 0;
+      p.onGround = true;
+      world.coyote = 0.14;
+      world.airJumps = world.doubleJump ? 1 : 0;
+      const input = { forward: 0, strafe: 0, yaw, timing: false };
+      step(world, { ...input, jump: true }, 1 / 60);
+      step(world, { ...input, jump: false }, 1 / 60);
+      step(world, { ...input, jump: true }, 1 / 60);
+      paint();
+      return { airJumps: world.airJumps, vy: p.vy, doubleJump: !!world.doubleJump };
+    },
+    glideFall() {
+      const p = world.player;
+      p.onGround = false;
+      p.groundId = null;
+      p.vy = -20;
+      world.coyote = 0;
+      step(world, { forward: 0, strafe: 0, jump: true, yaw, timing: false }, 1 / 30);
+      paint();
+      return { vy: p.vy, hasGlide: !!world.hasGlide };
+    },
+    freezeCam(on) { freezeCam = !!on; },
+    cameraInfo() {
+      return {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z,
+        aspect: camera.aspect,
+        yaw,
+        px: world.player.x,
+        pz: world.player.z,
+      };
+    },
+    focusGem() {
+      const gem = world.ents.find((ent) => ent.kind === 'gem' && !progress.found.includes(ent.id));
+      if (!gem) return null;
+      world.player.x = gem.x - 2.2;
+      world.player.y = gem.y - 0.95;
+      world.player.z = 0;
+      world.player.vx = world.player.vy = world.player.vz = 0;
+      yaw = Math.atan2(gem.z - world.player.z, gem.x - world.player.x);
+      setMode('play');
+      paint();
+      return { x: gem.x, y: gem.y, z: gem.z };
+    },
   };
 }
 installTestHook().then(() => {

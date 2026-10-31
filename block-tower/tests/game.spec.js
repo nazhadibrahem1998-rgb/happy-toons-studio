@@ -152,6 +152,7 @@ test('no page zoom and portrait hint', async ({ page }, info) => {
   expect(scale).toBe(1);
   if (info.project.name !== 'desktop') {
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.click('#playBtn');
     await page.waitForTimeout(150);
     await expect(page.locator('#rotate')).toBeVisible();
     await page.setViewportSize({ width: 844, height: 390 });
@@ -304,6 +305,156 @@ test('graphics context loss resumes from the checkpoint', async ({ page }, info)
   await page.waitForTimeout(250);
   const t1 = await page.evaluate(() => window.__BT.getState().playTime);
   expect(t1).toBeGreaterThan(later);
+  assertClean(errors);
+});
+
+async function swipe(page, panel, yStart, yEnd) {
+  const box = await panel.boundingBox();
+  const x = box.x + Math.min(box.width * 0.5, box.width - 28);
+  let session = null;
+  try { session = await page.context().newCDPSession(page); } catch { session = null; }
+  if (session) {
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: yStart }] });
+    for (let i = 1; i <= 8; i++) {
+      const y = yStart + ((yEnd - yStart) * i) / 8;
+      await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
+    }
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    return;
+  }
+  await panel.evaluate((el, coords) => {
+    const fire = (type, y) => {
+      const point = document.createTouch(window, el, 1, coords.x, y, coords.x, y);
+      const list = document.createTouchList(point);
+      const empty = document.createTouchList();
+      const ev = new TouchEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        touches: type === 'touchend' ? empty : list,
+        targetTouches: type === 'touchend' ? empty : list,
+        changedTouches: list,
+      });
+      el.dispatchEvent(ev);
+    };
+    fire('touchstart', coords.yStart);
+    const steps = 8;
+    for (let i = 1; i <= steps; i++) fire('touchmove', coords.yStart + ((coords.yEnd - coords.yStart) * i) / steps);
+    fire('touchend', coords.yEnd);
+  }, { x, yStart, yEnd });
+}
+
+test('overlays scroll by touch and the bottom button is reachable', async ({ page }, info) => {
+  test.skip(info.project.name === 'desktop', 'phone touch scroll');
+  test.setTimeout(180000);
+  const errors = await openGame(page);
+  const sizes = [[390, 844], [844, 390], [375, 667], [667, 375]];
+  for (const [width, height] of sizes) {
+    await page.setViewportSize({ width, height });
+    for (const [open, root, bottom] of [
+      ['#feedbackBtn', '#feedback', '#fbClose'],
+      ['#helpBtn', '#help', '#helpClose'],
+      ['#upgradeBtn', '#upgrades', '#upgradeClose'],
+    ]) {
+      await page.click(open);
+      const panel = page.locator(`${root} .panel`);
+      await expect(panel).toBeVisible();
+      await panel.evaluate((el) => { el.scrollTop = 0; });
+      const metrics = await panel.evaluate((el) => ({ top: el.scrollTop, extra: el.scrollHeight - el.clientHeight }));
+      expect(metrics.extra).toBeGreaterThan(8);
+      const box = await panel.boundingBox();
+      await swipe(page, panel, box.y + Math.min(box.height * 0.72, box.height - 20), box.y + 24);
+      await page.waitForTimeout(120);
+      const after = await panel.evaluate((el) => el.scrollTop);
+      expect(after).toBeGreaterThan(metrics.top);
+      const btn = page.locator(bottom);
+      for (let n = 0; n < 6; n++) {
+        const b = await btn.boundingBox();
+        if (b && b.y >= 0 && b.y + b.height <= height - 2) break;
+        const again = await panel.boundingBox();
+        await swipe(page, panel, again.y + again.height * 0.75, again.y + 16);
+      }
+      const visible = await btn.boundingBox();
+      expect(visible.y).toBeGreaterThanOrEqual(0);
+      expect(visible.y + visible.height).toBeLessThanOrEqual(height + 1);
+      if (info.project.name === 'webkit' && width === 390 && height === 844 && open === '#feedbackBtn') {
+        await page.screenshot({ path: `${ART}/screenshot_feedback_scrolled.png` });
+      }
+      if (info.project.name === 'webkit' && width === 390 && height === 844 && open === '#upgradeBtn') {
+        await page.screenshot({ path: `${ART}/screenshot_upgrades_iphone.png` });
+      }
+      await btn.click();
+      await expect(page.locator(root)).toBeHidden();
+    }
+  }
+  const canvasBlocked = await page.evaluate(() => {
+    const canvas = document.querySelector('#c');
+    let ev;
+    if (typeof document.createTouch === 'function') {
+      const point = document.createTouch(window, canvas, 9, 40, 40, 40, 40);
+      const list = document.createTouchList(point);
+      ev = new TouchEvent('touchmove', {
+        bubbles: true, cancelable: true, touches: list, targetTouches: list, changedTouches: list,
+      });
+    } else {
+      const point = new Touch({ identifier: 9, target: canvas, clientX: 40, clientY: 40 });
+      ev = new TouchEvent('touchmove', {
+        bubbles: true, cancelable: true, touches: [point], targetTouches: [point], changedTouches: [point],
+      });
+    }
+    canvas.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  });
+  expect(canvasBlocked).toBe(true);
+  assertClean(errors);
+});
+
+test('left and right match the screen at several camera angles', async ({ page }, info) => {
+  test.skip(info.project.name === 'android', 'covered on desktop and WebKit');
+  const errors = await openGame(page);
+  await page.click('#playBtn');
+  await page.evaluate(() => window.__BT.freezeCam(true));
+  for (const angle of [0, Math.PI / 2, Math.PI, -1.1]) {
+    await page.evaluate((yaw) => {
+      window.__BT.resetFeet();
+      window.__BT.setYaw(yaw);
+    }, angle);
+    const before = await page.evaluate(() => {
+      const s = window.__BT.getState();
+      return window.__BT.project(s.x, s.y + 1, s.z).x;
+    });
+    await page.evaluate(() => window.__BT.strafeStep(-1, 12));
+    const left = await page.evaluate(() => {
+      const s = window.__BT.getState();
+      return window.__BT.project(s.x, s.y + 1, s.z).x;
+    });
+    expect(left).toBeLessThan(before - 6);
+    await page.evaluate((yaw) => {
+      window.__BT.resetFeet();
+      window.__BT.setYaw(yaw);
+    }, angle);
+    await page.evaluate(() => window.__BT.strafeStep(1, 12));
+    const right = await page.evaluate(() => {
+      const s = window.__BT.getState();
+      return window.__BT.project(s.x, s.y + 1, s.z).x;
+    });
+    expect(right).toBeGreaterThan(before + 6);
+  }
+  await page.evaluate(() => {
+    window.__BT.resetFeet();
+    window.__BT.setYaw(0);
+  });
+  const keysBefore = await page.evaluate(() => {
+    const s = window.__BT.getState();
+    return window.__BT.project(s.x, s.y + 1, s.z).x;
+  });
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(180);
+  await page.keyboard.up('ArrowLeft');
+  const keysAfter = await page.evaluate(() => {
+    const s = window.__BT.getState();
+    return window.__BT.project(s.x, s.y + 1, s.z).x;
+  });
+  expect(keysAfter).toBeLessThan(keysBefore - 4);
   assertClean(errors);
 });
 

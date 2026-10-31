@@ -54,8 +54,11 @@ canvas {
   position: fixed;
   inset: 0;
   z-index: 5;
-  overflow: auto;
-  padding: calc(14px + var(--safe-t)) calc(14px + var(--safe-r)) calc(14px + var(--safe-b)) calc(14px + var(--safe-l));
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(8px + var(--safe-t)) calc(10px + var(--safe-r)) calc(8px + var(--safe-b)) calc(10px + var(--safe-l));
   background: rgba(5, 6, 12, 0.82);
 }
 .panel {
@@ -66,6 +69,14 @@ canvas {
   border-radius: 18px;
   padding: 18px 18px 14px;
   box-shadow: 0 0 0 1px rgba(255, 62, 200, 0.18), 0 18px 50px rgba(0, 0, 0, 0.35);
+  max-height: calc(100vh - 16px - var(--safe-t) - var(--safe-b));
+  max-height: calc(100dvh - 16px - var(--safe-t) - var(--safe-b));
+  max-height: calc(var(--app-h, 100dvh) - 16px - var(--safe-t) - var(--safe-b));
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 .panel.wide { width: min(640px, 100%); }
 h1, h2, h3, h4 { margin: 0 0 6px; font-weight: 700; }
@@ -128,7 +139,7 @@ p { margin: 0 0 8px; line-height: 1.45; }
 .swatch.on { border-color: #fff; }
 .swatch:disabled { opacity: 0.35; cursor: default; }
 .ai { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
-.legal { color: #7f8b99; font-size: 0.75rem; margin: 8px 0 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+.legal { color: #7f8b99; font-size: 0.75rem; margin: 8px 0 0; font-family: 'Segoe UI', Tahoma, sans-serif; direction: ltr; unicode-bidi: isolate; text-align: center; }
 .banner, .notice, .warn {
   border-radius: 12px;
   padding: 10px 12px;
@@ -235,17 +246,21 @@ textarea {
 #rotate {
   display: none;
   position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: #070812;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  z-index: 6;
+  top: calc(8px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, calc(100% - 24px));
+  pointer-events: none;
+  background: rgba(7, 8, 18, 0.92);
+  border: 1px solid var(--cyan);
+  border-radius: 16px;
   text-align: center;
-  padding: 24px;
+  padding: 10px 14px;
 }
-#rotate.show { display: flex; }
-#rotate .ph { font-size: 2.4rem; }
+#rotate.show { display: block; }
+#rotate .ph { font-size: 1.4rem; margin: 0; }
+#rotate p { margin: 2px 0; }
 #flash {
   position: fixed;
   inset: 0;
@@ -283,9 +298,37 @@ textarea {
   text-align: center;
 }
 
-@media (orientation: portrait) and (max-width: 900px) and (pointer: coarse) {
-  #rotate { display: flex; }
+#dashBtn {
+  pointer-events: auto;
+  position: absolute;
+  right: calc(112px + var(--safe-r));
+  bottom: calc(42px + var(--safe-b));
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  font: inherit;
+  color: var(--text);
+  background: rgba(8, 10, 18, 0.82);
+  border: 1px solid var(--magenta);
 }
+#gemBtn {
+  pointer-events: auto;
+  font: inherit;
+  background: rgba(8, 10, 18, 0.82);
+  color: var(--lime);
+  border: 1px solid var(--lime);
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 0 10px;
+}
+.upgrade {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.upgrade .sub { color: var(--muted); font-size: 0.88rem; margin: 2px 0 8px; }
+.upgrade .btn { margin: 0; }
 @media (max-height: 420px) {
   h1 { font-size: 1.7rem; }
   .panel { padding: 12px; }
