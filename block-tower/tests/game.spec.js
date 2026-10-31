@@ -643,6 +643,23 @@ test('portrait HUD and controls fit, and the rotate tip can be dismissed', async
   assertClean(errors);
 });
 
+test('home screen hint is fully visible at 375 and 390', async ({ page }, info) => {
+  test.skip(info.project.name !== 'webkit', 'the hint is shown on iPhone');
+  const errors = await openGame(page);
+  const hint = page.locator('#iosHintText');
+  for (const width of [375, 390]) {
+    await page.setViewportSize({ width, height: 700 });
+    await expect(page.locator('#iosHint')).toBeVisible();
+    for (const [button, sample] of [['#langEn', 'Add to Home Screen'], ['#langCkb', 'شاشەی تەواو']]) {
+      await page.click(button);
+      await expect(hint).toContainText(sample);
+      const fit = await hint.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      expect(fit.scroll, `${width} ${sample}`).toBeLessThanOrEqual(fit.client);
+    }
+  }
+  assertClean(errors);
+});
+
 test('fps stays usable with 4x CPU throttle', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'CDP throttling is Chromium desktop');
   const errors = await openGame(page);

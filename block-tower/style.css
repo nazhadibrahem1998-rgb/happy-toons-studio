@@ -160,7 +160,21 @@ p { margin: 0 0 8px; line-height: 1.45; }
   font-size: 0.75rem;
   line-height: 1.25;
 }
-.ios-line p { margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ios-line p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 420px) {
+  .ios-line p {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+}
 .ios-line button {
   flex: none;
   width: 28px;
