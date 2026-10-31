@@ -1,0 +1,33 @@
+/* Founder page: encyclopedia-style layout (infobox, contents, sections) in the site's own style */
+.fp-hero{padding-bottom:18px}
+.fp-hero .langsw{display:inline-block;margin-top:6px;font-weight:800;color:#3247b8}
+.fp{max-width:1040px;margin:0 auto}
+.fp::after{content:"";display:block;clear:both}
+.fp .lead-p{font-size:1.12rem;color:#423b6b;margin-bottom:14px}
+.fp p,.fp li{color:#423b6b;margin-bottom:10px}
+.fp ul{padding-inline-start:22px;margin-bottom:12px}
+.fp h2{font-size:1.7rem;margin:30px 0 10px;padding-bottom:6px;border-bottom:3px dashed var(--line)}
+.fp a{color:#3247b8;font-weight:700}
+.infobox{float:right;width:320px;margin:0 0 20px 28px;background:#fff;border:3px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 var(--ink);overflow:hidden}
+[dir=rtl] .infobox{float:left;margin:0 28px 20px 0}
+.infobox .ib-head{background:linear-gradient(135deg,var(--yellow),var(--orange));text-align:center;padding:16px 14px 12px;border-bottom:3px solid var(--ink)}
+.infobox .ib-head img{width:120px;height:120px;border-radius:22px;border:3px solid var(--ink);background:#fff;display:block;margin:0 auto 8px}
+.infobox .ib-title{font-family:'Baloo 2',cursive;font-weight:800;font-size:1.4rem;line-height:1.2}
+.fp-hero .fp-sub{font-size:1.15rem;font-weight:700}
+.infobox table{width:100%;border-collapse:collapse;font-size:.95rem}
+.infobox th,.infobox td{padding:9px 14px;vertical-align:top;text-align:start;border-bottom:1px solid var(--line)}
+.infobox tr:last-child th,.infobox tr:last-child td{border-bottom:0}
+.infobox th{width:34%;color:var(--ink);font-weight:800}
+.infobox td{color:#423b6b;overflow-wrap:break-word;word-break:break-word}
+.toc{display:inline-block;min-width:260px;background:#fbf7ff;border:3px solid var(--ink);border-radius:18px;padding:14px 22px;margin:8px 0 18px;box-shadow:0 5px 0 var(--ink)}
+.toc h2{font-size:1.15rem;margin:0 0 6px;padding:0;border:0}
+.toc ol{margin:0;padding-inline-start:22px}
+.toc li{margin:2px 0}
+.fp .ai-note{background:#fff;border:3px solid var(--ink);border-radius:18px;padding:14px 18px;box-shadow:0 5px 0 var(--ink)}
+.fp .page-note{clear:both;margin-top:34px;font-size:.92rem;color:var(--muted);border-top:3px dashed var(--line);padding-top:14px}
+[dir=rtl] .fp,[dir=rtl] .fp-hero{font-family:'HT Kurdish','Noto Sans Arabic',system-ui,sans-serif}
+[dir=rtl] .fp h2{font-family:'HT Kurdish','Noto Sans Arabic',system-ui,sans-serif;line-height:1.5}
+.ltr{direction:ltr;unicode-bidi:isolate}
+@media (max-width:820px){.infobox,[dir=rtl] .infobox{float:none;width:100%;margin:0 0 22px}.toc{display:block;min-width:0}}
+[dir=rtl] .skip{left:auto;right:-999px}
+[dir=rtl] .skip:focus{right:8px}
