@@ -269,6 +269,19 @@ textarea {
   opacity: 0;
 }
 #toast.on { opacity: 1; }
+#glLost {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100% - 32px));
+  background: rgba(7, 9, 16, 0.96);
+  border: 1px solid var(--cyan);
+  border-radius: 16px;
+  padding: 16px 18px;
+  text-align: center;
+}
 
 @media (orientation: portrait) and (max-width: 900px) and (pointer: coarse) {
   #rotate { display: flex; }

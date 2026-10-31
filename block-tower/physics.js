@@ -47,6 +47,7 @@ export function createState() {
     jumpHeld: false,
     jumpBuffer: 0,
     coyote: PHYS.coyote,
+    invuln: 0,
     checkpointSerial: 0,
     player: {
       x: start.cx,
@@ -66,7 +67,7 @@ function motionOffset(move, time) {
   return Math.sin((Math.PI * 2 * time) / move.period + (move.phase || 0)) * move.amp;
 }
 
-export function solidPose(e, time, dt) {
+export function solidPose(e, time, dt, out) {
   let ox = 0;
   let oy = 0;
   let oz = 0;
@@ -92,33 +93,33 @@ export function solidPose(e, time, dt) {
   const cx = e.cx + ox;
   const cz = e.cz + oz;
   const top = e.top + oy;
-  return {
-    id: e.id,
-    seq: e.seq,
-    kind: 'solid',
-    color: e.color,
-    floor: e.floor,
-    spawnFloor: e.spawnFloor || 0,
-    finish: !!e.finish,
-    move: e.move || null,
-    crumble: e.crumble || null,
-    alive: !gone,
-    cx,
-    cz,
-    top,
-    w: e.w,
-    h: e.h,
-    d: e.d,
-    minX: cx - e.w / 2,
-    maxX: cx + e.w / 2,
-    minZ: cz - e.d / 2,
-    maxZ: cz + e.d / 2,
-    minY: top - e.h,
-    maxY: top,
-    dx,
-    dy,
-    dz,
-  };
+  const pose = out || {};
+  pose.id = e.id;
+  pose.seq = e.seq;
+  pose.kind = 'solid';
+  pose.color = e.color;
+  pose.floor = e.floor;
+  pose.spawnFloor = e.spawnFloor || 0;
+  pose.finish = !!e.finish;
+  pose.move = e.move || null;
+  pose.crumble = e.crumble || null;
+  pose.alive = !gone;
+  pose.cx = cx;
+  pose.cz = cz;
+  pose.top = top;
+  pose.w = e.w;
+  pose.h = e.h;
+  pose.d = e.d;
+  pose.minX = cx - e.w / 2;
+  pose.maxX = cx + e.w / 2;
+  pose.minZ = cz - e.d / 2;
+  pose.maxZ = cz + e.d / 2;
+  pose.minY = top - e.h;
+  pose.maxY = top;
+  pose.dx = dx;
+  pose.dy = dy;
+  pose.dz = dz;
+  return pose;
 }
 
 export function hazardPose(e, time) {
@@ -223,14 +224,18 @@ export function hitsHazardAt(state, x, y, z, time = state.time) {
   return false;
 }
 
+const posePool = [];
+
 function aliveSolids(state, time, dt) {
-  const list = [];
+  let n = 0;
   for (const e of state.ents) {
     if (e.kind !== 'solid') continue;
-    const pose = solidPose(e, time, dt);
-    if (pose.alive) list.push(pose);
+    const pose = posePool[n] || (posePool[n] = {});
+    solidPose(e, time, dt, pose);
+    if (pose.alive) n += 1;
   }
-  return list;
+  posePool.length = n;
+  return posePool;
 }
 
 function collideHorizontal(p, solids, axis) {
@@ -280,9 +285,17 @@ function collideY(p, prevY, solids) {
   }
 }
 
-function respawn(state) {
+function nudgeOutOfHazard(state) {
   const p = state.player;
-  state.deaths += 1;
+  let guard = 0;
+  while (guard < 24 && hitsHazardAt(state, p.x, p.y, p.z, state.time)) {
+    p.x -= 0.5;
+    guard += 1;
+  }
+}
+
+export function placeAtCheckpoint(state) {
+  const p = state.player;
   p.x = state.spawn.x;
   p.y = state.spawn.y;
   p.z = state.spawn.z;
@@ -293,6 +306,13 @@ function respawn(state) {
   p.groundId = state.spawnId;
   state.jumpBuffer = 0;
   state.coyote = PHYS.coyote;
+  state.invuln = 0.85;
+  nudgeOutOfHazard(state);
+}
+
+function respawn(state) {
+  state.deaths += 1;
+  placeAtCheckpoint(state);
 }
 
 function updateCrumble(state, dt) {
@@ -325,6 +345,7 @@ function updateCrumble(state, dt) {
 function substep(state, input, dt) {
   const p = state.player;
   state.time += dt;
+  if (state.invuln > 0) state.invuln = Math.max(0, state.invuln - dt);
   const solids = aliveSolids(state, state.time, dt);
 
   if (p.groundId) {
@@ -387,7 +408,7 @@ function substep(state, input, dt) {
 
   if (p.onGround) state.coyote = PHYS.coyote;
 
-  if (!state.won && hitsHazardAt(state, p.x, p.y, p.z, state.time)) {
+  if (state.invuln <= 0 && !state.won && hitsHazardAt(state, p.x, p.y, p.z, state.time)) {
     respawn(state);
     return;
   }
@@ -420,11 +441,12 @@ export function step(state, input, dt) {
   if (pressed) state.jumpBuffer = PHYS.buffer;
   let left = clamped;
   const sub = 1 / 120;
+  const deathsBefore = state.deaths;
   while (left > 1e-8) {
     const h = Math.min(sub, left);
     substep(state, input, h);
     left -= h;
-    if (state.won) break;
+    if (state.won || state.deaths !== deathsBefore) break;
   }
 }
 

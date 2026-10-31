@@ -7,7 +7,7 @@ import * as THREE from './vendor/three.module.min.js';
 import { COMMUNITY_LINKS, COSMETICS } from './config.js';
 import { t } from './i18n.js';
 import { FLOOR_COUNT, FLOOR_NAMES } from './levels.js';
-import { createState, hazardPose, snapshot, solidPose, step } from './physics.js';
+import { createState, hazardPose, placeAtCheckpoint, snapshot, solidPose, step } from './physics.js';
 import { submitFeedback } from './feedback.js';
 import { isMuted, playCheckpoint, playDeath, playJump, playWin, setMuted, tone } from './audio.js';
 
@@ -45,7 +45,7 @@ const ui = {
   langEn: document.getElementById('langEn'),
 };
 
-let lang = localStorage.getItem('bt-lang') === 'en' ? 'en' : 'ckb';
+let lang = localStorage.getItem('bt-lang') === 'ckb' ? 'ckb' : 'en';
 let quality = localStorage.getItem('bt-quality') || (mobileUI() ? 'low' : 'high');
 let colorId = localStorage.getItem('bt-color') || 'cyan';
 let mode = 'menu';
@@ -287,12 +287,110 @@ function makePlayer() {
 }
 
 let player = null;
+let glLost = false;
+let signsReady = false;
 if (renderer) {
   buildScenery();
   buildLevelMeshes(world.ents);
   player = makePlayer();
+  buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
   applyQuality();
+}
+
+function wordmarkTexture() {
+  const board = document.createElement('canvas');
+  board.width = 256;
+  board.height = 64;
+  const ctx = board.getContext('2d');
+  ctx.fillStyle = '#071018';
+  ctx.fillRect(0, 0, 256, 64);
+  ctx.strokeStyle = '#3ef0ff';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(3, 3, 250, 58);
+  ctx.fillStyle = '#3ef0ff';
+  ctx.font = '700 20px Segoe UI, Tahoma, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HAPPY TOONS STUDIO', 128, 32);
+  const tex = new THREE.CanvasTexture(board);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+
+function buildStudioSigns(ents) {
+  const byId = new Map(ents.map((ent) => [ent.id, ent]));
+  const wordTex = wordmarkTexture();
+  const wordMat = new THREE.MeshBasicMaterial({ map: wordTex });
+  const wordGeo = new THREE.PlaneGeometry(3.6, 0.95);
+  const wordFrameGeo = new THREE.BoxGeometry(3.85, 1.15, 0.1);
+  const frameMat = new THREE.MeshBasicMaterial({ color: 0x3ef0ff });
+  const wallMat = new THREE.MeshLambertMaterial({ color: 0x10141e, emissive: 0x0c1020 });
+  const logoTex = new THREE.TextureLoader().load('./assets/studio-logo.jpg', (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    signsReady = true;
+  });
+  logoTex.colorSpace = THREE.SRGBColorSpace;
+  logoTex.generateMipmaps = false;
+  logoTex.minFilter = THREE.LinearFilter;
+  logoTex.magFilter = THREE.LinearFilter;
+  const logoMat = new THREE.MeshBasicMaterial({ map: logoTex });
+  const logoGeo = new THREE.PlaneGeometry(2.3, 2.3);
+  const logoFrameGeo = new THREE.BoxGeometry(2.55, 2.55, 0.1);
+
+  function mount(ent, side, faceGeo, faceMat, frameGeo, lift) {
+    if (!ent) return;
+    const group = new THREE.Group();
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    const face = new THREE.Mesh(faceGeo, faceMat);
+    face.position.z = 0.07;
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(faceGeo.parameters.width + 0.5, faceGeo.parameters.height + 0.9, 0.28),
+      wallMat,
+    );
+    wall.position.z = -0.16;
+    wall.frustumCulled = false;
+    frame.frustumCulled = false;
+    face.frustumCulled = false;
+    group.add(wall, frame, face);
+    group.position.set(
+      ent.cx,
+      ent.top + lift,
+      ent.cz + side * (ent.d * 0.5 + 1.15),
+    );
+    group.rotation.y = -Math.PI / 2;
+    group.frustumCulled = false;
+    scene.add(group);
+  }
+
+  mount(byId.get('f8-island'), 1, wordGeo, wordMat, wordFrameGeo, 1.7);
+  mount(byId.get('f9-start'), -1, wordGeo, wordMat, wordFrameGeo, 1.7);
+  mount(byId.get('f10-start'), 1, wordGeo, wordMat, wordFrameGeo, 1.7);
+
+  const crown = byId.get('finish');
+  if (crown) {
+    const group = new THREE.Group();
+    const frame = new THREE.Mesh(logoFrameGeo, new THREE.MeshBasicMaterial({ color: 0xff3ec8 }));
+    const face = new THREE.Mesh(logoGeo, logoMat);
+    face.position.z = 0.07;
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.3, 0.3), wallMat);
+    wall.position.z = -0.16;
+    wall.frustumCulled = false;
+    frame.frustumCulled = false;
+    face.frustumCulled = false;
+    group.add(wall, frame, face);
+    group.position.set(crown.cx + crown.w * 0.35, crown.top + 2.35, crown.cz + crown.d * 0.5 + 1.7);
+    group.rotation.y = -Math.PI / 2;
+    group.frustumCulled = false;
+    scene.add(group);
+  }
 }
 
 function applyCosmetic(id, save) {
@@ -422,9 +520,11 @@ function toast(text) {
   toastTimer = 1.4;
 }
 
+let flashHandle = 0;
 function flash() {
   ui.flash.classList.add('on');
-  setTimeout(() => ui.flash.classList.remove('on'), 120);
+  clearTimeout(flashHandle);
+  flashHandle = setTimeout(() => ui.flash.classList.remove('on'), 120);
 }
 
 function showFinish() {
@@ -791,6 +891,20 @@ renderLinks();
 applyLang(lang);
 setMode('menu');
 updateRotate();
+canvas.addEventListener('webglcontextlost', (event) => {
+  event.preventDefault();
+  glLost = true;
+  const banner = document.getElementById('glLost');
+  if (banner) banner.hidden = false;
+}, false);
+canvas.addEventListener('webglcontextrestored', () => {
+  glLost = false;
+  const banner = document.getElementById('glLost');
+  if (banner) banner.hidden = true;
+  placeAtCheckpoint(world);
+  paint();
+}, false);
+
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
@@ -818,11 +932,14 @@ function frame(now) {
     toastTimer -= dt;
     if (toastTimer <= 0) ui.toast.classList.remove('on');
   }
+  if (glLost) return;
   syncDynamics();
   syncPlayer(dt);
   placeCamera(dt, false);
   if (renderer && mode === 'play') updateHud();
-  if (renderer) renderer.render(scene, camera);
+  if (renderer) {
+    try { renderer.render(scene, camera); } catch { /* context dropped mid-frame */ }
+  }
   frames += 1;
   fpsWindow += dt;
   if (fpsWindow >= 0.5) {
@@ -871,6 +988,24 @@ async function installTestHook() {
       after();
       return snapshot(world);
     },
+    restart() {
+      restart();
+      paint();
+    },
+    stats() {
+      paint();
+      const mem = renderer.info.memory;
+      const drawn = renderer.info.render;
+      return {
+        geometries: mem.geometries,
+        textures: mem.textures,
+        calls: drawn.calls,
+        triangles: drawn.triangles,
+        heap: performance.memory ? performance.memory.usedJSHeapSize : null,
+        signsReady,
+      };
+    },
+    get signsReady() { return signsReady; },
   };
 }
 installTestHook().then(() => {

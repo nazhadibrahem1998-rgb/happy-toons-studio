@@ -27,6 +27,9 @@ function assertClean(errors) {
 
 test('menu, move, jump, and no console errors', async ({ page }, info) => {
   const errors = await openGame(page);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await expect(page.locator('#playBtn')).toHaveText('Play');
   await expect(page.locator('h1')).toHaveText('بورجی خشت');
   await expect(page.locator('#footerCredit')).toHaveText('© 2026 Nazhad Ibrahem – Happy Toons Studio');
   await expect(page.locator('#aiNote')).toContainText('دروستکراو بە یارمەتی AI (کۆد و گرافیک)');
@@ -78,14 +81,17 @@ test('scripted run clears floors 1–3, respawns, and can finish', async ({ page
   expect(after.y).toBeGreaterThan(after.floor);
   expect(after.floor).toBe(before.floor);
 
+  const win = await page.evaluate(() => window.__BT.simulate(100));
+  expect(win.won).toBe(true);
+  expect(win.floor).toBe(10);
   if (info.project.name === 'desktop') {
-    const win = await page.evaluate(() => window.__BT.simulate(100));
-    expect(win.won).toBe(true);
-    expect(win.floor).toBe(10);
     await expect(page.locator('#finish')).toBeVisible();
     await expect(page.locator('#finishTime')).not.toHaveText('—');
     await expect(page.locator('#finishHighest')).toHaveText('10');
     await page.screenshot({ path: `${ART}/screenshot_finish_records.png` });
+    await page.evaluate(() => { document.getElementById('finish').hidden = true; });
+    await page.waitForFunction(() => window.__BT.signsReady);
+    await page.screenshot({ path: `${ART}/screenshot_studio_signs.png` });
   }
   assertClean(errors);
 });
@@ -238,6 +244,66 @@ test('help screen, community links, and leaving confirm', async ({ page }, info)
   expect(opened[0].target).toBe('_blank');
   expect(opened[0].features).toContain('noopener');
   expect(opened[0].features).toContain('noreferrer');
+  assertClean(errors);
+});
+
+test('three full clears do not grow geometries, textures, or draw calls', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'heap and GC flags are on the desktop Chromium project');
+  const errors = await openGame(page);
+  await page.click('#playBtn');
+  const samples = await page.evaluate(() => {
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      const run = window.__BT.simulate(100);
+      window.__BT.restart();
+      if (window.gc) window.gc();
+      const stats = window.__BT.stats();
+      out.push({ won: run.won, deaths: run.deaths, ...stats });
+    }
+    return out;
+  });
+  console.log('soak', JSON.stringify(samples));
+  for (const sample of samples) {
+    expect(sample.won).toBe(true);
+    expect(sample.deaths).toBe(0);
+  }
+  expect(samples[1].geometries).toBe(samples[0].geometries);
+  expect(samples[2].geometries).toBe(samples[0].geometries);
+  expect(samples[2].textures).toBe(samples[0].textures);
+  expect(samples[1].textures).toBe(samples[0].textures);
+  expect(samples[2].calls).toBe(samples[0].calls);
+  expect(samples[2].triangles).toBe(samples[0].triangles);
+  if (samples[0].heap != null && samples[2].heap != null) {
+    expect(samples[2].heap).toBeLessThan(samples[0].heap + 4_000_000);
+  }
+  assertClean(errors);
+});
+
+test('graphics context loss resumes from the checkpoint', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop' && info.project.name !== 'iphone', 'synthetic context restore is checked on Chromium; WebKit logs a driver error if the context was never really lost');
+  const errors = await openGame(page);
+  await page.click('#playBtn');
+  await page.evaluate(() => window.__BT.simulate(4));
+  const before = await page.evaluate(() => window.__BT.getState());
+  await page.evaluate(() => {
+    document.getElementById('c').dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  });
+  await expect(page.locator('#glLost')).toBeVisible();
+  await expect(page.locator('#glLost')).toContainText('Graphics paused');
+  const after = await page.evaluate(() => {
+    document.getElementById('c').dispatchEvent(new Event('webglcontextrestored'));
+    return window.__BT.getState();
+  });
+  await expect(page.locator('#glLost')).toBeHidden();
+  expect(after.floor).toBe(before.floor);
+  expect(after.onGround).toBe(true);
+  const later = await page.evaluate(() => {
+    const t0 = window.__BT.getState().playTime;
+    return t0;
+  });
+  await page.waitForTimeout(250);
+  const t1 = await page.evaluate(() => window.__BT.getState().playTime);
+  expect(t1).toBeGreaterThan(later);
   assertClean(errors);
 });
 

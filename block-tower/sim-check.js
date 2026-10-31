@@ -1,5 +1,20 @@
-import { createState, step } from './physics.js';
+import { createState, hitsHazardAt, step } from './physics.js';
 import { run } from './bot.js';
+
+const audit = createState();
+const badSpawns = [];
+for (const pad of audit.ents.filter((e) => e.spawnFloor)) {
+  let hits = 0;
+  for (let i = 0; i < 300; i++) {
+    if (hitsHazardAt(audit, pad.cx, pad.top, pad.cz, i / 30)) hits += 1;
+  }
+  if (hits) badSpawns.push(`${pad.id}:${hits}`);
+}
+if (badSpawns.length) {
+  console.error('checkpoint inside hazard', badSpawns.join(', '));
+  process.exit(1);
+}
+console.log('checkpoints clear of hazards');
 
 const easy = createState();
 const easyResult = run(easy, step, { untilFloor: 4, maxSteps: 20000 });
