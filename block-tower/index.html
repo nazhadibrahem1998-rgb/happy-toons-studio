@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- بورجی خشت (Block Tower) — © 2026 Nazhad Ibrahem – Happy Toons Studio. Made with AI assistance (code and graphics). Three.js (vendor/) © three.js authors, MIT. -->
-<html lang="ckb" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -8,12 +8,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="بورجی خشت">
-<meta name="description" content="بورجی خشت — Block Tower. یارییەکی سێ‌دی بۆ تەمەنی ١٥–١٨. Happy Toons Studio.">
+<meta name="apple-mobile-web-app-title" content="Block Tower">
+<meta name="description" content="Block Tower (بورجی خشت) — a night-time 3D tower climb for ages 15–18. Happy Toons Studio.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<title>بورجی خشت — Happy Toons Studio</title>
+<title>Block Tower — بورجی خشت — Happy Toons Studio</title>
 <link rel="stylesheet" href="style.css">
 <script>
 (function () {
@@ -21,12 +21,17 @@
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (type) {
     document.addEventListener(type, block, { passive: false });
   });
+  function inPanel(e) {
+    var t = e.target;
+    return t && t.closest && t.closest('.panel, textarea, input');
+  }
   document.addEventListener('touchmove', function (e) {
-    if (e.target && e.target.closest && e.target.closest('textarea, input')) return;
+    if (inPanel(e)) return;
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
   var last = 0;
   document.addEventListener('touchend', function (e) {
+    if (inPanel(e)) return;
     var now = Date.now();
     if (now - last < 300 && e.cancelable) e.preventDefault();
     last = now;
@@ -38,19 +43,26 @@
 <canvas id="c"></canvas>
 <div id="flash" aria-hidden="true"></div>
 <div id="toast" aria-live="polite"></div>
+<div id="glLost" hidden>
+  <p>Graphics paused. Putting you back on your checkpoint.</p>
+  <p dir="rtl">گرافیک وەستا. دەگەڕێیتەوە سەر خاڵی پاشەکەوت.</p>
+</div>
 
 <div id="hud" hidden>
   <div class="hud-top">
     <div>
-      <div id="floorLabel"><span data-i18n="floor">نهۆم</span> <b id="floorNum" dir="ltr">1 / 10</b></div>
+      <div id="floorLabel"><span data-i18n="floor">Floor</span> <b id="floorNum" dir="ltr">1 / 10</b></div>
       <div id="floorName"></div>
+      <div id="placeRow" hidden><span data-i18n="place">Place</span> <b id="placeNum">—</b></div>
     </div>
     <div class="hud-time">
-      <div id="timerLabel">کات</div>
+      <div id="timerLabel">Time</div>
       <div id="timer" dir="ltr">0:00.00</div>
     </div>
   </div>
   <div class="hud-actions">
+    <button type="button" id="gemBtn" aria-label="Gems">◆ <span id="gemCount">0</span></button>
+    <span id="shieldPip" hidden aria-label="Shield">◆</span>
     <button type="button" id="muteBtn" aria-pressed="false">♪</button>
     <button type="button" id="fullBtn" aria-label="پڕشاشە">⛶</button>
     <button type="button" id="pauseBtn" aria-label="وەستان">❚❚</button>
@@ -61,92 +73,110 @@
   <div id="stickZone" aria-hidden="true">
     <div id="stick"><div id="knob"></div></div>
   </div>
-  <button type="button" id="jumpBtn"><span data-i18n="jump">بازدان</span></button>
+  <button type="button" id="dashBtn" hidden>Dash</button>
+  <button type="button" id="jumpBtn"><span data-i18n="jump">Jump</span></button>
 </div>
 
 <div id="rotate" aria-hidden="true">
-  <div class="ph" aria-hidden="true">📱</div>
-  <p>مۆبایلەکەت بە پانی بسوڕێنە</p>
-  <p class="en">Turn your phone sideways</p>
-  <p class="small">یارییەکە بۆ شاشەی پان دروستکراوە · This game is made for a wide screen</p>
+  <div class="rotate-copy">
+    <p dir="ltr" lang="en">This game is made for a wide screen</p>
+    <p dir="rtl" lang="ckb">یارییەکە بۆ شاشەی پان دروستکراوە</p>
+  </div>
+  <button type="button" id="rotateDismiss" aria-label="Dismiss">×</button>
 </div>
 
 <div id="menu" class="screen">
   <div class="panel">
-    <div id="iosHint" class="banner" hidden>
-      <p>بۆ یاری بە شاشەی تەواو، دوگمەی Share دابگرە، پاشان Add to Home Screen.</p>
-      <p class="en">For a full screen, tap Share, then Add to Home Screen.</p>
-      <button type="button" id="iosDismiss">باشە · OK</button>
+    <div id="iosHint" class="ios-line" hidden>
+      <p id="iosHintText" dir="ltr" lang="en">Full screen: Share, then Add to Home Screen.</p>
+      <button type="button" id="iosDismiss" aria-label="Dismiss">×</button>
     </div>
     <p class="studio">Happy Toons Studio</p>
     <h1>بورجی خشت</h1>
     <p class="en-title">Block Tower</p>
-    <p class="tag" data-i18n="tag">سەرکەوە لە بورجێکی شەوانەی نێۆندا.</p>
-    <p class="age" data-i18n="age">بۆ تەمەنی ١٥–١٨</p>
-    <button type="button" id="playBtn" class="btn" data-i18n="play">یاریکردن</button>
+    <p class="tag" data-i18n="tag">Climb a night-time neon tower.</p>
+    <p class="age" data-i18n="age">For ages 15–18</p>
+    <button type="button" id="playBtn" class="btn" data-i18n="play">Play</button>
+    <button type="button" id="newRunBtn" class="btn alt" data-i18n="newRun" hidden>New run</button>
     <div class="row">
-      <button type="button" id="helpBtn" class="btn alt" data-i18n="help">یارمەتی</button>
-      <button type="button" id="feedbackBtn" class="btn alt" data-i18n="feedback">بۆچوون</button>
+      <button type="button" id="helpBtn" class="btn alt" data-i18n="help">Help</button>
+      <button type="button" id="feedbackBtn" class="btn alt" data-i18n="feedback">Feedback</button>
+      <button type="button" id="upgradeBtn" class="btn alt">Upgrades</button>
     </div>
     <div class="records">
-      <div><span data-i18n="best">باشترین کات</span> <b id="menuBest">—</b></div>
-      <div><span data-i18n="highest">بەرزترین نهۆم</span> <b id="menuHighest">—</b></div>
+      <div><span data-i18n="best">Best time</span> <b id="menuBest">—</b></div>
+      <div><span data-i18n="highest">Highest floor</span> <b id="menuHighest">—</b></div>
     </div>
     <div class="settings">
       <div class="set-row">
         <span>زمان · Language</span>
         <div class="row tight">
-          <button type="button" id="langCkb" class="chip on" aria-pressed="true">کوردی</button>
-          <button type="button" id="langEn" class="chip" aria-pressed="false">English</button>
+          <button type="button" id="langEn" class="chip on" aria-pressed="true">English</button>
+          <button type="button" id="langCkb" class="chip" aria-pressed="false">کوردی</button>
         </div>
       </div>
       <div class="set-row">
-        <span data-i18n="quality">کوالێتی</span>
-        <button type="button" id="qualityBtn" class="chip">نزم</button>
+        <span data-i18n="rivals">Rivals</span>
+        <div class="row tight wrap" id="rivalModes">
+          <button type="button" class="chip" data-rival="off" data-i18n="rivalOff">Off</button>
+          <button type="button" class="chip on" data-rival="easy" data-i18n="rivalEasy" aria-pressed="true">Easy</button>
+          <button type="button" class="chip" data-rival="medium" data-i18n="rivalMedium">Medium</button>
+          <button type="button" class="chip" data-rival="hard" data-i18n="rivalHard">Hard</button>
+        </div>
       </div>
       <div class="set-row">
-        <span data-i18n="colors">ڕەنگ</span>
+        <span data-i18n="quality">Quality</span>
+        <button type="button" id="qualityBtn" class="chip">Low</button>
+      </div>
+      <div class="set-row">
+        <span data-i18n="colors">Colours</span>
         <div id="swatches" class="swatches"></div>
       </div>
     </div>
-    <p class="ai" id="aiNote">دروستکراو بە یارمەتی AI (کۆد و گرافیک)<br>Made with AI assistance (code and graphics)</p>
+    <p class="ai" id="aiNote"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
     <p class="legal" id="footerCredit">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
 
 <div id="help" class="screen" hidden>
   <div class="panel wide">
-    <h2>یارمەتی · Help</h2>
+    <h2>Help · یارمەتی</h2>
     <section>
-      <h3>چۆن یاری دەکرێت</h3>
-      <p class="en">How to play</p>
-      <p>کیبۆرد: WASD یان تیرەکان بۆ ڕۆیشتن، Space بۆ بازدان، ماوس ڕابکێشە بۆ کامێرا. کلیک قفڵی نیشاندەرە. P یان Esc بۆ وەستان.</p>
-      <p class="en">Keyboard: WASD or arrows to move, Space to jump, drag the mouse to look. Click to lock the pointer. P or Esc to pause.</p>
-      <p>مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن، دوگمەی بازدان لە ڕاست، ڕاکێشانی سەر شاشە بۆ کامێرا. یارییەکە بە پانییە.</p>
-      <p class="en">Phone: left joystick to move, jump button on the right, drag on the screen to look. Play in landscape.</p>
+      <h3>How to play</h3>
+      <p dir="rtl">چۆن یاری دەکرێت</p>
+      <p>Keyboard: WASD or arrows to move, Space to jump, drag the mouse to look. Click to lock the pointer. P or Esc to pause.</p>
+      <p dir="rtl">کیبۆرد: WASD یان تیرەکان بۆ ڕۆیشتن، Space بۆ بازدان، ماوس ڕابکێشە بۆ کامێرا. کلیک قفڵی نیشاندەرە. P یان Esc بۆ وەستان.</p>
+      <p>Phone: left joystick to move, jump button on the right, drag on the screen to look. Portrait and landscape both work.</p>
+      <p dir="rtl">مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن، دوگمەی بازدان لە ڕاست، ڕاکێشانی سەر شاشە بۆ کامێرا. ستوونی و پانی هەردووکیان دەکرێن.</p>
     </section>
     <section>
-      <h3>پرسیارە باوەکان</h3>
-      <p class="en">FAQ</p>
-      <h4>پێشکەوتنم لەکوێ پاشەکەوت دەبێت؟</h4>
-      <p>بەرزترین نهۆم، باشترین کات، زمان، کوالێتی و ڕەنگەکەت تەنها لەم وێبگەڕەدا دەمێننەوە (localStorage). هەژمار نییە و بۆ ئێمە نانێردرێت.</p>
-      <p class="en">Where is my progress saved? Highest floor, best time, language, quality and colour stay in this browser only (localStorage). There is no account and it is not sent to us.</p>
-      <h4>ئامێرەکەم هێواشە</h4>
-      <p>کوالێتی نزم هەڵبژێرە. مۆبایل خۆکارانە لە کوالێتی نزمدا دەست پێدەکات. دەتوانیت دواتر بیگۆڕیت.</p>
-      <p class="en">Low quality for a slow device. Phones start in low quality on their own. You can switch it later.</p>
-      <h4>بۆچوون چۆن کار دەکات؟</h4>
-      <p>بۆچوون ئارەزوومەندانە و بێناوە. پاداشت، کردنەوەی ڕەنگ، یان داواکاری پێداچوونەوەی فرۆشگا نییە. پێش ناردن دەڵێین چی کۆدەکرێتەوە و بۆچی.</p>
-      <p class="en">How feedback works. It is optional and anonymous. No rewards, no colour unlocks, and no request for a store review. Before sending, we say what is collected and why.</p>
-      <h4>کێ دروستی کردووە؟</h4>
-      <p>نازهاد ئیبراهیم لە Happy Toons Studio. یارییەکی ڕەسەنە.</p>
-      <p class="en">Who made it. Nazhad Ibrahem at Happy Toons Studio. It is an original game.</p>
-      <p class="ai">دروستکراو بە یارمەتی AI (کۆد و گرافیک)<br>Made with AI assistance (code and graphics)</p>
+      <h3>FAQ</h3>
+      <p dir="rtl">پرسیارە باوەکان</p>
+      <h4>Where is my progress saved?</h4>
+      <p>Highest floor, best time, language, quality and colour stay in this browser only (localStorage). There is no account and it is not sent to us.</p>
+      <p dir="rtl">بەرزترین نهۆم، باشترین کات، زمان، کوالێتی و ڕەنگەکەت تەنها لەم وێبگەڕەدا دەمێننەوە (localStorage). هەژمار نییە و بۆ ئێمە نانێردرێت.</p>
+      <h4>My device is slow</h4>
+      <p>Low quality for a slow device. Phones start in low quality on their own. You can switch it later.</p>
+      <p dir="rtl">کوالێتی نزم هەڵبژێرە. مۆبایل خۆکارانە لە کوالێتی نزمدا دەست پێدەکات. دەتوانیت دواتر بیگۆڕیت.</p>
+      <h4>How does feedback work?</h4>
+      <p>It is optional and anonymous. No rewards, no colour unlocks, and no request for a store review. Before sending, we say what is collected and why.</p>
+      <p dir="rtl">بۆچوون ئارەزوومەندانە و بێناوە. پاداشت، کردنەوەی ڕەنگ، یان داواکاری پێداچوونەوەی فرۆشگا نییە. پێش ناردن دەڵێین چی کۆدەکرێتەوە و بۆچی.</p>
+      <h4>What are the gems for?</h4>
+      <p>Gems on the tower buy upgrades. You can finish the tower without gems. Feedback does not give gems.</p>
+      <p dir="rtl">گەوهەرەکانی سەر بورج باشترکردن دەکڕن. دەتوانیت بەبێ گەوهەر تەواو بکەیت. بۆچوون گەوهەر نادات.</p>
+      <h4>Who are the other climbers?</h4>
+      <p>They are computer rivals on this device. Choose Easy, Medium, or Hard, or Off to race alone. They are not real people. The race stays in this browser: no server, no chat, and nothing is sent.</p>
+      <p dir="rtl">ڕکابەرەکان کۆمپیوتەرن لەسەر ئەم ئامێرە. ئاسان، مامناوەند، یان قورس هەڵبژێرە، یان کوژاوە بۆ تەنها خۆت. کەسی ڕاستەقینە نین. پێشبڕکێکە لەم وێبگەڕەدا دەمێنێتەوە: سێرڤەر، گفتوگۆ، یان ناردن نییە.</p>
+      <h4>Who made it?</h4>
+      <p>Nazhad Ibrahem at Happy Toons Studio. It is an original game.</p>
+      <p dir="rtl">نازهاد ئیبراهیم لە Happy Toons Studio. یارییەکی ڕەسەنە.</p>
+      <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
     </section>
     <section>
-      <h3>کۆمەڵگا</h3>
-      <p class="en">Community</p>
-      <p>بەدواداچوون پێویست نییە بۆ یاریکردن یان کردنەوەی هیچ شتێک. پێش کردنەوەی ماڵپەڕێکی دەرەوە، دڵنیابوونەوەت لێ دەپرسین.</p>
-      <p class="en">Following us is never required to play or to unlock anything. Before an external site opens, we ask you to confirm.</p>
+      <h3>Community</h3>
+      <p dir="rtl">کۆمەڵگا</p>
+      <p>Following us is never required to play or to unlock anything. Before an external site opens, we ask you to confirm.</p>
+      <p dir="rtl">بەدواداچوون پێویست نییە بۆ یاریکردن یان کردنەوەی هیچ شتێک. پێش کردنەوەی ماڵپەڕێکی دەرەوە، دڵنیابوونەوەت لێ دەپرسین.</p>
       <ul id="community"></ul>
     </section>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
@@ -156,20 +186,20 @@
 
 <div id="feedback" class="screen" hidden>
   <div class="panel">
-    <h2>بۆچوون · Feedback</h2>
-    <p>ئارەزوومەندانەیە و بێناوە. پاداشتی نییە و پێویست نییە بۆ یاریکردن.</p>
-    <p class="en">Optional and anonymous. No reward, and you do not need it to play.</p>
+    <h2>Feedback · بۆچوون</h2>
+    <p>Optional and anonymous. No reward, and you do not need it to play.</p>
+    <p dir="rtl">ئارەزوومەندانەیە و بێناوە. پاداشتی نییە و پێویست نییە بۆ یاریکردن.</p>
     <div id="fbNotice" class="notice">
-      <p><b>چی کۆدەکرێتەوە:</b> نمرەیەک لە ١ تا ٥، دەقێکی کورت (تا ٥٠٠ پیت)، وەشانی یارییەکە، و کاتێکی گشتی (کاژێر، نەک چرکە). ناو، ئیمەیڵ، تەلەفۆن، شوێن، هەژمار یان ناسنامەی ئامێر ناپرسین.</p>
-      <p><b>بۆچی:</b> تەنها بۆ باشترکردنی یارییەکە. بڵاوی ناکەینەوە و گفتوگۆی یاریزان نییە.</p>
-      <p><b>تا کەی:</b> ئەگەر بنێردرێت، نزیکەی ١٢ مانگ دەیهێڵینەوە، پاشان دەسڕدرێتەوە. ئێستا ناردن چالاک نییە، بۆیە لەسەر ئامێرەکەت دەمێنێتەوە تا دواتر.</p>
-      <p class="en"><b>What is collected:</b> a rating from 1 to 5, a short note (up to 500 characters), the game version, and a coarse time (the hour, not the second). We do not ask for a name, email, phone, location, account, or device id.</p>
-      <p class="en"><b>Why:</b> only to improve the game. It is not shown in public and there is no player chat.</p>
-      <p class="en"><b>How long:</b> if it is sent, we keep it for about 12 months, then it is deleted. Sending is not switched on yet, so it stays on your device until it can be sent.</p>
-      <p><a id="fbPrivacy" href="privacy.html">پاراستنی نهێنی ئەم یارییە · This game's privacy page</a></p>
-      <p><a id="fbStudioPrivacy" href="../privacy.html">سیاسەتی ماڵپەڕ · Site privacy</a></p>
+      <p><b>What is collected:</b> a rating from 1 to 5, a short note (up to 500 characters), the game version, and a coarse time (the hour, not the second). We do not ask for a name, email, phone, location, account, or device id.</p>
+      <p><b>Why:</b> only to improve the game. It is not shown in public and there is no player chat.</p>
+      <p><b>How long:</b> if it is sent, we keep it for about 12 months, then it is deleted. Sending is not switched on yet, so it stays on your device until it can be sent.</p>
+      <p dir="rtl"><b>چی کۆدەکرێتەوە:</b> نمرەیەک لە ١ تا ٥، دەقێکی کورت (تا ٥٠٠ پیت)، وەشانی یارییەکە، و کاتێکی گشتی (کاژێر، نەک چرکە). ناو، ئیمەیڵ، تەلەفۆن، شوێن، هەژمار یان ناسنامەی ئامێر ناپرسین.</p>
+      <p dir="rtl"><b>بۆچی:</b> تەنها بۆ باشترکردنی یارییەکە. بڵاوی ناکەینەوە و گفتوگۆی یاریزان نییە.</p>
+      <p dir="rtl"><b>تا کەی:</b> ئەگەر بنێردرێت، نزیکەی ١٢ مانگ دەیهێڵینەوە، پاشان دەسڕدرێتەوە. ئێستا ناردن چالاک نییە، بۆیە لەسەر ئامێرەکەت دەمێنێتەوە تا دواتر.</p>
+      <p><a id="fbPrivacy" href="privacy.html">This game's privacy page · پاراستنی نهێنی ئەم یارییە</a></p>
+      <p><a id="fbStudioPrivacy" href="../privacy.html">Site privacy · سیاسەتی ماڵپەڕ</a></p>
     </div>
-    <p id="fbWarn" class="warn">زانیاری کەسی مەنووسە — ناو، ئیمەیڵ، ژمارەی تەلەفۆن یان ناونیشان.<br>Don't type personal information — no name, email, phone number or address.</p>
+    <p id="fbWarn" class="warn">Don't type personal information — no name, email, phone number or address.<br>زانیاری کەسی مەنووسە — ناو، ئیمەیڵ، ژمارەی تەلەفۆن یان ناونیشان.</p>
     <div class="stars" role="group" aria-label="Rating">
       <button type="button" data-score="1" aria-pressed="false">١</button>
       <button type="button" data-score="2" aria-pressed="false">٢</button>
@@ -181,7 +211,7 @@
     <textarea id="fbText" maxlength="500" rows="4"></textarea>
     <div id="fbCount">٠ / ٥٠٠</div>
     <p id="fbStatus" role="status"></p>
-    <button type="button" id="fbSend" class="btn">ناردن · Send</button>
+    <button type="button" id="fbSend" class="btn">Send · ناردن</button>
     <button type="button" id="fbClose" class="btn alt" data-i18n="close">داخستن</button>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
@@ -189,9 +219,10 @@
 
 <div id="pause" class="screen" hidden>
   <div class="panel">
-    <h2 data-i18n="pause">وەستان</h2>
+    <h2 data-i18n="pause">Pause</h2>
     <button type="button" id="resumeBtn" class="btn" data-i18n="resume">بەردەوامبوون</button>
-    <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">یارمەتی</button>
+    <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">Help</button>
+    <button type="button" id="pauseUpgrades" class="btn alt">Upgrades</button>
     <button type="button" id="restartBtn" class="btn alt" data-i18n="again">دووبارە</button>
     <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">مێنیو</button>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
@@ -200,33 +231,89 @@
 
 <div id="finish" class="screen" hidden>
   <div class="panel">
-    <h2 id="winTitle" data-i18n="winTitle">گەیشتیتە لووتکە</h2>
-    <p id="winSub" data-i18n="winSub">بورجەکە تەواو بوو.</p>
+    <h2 id="winTitle" data-i18n="winTitle">You reached the crown</h2>
+    <p id="winSub" data-i18n="winSub">The tower is complete.</p>
     <div class="records">
       <div><span data-i18n="time">کات</span> <b id="finishTime">—</b></div>
       <div><span data-i18n="best">باشترین کات</span> <b id="finishBest">—</b></div>
       <div><span data-i18n="highest">بەرزترین نهۆم</span> <b id="finishHighest">—</b></div>
     </div>
+    <ol id="raceResults" hidden></ol>
     <button type="button" id="finishAgain" class="btn" data-i18n="again">دووبارە</button>
     <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">مێنیو</button>
-    <p class="ai">دروستکراو بە یارمەتی AI (کۆد و گرافیک)<br>Made with AI assistance (code and graphics)</p>
+    <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
 
 <div id="leave" class="screen" hidden>
   <div class="panel">
-    <h2>دەچیتە دەرەوەی یارییەکە</h2>
-    <p class="en">You are leaving the game</p>
-    <p>ئەم بەستەرە لە وێبگەڕی سیستەمدا دەکرێتەوە. یارییەکە هیچ زانیارییەکت لەگەڵیدا نانێرێت.</p>
-    <p class="en">This link opens in your browser. The game does not send your information with it.</p>
+    <h2>You are leaving the game</h2>
+    <p dir="rtl">دەچیتە دەرەوەی یارییەکە</p>
+    <p>This link opens in your browser. The game does not send your information with it.</p>
+    <p dir="rtl">ئەم بەستەرە لە وێبگەڕی سیستەمدا دەکرێتەوە. یارییەکە هیچ زانیارییەکت لەگەڵیدا نانێرێت.</p>
     <p id="leaveUrl" class="url"></p>
-    <button type="button" id="leaveGo" class="btn">بەردەوامبە · Continue</button>
-    <button type="button" id="leaveStay" class="btn alt">بمێنەرەوە · Stay</button>
+    <div class="row">
+      <button type="button" id="leaveGo" class="btn">Continue · بەردەوامبە</button>
+      <button type="button" id="leaveStay" class="btn alt">Stay · بمێنەرەوە</button>
+    </div>
+  </div>
+</div>
+
+<div id="upgrades" class="screen" hidden>
+  <div class="panel">
+    <h2>Upgrades · باشترکردن</h2>
+    <p>Gems on the tower buy these. You can finish the tower without them.</p>
+    <p dir="rtl">گەوهەرەکانی سەر بورج ئەمانە دەکڕن. دەتوانیت بەبێ ئەوان بورجەکە تەواو بکەیت.</p>
+    <p id="gemLine"></p>
+    <div id="upgradeList"></div>
+    <button type="button" id="upgradeClose" class="btn">Close · داخستن</button>
   </div>
 </div>
 
 <div id="perf" hidden>0</div>
+<script>
+/* Panels own vertical pans. A finger on a panel scrolls that panel even when
+   the page itself blocks touch scrolling. A short tap still clicks. */
+(function () {
+  function fieldOwnsScroll(target) {
+    var field = target && target.closest && target.closest('textarea, input');
+    return !!(field && field.scrollHeight > field.clientHeight + 8);
+  }
+  function yOf(touch) {
+    return typeof touch.clientY === 'number' ? touch.clientY : touch.pageY;
+  }
+  document.querySelectorAll('.panel').forEach(function (panel) {
+    var tracking = false;
+    var startY = 0;
+    var startTop = 0;
+    panel.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1 || fieldOwnsScroll(e.target)) {
+        tracking = false;
+        return;
+      }
+      tracking = true;
+      startY = yOf(e.touches[0]);
+      startTop = panel.scrollTop;
+    }, { passive: true });
+    panel.addEventListener('touchmove', function (e) {
+      if (!tracking || e.touches.length !== 1) return;
+      var max = panel.scrollHeight - panel.clientHeight;
+      if (max <= 0) return;
+      var dy = startY - yOf(e.touches[0]);
+      if (Math.abs(dy) < 8) return;
+      var next = startTop + dy;
+      if (next < 0) next = 0;
+      if (next > max) next = max;
+      panel.scrollTop = next;
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    function stop() { tracking = false; }
+    panel.addEventListener('touchend', stop, { passive: true });
+    panel.addEventListener('touchcancel', stop, { passive: true });
+  });
+})();
+</script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

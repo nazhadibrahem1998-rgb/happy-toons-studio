@@ -1,32 +1,36 @@
-# بورجی خشت · Block Tower
+# Block Tower · بورجی خشت
 
-یارییەکی سێ‌دی بۆ سەرکەوتن لە بورجێکی شەوانەدا، بۆ تەمەنی ١٥–١٨. Happy Toons Studio.
-A night-time 3D tower climb for ages 15–18.
+A night-time 3D tower climb for ages 15–18, by Happy Toons Studio.
+یارییەکی سێ‌دی بۆ سەرکەوتن لە بورجێکی شەوانەدا، بۆ تەمەنی ١٥–١٨.
 
 © 2026 Nazhad Ibrahem – Happy Toons Studio
-دروستکراو بە یارمەتی AI (کۆد و گرافیک)
 Made with AI assistance (code and graphics)
+دروستکراو بە یارمەتی AI (کۆد و گرافیک)
 
-## یاریکردن · How to play
+English is the default language. Kurdish (Sorani) is the second language and the choice is remembered in this browser.
+زمانی بنەڕەت ئینگلیزییە. کوردی (سۆرانی) زمانی دووەمە و هەڵبژاردنەکە لەم وێبگەڕەدا دەمێنێتەوە.
 
-| | کوردی | English |
+## How to play · یاریکردن
+
+| | English | کوردی |
 | --- | --- | --- |
-| ڕۆیشتن | WASD یان تیرەکان | WASD or arrow keys |
-| بازدان | Space | Space |
-| کامێرا | ماوس ڕابکێشە، یان کلیک بۆ قفڵی نیشاندەر | Drag the mouse, or click to lock the pointer |
-| وەستان | P یان Esc | P or Esc |
-| مۆبایل | جۆیستیکی چەپ، دوگمەی بازدان لە ڕاست، ڕاکێشان بۆ کامێرا. یاری بە پانی. | Left joystick, jump button on the right, drag to look. Play in landscape. |
+| Move | WASD or arrow keys | WASD یان تیرەکان |
+| Jump | Space | Space |
+| Camera | Drag the mouse, or click to lock the pointer | ماوس ڕابکێشە، یان کلیک بۆ قفڵی نیشاندەر |
+| Pause | P or Esc | P یان Esc |
+| Phone | Left joystick, jump button on the right, drag to look. Play in landscape. | جۆیستیکی چەپ، دوگمەی بازدان لە ڕاست، ڕاکێشان بۆ کامێرا. یاری بە پانی. |
+| Rivals | Easy, Medium, or Hard computer climbers. Off races alone. Offline only. | ڕکابەری ئاسان، مامناوەند، یان قورس. کوژاوە بۆ تەنها خۆت. تەنها بێهێڵ. |
 
-نهۆمی یەکەم تا سێیەم ئاسانن. کەوتن یان بەرکەوتنی مەترسی دەتگەڕێنێتەوە دوا خاڵی پاشەکەوت.
 Floors 1–3 are the easy ones. Falling or touching a hazard sends you back to the last checkpoint immediately.
+نهۆمی یەکەم تا سێیەم ئاسانن. کەوتن یان بەرکەوتنی مەترسی دەتگەڕێنێتەوە دوا خاڵی پاشەکەوت.
 
-باشترین کات و بەرزترین نهۆم لە هەمان وێبگەڕدا دەمێننەوە (localStorage).
 Best time and highest floor stay in this browser (localStorage).
+باشترین کات و بەرزترین نهۆم لە هەمان وێبگەڕدا دەمێننەوە.
 
-## لەسەر کۆمپیوتەرەکەت · Run it locally
+## Run it locally · لەسەر کۆمپیوتەرەکەت
 
+From the repository root, start a static server, then open the game.
 لە ڕەگی ئەم ڕێپۆیەوە سێرڤەرێکی ساکار بکەرەوە، پاشان یارییەکە بکەرەوە.
-From the repository root, start a static server, then open the game:
 
 ```bash
 python3 -m http.server 8765
@@ -34,10 +38,10 @@ python3 -m http.server 8765
 
 http://127.0.0.1:8765/block-tower/
 
-پێویستت بە دامەزراندنی پاکێج نییە بۆ یاریکردن. Three.js لە `vendor/` دایە.
 You do not need to install packages to play. Three.js is vendored in `vendor/`.
+پێویستت بە دامەزراندنی پاکێج نییە بۆ یاریکردن. Three.js لە `vendor/` دایە.
 
-## تاقیکردنەوە · Tests
+## Tests · تاقیکردنەوە
 
 ```bash
 cd block-tower
@@ -46,25 +50,25 @@ npx playwright install chromium webkit
 npm test
 ```
 
-`npm test` سەرەتا ڕێڕەوی ١٠ نهۆمەکە بە بێ وێبگەڕ دەپشکنێت، پاشان تاقیکردنەوەی Playwright.
 `npm test` first proves the 10 floors in a headless physics run, then runs Playwright.
+`npm test` سەرەتا ڕێڕەوی ١٠ نهۆمەکە بە بێ وێبگەڕ دەپشکنێت، پاشان تاقیکردنەوەی Playwright.
 
-## بۆچوون · Feedback
+## Feedback · بۆچوون
 
-بۆچوون ئارەزوومەندانە و بێناوە. ئێستا بۆ هیچ سێرڤەرێک نانێردرێت؛ لەسەر ئامێرەکە دەمێنێتەوە.
 Feedback is optional and anonymous. It is not sent anywhere yet; it stays on the device.
+بۆچوون ئارەزوومەندانە و بێناوە. ئێستا بۆ هیچ سێرڤەرێک نانێردرێت؛ لەسەر ئامێرەکە دەمێنێتەوە.
 
-بۆ چالاککردنی دواتر، `FEEDBACK_ENDPOINT` لە `config.js` دابنێ. ڕێنماییی وۆرکەری Cloudflare لە `feedback-worker/README.md` ـە. وۆرکەرەکە بڵاو نەکراوەتەوە.
 To switch sending on later, set `FEEDBACK_ENDPOINT` in `config.js`. The Cloudflare Worker guide is `feedback-worker/README.md`. That worker is not deployed.
+بۆ چالاککردنی دواتر، `FEEDBACK_ENDPOINT` لە `config.js` دابنێ. وۆرکەرەکە بڵاو نەکراوەتەوە.
 
-پاراستنی نهێنی: [privacy.html](privacy.html)
+Privacy: [privacy.html](privacy.html)
 
-## کۆنتڕۆڵی بەستەرەکان · Community links
+## Community links · بەستەرەکان
 
-بەستەرەکانی یارمەتی لە `config.js` ـی `COMMUNITY_LINKS` دان. پێش کردنەوەیان، یارییەکە دەپرسێت «دەچیتە دەرەوەی یارییەکە».
 Help-screen links live in `COMMUNITY_LINKS` inside `config.js`. The game asks “You are leaving the game” before opening one.
+بەستەرەکانی یارمەتی لە `COMMUNITY_LINKS` دان. پێش کردنەوەیان، یارییەکە دەپرسێت «دەچیتە دەرەوەی یارییەکە».
 
-## دوای بڵاوکردنەوە · After merge
+## After merge · دوای بڵاوکردنەوە
 
 - https://nazhadibrahem1998-rgb.github.io/happy-toons-studio/block-tower/
 - https://happytoonsstudio.com/block-tower/

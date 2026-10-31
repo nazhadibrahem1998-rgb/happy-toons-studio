@@ -2,6 +2,8 @@
 
 let ctx = null;
 let muted = false;
+let lastToneAt = 0;
+let lastDeathAt = 0;
 
 export function setMuted(value) {
   muted = !!value;
@@ -23,6 +25,9 @@ function context() {
 
 export function tone(freq, dur = 0.08, type = 'square', gain = 0.035) {
   if (muted) return;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (now - lastToneAt < 70) return;
+  lastToneAt = now;
   let ac;
   try {
     ac = context();
@@ -45,8 +50,16 @@ export function tone(freq, dur = 0.08, type = 'square', gain = 0.035) {
 }
 
 export function playJump() { tone(540, 0.06, 'square', 0.03); }
-export function playCheckpoint() { tone(660, 0.07, 'square', 0.03); setTimeout(() => tone(880, 0.09, 'square', 0.03), 70); }
-export function playDeath() { tone(140, 0.12, 'sawtooth', 0.03); }
+export function playCheckpoint() {
+  tone(660, 0.07, 'square', 0.03);
+  setTimeout(() => tone(880, 0.09, 'square', 0.03), 100);
+}
+export function playDeath() {
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (now - lastDeathAt < 450) return;
+  lastDeathAt = now;
+  tone(140, 0.12, 'sawtooth', 0.03);
+}
 export function playWin() {
   [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.1, 'square', 0.03), i * 90));
 }

@@ -7,8 +7,10 @@ import * as THREE from './vendor/three.module.min.js';
 import { COMMUNITY_LINKS, COSMETICS } from './config.js';
 import { t } from './i18n.js';
 import { FLOOR_COUNT, FLOOR_NAMES } from './levels.js';
-import { createState, hazardPose, snapshot, solidPose, step } from './physics.js';
+import { createState, hazardPose, placeAtCheckpoint, snapshot, solidPose, step, stepRivals } from './physics.js';
+import { createRivals, decideRivals, placeWord, raceRows, rivalModeName } from './rivals.js';
 import { submitFeedback } from './feedback.js';
+import { UPGRADES, applyProgress, buyUpgrade, loadProgress, saveProgress, upgradeCost } from './upgrades.js';
 import { isMuted, playCheckpoint, playDeath, playJump, playWin, setMuted, tone } from './audio.js';
 
 const canvas = document.getElementById('c');
@@ -45,11 +47,15 @@ const ui = {
   langEn: document.getElementById('langEn'),
 };
 
-let lang = localStorage.getItem('bt-lang') === 'en' ? 'en' : 'ckb';
+let lang = localStorage.getItem('bt-lang') === 'ckb' ? 'ckb' : 'en';
+let rivalMode = rivalModeName(localStorage.getItem('bt-rivals') || 'easy');
 let quality = localStorage.getItem('bt-quality') || (mobileUI() ? 'low' : 'high');
 let colorId = localStorage.getItem('bt-color') || 'cyan';
 let mode = 'menu';
+let progress = loadProgress();
 let world = createState();
+applyProgress(world, progress);
+world.rivals = createRivals(rivalMode, world);
 let seenSerial = world.checkpointSerial;
 let seenHighest = world.highest;
 let lastDeaths = 0;
@@ -59,8 +65,11 @@ let pitch = 0.38;
 let joyX = 0;
 let joyY = 0;
 let touchJump = false;
+let touchDash = false;
+let gemMesh = null;
 let score = 0;
 let toastTimer = 0;
+let holdRivals = false;
 let menuAng = 0.6;
 const keys = new Set();
 const cam = { x: 30, y: 16, z: 24 };
@@ -215,6 +224,7 @@ function buildScenery() {
 function buildLevelMeshes(ents) {
   const buckets = new Map();
   for (const ent of ents) {
+    if (ent.kind === 'gem') continue;
     if (ent.kind === 'solid' && !ent.move && !ent.crumble) {
       if (!buckets.has(ent.color)) buckets.set(ent.color, []);
       buckets.get(ent.color).push(ent);
@@ -248,6 +258,116 @@ function buildLevelMeshes(ents) {
     mesh.frustumCulled = false;
     scene.add(mesh);
   }
+}
+
+function buildGems(ents) {
+  const gems = ents.filter((ent) => ent.kind === 'gem');
+  if (!gems.length) return;
+  gemMesh = new THREE.InstancedMesh(box, new THREE.MeshBasicMaterial({ color: 0xc6ff4a }), gems.length);
+  gemMesh.frustumCulled = false;
+  gemMesh.userData.gems = gems;
+  scene.add(gemMesh);
+  syncGems();
+}
+
+function syncGems() {
+  if (!gemMesh) return;
+  const gems = gemMesh.userData.gems;
+  for (let i = 0; i < gems.length; i++) {
+    const gem = gems[i];
+    const got = progress.found.includes(gem.id);
+    dummy.position.set(gem.x, gem.y + Math.sin(world.time * 3 + i) * 0.08, gem.z);
+    dummy.rotation.set(world.time, world.time * 0.6, 0);
+    const s = got ? 0.001 : 0.36;
+    dummy.scale.set(s, s, s);
+    dummy.updateMatrix();
+    gemMesh.setMatrixAt(i, dummy.matrix);
+  }
+  gemMesh.instanceMatrix.needsUpdate = true;
+}
+
+function collectGems() {
+  if (!gemMesh || mode !== 'play') return;
+  const p = world.player;
+  let picked = false;
+  for (const gem of gemMesh.userData.gems) {
+    if (progress.found.includes(gem.id)) continue;
+    const dx = gem.x - p.x;
+    const dy = gem.y - (p.y + 0.8);
+    const dz = gem.z - p.z;
+    if (dx * dx + dy * dy + dz * dz > 0.7 * 0.7) continue;
+    progress.found.push(gem.id);
+    progress.gems += 1;
+    picked = true;
+  }
+  if (!picked) return;
+  saveProgress(progress);
+  updateGemButton();
+  toast(lang === 'en' ? 'Gems +1' : 'گەوهەر +١');
+}
+
+function updateGemButton() {
+  const count = document.getElementById('gemCount');
+  if (count) count.textContent = String(progress.gems);
+  const pip = document.getElementById('shieldPip');
+  if (pip) pip.hidden = !world.shieldReady;
+  const dashBtn = document.getElementById('dashBtn');
+  if (dashBtn) {
+    dashBtn.hidden = !world.hasDash;
+    dashBtn.textContent = (progress.dash || 0) > 1 ? 'Dash+' : 'Dash';
+  }
+}
+
+function renderUpgrades() {
+  const list = document.getElementById('upgradeList');
+  const line = document.getElementById('gemLine');
+  if (!list || !line) return;
+    line.textContent = lang === 'en'
+      ? `Gems: ${progress.gems}`
+      : `${t(lang, 'gems')}: ${progress.gems}`;
+  list.replaceChildren();
+  for (const item of UPGRADES) {
+    const rank = progress[item.id] || 0;
+    const card = document.createElement('div');
+    card.className = 'upgrade';
+    const title = document.createElement('strong');
+    title.textContent = lang === 'en' ? item.en : item.ckb;
+    const sub = document.createElement('p');
+    sub.className = 'sub';
+    sub.dir = lang === 'en' ? 'rtl' : 'ltr';
+    sub.textContent = lang === 'en' ? item.ckb : item.en;
+    const detail = document.createElement('p');
+    detail.textContent = lang === 'en' ? item.enDetail : item.ckbDetail;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn';
+    const rankLine = document.createElement('p');
+    rankLine.className = 'rank';
+    if (rank >= item.max) {
+      btn.disabled = true;
+      btn.textContent = t(lang, 'maxed');
+      rankLine.textContent = t(lang, 'maxed');
+    } else {
+      const cost = upgradeCost(progress, item.id);
+      rankLine.textContent = `${t(lang, 'rank')} ${rank}/${item.max} · ${t(lang, 'nextCost')} ${cost} ${t(lang, 'gems')}`;
+      btn.textContent = `${lang === 'en' ? 'Buy' : 'کڕین'} · ${cost} ${t(lang, 'gems')}`;
+      btn.disabled = progress.gems < cost;
+      btn.addEventListener('click', () => {
+        if (!buyUpgrade(progress, item.id)) return;
+        applyProgress(world, progress);
+        if (item.id === 'shield') world.shieldReady = true;
+        updateGemButton();
+        renderUpgrades();
+      });
+    }
+    card.append(title, sub, rankLine, detail, btn);
+    list.appendChild(card);
+  }
+}
+
+function openUpgrades() {
+  renderUpgrades();
+  showPanel('upgrades');
 }
 
 function makePlayer() {
@@ -286,13 +406,185 @@ function makePlayer() {
   return { group, bodyMat, accent, arms: [armL, armR], legs: [legL, legR], trails, trailCursor: 0 };
 }
 
+const rivalGeo = {
+  torso: new THREE.BoxGeometry(0.56, 0.64, 0.32),
+  head: new THREE.BoxGeometry(0.34, 0.3, 0.32),
+  arm: new THREE.BoxGeometry(0.12, 0.42, 0.12),
+  leg: new THREE.BoxGeometry(0.14, 0.4, 0.14),
+};
+const rivalDark = new THREE.MeshLambertMaterial({ color: 0x141820 });
+const rivalMeshes = [];
+
+const rivalNamePlates = [];
+
+function drawRivalName(plate) {
+  const ctx = plate.ctx;
+  ctx.clearRect(0, 0, plate.board.width, plate.board.height);
+  ctx.fillStyle = plate.css;
+  ctx.font = "700 28px 'HT Kurdish', 'Segoe UI', Tahoma, sans-serif";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(lang === 'ckb' ? plate.ckb : plate.en, plate.board.width / 2, plate.board.height / 2);
+  plate.tex.needsUpdate = true;
+}
+
+function refreshRivalNames() {
+  rivalNamePlates.forEach(drawRivalName);
+}
+
+function nameSprite(en, ckb, css) {
+  const board = document.createElement('canvas');
+  board.width = 256;
+  board.height = 64;
+  const ctx = board.getContext('2d');
+  const tex = new THREE.CanvasTexture(board);
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  const plate = { board, ctx, tex, css, en, ckb };
+  rivalNamePlates.push(plate);
+  drawRivalName(plate);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sprite.position.y = 2.05;
+  sprite.scale.set(1.8, 0.46, 1);
+  sprite.frustumCulled = false;
+  return sprite;
+}
+
+function makeRivalMesh(color, en, ckb) {
+  const group = new THREE.Group();
+  const css = `#${color.toString(16).padStart(6, '0')}`;
+  const mat = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.22 });
+  const torso = new THREE.Mesh(rivalGeo.torso, mat);
+  torso.position.y = 0.96;
+  const head = new THREE.Mesh(rivalGeo.head, mat);
+  head.position.y = 1.48;
+  const armL = new THREE.Mesh(rivalGeo.arm, mat);
+  armL.position.set(-0.38, 0.96, 0);
+  const armR = new THREE.Mesh(rivalGeo.arm, mat);
+  armR.position.set(0.38, 0.96, 0);
+  const legL = new THREE.Mesh(rivalGeo.leg, rivalDark);
+  legL.position.set(-0.14, 0.26, 0);
+  const legR = new THREE.Mesh(rivalGeo.leg, rivalDark);
+  legR.position.set(0.14, 0.26, 0);
+  group.add(torso, head, armL, armR, legL, legR, nameSprite(en, ckb, css));
+  group.traverse((obj) => { obj.frustumCulled = false; });
+  group.visible = false;
+  scene.add(group);
+  return group;
+}
+
 let player = null;
+let glLost = false;
+let signsReady = false;
 if (renderer) {
   buildScenery();
   buildLevelMeshes(world.ents);
+  buildGems(world.ents);
   player = makePlayer();
+  for (const who of [
+    { color: 0xff3ec8, en: 'Nari', ckb: 'ناری' },
+    { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ' },
+    { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ' },
+  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb));
+  buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
   applyQuality();
+}
+
+function wordmarkTexture() {
+  const board = document.createElement('canvas');
+  board.width = 256;
+  board.height = 64;
+  const ctx = board.getContext('2d');
+  ctx.fillStyle = '#071018';
+  ctx.fillRect(0, 0, 256, 64);
+  ctx.strokeStyle = '#3ef0ff';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(3, 3, 250, 58);
+  ctx.fillStyle = '#3ef0ff';
+  ctx.font = '700 20px Segoe UI, Tahoma, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HAPPY TOONS STUDIO', 128, 32);
+  const tex = new THREE.CanvasTexture(board);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+
+function buildStudioSigns(ents) {
+  const byId = new Map(ents.map((ent) => [ent.id, ent]));
+  const wordTex = wordmarkTexture();
+  const wordMat = new THREE.MeshBasicMaterial({ map: wordTex });
+  const wordGeo = new THREE.PlaneGeometry(3.6, 0.95);
+  const wordFrameGeo = new THREE.BoxGeometry(3.85, 1.15, 0.1);
+  const frameMat = new THREE.MeshBasicMaterial({ color: 0x3ef0ff });
+  const wallMat = new THREE.MeshLambertMaterial({ color: 0x10141e, emissive: 0x0c1020 });
+  const logoTex = new THREE.TextureLoader().load('./assets/studio-logo.jpg', (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    signsReady = true;
+  });
+  logoTex.colorSpace = THREE.SRGBColorSpace;
+  logoTex.generateMipmaps = false;
+  logoTex.minFilter = THREE.LinearFilter;
+  logoTex.magFilter = THREE.LinearFilter;
+  const logoMat = new THREE.MeshBasicMaterial({ map: logoTex });
+  const logoGeo = new THREE.PlaneGeometry(2.3, 2.3);
+  const logoFrameGeo = new THREE.BoxGeometry(2.55, 2.55, 0.1);
+
+  function mount(ent, side, faceGeo, faceMat, frameGeo, lift) {
+    if (!ent) return;
+    const group = new THREE.Group();
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    const face = new THREE.Mesh(faceGeo, faceMat);
+    face.position.z = 0.07;
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(faceGeo.parameters.width + 0.5, faceGeo.parameters.height + 0.9, 0.28),
+      wallMat,
+    );
+    wall.position.z = -0.16;
+    wall.frustumCulled = false;
+    frame.frustumCulled = false;
+    face.frustumCulled = false;
+    group.add(wall, frame, face);
+    group.position.set(
+      ent.cx,
+      ent.top + lift,
+      ent.cz + side * (ent.d * 0.5 + 1.15),
+    );
+    group.rotation.y = -Math.PI / 2;
+    group.frustumCulled = false;
+    scene.add(group);
+  }
+
+  mount(byId.get('f8-island'), 1, wordGeo, wordMat, wordFrameGeo, 1.7);
+  mount(byId.get('f9-start'), -1, wordGeo, wordMat, wordFrameGeo, 1.7);
+  mount(byId.get('f10-start'), 1, wordGeo, wordMat, wordFrameGeo, 1.7);
+
+  const crown = byId.get('finish');
+  if (crown) {
+    const group = new THREE.Group();
+    const frame = new THREE.Mesh(logoFrameGeo, new THREE.MeshBasicMaterial({ color: 0xff3ec8 }));
+    const face = new THREE.Mesh(logoGeo, logoMat);
+    face.position.z = 0.07;
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.3, 0.3), wallMat);
+    wall.position.z = -0.16;
+    wall.frustumCulled = false;
+    frame.frustumCulled = false;
+    face.frustumCulled = false;
+    group.add(wall, frame, face);
+    group.position.set(crown.cx + crown.w * 0.35, crown.top + 2.35, crown.cz + crown.d * 0.5 + 1.7);
+    group.rotation.y = -Math.PI / 2;
+    group.frustumCulled = false;
+    scene.add(group);
+  }
 }
 
 function applyCosmetic(id, save) {
@@ -318,6 +610,7 @@ function applyQuality() {
 }
 
 function resize() {
+  document.documentElement.style.setProperty('--app-h', `${window.innerHeight}px`);
   updateRotate();
   if (!renderer) return;
   const vv = window.visualViewport;
@@ -332,7 +625,29 @@ function resize() {
 function updateRotate() {
   const portrait = window.innerHeight > window.innerWidth + 40;
   const phone = mobileUI() && Math.min(window.innerWidth, window.innerHeight) < 920;
-  ui.rotate.classList.toggle('show', portrait && phone);
+  const show = portrait && phone && mode === 'play' && !localStorage.getItem('bt-rotate-ok');
+  ui.rotate.classList.toggle('show', show);
+}
+
+function refreshIosHint() {
+  const el = document.getElementById('iosHintText');
+  if (!el) return;
+  el.replaceChildren();
+  if (lang === 'ckb') {
+    el.dir = 'rtl';
+    el.lang = 'ckb';
+    const share = document.createElement('bdi');
+    share.dir = 'ltr';
+    share.textContent = 'Share';
+    const add = document.createElement('bdi');
+    add.dir = 'ltr';
+    add.textContent = 'Add to Home Screen';
+    el.append('شاشەی تەواو: ', share, '، پاشان ', add);
+  } else {
+    el.dir = 'ltr';
+    el.lang = 'en';
+    el.textContent = 'Full screen: Share, then Add to Home Screen.';
+  }
 }
 
 function renderSwatches() {
@@ -369,9 +684,24 @@ function renderLinks() {
   }
 }
 
+function formatCount(n) {
+  const text = `${n} / 500`;
+  if (lang !== 'ckb') return text;
+  return text.replace(/[0-9]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'[digit]);
+}
+
+function refreshRunButtons() {
+  const going = !!(world && world.playTime > 0.25 && !world.won);
+  const play = document.getElementById('playBtn');
+  const fresh = document.getElementById('newRunBtn');
+  if (play) play.setAttribute('data-i18n', going ? 'continue' : 'play');
+  if (fresh) fresh.hidden = !going;
+}
+
 function applyLang(next) {
   lang = next === 'en' ? 'en' : 'ckb';
   localStorage.setItem('bt-lang', lang);
+  refreshRunButtons();
   document.documentElement.lang = lang === 'en' ? 'en' : 'ckb';
   document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
   document.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -385,6 +715,21 @@ function applyLang(next) {
   updateHud();
   updateRecords();
   renderSwatches();
+  const upLabel = lang === 'en' ? 'Upgrades' : 'باشترکردن';
+  const upBtn = document.getElementById('upgradeBtn');
+  const pauseUp = document.getElementById('pauseUpgrades');
+  if (upBtn) upBtn.textContent = upLabel;
+  if (pauseUp) pauseUp.textContent = upLabel;
+  renderUpgrades();
+  document.querySelectorAll('[data-rival]').forEach((btn) => {
+    const on = btn.dataset.rival === rivalMode;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (document.getElementById('finish') && !document.getElementById('finish').hidden) fillResults();
+  if (ui.fbText && ui.fbCount) ui.fbCount.textContent = formatCount(ui.fbText.value.length);
+  refreshRivalNames();
+  refreshIosHint();
 }
 
 function updateRecords() {
@@ -402,6 +747,47 @@ function updateHud() {
   ui.floorName.textContent = lang === 'en' ? name.en : name.ckb;
   ui.timer.textContent = fmt(world.playTime);
   ui.timerLabel.textContent = t(lang, 'time');
+  const placeRow = document.getElementById('placeRow');
+  if (placeRow) {
+    const rivals = world.rivals || [];
+    if (!rivals.length || mode !== 'play') {
+      placeRow.hidden = true;
+    } else {
+      placeRow.hidden = false;
+      const rows = raceRows(world);
+      const index = Math.max(0, rows.findIndex((row) => row.id === 'you'));
+      const num = document.getElementById('placeNum');
+      if (num) num.textContent = placeWord(lang, index);
+    }
+  }
+}
+
+function fillResults() {
+  const list = document.getElementById('raceResults');
+  if (!list) return;
+  const rivals = world.rivals || [];
+  list.replaceChildren();
+  if (!rivals.length) {
+    list.hidden = true;
+    return;
+  }
+  list.hidden = false;
+  raceRows(world).forEach((row, index) => {
+    const li = document.createElement('li');
+    if (row.id === 'you') li.className = 'me';
+    const who = document.createElement('span');
+    who.className = 'who';
+    const swatch = document.createElement('i');
+    swatch.style.background = `#${row.color.toString(16).padStart(6, '0')}`;
+    const name = document.createElement('span');
+    name.textContent = `${placeWord(lang, index)}  ${lang === 'ckb' ? row.ckb : row.en}`;
+    who.append(swatch, name);
+    const time = document.createElement('b');
+    time.dir = 'ltr';
+    time.textContent = row.finished ? fmt(row.time) : t(lang, 'racing');
+    li.append(who, time);
+    list.appendChild(li);
+  });
 }
 
 function setMode(next) {
@@ -413,7 +799,14 @@ function setMode(next) {
   ui.hud.hidden = !playing;
   ui.touch.hidden = !playing || !mobileUI();
   if (playing) keys.clear();
+  if (next === 'menu') {
+    refreshRunButtons();
+    const play = document.getElementById('playBtn');
+    if (play) play.textContent = t(lang, play.getAttribute('data-i18n'));
+  }
   updateHud();
+  updateRotate();
+  updateGemButton();
 }
 
 function toast(text) {
@@ -422,9 +815,11 @@ function toast(text) {
   toastTimer = 1.4;
 }
 
+let flashHandle = 0;
 function flash() {
   ui.flash.classList.add('on');
-  setTimeout(() => ui.flash.classList.remove('on'), 120);
+  clearTimeout(flashHandle);
+  flashHandle = setTimeout(() => ui.flash.classList.remove('on'), 120);
 }
 
 function showFinish() {
@@ -436,6 +831,7 @@ function showFinish() {
   ui.finishTime.textContent = fmt(world.playTime);
   ui.finishBest.textContent = fmt(Number(localStorage.getItem('bt-best-ms')) / 1000);
   ui.finishHighest.textContent = String(Math.max(world.highest, highestRecord()));
+  fillResults();
   setMode('finish');
   updateRecords();
 }
@@ -478,6 +874,10 @@ function poll() {
 
 function restart() {
   world = createState();
+  applyProgress(world, progress);
+  world.rivals = createRivals(rivalMode, world);
+  holdRivals = false;
+  if (world.shieldOwned) world.shieldReady = true;
   seenSerial = 0;
   seenHighest = world.highest;
   lastDeaths = 0;
@@ -485,6 +885,7 @@ function restart() {
   yaw = 0;
   pitch = 0.38;
   setMode('play');
+  syncGems();
 }
 
 function readInput() {
@@ -496,7 +897,7 @@ function readInput() {
   if (keys.has('KeyA') || keys.has('ArrowLeft')) strafe -= 1;
   if (Math.abs(joyY) > 0.12) forward = joyY;
   if (Math.abs(joyX) > 0.12) strafe = joyX;
-  return { forward, strafe, jump: keys.has('Space') || touchJump, yaw, timing: true };
+  return { forward, strafe, jump: keys.has('Space') || touchJump, dash: keys.has('ShiftLeft') || keys.has('ShiftRight') || touchDash, yaw, timing: true };
 }
 
 function syncDynamics() {
@@ -559,7 +960,9 @@ function syncPlayer(dt) {
   }
 }
 
+let freezeCam = false;
 function placeCamera(dt, snap) {
+  if (freezeCam && mode === 'play') return;
   const p = world.player;
   let tx;
   let ty;
@@ -588,9 +991,26 @@ function placeCamera(dt, snap) {
   }
 }
 
+function syncRivals() {
+  const list = world.rivals || [];
+  for (let i = 0; i < rivalMeshes.length; i++) {
+    const mesh = rivalMeshes[i];
+    const rival = list[i];
+    if (!mesh) continue;
+    if (!rival) {
+      mesh.visible = false;
+      continue;
+    }
+    mesh.visible = true;
+    mesh.position.set(rival.x, rival.y, rival.z);
+    mesh.rotation.y = Math.PI / 2 - (rival.yaw || 0);
+  }
+}
+
 function paint() {
   syncDynamics();
   syncPlayer(0);
+  syncRivals();
   placeCamera(1 / 60, true);
   if (renderer) renderer.render(scene, camera);
   updateHud();
@@ -632,7 +1052,7 @@ canvas.addEventListener('pointermove', (e) => {
   const dy = locked ? e.movementY : e.clientY - lastY;
   lastX = e.clientX;
   lastY = e.clientY;
-  yaw -= dx * 0.005;
+  yaw += dx * 0.005;
   pitch = Math.max(0.18, Math.min(1.05, pitch + dy * 0.0035));
 });
 function endDrag(e) {
@@ -689,6 +1109,23 @@ function jumpUp() { touchJump = false; }
 jumpBtn.addEventListener('pointerdown', jumpDown);
 jumpBtn.addEventListener('pointerup', jumpUp);
 jumpBtn.addEventListener('pointercancel', jumpUp);
+const dashBtn = document.getElementById('dashBtn');
+function dashDown(e) {
+  touchDash = true;
+  try { dashBtn.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  e.preventDefault();
+}
+function dashUp() { touchDash = false; }
+dashBtn.addEventListener('pointerdown', dashDown);
+dashBtn.addEventListener('pointerup', dashUp);
+dashBtn.addEventListener('pointercancel', dashUp);
+document.getElementById('upgradeBtn').addEventListener('click', openUpgrades);
+document.getElementById('pauseUpgrades').addEventListener('click', openUpgrades);
+document.getElementById('gemBtn').addEventListener('click', openUpgrades);
+document.getElementById('upgradeClose').addEventListener('click', () => {
+  document.getElementById('upgrades').hidden = true;
+});
+document.getElementById('newRunBtn').addEventListener('click', restart);
 
 function toggleMute() {
   setMuted(!isMuted());
@@ -704,10 +1141,25 @@ document.getElementById('restartBtn').addEventListener('click', restart);
 document.getElementById('finishAgain').addEventListener('click', restart);
 document.getElementById('pauseMenu').addEventListener('click', () => setMode('menu'));
 document.getElementById('finishMenu').addEventListener('click', () => setMode('menu'));
-document.getElementById('helpBtn').addEventListener('click', () => { ui.help.hidden = false; });
-document.getElementById('pauseHelp').addEventListener('click', () => { ui.help.hidden = false; });
+function showPanel(id) {
+  const root = document.getElementById(id);
+  if (!root) return;
+  root.hidden = false;
+  const panel = root.querySelector('.panel');
+  if (!panel) return;
+  const reset = () => { panel.scrollTop = 0; };
+  reset();
+  requestAnimationFrame(() => requestAnimationFrame(reset));
+}
+
+function upgradesOpen() {
+  const root = document.getElementById('upgrades');
+  return !!(root && !root.hidden);
+}
+document.getElementById('helpBtn').addEventListener('click', () => { showPanel('help'); });
+document.getElementById('pauseHelp').addEventListener('click', () => { showPanel('help'); });
 document.getElementById('helpClose').addEventListener('click', () => { ui.help.hidden = true; });
-document.getElementById('feedbackBtn').addEventListener('click', () => { ui.feedback.hidden = false; });
+document.getElementById('feedbackBtn').addEventListener('click', () => { showPanel('feedback'); });
 document.getElementById('fbClose').addEventListener('click', () => { ui.feedback.hidden = true; });
 document.getElementById('muteBtn').addEventListener('click', toggleMute);
 document.getElementById('fullBtn').addEventListener('click', () => {
@@ -715,6 +1167,16 @@ document.getElementById('fullBtn').addEventListener('click', () => {
     ? document.exitFullscreen()
     : document.documentElement.requestFullscreen?.();
   if (req && req.catch) req.catch(() => {});
+});
+document.getElementById('rivalModes').addEventListener('click', (event) => {
+  const btn = event.target.closest('[data-rival]');
+  if (!btn) return;
+  rivalMode = rivalModeName(btn.dataset.rival);
+  localStorage.setItem('bt-rivals', rivalMode);
+  if (mode !== 'play') world.rivals = createRivals(rivalMode, world);
+  applyLang(lang);
+  updateHud();
+  syncRivals();
 });
 document.getElementById('qualityBtn').addEventListener('click', () => {
   quality = quality === 'low' ? 'high' : 'low';
@@ -727,6 +1189,10 @@ document.getElementById('iosDismiss').addEventListener('click', () => {
   localStorage.setItem('bt-ios-ok', '1');
   document.getElementById('iosHint').hidden = true;
 });
+document.getElementById('rotateDismiss').addEventListener('click', () => {
+  localStorage.setItem('bt-rotate-ok', '1');
+  updateRotate();
+});
 
 document.getElementById('community').addEventListener('click', (e) => {
   const link = e.target.closest('a');
@@ -734,7 +1200,7 @@ document.getElementById('community').addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('leaveUrl').textContent = link.getAttribute('href');
   ui.leave.dataset.url = link.href;
-  ui.leave.hidden = false;
+  showPanel('leave');
 });
 document.getElementById('community').addEventListener('auxclick', (e) => {
   if (e.target.closest('a')) e.preventDefault();
@@ -757,7 +1223,7 @@ document.querySelectorAll('[data-score]').forEach((btn) => {
   });
 });
 ui.fbText.addEventListener('input', () => {
-  ui.fbCount.textContent = `${ui.fbText.value.length} / 500`;
+  ui.fbCount.textContent = formatCount(ui.fbText.value.length);
 });
 document.getElementById('fbSend').addEventListener('click', async () => {
   const result = await submitFeedback(score, ui.fbText.value);
@@ -771,7 +1237,7 @@ document.getElementById('fbSend').addEventListener('click', async () => {
   if (result.stripped) msg += `\n${t(lang, 'stripped')} · ${t(other, 'stripped')}`;
   ui.fbStatus.textContent = msg;
   ui.fbText.value = '';
-  ui.fbCount.textContent = '0 / 500';
+  ui.fbCount.textContent = formatCount(0);
   score = 0;
   document.querySelectorAll('[data-score]').forEach((other) => {
     other.classList.remove('on');
@@ -791,6 +1257,20 @@ renderLinks();
 applyLang(lang);
 setMode('menu');
 updateRotate();
+canvas.addEventListener('webglcontextlost', (event) => {
+  event.preventDefault();
+  glLost = true;
+  const banner = document.getElementById('glLost');
+  if (banner) banner.hidden = false;
+}, false);
+canvas.addEventListener('webglcontextrestored', () => {
+  glLost = false;
+  const banner = document.getElementById('glLost');
+  if (banner) banner.hidden = true;
+  placeAtCheckpoint(world);
+  paint();
+}, false);
+
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
@@ -807,22 +1287,30 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (document.hidden) return;
-  if (mode === 'play' && !world.won) {
+  if (mode === 'play' && !world.won && !upgradesOpen()) {
     const beforeY = world.player.vy;
     const input = readInput();
+    if (!holdRivals) decideRivals(world, dt);
     step(world, input, dt);
+    if (!holdRivals) stepRivals(world, dt);
     if (input.jump && world.player.vy > beforeY + 1) playJump();
+    collectGems();
     poll();
   }
   if (toastTimer > 0) {
     toastTimer -= dt;
     if (toastTimer <= 0) ui.toast.classList.remove('on');
   }
+  if (glLost) return;
+  syncGems();
   syncDynamics();
   syncPlayer(dt);
+  syncRivals();
   placeCamera(dt, false);
   if (renderer && mode === 'play') updateHud();
-  if (renderer) renderer.render(scene, camera);
+  if (renderer) {
+    try { renderer.render(scene, camera); } catch { /* context dropped mid-frame */ }
+  }
   frames += 1;
   fpsWindow += dt;
   if (fpsWindow >= 0.5) {
@@ -846,6 +1334,12 @@ async function installTestHook() {
   window.__BT = {
     ready: true,
     getState: () => snapshot(world),
+    raceClock() {
+      return {
+        playTime: world.playTime,
+        xs: (world.rivals || []).map((rival) => rival.x),
+      };
+    },
     simulate(untilFloor = 100) {
       const result = bot.run(world, step, { untilFloor, maxSteps: 40000 });
       after();
@@ -870,6 +1364,216 @@ async function installTestHook() {
       step(world, { forward: 0, strafe: 0, jump: false, yaw: 0, timing: true }, 1 / 60);
       after();
       return snapshot(world);
+    },
+    restart() {
+      restart();
+      paint();
+    },
+    stats() {
+      paint();
+      const mem = renderer.info.memory;
+      const drawn = renderer.info.render;
+      return {
+        geometries: mem.geometries,
+        textures: mem.textures,
+        calls: drawn.calls,
+        triangles: drawn.triangles,
+        heap: performance.memory ? performance.memory.usedJSHeapSize : null,
+        signsReady,
+      };
+    },
+    get signsReady() { return signsReady; },
+    setYaw(value) {
+      yaw = value;
+      pitch = 0.38;
+      const held = freezeCam;
+      freezeCam = false;
+      placeCamera(1, true);
+      freezeCam = held;
+    },
+    project(x, y, z) {
+      camera.updateMatrixWorld(true);
+      const v = new THREE.Vector3(x, y, z);
+      v.project(camera);
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (v.x * 0.5 + 0.5) * rect.width + rect.left,
+        y: (-v.y * 0.5 + 0.5) * rect.height + rect.top,
+      };
+    },
+    strafeStep(strafe, frames) {
+      const camNow = { x: cam.x, y: cam.y, z: cam.z };
+      const lookNow = look.clone();
+      for (let i = 0; i < frames; i++) {
+        step(world, { forward: 0, strafe, jump: false, yaw, timing: false }, 1 / 60);
+      }
+      cam.x = camNow.x;
+      cam.y = camNow.y;
+      cam.z = camNow.z;
+      camera.position.set(cam.x, cam.y, cam.z);
+      camera.lookAt(lookNow);
+      camera.updateMatrixWorld(true);
+      return snapshot(world);
+    },
+    resetFeet() {
+      const spawn = world.spawn;
+      world.player.x = spawn.x;
+      world.player.y = spawn.y;
+      world.player.z = spawn.z;
+      world.player.vx = 0;
+      world.player.vy = 0;
+      world.player.vz = 0;
+      world.player.onGround = true;
+      paint();
+      return snapshot(world);
+    },
+    giveGems(count) {
+      progress.gems += count;
+      saveProgress(progress);
+      updateGemButton();
+      return progress.gems;
+    },
+    resetProgress() {
+      progress.gems = 0;
+      progress.found = [];
+      progress.jump = 0;
+      progress.run = 0;
+      progress.doubleJump = 0;
+      progress.dash = 0;
+      progress.shield = 0;
+      progress.glide = 0;
+      saveProgress(progress);
+      restart();
+      paint();
+    },
+    shieldHit() {
+      const hazard = world.ents.find((ent) => ent.hazard === 'spinner');
+      world.player.x = hazard.cx;
+      world.player.y = hazard.pivot;
+      world.player.z = hazard.cz;
+      world.player.vx = 0;
+      world.player.vy = 0;
+      world.player.vz = 0;
+      world.invuln = 0;
+      const before = world.deaths;
+      step(world, { forward: 0, strafe: 0, jump: false, yaw, timing: false }, 1 / 60);
+      paint();
+      return { before, deaths: world.deaths, shieldReady: !!world.shieldReady, shieldOwned: !!world.shieldOwned };
+    },
+    airJump() {
+      const p = world.player;
+      p.vx = 0;
+      p.vy = 0;
+      p.vz = 0;
+      p.onGround = true;
+      world.coyote = 0.14;
+      world.airJumps = world.doubleJump ? 1 : 0;
+      const input = { forward: 0, strafe: 0, yaw, timing: false };
+      step(world, { ...input, jump: true }, 1 / 60);
+      step(world, { ...input, jump: false }, 1 / 60);
+      step(world, { ...input, jump: true }, 1 / 60);
+      paint();
+      return { airJumps: world.airJumps, vy: p.vy, doubleJump: !!world.doubleJump };
+    },
+    glideFall() {
+      const p = world.player;
+      p.onGround = false;
+      p.groundId = null;
+      p.vy = -20;
+      world.coyote = 0;
+      step(world, { forward: 0, strafe: 0, jump: true, yaw, timing: false }, 1 / 30);
+      paint();
+      return { vy: p.vy, hasGlide: !!world.hasGlide };
+    },
+    freezeCam(on) { freezeCam = !!on; },
+    cameraInfo() {
+      return {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z,
+        aspect: camera.aspect,
+        yaw,
+        px: world.player.x,
+        pz: world.player.z,
+      };
+    },
+    setRivals(next) {
+      rivalMode = rivalModeName(next);
+      localStorage.setItem('bt-rivals', rivalMode);
+      world.rivals = createRivals(rivalMode, world);
+      applyLang(lang);
+      syncRivals();
+      return rivalMode;
+    },
+    frameRivals() {
+      holdRivals = true;
+      const feet = world.player;
+      const spots = [[1.7, -1.55], [1.7, 1.55], [2.5, 0]];
+      const list = world.rivals || [];
+      for (let i = 0; i < list.length; i++) {
+        const rival = list[i];
+        const spot = spots[i] || spots[0];
+        rival.x = feet.x + spot[0];
+        rival.y = feet.y;
+        rival.z = feet.z + spot[1];
+        rival.vx = 0;
+        rival.vy = 0;
+        rival.vz = 0;
+        rival.onGround = true;
+      }
+      yaw = 0;
+      pitch = 0.42;
+      const held = freezeCam;
+      freezeCam = false;
+      placeCamera(1, true);
+      freezeCam = held;
+      paint();
+      return list.map((rival) => ({ id: rival.id, x: rival.x, z: rival.z }));
+    },
+    warmupRivals(frames = 150) {
+      if (mode !== 'play') setMode('play');
+      const count = Math.max(0, frames);
+      for (let i = 0; i < count; i++) {
+        decideRivals(world, 1 / 60);
+        stepRivals(world, 1 / 60);
+      }
+      paint();
+      return (world.rivals || []).map((rival) => ({
+        id: rival.id, x: rival.x, y: rival.y, z: rival.z, deaths: rival.deaths, blunders: rival.blunders,
+      }));
+    },
+    simulateRace() {
+      if (mode !== 'play') setMode('play');
+      let steps = 0;
+      for (; steps < 40000; steps++) {
+        if (world.won) break;
+        decideRivals(world, 1 / 60);
+        step(world, { ...bot.plan(world), timing: true }, 1 / 60);
+        stepRivals(world, 1 / 60);
+      }
+      after();
+      const rows = raceRows(world);
+      return {
+        won: world.won,
+        deaths: world.deaths,
+        steps,
+        place: placeWord('en', Math.max(0, rows.findIndex((row) => row.id === 'you'))),
+        rows: rows.map((row) => ({ id: row.id, finished: row.finished, time: row.time, x: +row.x.toFixed(2) })),
+        blunders: (world.rivals || []).reduce((sum, rival) => sum + rival.blunders, 0),
+        rivalDeaths: (world.rivals || []).reduce((sum, rival) => sum + rival.deaths, 0),
+      };
+    },
+    focusGem() {
+      const gem = world.ents.find((ent) => ent.kind === 'gem' && !progress.found.includes(ent.id));
+      if (!gem) return null;
+      world.player.x = gem.x - 2.2;
+      world.player.y = gem.y - 0.95;
+      world.player.z = 0;
+      world.player.vx = world.player.vy = world.player.vz = 0;
+      yaw = Math.atan2(gem.z - world.player.z, gem.x - world.player.x);
+      setMode('play');
+      paint();
+      return { x: gem.x, y: gem.y, z: gem.z };
     },
   };
 }
