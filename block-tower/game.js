@@ -7,7 +7,8 @@ import * as THREE from './vendor/three.module.min.js';
 import { COMMUNITY_LINKS, COSMETICS } from './config.js';
 import { t } from './i18n.js';
 import { FLOOR_COUNT, FLOOR_NAMES } from './levels.js';
-import { createState, hazardPose, placeAtCheckpoint, snapshot, solidPose, step } from './physics.js';
+import { createState, hazardPose, placeAtCheckpoint, snapshot, solidPose, step, stepRivals } from './physics.js';
+import { createRivals, decideRivals, placeWord, raceRows, rivalModeName } from './rivals.js';
 import { submitFeedback } from './feedback.js';
 import { UPGRADES, applyProgress, buyUpgrade, loadProgress, saveProgress, upgradeCost } from './upgrades.js';
 import { isMuted, playCheckpoint, playDeath, playJump, playWin, setMuted, tone } from './audio.js';
@@ -47,12 +48,14 @@ const ui = {
 };
 
 let lang = localStorage.getItem('bt-lang') === 'ckb' ? 'ckb' : 'en';
+let rivalMode = rivalModeName(localStorage.getItem('bt-rivals') || 'easy');
 let quality = localStorage.getItem('bt-quality') || (mobileUI() ? 'low' : 'high');
 let colorId = localStorage.getItem('bt-color') || 'cyan';
 let mode = 'menu';
 let progress = loadProgress();
 let world = createState();
 applyProgress(world, progress);
+world.rivals = createRivals(rivalMode, world);
 let seenSerial = world.checkpointSerial;
 let seenHighest = world.highest;
 let lastDeaths = 0;
@@ -66,6 +69,7 @@ let touchDash = false;
 let gemMesh = null;
 let score = 0;
 let toastTimer = 0;
+let holdRivals = false;
 let menuAng = 0.6;
 const keys = new Set();
 const cam = { x: 30, y: 16, z: 24 };
@@ -398,6 +402,60 @@ function makePlayer() {
   return { group, bodyMat, accent, arms: [armL, armR], legs: [legL, legR], trails, trailCursor: 0 };
 }
 
+const rivalGeo = {
+  torso: new THREE.BoxGeometry(0.56, 0.64, 0.32),
+  head: new THREE.BoxGeometry(0.34, 0.3, 0.32),
+  arm: new THREE.BoxGeometry(0.12, 0.42, 0.12),
+  leg: new THREE.BoxGeometry(0.14, 0.4, 0.14),
+};
+const rivalDark = new THREE.MeshLambertMaterial({ color: 0x141820 });
+const rivalMeshes = [];
+
+function nameSprite(label, css) {
+  const board = document.createElement('canvas');
+  board.width = 128;
+  board.height = 32;
+  const ctx = board.getContext('2d');
+  ctx.clearRect(0, 0, 128, 32);
+  ctx.fillStyle = css;
+  ctx.font = '700 22px Segoe UI, Tahoma, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, 64, 16);
+  const tex = new THREE.CanvasTexture(board);
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sprite.position.y = 2.05;
+  sprite.scale.set(1.8, 0.46, 1);
+  sprite.frustumCulled = false;
+  return sprite;
+}
+
+function makeRivalMesh(color, label) {
+  const group = new THREE.Group();
+  const css = `#${color.toString(16).padStart(6, '0')}`;
+  const mat = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.22 });
+  const torso = new THREE.Mesh(rivalGeo.torso, mat);
+  torso.position.y = 0.96;
+  const head = new THREE.Mesh(rivalGeo.head, mat);
+  head.position.y = 1.48;
+  const armL = new THREE.Mesh(rivalGeo.arm, mat);
+  armL.position.set(-0.38, 0.96, 0);
+  const armR = new THREE.Mesh(rivalGeo.arm, mat);
+  armR.position.set(0.38, 0.96, 0);
+  const legL = new THREE.Mesh(rivalGeo.leg, rivalDark);
+  legL.position.set(-0.14, 0.26, 0);
+  const legR = new THREE.Mesh(rivalGeo.leg, rivalDark);
+  legR.position.set(0.14, 0.26, 0);
+  group.add(torso, head, armL, armR, legL, legR, nameSprite(label, css));
+  group.traverse((obj) => { obj.frustumCulled = false; });
+  group.visible = false;
+  scene.add(group);
+  return group;
+}
+
 let player = null;
 let glLost = false;
 let signsReady = false;
@@ -406,6 +464,11 @@ if (renderer) {
   buildLevelMeshes(world.ents);
   buildGems(world.ents);
   player = makePlayer();
+  for (const who of [
+    { color: 0xff3ec8, en: 'Nari' },
+    { color: 0xc6ff4a, en: 'Peko' },
+    { color: 0x7aa2ff, en: 'Vilo' },
+  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en));
   buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
   applyQuality();
@@ -603,6 +666,12 @@ function applyLang(next) {
   if (upBtn) upBtn.textContent = upLabel;
   if (pauseUp) pauseUp.textContent = upLabel;
   renderUpgrades();
+  document.querySelectorAll('[data-rival]').forEach((btn) => {
+    const on = btn.dataset.rival === rivalMode;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (document.getElementById('finish') && !document.getElementById('finish').hidden) fillResults();
 }
 
 function updateRecords() {
@@ -620,6 +689,47 @@ function updateHud() {
   ui.floorName.textContent = lang === 'en' ? name.en : name.ckb;
   ui.timer.textContent = fmt(world.playTime);
   ui.timerLabel.textContent = t(lang, 'time');
+  const placeRow = document.getElementById('placeRow');
+  if (placeRow) {
+    const rivals = world.rivals || [];
+    if (!rivals.length || mode !== 'play') {
+      placeRow.hidden = true;
+    } else {
+      placeRow.hidden = false;
+      const rows = raceRows(world);
+      const index = Math.max(0, rows.findIndex((row) => row.id === 'you'));
+      const num = document.getElementById('placeNum');
+      if (num) num.textContent = placeWord(lang, index);
+    }
+  }
+}
+
+function fillResults() {
+  const list = document.getElementById('raceResults');
+  if (!list) return;
+  const rivals = world.rivals || [];
+  list.replaceChildren();
+  if (!rivals.length) {
+    list.hidden = true;
+    return;
+  }
+  list.hidden = false;
+  raceRows(world).forEach((row, index) => {
+    const li = document.createElement('li');
+    if (row.id === 'you') li.className = 'me';
+    const who = document.createElement('span');
+    who.className = 'who';
+    const swatch = document.createElement('i');
+    swatch.style.background = `#${row.color.toString(16).padStart(6, '0')}`;
+    const name = document.createElement('span');
+    name.textContent = `${placeWord(lang, index)}  ${lang === 'ckb' ? row.ckb : row.en}`;
+    who.append(swatch, name);
+    const time = document.createElement('b');
+    time.dir = 'ltr';
+    time.textContent = row.finished ? fmt(row.time) : t(lang, 'racing');
+    li.append(who, time);
+    list.appendChild(li);
+  });
 }
 
 function setMode(next) {
@@ -658,6 +768,7 @@ function showFinish() {
   ui.finishTime.textContent = fmt(world.playTime);
   ui.finishBest.textContent = fmt(Number(localStorage.getItem('bt-best-ms')) / 1000);
   ui.finishHighest.textContent = String(Math.max(world.highest, highestRecord()));
+  fillResults();
   setMode('finish');
   updateRecords();
 }
@@ -701,6 +812,8 @@ function poll() {
 function restart() {
   world = createState();
   applyProgress(world, progress);
+  world.rivals = createRivals(rivalMode, world);
+  holdRivals = false;
   if (world.shieldOwned) world.shieldReady = true;
   seenSerial = 0;
   seenHighest = world.highest;
@@ -815,9 +928,26 @@ function placeCamera(dt, snap) {
   }
 }
 
+function syncRivals() {
+  const list = world.rivals || [];
+  for (let i = 0; i < rivalMeshes.length; i++) {
+    const mesh = rivalMeshes[i];
+    const rival = list[i];
+    if (!mesh) continue;
+    if (!rival) {
+      mesh.visible = false;
+      continue;
+    }
+    mesh.visible = true;
+    mesh.position.set(rival.x, rival.y, rival.z);
+    mesh.rotation.y = Math.PI / 2 - (rival.yaw || 0);
+  }
+}
+
 function paint() {
   syncDynamics();
   syncPlayer(0);
+  syncRivals();
   placeCamera(1 / 60, true);
   if (renderer) renderer.render(scene, camera);
   updateHud();
@@ -965,6 +1095,16 @@ document.getElementById('fullBtn').addEventListener('click', () => {
     : document.documentElement.requestFullscreen?.();
   if (req && req.catch) req.catch(() => {});
 });
+document.getElementById('rivalModes').addEventListener('click', (event) => {
+  const btn = event.target.closest('[data-rival]');
+  if (!btn) return;
+  rivalMode = rivalModeName(btn.dataset.rival);
+  localStorage.setItem('bt-rivals', rivalMode);
+  if (mode !== 'play') world.rivals = createRivals(rivalMode, world);
+  applyLang(lang);
+  updateHud();
+  syncRivals();
+});
 document.getElementById('qualityBtn').addEventListener('click', () => {
   quality = quality === 'low' ? 'high' : 'low';
   localStorage.setItem('bt-quality', quality);
@@ -1073,7 +1213,9 @@ function frame(now) {
   if (mode === 'play' && !world.won) {
     const beforeY = world.player.vy;
     const input = readInput();
+    if (!holdRivals) decideRivals(world, dt);
     step(world, input, dt);
+    if (!holdRivals) stepRivals(world, dt);
     if (input.jump && world.player.vy > beforeY + 1) playJump();
     collectGems();
     poll();
@@ -1086,6 +1228,7 @@ function frame(now) {
   syncGems();
   syncDynamics();
   syncPlayer(dt);
+  syncRivals();
   placeCamera(dt, false);
   if (renderer && mode === 'play') updateHud();
   if (renderer) {
@@ -1269,6 +1412,72 @@ async function installTestHook() {
         yaw,
         px: world.player.x,
         pz: world.player.z,
+      };
+    },
+    setRivals(next) {
+      rivalMode = rivalModeName(next);
+      localStorage.setItem('bt-rivals', rivalMode);
+      world.rivals = createRivals(rivalMode, world);
+      applyLang(lang);
+      syncRivals();
+      return rivalMode;
+    },
+    frameRivals() {
+      holdRivals = true;
+      const feet = world.player;
+      const spots = [[1.7, -1.55], [1.7, 1.55], [2.5, 0]];
+      const list = world.rivals || [];
+      for (let i = 0; i < list.length; i++) {
+        const rival = list[i];
+        const spot = spots[i] || spots[0];
+        rival.x = feet.x + spot[0];
+        rival.y = feet.y;
+        rival.z = feet.z + spot[1];
+        rival.vx = 0;
+        rival.vy = 0;
+        rival.vz = 0;
+        rival.onGround = true;
+      }
+      yaw = 0;
+      pitch = 0.42;
+      const held = freezeCam;
+      freezeCam = false;
+      placeCamera(1, true);
+      freezeCam = held;
+      paint();
+      return list.map((rival) => ({ id: rival.id, x: rival.x, z: rival.z }));
+    },
+    warmupRivals(frames = 150) {
+      if (mode !== 'play') setMode('play');
+      const count = Math.max(0, frames);
+      for (let i = 0; i < count; i++) {
+        decideRivals(world, 1 / 60);
+        stepRivals(world, 1 / 60);
+      }
+      paint();
+      return (world.rivals || []).map((rival) => ({
+        id: rival.id, x: rival.x, y: rival.y, z: rival.z, deaths: rival.deaths, blunders: rival.blunders,
+      }));
+    },
+    simulateRace() {
+      if (mode !== 'play') setMode('play');
+      let steps = 0;
+      for (; steps < 40000; steps++) {
+        if (world.won) break;
+        decideRivals(world, 1 / 60);
+        step(world, { ...bot.plan(world), timing: true }, 1 / 60);
+        stepRivals(world, 1 / 60);
+      }
+      after();
+      const rows = raceRows(world);
+      return {
+        won: world.won,
+        deaths: world.deaths,
+        steps,
+        place: placeWord('en', Math.max(0, rows.findIndex((row) => row.id === 'you'))),
+        rows: rows.map((row) => ({ id: row.id, finished: row.finished, time: row.time, x: +row.x.toFixed(2) })),
+        blunders: (world.rivals || []).reduce((sum, rival) => sum + rival.blunders, 0),
+        rivalDeaths: (world.rivals || []).reduce((sum, rival) => sum + rival.deaths, 0),
       };
     },
     focusGem() {

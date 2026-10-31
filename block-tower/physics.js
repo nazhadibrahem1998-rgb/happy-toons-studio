@@ -285,13 +285,16 @@ function collideY(p, prevY, solids) {
   }
 }
 
-function nudgeOutOfHazard(state) {
-  const p = state.player;
+function nudgeBody(state, body) {
   let guard = 0;
-  while (guard < 24 && hitsHazardAt(state, p.x, p.y, p.z, state.time)) {
-    p.x -= 0.5;
+  while (guard < 24 && hitsHazardAt(state, body.x, body.y, body.z, state.time)) {
+    body.x -= 0.5;
     guard += 1;
   }
+}
+
+function nudgeOutOfHazard(state) {
+  nudgeBody(state, state.player);
 }
 
 export function placeAtCheckpoint(state) {
@@ -315,8 +318,17 @@ function respawn(state) {
   placeAtCheckpoint(state);
 }
 
+function standingOn(state, id) {
+  if (state.player.groundId === id) return true;
+  const rivals = state.rivals;
+  if (!rivals) return false;
+  for (let i = 0; i < rivals.length; i++) {
+    if (rivals[i].groundId === id) return true;
+  }
+  return false;
+}
+
 function updateCrumble(state, dt) {
-  const ground = state.player.groundId;
   for (const e of state.ents) {
     if (!e.crumble) continue;
     if (e.crumbleState === 'gone') {
@@ -328,7 +340,7 @@ function updateCrumble(state, dt) {
       }
       continue;
     }
-    if (ground === e.id) e.stand += dt;
+    if (standingOn(state, e.id)) e.stand += dt;
     else e.stand = 0;
     if (e.stand >= e.crumble.delay) {
       e.crumbleState = 'gone';
@@ -338,30 +350,35 @@ function updateCrumble(state, dt) {
         state.player.groundId = null;
         state.player.onGround = false;
       }
+      const rivals = state.rivals;
+      if (rivals) {
+        for (let i = 0; i < rivals.length; i++) {
+          if (rivals[i].groundId === e.id) {
+            rivals[i].groundId = null;
+            rivals[i].onGround = false;
+          }
+        }
+      }
     }
   }
 }
 
-function substep(state, input, dt) {
-  const p = state.player;
-  state.time += dt;
-  if (state.invuln > 0) state.invuln = Math.max(0, state.invuln - dt);
-  const solids = aliveSolids(state, state.time, dt);
-
-  if (p.groundId) {
-    const g = solids.find((s) => s.id === p.groundId);
-    if (g && Math.abs(p.y - g.maxY) < 0.22 && overlapXZ(p.x, p.z, g)) {
-      p.x += g.dx;
-      p.y += g.dy;
-      p.z += g.dz;
+function moveBody(state, body, mem, input, dt, solids) {
+  if (body.groundId) {
+    const g = solids.find((s) => s.id === body.groundId);
+    if (g && Math.abs(body.y - g.maxY) < 0.22 && overlapXZ(body.x, body.z, g)) {
+      body.x += g.dx;
+      body.y += g.dy;
+      body.z += g.dz;
     }
   }
 
   const yaw = input.yaw || 0;
   const forward = input.forward || 0;
   const strafe = input.strafe || 0;
-  const move = PHYS.move * (1 + 0.08 * (state.runRank || 0));
-  const jumpV = PHYS.jumpV * (1 + 0.1 * (state.jumpRank || 0));
+  const scale = input.speedScale || 1;
+  const move = PHYS.move * (1 + 0.08 * (mem.runRank || 0)) * scale;
+  const jumpV = PHYS.jumpV * (1 + 0.1 * (mem.jumpRank || 0));
   let wx = Math.cos(yaw) * forward - Math.sin(yaw) * strafe;
   let wz = Math.sin(yaw) * forward + Math.cos(yaw) * strafe;
   const mag = Math.hypot(wx, wz);
@@ -369,91 +386,152 @@ function substep(state, input, dt) {
     wx /= mag;
     wz /= mag;
   }
-  const accel = (p.onGround ? PHYS.accel : PHYS.airAccel) * dt;
-  p.vx = approach(p.vx, wx * move, accel);
-  p.vz = approach(p.vz, wz * move, accel);
-  if (state.dashLeft > 0) {
+  const accel = (body.onGround ? PHYS.accel : PHYS.airAccel) * dt;
+  body.vx = approach(body.vx, wx * move, accel);
+  body.vz = approach(body.vz, wz * move, accel);
+  if (mem.dashLeft > 0) {
     const burst = move * 2.45;
-    p.vx = Math.cos(yaw) * burst;
-    p.vz = Math.sin(yaw) * burst;
-    state.dashLeft -= dt;
+    body.vx = Math.cos(yaw) * burst;
+    body.vz = Math.sin(yaw) * burst;
+    mem.dashLeft -= dt;
   }
-  if (state.dashCd > 0) state.dashCd -= dt;
+  if (mem.dashCd > 0) mem.dashCd -= dt;
 
-  if (p.onGround) state.coyote = PHYS.coyote;
-  else state.coyote = Math.max(0, state.coyote - dt);
-  state.jumpBuffer = Math.max(0, state.jumpBuffer - dt);
-  if (state.jumpBuffer > 0 && state.coyote > 0 && !state.won) {
-    p.vy = jumpV;
-    p.onGround = false;
-    p.groundId = null;
-    state.jumpBuffer = 0;
-    state.coyote = 0;
-  } else if (state.jumpBuffer > 0 && state.doubleJump && (state.airJumps || 0) > 0 && !p.onGround && state.coyote <= 0) {
-    p.vy = jumpV * 0.92;
-    state.airJumps -= 1;
-    state.jumpBuffer = 0;
+  if (body.onGround) mem.coyote = PHYS.coyote;
+  else mem.coyote = Math.max(0, mem.coyote - dt);
+  mem.jumpBuffer = Math.max(0, mem.jumpBuffer - dt);
+  if (mem.jumpBuffer > 0 && mem.coyote > 0 && !mem.won) {
+    body.vy = jumpV;
+    body.onGround = false;
+    body.groundId = null;
+    mem.jumpBuffer = 0;
+    mem.coyote = 0;
+  } else if (mem.jumpBuffer > 0 && mem.doubleJump && (mem.airJumps || 0) > 0 && !body.onGround && mem.coyote <= 0) {
+    body.vy = jumpV * 0.92;
+    mem.airJumps -= 1;
+    mem.jumpBuffer = 0;
   }
 
-  p.vy = Math.max(-PHYS.maxFall, p.vy - PHYS.g * dt);
-  if (state.hasGlide && input.jump && !p.onGround && p.vy < -3.2) p.vy = -3.2;
+  body.vy = Math.max(-PHYS.maxFall, body.vy - PHYS.g * dt);
+  if (mem.hasGlide && input.jump && !body.onGround && body.vy < -3.2) body.vy = -3.2;
 
-  p.onGround = false;
-  const prevGround = p.groundId;
-  p.groundId = null;
+  body.onGround = false;
+  const prevGround = body.groundId;
+  body.groundId = null;
 
-  p.x += p.vx * dt;
-  collideHorizontal(p, solids, 'x');
-  p.z += p.vz * dt;
-  collideHorizontal(p, solids, 'z');
-  const prevY = p.y;
-  p.y += p.vy * dt;
-  collideY(p, prevY, solids);
+  body.x += body.vx * dt;
+  collideHorizontal(body, solids, 'x');
+  body.z += body.vz * dt;
+  collideHorizontal(body, solids, 'z');
+  const prevY = body.y;
+  body.y += body.vy * dt;
+  collideY(body, prevY, solids);
 
-  if (!p.onGround && prevGround) {
+  if (!body.onGround && prevGround) {
     const g = solids.find((s) => s.id === prevGround);
-    if (g && overlapXZ(p.x, p.z, g) && Math.abs(p.y - g.maxY) <= 0.16 && p.vy <= 0) {
-      p.y = g.maxY;
-      p.vy = 0;
-      p.onGround = true;
-      p.groundId = g.id;
+    if (g && overlapXZ(body.x, body.z, g) && Math.abs(body.y - g.maxY) <= 0.16 && body.vy <= 0) {
+      body.y = g.maxY;
+      body.vy = 0;
+      body.onGround = true;
+      body.groundId = g.id;
     }
   }
 
-  if (p.onGround) {
-    state.coyote = PHYS.coyote;
-    state.airJumps = state.doubleJump ? 1 : 0;
+  if (body.onGround) {
+    mem.coyote = PHYS.coyote;
+    mem.airJumps = mem.doubleJump ? 1 : 0;
   }
 
-  if (state.invuln <= 0 && !state.won && hitsHazardAt(state, p.x, p.y, p.z, state.time)) {
-    if (state.shieldReady) {
-      state.shieldReady = false;
-      state.invuln = 0.7;
-      p.vy = Math.max(p.vy, 7);
-      return;
+  if (mem.invuln <= 0 && !mem.won && hitsHazardAt(state, body.x, body.y, body.z, state.time)) {
+    if (mem.shieldReady) {
+      mem.shieldReady = false;
+      mem.invuln = 0.7;
+      body.vy = Math.max(body.vy, 7);
+      return null;
     }
-    respawn(state);
-    return;
+    return 'die';
   }
-  if (!state.won && p.y < state.spawn.y - PHYS.killDrop) {
-    respawn(state);
-    return;
-  }
+  if (!mem.won && body.y < mem.spawn.y - PHYS.killDrop) return 'die';
 
-  if (p.groundId && p.groundId !== state.spawnId) {
-    const ent = state.ents.find((e) => e.id === p.groundId);
+  if (body.groundId && body.groundId !== mem.spawnId) {
+    const ent = state.ents.find((e) => e.id === body.groundId);
     if (ent && ent.spawnFloor) {
       const pose = solids.find((s) => s.id === ent.id) || solidPose(ent, state.time, dt);
-      state.spawnId = ent.id;
-      state.spawn = { x: pose.cx, y: pose.maxY, z: pose.cz, floor: ent.spawnFloor };
-      if (ent.spawnFloor > state.highest) state.highest = ent.spawnFloor;
-      state.checkpointSerial += 1;
-      if (state.shieldOwned) state.shieldReady = true;
+      mem.spawnId = ent.id;
+      mem.spawn = { x: pose.cx, y: pose.maxY, z: pose.cz, floor: ent.spawnFloor };
+      if (ent.spawnFloor > (mem.highest || 0)) mem.highest = ent.spawnFloor;
+      mem.floor = ent.spawnFloor;
+      if (mem === state) {
+        state.checkpointSerial += 1;
+        if (state.shieldOwned) state.shieldReady = true;
+      }
     }
-    if (ent && ent.finish) state.won = true;
+    if (ent && ent.finish) {
+      mem.won = true;
+      if (!mem.finishTime) mem.finishTime = state.playTime;
+    }
   }
+  return null;
+}
 
+function substep(state, input, dt) {
+  state.time += dt;
+  if (state.invuln > 0) state.invuln = Math.max(0, state.invuln - dt);
+  const solids = aliveSolids(state, state.time, dt);
+  if (moveBody(state, state.player, state, input, dt, solids) === 'die') {
+    respawn(state);
+    return;
+  }
   updateCrumble(state, dt);
+}
+
+function respawnRival(state, rival) {
+  rival.deaths += 1;
+  rival.x = rival.spawn.x;
+  rival.y = rival.spawn.y;
+  rival.z = rival.spawn.z;
+  rival.vx = 0;
+  rival.vy = 0;
+  rival.vz = 0;
+  rival.onGround = true;
+  rival.groundId = rival.spawnId;
+  rival.jumpBuffer = 0;
+  rival.coyote = PHYS.coyote;
+  rival.invuln = 0.85;
+  nudgeBody(state, rival);
+}
+
+export function stepRivals(state, dt) {
+  const rivals = state.rivals;
+  if (!rivals || !rivals.length) return;
+  const clamped = Math.min(Math.max(dt, 0), 0.05);
+  for (let i = 0; i < rivals.length; i++) {
+    const rival = rivals[i];
+    if (rival.won) continue;
+    const pressed = !!rival._jump && !rival.jumpHeld;
+    rival.jumpHeld = !!rival._jump;
+    if (pressed) rival.jumpBuffer = PHYS.buffer;
+    rival._rest = false;
+  }
+  let cursor = state.time - clamped;
+  let left = clamped;
+  const sub = 1 / 120;
+  while (left > 1e-8) {
+    const h = Math.min(sub, left);
+    cursor += h;
+    const solids = aliveSolids(state, cursor, h);
+    for (let i = 0; i < rivals.length; i++) {
+      const rival = rivals[i];
+      if (rival.won || rival._rest) continue;
+      if (rival.invuln > 0) rival.invuln = Math.max(0, rival.invuln - h);
+      const input = rival._input || { forward: 0, strafe: 0, jump: false, yaw: 0, speedScale: rival.speed || 1 };
+      if (moveBody(state, rival, rival, input, h, solids) === 'die') {
+        respawnRival(state, rival);
+        rival._rest = true;
+      }
+    }
+    left -= h;
+  }
 }
 
 export function step(state, input, dt) {

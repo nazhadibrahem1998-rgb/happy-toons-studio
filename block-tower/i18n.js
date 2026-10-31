@@ -33,6 +33,13 @@ export const STR = {
     sent: 'نێردرا. سوپاس.',
     stripped: 'زانیاری کەسی لابرا.',
     close: 'داخستن',
+    rivals: 'ڕکابەر',
+    rivalOff: 'کوژاوە',
+    rivalEasy: 'ئاسان',
+    rivalMedium: 'مامناوەند',
+    rivalHard: 'قورس',
+    place: 'شوێن',
+    racing: 'هێشتا دەڕوات',
   },
   en: {
     play: 'Play',
@@ -66,6 +73,13 @@ export const STR = {
     sent: 'Sent. Thank you.',
     stripped: 'Personal details were removed.',
     close: 'Close',
+    rivals: 'Rivals',
+    rivalOff: 'Off',
+    rivalEasy: 'Easy',
+    rivalMedium: 'Medium',
+    rivalHard: 'Hard',
+    place: 'Place',
+    racing: 'Still climbing',
   },
 };
 

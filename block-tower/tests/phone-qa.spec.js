@@ -141,7 +141,15 @@ test('phone QA: every control, both orientations, full tower', async ({ page }, 
   await expect(page.locator('#qualityBtn')).toHaveText('Low');
   await page.locator('#swatches button:not([disabled])').first().click();
 
+  await page.click('[data-rival="off"]');
+  await expect(page.locator('[data-rival="off"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('[data-rival="easy"]');
+  await page.click('[data-rival="medium"]');
+  await page.click('[data-rival="hard"]');
+  await expect(page.locator('[data-rival="hard"]')).toHaveAttribute('aria-pressed', 'true');
   await page.click('#langCkb');
+  await expect(page.locator('[data-rival="hard"]')).toHaveText('قورس');
+  await expect(page.locator('[data-rival="off"]')).toHaveText('کوژاوە');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('#playBtn')).toHaveText('یاریکردن');
   await expect(page.locator('#jumpBtn')).toHaveText('بازدان');
@@ -212,6 +220,8 @@ test('phone QA: every control, both orientations, full tower', async ({ page }, 
       await page.click('#playBtn');
     }
     await expect(page.locator('#touch')).toBeVisible();
+    await expect(page.locator('#placeRow')).toBeVisible();
+    await expect(page.locator('#placeNum')).toHaveText(/^(1st|2nd|3rd|4th)$/);
     const stickBox = await page.locator('#stickZone').boundingBox();
     const jumpBox = await page.locator('#jumpBtn').boundingBox();
     expect(stickBox.x, `${label} stick stays on the left`).toBeLessThan(size.width / 2);
@@ -323,13 +333,33 @@ test('phone QA: every control, both orientations, full tower', async ({ page }, 
     await page.screenshot({ path: `${ART}/screenshot_powerup_gameplay.png` });
   }
 
-  await page.evaluate(() => window.__BT.resetProgress());
-  const clear = await page.evaluate(() => window.__BT.simulate(100));
+  await page.evaluate(() => window.__BT.restart());
+  await page.evaluate(() => window.__BT.setRivals('hard'));
+  const seen = await page.evaluate(() => window.__BT.warmupRivals(180));
+  expect(seen).toHaveLength(3);
+  expect(Math.max(...seen.map((rival) => rival.x))).toBeGreaterThan(4);
+  await page.evaluate(() => window.__BT.frameRivals());
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (info.project.name === 'webkit') {
+    await page.screenshot({ path: `${ART}/screenshot_rivals_race.png` });
+  }
+  await page.evaluate(() => window.__BT.restart());
+  const clear = await page.evaluate(() => window.__BT.simulateRace());
   expect(clear.won).toBe(true);
   expect(clear.deaths).toBe(0);
-  expect(clear.floor).toBe(10);
+  expect(clear.rows).toHaveLength(4);
   await expect(page.locator('#finish')).toBeVisible();
   await expect(page.locator('#finishTime')).not.toHaveText('—');
+  await expect(page.locator('#raceResults li')).toHaveCount(4);
+  await expect(page.locator('#raceResults')).toContainText('1st');
+  await expect(page.locator('#raceResults')).toContainText('Nari');
+  const finishPanel = page.locator('#finish .panel');
+  await scrollControlIntoView(finishPanel, page.locator('#finishMenu'), landscape.height);
+  await page.setViewportSize(portrait);
+  await scrollControlIntoView(finishPanel, page.locator('#finishMenu'), portrait.height);
+  if (info.project.name === 'webkit') {
+    await page.screenshot({ path: `${ART}/screenshot_race_results.png` });
+  }
   await page.click('#finishMenu');
   await expect(page.locator('#menu')).toBeVisible();
   await expect(page.locator('#playBtn')).toBeVisible();

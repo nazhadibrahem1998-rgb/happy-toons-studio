@@ -62,6 +62,7 @@ test('menu, move, jump, and no console errors', async ({ page }, info) => {
 
 test('scripted run clears floors 1–3, respawns, and can finish', async ({ page }, info) => {
   const errors = await openGame(page);
+  await page.evaluate(() => window.__BT.setRivals('off'));
   await page.click('#playBtn');
   const easy = await page.evaluate(() => window.__BT.simulate(4));
   expect(easy.ok).toBe(true);
@@ -455,6 +456,40 @@ test('left and right match the screen at several camera angles', async ({ page }
     return window.__BT.project(s.x, s.y + 1, s.z).x;
   });
   expect(keysAfter).toBeLessThan(keysBefore - 4);
+  assertClean(errors);
+});
+
+test('rivals race offline and the results list places', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'WebKit and Android cover the full race in the phone pass');
+  const errors = await openGame(page);
+  await page.click('[data-rival="hard"]');
+  await expect(page.locator('[data-rival="hard"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('#langCkb');
+  await expect(page.locator('[data-rival="hard"]')).toHaveText('قورس');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await page.click('#langEn');
+  await page.click('#playBtn');
+  await expect(page.locator('#placeRow')).toBeVisible();
+  const preview = await page.evaluate(() => window.__BT.warmupRivals(200));
+  expect(preview).toHaveLength(3);
+  expect(Math.max(...preview.map((rival) => rival.x))).toBeGreaterThan(4);
+  await page.evaluate(() => window.__BT.restart());
+  const race = await page.evaluate(() => window.__BT.simulateRace());
+  expect(race.won).toBe(true);
+  expect(race.deaths).toBe(0);
+  expect(race.rows).toHaveLength(4);
+  expect(race.rows.some((row) => row.id === 'you' && row.finished)).toBe(true);
+  await expect(page.locator('#raceResults li')).toHaveCount(4);
+  await expect(page.locator('#raceResults')).toContainText('Nari');
+  await expect(page.locator('#raceResults')).toContainText('Peko');
+  await expect(page.locator('#raceResults')).toContainText('Vilo');
+  await expect(page.locator('#raceResults')).toContainText('1st');
+  await expect(page.locator('#raceResults .me')).toContainText('You');
+  await page.screenshot({ path: `${ART}/screenshot_race_results.png` });
+  await page.evaluate(() => window.__BT.setRivals('off'));
+  await page.evaluate(() => window.__BT.restart());
+  await expect(page.locator('#placeRow')).toBeHidden();
+  await expect(page.locator('#raceResults')).toBeHidden();
   assertClean(errors);
 });
 

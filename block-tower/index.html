@@ -53,6 +53,7 @@
     <div>
       <div id="floorLabel"><span data-i18n="floor">Floor</span> <b id="floorNum" dir="ltr">1 / 10</b></div>
       <div id="floorName"></div>
+      <div id="placeRow" hidden><span data-i18n="place">Place</span> <b id="placeNum">—</b></div>
     </div>
     <div class="hud-time">
       <div id="timerLabel">Time</div>
@@ -114,6 +115,15 @@
         </div>
       </div>
       <div class="set-row">
+        <span data-i18n="rivals">Rivals</span>
+        <div class="row tight wrap" id="rivalModes">
+          <button type="button" class="chip" data-rival="off" data-i18n="rivalOff">Off</button>
+          <button type="button" class="chip on" data-rival="easy" data-i18n="rivalEasy" aria-pressed="true">Easy</button>
+          <button type="button" class="chip" data-rival="medium" data-i18n="rivalMedium">Medium</button>
+          <button type="button" class="chip" data-rival="hard" data-i18n="rivalHard">Hard</button>
+        </div>
+      </div>
+      <div class="set-row">
         <span data-i18n="quality">Quality</span>
         <button type="button" id="qualityBtn" class="chip">Low</button>
       </div>
@@ -150,6 +160,9 @@
       <h4>How does feedback work?</h4>
       <p>It is optional and anonymous. No rewards, no colour unlocks, and no request for a store review. Before sending, we say what is collected and why.</p>
       <p dir="rtl">بۆچوون ئارەزوومەندانە و بێناوە. پاداشت، کردنەوەی ڕەنگ، یان داواکاری پێداچوونەوەی فرۆشگا نییە. پێش ناردن دەڵێین چی کۆدەکرێتەوە و بۆچی.</p>
+      <h4>Who are the other climbers?</h4>
+      <p>They are computer rivals on this device. Choose Easy, Medium, or Hard, or Off to race alone. They are not real people. The race stays in this browser: no server, no chat, and nothing is sent.</p>
+      <p dir="rtl">ڕکابەرەکان کۆمپیوتەرن لەسەر ئەم ئامێرە. ئاسان، مامناوەند، یان قورس هەڵبژێرە، یان کوژاوە بۆ تەنها خۆت. کەسی ڕاستەقینە نین. پێشبڕکێکە لەم وێبگەڕەدا دەمێنێتەوە: سێرڤەر، گفتوگۆ، یان ناردن نییە.</p>
       <h4>Who made it?</h4>
       <p>Nazhad Ibrahem at Happy Toons Studio. It is an original game.</p>
       <p dir="rtl">نازهاد ئیبراهیم لە Happy Toons Studio. یارییەکی ڕەسەنە.</p>
@@ -221,6 +234,7 @@
       <div><span data-i18n="best">باشترین کات</span> <b id="finishBest">—</b></div>
       <div><span data-i18n="highest">بەرزترین نهۆم</span> <b id="finishHighest">—</b></div>
     </div>
+    <ol id="raceResults" hidden></ol>
     <button type="button" id="finishAgain" class="btn" data-i18n="again">دووبارە</button>
     <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">مێنیو</button>
     <p class="ai">Made with AI assistance (code and graphics)<br>دروستکراو بە یارمەتی AI (کۆد و گرافیک)</p>

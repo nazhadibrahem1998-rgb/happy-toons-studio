@@ -114,6 +114,7 @@ p { margin: 0 0 8px; line-height: 1.45; }
 .row { display: flex; gap: 8px; }
 .row .btn { flex: 1; }
 .row.tight { gap: 6px; }
+.row.wrap { flex-wrap: wrap; max-width: 280px; justify-content: flex-end; }
 .records {
   display: flex;
   justify-content: space-between;
@@ -191,6 +192,24 @@ textarea {
 .hud-top { display: flex; gap: 16px; align-items: flex-start; }
 #floorLabel { font-size: 1.15rem; }
 #floorName, #timerLabel { color: var(--muted); font-size: 0.78rem; }
+#placeRow { color: var(--lime); font-size: 0.95rem; margin-top: 2px; }
+#placeNum { font-weight: 700; }
+#raceResults { list-style: none; padding: 0; margin: 8px 0 12px; }
+#raceResults li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+#raceResults .who { display: flex; align-items: center; gap: 8px; }
+#raceResults i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+#raceResults .me { color: var(--cyan); }
 #timer, #floorNum { font-variant-numeric: tabular-nums; font-family: 'Segoe UI', Tahoma, sans-serif; unicode-bidi: isolate; }
 #timer { font-size: 1.25rem; color: var(--cyan); }
 #floorNum { font-weight: 700; }
