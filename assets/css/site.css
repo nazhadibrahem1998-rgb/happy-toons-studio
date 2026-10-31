@@ -37,7 +37,7 @@ img{max-width:100%;height:auto}
 .menu-btn[aria-expanded=true] span{background:transparent}
 .menu-btn[aria-expanded=true] span::before{transform:translateY(7px) rotate(45deg)}
 .menu-btn[aria-expanded=true] span::after{transform:translateY(-7px) rotate(-45deg)}
-@media(max-width:940px){
+@media(max-width:1100px){
  .js .menu-btn{display:inline-flex}
  .js .nav{display:none;position:absolute;top:68px;left:0;right:0;flex-direction:column;align-items:stretch;gap:0;background:#fffaf2;border-bottom:3px solid var(--ink);padding:8px 22px 20px;box-shadow:0 18px 30px rgba(43,35,80,.12)}
  .js .nav.open{display:flex}
@@ -179,3 +179,14 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 .logo img{border-radius:10px}
 .game-art{background-clip:padding-box}
 .g-tt{display:grid;place-items:center}
+/* shop + follow */
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.badges .badge{margin-bottom:0}
+.price-row{margin-top:14px;display:flex;flex-direction:column;gap:2px}
+.price-row .price{font-family:'Baloo 2','Nunito',sans-serif;font-size:1.9rem;font-weight:800;line-height:1.1;color:var(--ink)}
+.price-row small{color:var(--muted);font-weight:700}
+.shop-item .actions{padding-top:16px}
+a.soc-card p{color:var(--muted)}a.soc-card p b{color:var(--ink)}
+.nav{gap:14px}
+@media(min-width:1101px) and (max-width:1250px){.nav a{font-size:.95rem}.logo{font-size:1.25rem}}
+.g-cart{background:#f3edff}
+.price-row .price{font-size:1.7rem}
