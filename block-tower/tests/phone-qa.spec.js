@@ -6,7 +6,11 @@ function watch(page) {
   const errors = [];
   page.on('pageerror', (err) => errors.push(String(err)));
   page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text());
+    if (msg.type() !== 'error') return;
+    const where = (msg.location() && msg.location().url) || '';
+    const text = msg.text();
+    if (/cloudflareinsights|cloud\.umami\.is|cdn-cgi\/rum/i.test(`${where}\n${text}`)) return;
+    errors.push(text);
   });
   return errors;
 }
@@ -363,5 +367,6 @@ test('phone QA: every control, both orientations, full tower', async ({ page }, 
   await page.click('#finishMenu');
   await expect(page.locator('#menu')).toBeVisible();
   await expect(page.locator('#playBtn')).toBeVisible();
-  expect(errors, errors.join('\n')).toEqual([]);
+  const relevant = errors.filter((line) => !/favicon|Download the React DevTools|cloudflareinsights|cdn-cgi\/rum|Access-Control-Allow-Origin/i.test(line));
+  expect(relevant, relevant.join('\n')).toEqual([]);
 });

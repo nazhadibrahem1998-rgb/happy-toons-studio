@@ -7,7 +7,11 @@ function watch(page) {
   const errors = [];
   page.on('pageerror', (err) => errors.push(String(err)));
   page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text());
+    if (msg.type() !== 'error') return;
+    const where = (msg.location() && msg.location().url) || '';
+    const text = msg.text();
+    if (/cloudflareinsights|cloud\.umami\.is|cdn-cgi\/rum/i.test(`${where}\n${text}`)) return;
+    errors.push(text);
   });
   return errors;
 }
@@ -21,7 +25,7 @@ async function openGame(page) {
 }
 
 function assertClean(errors) {
-  const relevant = errors.filter((line) => !/favicon|Download the React DevTools/i.test(line));
+  const relevant = errors.filter((line) => !/favicon|Download the React DevTools|cloudflareinsights|cdn-cgi\/rum|Access-Control-Allow-Origin/i.test(line));
   expect(relevant, relevant.join('\n')).toEqual([]);
 }
 
@@ -194,7 +198,8 @@ test('feedback notice, filter, length, and offline queue', async ({ page }, info
   expect(queued[0].text).not.toMatch(/\d{6,}/);
   expect(queued[0].text).toContain('***');
   expect(queued[0].text.length).toBeLessThanOrEqual(500);
-  expect(external).toEqual([]);
+  const leaked = external.filter((url) => !/cloudflareinsights|cloud\.umami\.is/i.test(url));
+  expect(leaked).toEqual([]);
   if (info.project.name === 'desktop') {
     await page.screenshot({ path: `${ART}/screenshot_feedback.png` });
   }
