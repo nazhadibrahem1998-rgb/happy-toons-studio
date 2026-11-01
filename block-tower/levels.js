@@ -218,7 +218,7 @@ export function buildLevel() {
     id: 'f8-mover-a',
     move: { axis: 'x', amp: 1.85, period: 2.7, phase: 0.4 },
   });
-  solid(4.2, 0.7, { floor: 8, color: 'magenta', id: 'f8-island' });
+  solid(4.2, 0.7, { floor: 8, color: 'magenta', id: 'f8-island', spawnFloor: 8 });
   solid(3.5, 0.85, {
     floor: 8,
     color: 'lime',
@@ -226,8 +226,11 @@ export function buildLevel() {
     id: 'f8-mover-b',
     move: { axis: 'x', amp: 1.8, period: 2.95, phase: 1.7 },
   });
-  solid(10, 0.65, { floor: 8, color: 'cyan', id: 'f8-spin-pad', spawnFloor: 8 });
+  // The bar sits on this pad. It must not be a checkpoint: the old spawn
+  // was the pad centre, which is inside the bar at every angle.
+  solid(10, 0.65, { floor: 8, color: 'cyan', id: 'f8-spin-pad' });
   spinner(-0.3, { id: 'f8-spin', period: 4.6, radius: 1.08, lift: 0.22, thick: 0.2, phase: 0.25 });
+  solid(5.2, 0.4, { floor: 8, color: 'checkpoint', spawnFloor: 8, id: 'f8-safe' });
   stairs(4, 0.9, 2.45);
   solid(6, 0.12, { floor: 9, color: 'checkpoint', spawnFloor: 9, id: 'f9-start' });
 
@@ -277,7 +280,18 @@ export function buildLevel() {
     id: 'finish',
   });
 
-  return b.ents;
+  const ents = b.ents;
+  const seenFloor = new Set();
+  const gems = [];
+  for (const solid of ents) {
+    if (!solid.spawnFloor || seenFloor.has(solid.floor)) continue;
+    seenFloor.add(solid.floor);
+    gems.push(
+      { kind: 'gem', id: `gem-f${solid.floor}-a`, floor: solid.floor, x: solid.cx - 0.4, y: solid.top + 0.95, z: 1.7 },
+      { kind: 'gem', id: `gem-f${solid.floor}-b`, floor: solid.floor, x: solid.cx + 0.7, y: solid.top + 0.95, z: -1.7 },
+    );
+  }
+  return ents.concat(gems);
 }
 
 export const FLOOR_COUNT = 10;
