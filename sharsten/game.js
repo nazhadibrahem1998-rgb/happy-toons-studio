@@ -773,6 +773,7 @@ function frame(now) {
   const radius = renderRadiusUnits(low);
   const camDist = walking ? 5.2 : buildCam.dist;
   view.setFog(Math.max(1.5, camDist * 0.35), camDist + radius * 0.92);
+  view.setPreview(!playing);
   view.sync(state, now / 1000, { x: here.x, z: here.z, radius });
   const boot = document.getElementById('boot');
   if (boot) boot.hidden = true;
@@ -905,6 +906,7 @@ window.__SV = {
     };
   },
   getHillColor: () => view.getHillColor(),
+  lookReport: () => view.lookReport(),
   astarRoute,
   npcSchedule,
   npcActiveCap: () => npcActiveCap(low),

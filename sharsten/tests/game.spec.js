@@ -311,6 +311,32 @@ test('short view hides far objects and the player stays inside', async ({ page }
   assertClean(errors);
 });
 
+test('the title and the valley default to green spring', async ({ page }, info) => {
+  const errors = await openFresh(page);
+  await page.waitForFunction(() => {
+    const look = window.__SV.lookReport();
+    return look && look.sky && look.sky.b > 0;
+  });
+  const title = await page.evaluate(() => window.__SV.lookReport());
+  expect(title.preview).toBe(true);
+  expect(title.season).toBe(0);
+  expect(title.hill.g).toBeGreaterThan(title.hill.r);
+  expect(title.sky.b).toBeGreaterThan(title.sky.r);
+  expect(title.wheat).toBe('green');
+  expect(title.blossom).toBe(true);
+  await page.click('#playBtn');
+  await page.waitForFunction(() => window.__SV.lookReport().preview === false);
+  const live = await page.evaluate(() => window.__SV.lookReport());
+  expect(live.preview).toBe(false);
+  expect(live.season).toBe(0);
+  expect(live.wheat).toBe('green');
+  expect(live.blossom).toBe(true);
+  if (info.project.name === 'iphone-portrait') {
+    await page.screenshot({ path: `${ART}/sharsten-spring.png` });
+  }
+  assertClean(errors);
+});
+
 test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
   const errors = await openFresh(page);
   await page.click('#playBtn');

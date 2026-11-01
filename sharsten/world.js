@@ -21,10 +21,12 @@ const JOB_COLOR = {
   builder: 0x6d7378, teacher: 0x3d8f8a, healer: 0xf4f7f2, host: 0xa33b3b,
 };
 
-const HILL = { spring: 0x5fa83a, summer: 0xd4a84a, autumn: 0xc47a3a, winter: 0xdfe7ee };
-const GRASS = { spring: 0x74b84e, summer: 0xc6a24a, autumn: 0xa56b32, winter: 0xe7eef2 };
-const CELL_A = { spring: 0x68ae46, summer: 0xb8923e, autumn: 0x9a6230, winter: 0xd5e0e8 };
-const CELL_B = { spring: 0x7ec85a, summer: 0xd0ae58, autumn: 0xb67a3c, winter: 0xeef3f6 };
+const HILL = { spring: 0x3c9a34, summer: 0xd4a84a, autumn: 0xc47a3a, winter: 0xdfe7ee };
+const GRASS = { spring: 0x4eae3e, summer: 0xc6a24a, autumn: 0xa56b32, winter: 0xe7eef2 };
+const CELL_A = { spring: 0x46a338, summer: 0xb8923e, autumn: 0x9a6230, winter: 0xd5e0e8 };
+const CELL_B = { spring: 0x62c24c, summer: 0xd0ae58, autumn: 0xb67a3c, winter: 0xeef3f6 };
+const FOLIAGE = { spring: 0x2f9a38, summer: 0xa3a043, autumn: 0xb56a32, winter: 0xd5ddd8 };
+const BUSH = { spring: 0x3aaa40, summer: 0xb49a40, autumn: 0xa85a30, winter: 0xdfe6e2 };
 
 const snapU = { value: 1 };
 function ps1ify(material) {
@@ -140,6 +142,25 @@ function brickTexture() {
   return tex;
 }
 
+function cloudTexture() {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 32;
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 64, 32);
+  g.fillStyle = 'rgba(255,255,255,0.92)';
+  [[16, 16, 11], [30, 14, 14], [46, 16, 10], [26, 18, 9]].forEach(([x, y, r]) => {
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  });
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  return tex;
+}
+
 function hash(i) {
   const x = Math.sin(i * 12.9898) * 43758.5453;
   return x - Math.floor(x);
@@ -154,15 +175,53 @@ export function createView(canvas) {
     failIfMajorPerformanceCaveat: false,
   });
   if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setClearColor(0x8ec8ef, 1);
+  renderer.setClearColor(0xc6e6ff, 1);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x8ec8ef);
-  scene.fog = new THREE.Fog(0x8ec8ef, 40, 120);
+  scene.background = new THREE.Color(0xc6e6ff);
+  scene.fog = new THREE.Fog(0xc6e6ff, 40, 120);
   const camera = new THREE.PerspectiveCamera(48, 0.2, 0.1, 40);
-  const hemi = new THREE.HemisphereLight(0xd5eeff, 0x6a8a48, 0.85);
-  const sun = new THREE.DirectionalLight(0xfff2d2, 1.05);
-  sun.position.set(12, 18, 8);
+  const hemi = new THREE.HemisphereLight(0xd4ecff, 0x3e7a34, 0.78);
+  const sun = new THREE.DirectionalLight(0xffe0a8, 1.4);
+  sun.position.set(12, 22, 8);
   scene.add(hemi, sun);
+  scene.add(camera);
+
+  const skyGeo = new THREE.SphereGeometry(7.2, 10, 6);
+  const skyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false });
+  const skyDome = new THREE.Mesh(skyGeo, skyMat);
+  skyDome.frustumCulled = false;
+  skyDome.renderOrder = -2;
+  camera.add(skyDome);
+  const skyTop = new THREE.Color();
+  const skyHorizon = new THREE.Color();
+  const skyMix = new THREE.Color();
+  function paintSky(topHex, horizonHex) {
+    skyTop.set(topHex);
+    skyHorizon.set(horizonHex);
+    const pos = skyGeo.attributes.position;
+    const arr = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i += 1) {
+      const y = pos.getY(i) / 7.2;
+      const t = Math.max(0, Math.min(1, (y + 0.2) / 0.95));
+      skyMix.copy(skyHorizon).lerp(skyTop, t * t);
+      arr[i * 3] = skyMix.r;
+      arr[i * 3 + 1] = skyMix.g;
+      arr[i * 3 + 2] = skyMix.b;
+    }
+    skyGeo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  }
+  paintSky(0x2f7ed6, 0xc6e6ff);
+  const cloudMat = new THREE.SpriteMaterial({
+    map: cloudTexture(), transparent: true, depthWrite: false, fog: false,
+  });
+  const clouds = [];
+  for (let i = 0; i < 6; i += 1) {
+    const sprite = new THREE.Sprite(cloudMat);
+    sprite.scale.set(4.6 + (i % 3) * 0.7, 2.1, 1);
+    sprite.renderOrder = -1;
+    camera.add(sprite);
+    clouds.push(sprite);
+  }
 
   const hillMat = mat(HILL.spring);
   const valleyMat = mat(GRASS.spring);
@@ -222,7 +281,7 @@ export function createView(canvas) {
   const vines = pool(new THREE.BoxGeometry(0.08, 0.7, 0.08), mat(0x6b4a2a), 80);
   const leaves = pool(new THREE.SphereGeometry(0.28, 5, 4), mat(0xffffff), 80);
   const trunks = pool(new THREE.CylinderGeometry(0.1, 0.14, 0.8, 5), mat(0x6b4226), 40);
-  const canopy = pool(new THREE.SphereGeometry(0.45, 6, 5), mat(0xffffff), 40);
+  const canopy = pool(new THREE.SphereGeometry(0.45, 6, 5), mat(0xffffff), 80);
   const posts = pool(new THREE.BoxGeometry(0.1, 0.7, 0.1), mat(0xc2b49a), 80);
   const boxes = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff), 40);
   scene.add(soil, wheat, vines, leaves, trunks, canopy, posts, boxes);
@@ -472,14 +531,27 @@ export function createView(canvas) {
   const ndc = new THREE.Vector2();
   let low = false;
   let seenSeason = -1;
+  let previewSpring = true;
+  const look = {
+    preview: true, season: 0, wheat: 'green', blossom: true,
+    sky: { r: 0.18, g: 0.49, b: 0.84 },
+  };
+
+  function tintInstances(mesh, count, hex) {
+    col.set(hex);
+    for (let i = 0; i < count; i += 1) mesh.setColorAt(i, col);
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }
 
   function applySeason(season) {
     const key = SEASONS[season] || 'spring';
     hillMat.color.set(HILL[key]);
     valleyMat.color.set(GRASS[key]);
-    mountMat.color.set(key === 'summer' ? 0xb7a06a : key === 'winter' ? 0xd5dde4 : 0x8a8e86);
+    mountMat.color.set(key === 'summer' ? 0xb7a06a : key === 'winter' ? 0xd5dde4 : key === 'spring' ? 0x6e9458 : 0x8a8e86);
     for (let i = 0; i < 18; i += 1) hills.setColorAt(i, hillMat.color);
     hills.instanceColor.needsUpdate = true;
+    tintInstances(roadTrees, treeN, FOLIAGE[key]);
+    tintInstances(bushes, bushN, BUSH[key]);
     seenSeason = season;
   }
 
@@ -510,7 +582,7 @@ export function createView(canvas) {
     commit(ground, tiles.length);
   }
 
-  function syncBuildings(state) {
+  function syncBuildings(state, painted) {
     const mosqueB = state.buildings.find((b) => b.type === 'mosque');
     if (mosqueB) {
       const p = cellToWorld(mosqueB.gx, mosqueB.gz);
@@ -561,7 +633,7 @@ export function createView(canvas) {
     let canN = 0;
     let postN = 0;
     let boxN = 0;
-    const wheatColor = state.season === 1 || state.season === 2 ? 0xe2c15a : 0xb6c84a;
+    const wheatColor = painted === 0 ? 0x7ed45a : painted === 1 ? 0xe2c15a : painted === 2 ? 0xc48a3a : 0xd5e4c8;
     state.buildings.forEach((b) => {
       if (b.type === 'mosque' || b.type === 'spring' || b.type === 'house') return;
       const p = cellToWorld(b.gx, b.gz);
@@ -579,7 +651,11 @@ export function createView(canvas) {
         if (b.stage > 0) {
           const stubble = b.stage === 4;
           const h = stubble ? 0.22 : 0.18 + (b.growth / 100) * 0.75;
-          const stalkColor = stubble ? 0xc6a15a : b.stage === 3 ? 0xf0d56a : wheatColor;
+          let stalkColor = wheatColor;
+          if (stubble) stalkColor = 0xc6a15a;
+          else if (painted === 0) stalkColor = b.stage >= 2 ? 0x62b84a : 0x8ed85e;
+          else if (painted === 1 && b.stage === 3) stalkColor = 0xf0d56a;
+          else if (painted === 3) stalkColor = 0xdfe8e4;
           const count = stubble ? Math.min(stalks, 3) : stalks;
           for (let k = 0; k < count; k += 1) {
             const ox = ((k % 3) - 1) * 0.38;
@@ -595,8 +671,8 @@ export function createView(canvas) {
           const oz = (k - 1.5) * 0.34;
           put(vines, vineN, p.x, 0.4, p.z + oz, 1, 1, 1, 0, 0x6b4a2a);
           vineN += 1;
-          const leaf = state.season === 1 ? 0xc6b04a : 0x3f8f3a;
-          put(leaves, leafN, p.x, 0.78, p.z + oz, 1.1, 0.7, 0.8, 0, state.season === 1 || state.season === 2 ? 0x7a3e86 : leaf);
+          const leaf = painted === 0 ? 0x5ec84a : painted === 1 ? 0xc6b04a : painted === 2 ? 0x7a3e86 : 0xd5ddd0;
+          put(leaves, leafN, p.x, 0.78, p.z + oz, 1.1, 0.7, 0.8, 0, leaf);
           leafN += 1;
         }
         return;
@@ -604,8 +680,20 @@ export function createView(canvas) {
       if (b.type === 'orchard_pom' || b.type === 'orchard_walnut') {
         put(trunks, trunkN, p.x, 0.4, p.z, 1, 1, 1, 0, 0x6b4226);
         trunkN += 1;
-        put(canopy, canN, p.x, 1.05, p.z, 1, 1, 1, 0, b.type === 'orchard_pom' ? 0xc44848 : 0x6aaa48);
-        canN += 1;
+        const pink = b.type === 'orchard_pom';
+        if (painted === 0 && canN < 78) {
+          put(canopy, canN, p.x, 1.08, p.z, 1.05, 0.8, 1.05, 0, pink ? 0xf7c3d4 : 0xf7f6f1);
+          canN += 1;
+          put(canopy, canN, p.x + 0.28, 1.22, p.z - 0.05, 0.42, 0.36, 0.42, 0, 0xfffaf6);
+          canN += 1;
+          put(canopy, canN, p.x - 0.22, 0.96, p.z + 0.18, 0.38, 0.32, 0.38, 0, pink ? 0xf48fb4 : 0xfff4ea);
+          canN += 1;
+        } else if (canN < 79) {
+          const crown = painted === 1 ? (pink ? 0xd24a4a : 0x6aaa48) : painted === 2 ? 0xd4893a : 0x6b5344;
+          const scale = painted === 3 ? 0.45 : 1;
+          put(canopy, canN, p.x, 1.05, p.z, scale, scale, scale, 0, crown);
+          canN += 1;
+        }
         return;
       }
       if (b.type === 'pen_sheep' || b.type === 'pen_goat' || b.type === 'coop') {
@@ -767,20 +855,42 @@ export function createView(canvas) {
     camera.updateProjectionMatrix();
   }
 
-  function sky(state) {
-    const h = state.hour + (state.acc || 0) / 2;
+  function sky(state, painted, time) {
+    const h = previewSpring ? 11 : state.hour + (state.acc || 0) / 2;
     const night = h < 5 || h >= 19;
     const dawn = (h >= 5 && h < 8) || (h >= 17 && h < 19);
-    const summer = state.season === 1;
-    const color = night ? 0x1c2744 : dawn ? 0xf0a06a : summer ? 0x7ebfe8 : 0x8ec8ef;
-    scene.background.set(color);
-    scene.fog.color.copy(scene.background);
-    sun.intensity = night ? 0.16 : dawn ? 0.7 : 1.05;
-    hemi.intensity = night ? 0.35 : 0.82;
-    hemi.color.set(night ? 0x223055 : 0xd5eeff);
-    hemi.groundColor.set(GRASS[SEASONS[state.season]] || GRASS.spring);
+    let top = 0x2f7ed6;
+    let horizon = 0xc6e6ff;
+    if (night) { top = 0x121a33; horizon = 0x243056; }
+    else if (dawn) { top = 0xf0a06a; horizon = 0xffd7b0; }
+    else if (painted === 1) { top = 0x69b4e4; horizon = 0xf0e4c4; }
+    else if (painted === 2) { top = 0x6aa0cc; horizon = 0xf0c8a4; }
+    else if (painted === 3) { top = 0x9eb8cc; horizon = 0xe7eef4; }
+    paintSky(top, horizon);
+    scene.background.copy(skyHorizon);
+    scene.fog.color.copy(skyHorizon);
+    renderer.setClearColor(skyHorizon, 1);
+    sun.color.set(night ? 0x8899bb : 0xffe0a8);
+    sun.intensity = night ? 0.18 : dawn ? 0.9 : 1.42;
+    hemi.intensity = night ? 0.35 : 0.78;
+    hemi.color.set(night ? 0x223055 : 0xd4ecff);
+    hemi.groundColor.set(painted === 0 ? 0x3e7a34 : (GRASS[SEASONS[painted]] || GRASS.spring));
     const ang = ((Math.min(18, Math.max(6, h)) - 6) / 12) * Math.PI;
     sun.position.set(Math.cos(ang) * 24, Math.sin(ang) * 22 + 2, 10);
+    clouds.forEach((sprite, i) => {
+      const drift = Math.sin(time * 0.15 + i) * 0.35;
+      const x = [-3.4, 2.6, 0.1, -4.8, 4.4, 1.5][i] + drift;
+      const y = [2.15, 2.7, 3.15, 1.9, 2.35, 3.4][i];
+      const z = [-6.4, -6.8, -7.4, -5.6, -6.1, -5.4][i];
+      sprite.position.set(x, y, z);
+      sprite.material.opacity = night ? 0.18 : 0.88;
+      sprite.material.color.set(night ? 0x8aa0b8 : dawn ? 0xffe0c4 : 0xffffff);
+    });
+    look.preview = previewSpring;
+    look.season = painted;
+    look.wheat = painted === 0 ? 'green' : painted === 1 ? 'gold' : 'later';
+    look.blossom = painted === 0;
+    look.sky = { r: skyTop.r, g: skyTop.g, b: skyTop.b };
   }
 
   let ghostCell = null;
@@ -811,6 +921,22 @@ export function createView(canvas) {
     getHillColor() {
       const c = hillMat.color;
       return { r: c.r, g: c.g, b: c.b, hex: c.getHexString() };
+    },
+    setPreview(on) {
+      const next = !!on;
+      if (next !== previewSpring) seenSeason = -1;
+      previewSpring = next;
+    },
+    lookReport() {
+      const c = hillMat.color;
+      return {
+        preview: look.preview,
+        season: look.season,
+        wheat: look.wheat,
+        blossom: look.blossom,
+        sky: look.sky,
+        hill: { r: c.r, g: c.g, b: c.b },
+      };
     },
     pick(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
@@ -863,12 +989,13 @@ export function createView(canvas) {
     },
     sync(state, time, nextCull) {
       if (nextCull) cull = nextCull;
-      if (state.season !== seenSeason) applySeason(state.season);
-      paintGround(state.season);
-      syncBuildings(state);
+      const painted = previewSpring ? 0 : state.season;
+      if (painted !== seenSeason) applySeason(painted);
+      paintGround(painted);
+      syncBuildings(state, painted);
       syncAgents(state, time);
       syncVehicles(state);
-      sky(state);
+      sky(state, painted, time || 0);
       if (selectCell) {
         const p = cellToWorld(selectCell.gx, selectCell.gz);
         ring.position.set(p.x, 0.2, p.z);

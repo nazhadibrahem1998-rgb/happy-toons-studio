@@ -31,7 +31,7 @@ html, body {
   height: 100%;
   height: var(--vv-h, 100dvh);
   overflow: hidden;
-  background: #8ec8ef;
+  background: #c6e6ff;
   color: var(--ink);
   font-family: Nunito, 'HT Kurdish', sans-serif;
   touch-action: none;
