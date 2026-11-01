@@ -1,11 +1,12 @@
 import {
-  LAYOUT, MAP_BOUND, acceptQuest, advanceHours, assignJob, astarRoute, averageHappiness, cameraBasis, cameraEyeY,
+  LAYOUT, MAP_BOUND, acceptQuest, advanceHours, assignJob, astarRoute, averageHappiness, cameraBasis, cameraEyeY, craft, gather, parseSave, serialize,
   canPlace, celebrateNewroz, clampToMap, cleanMosque, createState, demolish, driveVehicle, enterVehicle, exitVehicle, grantXp, harvest,
   integrate, isRoad, isUnlocked, npcActiveCap, npcSchedule, phaseOf, place, plant, playable, reachExit, setEasy, setHour, setSeason, stepNpcs,
   animalCap, carryBudget, DONKEY_SPEED, enterAnimal, exitAnimal, herdSpot, moveGoods, rideAnimal, stepAnimals,
-  stepVehicles, stickVector, suggestCell, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, walkStep,
+  stepVehicles, stickVector, suggestCell, tick, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, viewAxes, walkStep,
+  bonk, shove, spawnRaid,
 } from './sim.js';
-import { i18nAudit, linePairs } from './i18n.js';
+import { i18nAudit, linePairs, t as tr } from './i18n.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -83,7 +84,7 @@ const down = stickVector(0, 40, 40);
 assert(down.y < -0.9, 'stick down');
 
 const yaw = 0;
-const { forward, right: camRight } = cameraBasis(yaw);
+const { forward, right: camRight } = viewAxes(yaw);
 const moved = walkStep({ x: 5, z: 5 }, yaw, 0.6, 0, 1, 0, 0, 0.5);
 const dx = moved.x - 5;
 const dz = moved.z - 5;
@@ -96,9 +97,9 @@ assert(sx * camRight.x + sz * camRight.z > 0.5, 'right');
 assert(Math.abs(sx * forward.x + sz * forward.z) < 0.05, 'not forward');
 
 const looked = walkStep({ x: 5, z: 5 }, 0, 0.6, 0, 0, 1, 0, 0.4);
-const beforeF = cameraBasis(0).forward;
-const afterF = cameraBasis(looked.yaw).forward;
-const prevRight = cameraBasis(0).right;
+const beforeF = viewAxes(0).forward;
+const afterF = viewAxes(looked.yaw).forward;
+const prevRight = viewAxes(0).right;
 assert(afterF.x * prevRight.x + afterF.z * prevRight.z > 0.05, 'look right');
 assert(Math.abs(beforeF.x) < 0.001, 'start forward');
 const upLook = walkStep({ x: 0, z: 0 }, 0, 0.7, 0, 0, 0, 1, 0.3);
@@ -420,5 +421,58 @@ grantXp(ladder, 4);
 assert(ladder.rank === 5 && isUnlocked(ladder, 'school'), 'rank 5');
 const plotTea = suggestCell(lock, 'teahouse');
 assert(plotTea && canPlace(lock, 'teahouse', plotTea.gx, plotTea.gz), 'easy can afford a tea house');
+
+const morning = createState();
+assert(morning.hour === 8 && morning.season === 0, 'new game is morning spring');
+assert(tr('en', 'money') === 'Dinar' && tr('ckb', 'money') === 'دینار', 'dinar name');
+const playerHome = morning.buildings.find((b) => b.tag === 'player');
+const mullahHome = morning.buildings.find((b) => b.tag === 'mullah');
+assert(playerHome && mullahHome, 'two labelled houses');
+const mullah = morning.villagers.find((v) => v.role === 'mullah');
+assert(mullah && mullah.nameCkb === 'مەلا حوسێن' && mullah.name === 'Mullah Husen', 'mullah name');
+setHour(morning, 11);
+advanceHours(morning, 1);
+assert(morning.hour === 12 && morning.adhan === 1, 'noon call once');
+const victim = morning.villagers.find((v) => !v.player && v.role !== 'child' && v.role !== 'mullah');
+victim.gx = morning.villagers[0].gx;
+victim.gz = morning.villagers[0].gz;
+const hit = shove(morning, victim.id);
+assert(hit.ok && morning.rep < 0, 'shove hurts reputation');
+const child = morning.villagers.find((v) => v.role === 'child');
+if (child) {
+  child.gx = morning.villagers[0].gx;
+  child.gz = morning.villagers[0].gz;
+  assert(shove(morning, child.id).reason === 'child', 'children are not hit');
+}
+spawnRaid(morning);
+const foe = morning.threats[0];
+morning.villagers[0].gx = foe.gx;
+morning.villagers[0].gz = foe.gz;
+assert(bonk(morning).ok, 'bonk');
+const savedNight = JSON.parse(serialize(morning));
+savedNight.state.hour = 23;
+savedNight.state.acc = 10;
+const woken = parseSave(JSON.stringify(savedNight));
+assert(woken.hour === 8 && woken.acc === 0, 'night save opens at morning');
+
+const camp = createState();
+assert(camp.nodes && camp.nodes.length >= 8, 'trees and rocks');
+const made = craft(camp, 'axe');
+assert(made.ok, 'axe starts');
+camp.craftJob.left = 0.01;
+tick(camp, 0.05);
+assert(camp.tools.axe >= 1, 'axe finished');
+const tree = camp.nodes.find((n) => n.kind === 'tree' && n.alive);
+const chopper = camp.villagers.find((v) => v.player);
+chopper.gx = tree.gx;
+chopper.gz = tree.gz + 0.2;
+const chopped = gather(camp);
+assert(chopped.ok && camp.got.wood >= 1, 'chop wood');
+const rock = camp.nodes.find((n) => n.kind === 'rock' && n.alive);
+assert(rock, 'a rock');
+chopper.gx = rock.gx;
+chopper.gz = rock.gz;
+const mined = gather(camp);
+assert(mined.ok === false && mined.reason === 'needPick', 'pick before stone');
 
 console.log('sim-check ok');

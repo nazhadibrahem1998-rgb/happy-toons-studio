@@ -97,7 +97,7 @@ test('language switch, RTL, and digits', async ({ page }) => {
   expect(layout.html).toBe('rtl');
   expect(layout.sticks).toBe('ltr');
   expect(layout.font.toLowerCase()).toContain('vazirmatn');
-  expect(layout.canvas === 'pixelated' || layout.canvas === 'crisp-edges').toBe(true);
+  expect(layout.canvas).not.toBe('pixelated');
   expect(layout.text).not.toBe('pixelated');
   await noOverflow(page);
   await page.click('#helpBtn');
@@ -313,12 +313,12 @@ test('short view hides far objects and the player stays inside', async ({ page }
       kinds: window.__SV.propKinds().join(','),
     };
   });
-  expect(cull.radius).toBeGreaterThan(6);
-  expect(cull.radius).toBeLessThan(10);
+  expect(cull.radius).toBeGreaterThan(12);
+  expect(cull.radius).toBeLessThan(26);
   expect(cull.report.skipped).toBeGreaterThan(0);
   expect(cull.report.renderedBeyond).toBe(0);
   expect(cull.report.cameraFar).toBeGreaterThan(12);
-  expect(cull.report.cameraFar).toBeLessThan(40);
+  expect(cull.report.cameraFar).toBeLessThan(48);
   expect(cull.after.gx).toBe(cull.before.gx);
   expect(cull.after.gz).toBe(cull.before.gz);
   expect(cull.after.updated).toBe(false);
@@ -793,6 +793,80 @@ test('rotation keeps the HUD, sticks, and panels in view', async ({ page }) => {
   expect(after.wood).toBe(before.wood);
   expect(after.rank).toBe(before.rank);
   expect(after.z1).toBeGreaterThan(after.z0);
+  assertClean(errors);
+});
+
+test('keys, sticks, and look all follow the camera', async ({ page }) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  await page.evaluate(() => {
+    for (let i = 0; i < 6; i += 1) window.__SV.advanceTutorial();
+  });
+  await page.evaluate(() => document.getElementById('hudMenu').click());
+  await page.click('#modeBtn');
+  const forward = await page.evaluate(() => {
+    window.__SV.setWalkPose({ x: 20, z: 30, yaw: 0.4, pitch: 0.45 });
+    const before = window.__SV.getWalkDebug();
+    window.__SV.stepKeys(0.35, ['KeyW']);
+    const after = window.__SV.getWalkDebug();
+    const dx = after.x - before.x;
+    const dz = after.z - before.z;
+    window.__SV.setWalkPose({ x: 20, z: 30, yaw: 0.4, pitch: 0.45 });
+    window.__SV.stepKeys(0.35, ['KeyS']);
+    const back = window.__SV.getWalkDebug();
+    const bx = back.x - 20;
+    const bz = back.z - 30;
+    window.__SV.setWalkPose({ x: 20, z: 30, yaw: 0.4, pitch: 0.45 });
+    window.__SV.setSticks({ moveX: 0, moveY: 1, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
+    window.__SV.stepWalk(0.35);
+    const stick = window.__SV.getWalkDebug();
+    const yaw0 = 0.4;
+    window.__SV.setWalkPose({ x: 20, z: 30, yaw: yaw0, pitch: 0.45 });
+    const right = window.__SV.getWalkDebug().right;
+    window.__SV.lookDrag(40);
+    const turned = window.__SV.getWalkDebug();
+    const lookDot = turned.forward.x * right.x + turned.forward.z * right.z;
+    window.__SV.setWalkPose({ x: 20, z: 30, yaw: yaw0, pitch: 0.45 });
+    window.__SV.setSticks({ moveX: 0, moveY: 0, lookX: 1, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
+    window.__SV.stepWalk(0.3);
+    const joy = window.__SV.getWalkDebug();
+    const joyDot = joy.forward.x * right.x + joy.forward.z * right.z;
+    return {
+      w: dx * before.forward.x + dz * before.forward.z,
+      s: bx * before.forward.x + bz * before.forward.z,
+      stick: (stick.x - 20) * before.forward.x + (stick.z - 30) * before.forward.z,
+      lookDot,
+      joyDot,
+    };
+  });
+  expect(forward.w).toBeGreaterThan(0.4);
+  expect(forward.s).toBeLessThan(-0.4);
+  expect(forward.stick).toBeGreaterThan(0.4);
+  expect(forward.lookDot).toBeGreaterThan(0.05);
+  expect(forward.joyDot).toBeGreaterThan(0.05);
+  assertClean(errors);
+});
+
+test('each real button can be tapped once', async ({ page }) => {
+  const errors = await openFresh(page);
+  const menu = ['#helpBtn', '#helpClose', '#creditsBtn', '#creditsClose', '#langCkb', '#qualityBtn', '#easyBtn'];
+  for (const sel of menu) {
+    await page.click(sel);
+  }
+  await page.click('#playBtn');
+  await page.evaluate(() => {
+    for (let i = 0; i < 6; i += 1) window.__SV.advanceTutorial();
+  });
+  const play = ['#hudMenu', '#modeBtn', '#hudMenu', '#hudCraft', '#craftClose', '#hudMenu', '#hudBuild', '#buildClose', '#hudMenu', '#hudPeople', '#peopleClose', '#hudMenu', '#hudQuests', '#questsClose', '#hudMenu', '#hudPause', '#resumeBtn'];
+  for (const sel of play) {
+    if (await page.locator('#hudPop').isHidden() && sel !== '#hudMenu' && sel.startsWith('#hud')) await page.click('#hudMenu');
+    await page.click(sel);
+  }
+  const once = await page.evaluate(() => {
+    const buttons = [...document.querySelectorAll('button')].filter((b) => b.offsetParent);
+    return buttons.every((b) => b.getBoundingClientRect().height >= 44);
+  });
+  expect(once).toBe(true);
   assertClean(errors);
 });
 

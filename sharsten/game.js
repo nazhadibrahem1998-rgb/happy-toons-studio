@@ -11,7 +11,9 @@ import {
   driveVehicle, enterAnimal, enterVehicle, isUnlocked, jobUnlocked, setRank, TUTORIAL_STEPS, unlocks,
   exitAnimal, exitVehicle, herdSpot, moveGoods, nearestAnimal, nearestVehicle, npcActiveCap, npcSchedule, rideAnimal,
   stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
-  LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
+  LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, secondsThisHour, snapshot, stickVector, suggestCell, tick, upgrade, viewAxes, walkStep,
+  craft, dismissStage, equipTool, gather, nearestNode, recipeList, stageSnapshot,
+  cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, tradeList, tradeWith, setRaids, bonk,
 } from './sim.js';
 import { formatClock, formatNum, i18nAudit, linePairs, npcLine, t } from './i18n.js';
 import { createView } from './world.js';
@@ -20,27 +22,37 @@ const canvas = document.getElementById('c');
 const testMode = new URLSearchParams(location.search).has('test');
 const coarse = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 
-const RES = ['wood', 'stone', 'water', 'food', 'money', 'grain', 'flour', 'wool', 'eggs'];
-const RES_ICON = { wood: '▣', stone: '◆', water: '〜', food: '◑', money: '●', grain: '✶', flour: '◌', wool: '◍', eggs: '○' };
+const RES = ['wood', 'stone', 'clay', 'water', 'food', 'money', 'grain', 'flour', 'wool', 'fibre', 'ore', 'eggs'];
+const RES_ICON = {
+  wood: '🪵', stone: '🪨', clay: '🫙', water: '💧', food: '🍞', money: '🪙',
+  grain: '🌾', flour: '⚪', wool: '🐑', fibre: '🌿', ore: '⛏️', eggs: '🥚',
+};
 const JOBS = ['idle', 'farmer', 'shepherd', 'baker', 'miller', 'weaver', 'smith', 'builder', 'teacher', 'healer', 'host'];
-const PANELS = ['help', 'credits', 'quests', 'people', 'build', 'detail', 'pause'];
+const PANELS = ['help', 'credits', 'quests', 'people', 'build', 'craft', 'detail', 'pause'];
 
 let lang = 'ckb';
-let low = !!coarse;
+let quality = coarse ? 'mid' : 'high';
+if (navigator.deviceMemory && navigator.deviceMemory <= 2) quality = 'low';
 let stickPref = !!coarse;
+let adhanOn = true;
+let raidsOn = true;
 let easy = false;
 try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
   if (saved) {
     if (saved.lang === 'ckb' || saved.lang === 'en') lang = saved.lang;
-    if (saved.quality) low = saved.quality === 'low';
+    if (saved.quality === 'low' || saved.quality === 'mid' || saved.quality === 'high') quality = saved.quality;
     if (typeof saved.sticks === 'boolean') stickPref = saved.sticks;
     if (typeof saved.easy === 'boolean') easy = saved.easy;
+    if (typeof saved.adhan === 'boolean') adhanOn = saved.adhan;
+    if (typeof saved.raids === 'boolean') raidsOn = saved.raids;
   }
 } catch { /* keep defaults */ }
+const lowQ = () => quality === 'low';
 
 let state = parseSave(localStorage.getItem(SAVE_KEY)) || createState();
 state.easy = easy;
+state.raids = raidsOn;
 let playing = false;
 let buildType = null;
 let peopleSig = '';
@@ -55,17 +67,18 @@ const mosqueView = cellToWorld(LAYOUT.mosque.gx, LAYOUT.mosque.gz);
 const buildCam = { yaw: 0.62, pitch: 1.02, dist: 8.5, x: mosqueView.x, z: mosqueView.z };
 let ps1 = true;
 let riding = false;
-const walkCam = { yaw: 0.35, pitch: 0.48 };
+const walkCam = { yaw: -1.2, pitch: 0.42 };
 
 const view = createView(canvas);
-view.setQuality(low);
+view.setQuality(quality);
 view.resize();
 
 const resbar = document.getElementById('resbar');
 RES.forEach((key) => {
   const chip = document.createElement('span');
-  chip.className = 'chip tiny';
-  chip.innerHTML = `<i aria-hidden="true">${RES_ICON[key]}</i><span class="sr" data-i18n="${key}"></span><b id="res-${key}" dir="ltr"></b>`;
+  chip.className = 'res-chip';
+  chip.title = '';
+  chip.innerHTML = `<i aria-hidden="true">${RES_ICON[key] || ''}</i><em data-i18n="${key}"></em><b id="res-${key}" dir="ltr"></b>`;
   resbar.appendChild(chip);
 });
 
@@ -87,7 +100,9 @@ function saveSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       lang,
-      quality: low ? 'low' : 'high',
+      quality,
+      adhan: adhanOn,
+      raids: raidsOn,
       sticks: stickPref,
       easy,
     }));
@@ -164,8 +179,8 @@ function setMode(mode) {
     const p = player();
     p.tx = p.gx;
     p.tz = p.gz;
-    walkCam.yaw = buildCam.yaw;
-    walkCam.pitch = 0.48;
+    faceMosque();
+    walkCam.pitch = 0.42;
   }
   showControls();
   paint();
@@ -179,8 +194,8 @@ function panBuild(dt) {
   const mag = Math.hypot(mx, my);
   if (mag > 1) { mx /= mag; my /= mag; }
   const spd = 16 * dt * (buildCam.dist / 80);
-  buildCam.x += (basis.right.x * mx + basis.forward.x * my) * spd;
-  buildCam.z += (basis.right.z * mx + basis.forward.z * my) * spd;
+  buildCam.x += (basis.right.x * mx - basis.forward.x * my) * spd;
+  buildCam.z += (basis.right.z * mx - basis.forward.z * my) * spd;
   buildCam.yaw += (sticks.orbitX + (keys.has('KeyE') ? 1 : 0) - (keys.has('KeyQ') ? 1 : 0)) * dt * 1.3;
   buildCam.pitch = clamp(buildCam.pitch - sticks.orbitY * dt * 0.7, 0.45, 1.25);
   const lo = cellToWorld(MAP_BOUND.minGx, MAP_BOUND.minGz);
@@ -249,7 +264,9 @@ function applyWalkBody(dt) {
   if (mag > 1) { mx /= mag; my /= mag; }
   const lookX = sticks.lookX + (keys.has('KeyE') ? 1 : 0) - (keys.has('KeyQ') ? 1 : 0);
   const lookY = sticks.lookY + (keys.has('KeyR') ? 1 : 0) - (keys.has('KeyF') ? 1 : 0);
-  const step = walkStep({ x: p.gx, z: p.gz }, walkCam.yaw, walkCam.pitch, mx, my, lookX, lookY, dt);
+  const run = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 1.65 : 1;
+  const step = walkStep({ x: p.gx, z: p.gz }, walkCam.yaw, walkCam.pitch, mx, my, lookX, lookY, dt * run);
+  p.ry = walkCam.yaw;
   const bounded = clampToMap(step.x, step.z);
   p.gx = bounded.gx;
   p.gz = bounded.gz;
@@ -290,7 +307,121 @@ function talkTo(v) {
   paint();
 }
 
+function faceMosque() {
+  const p = player();
+  walkCam.yaw = Math.atan2(LAYOUT.mosque.gx - p.gx, LAYOUT.mosque.gz - p.gz);
+  p.ry = walkCam.yaw;
+}
+
+let adhanCtx = null;
+let adhanBuf = null;
+let adhanLive = null;
+function loadAdhan() {
+  if (adhanBuf || adhanCtx) return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  adhanCtx = new Ctx();
+  fetch('audio/adhan.mp3').then((r) => r.arrayBuffer()).then((b) => adhanCtx.decodeAudioData(b)).then((buf) => { adhanBuf = buf; }).catch(() => {});
+}
+function playAdhan() {
+  if (!adhanOn || !adhanCtx || !adhanBuf) return;
+  if (adhanCtx.state === 'suspended') adhanCtx.resume();
+  const src = adhanCtx.createBufferSource();
+  src.buffer = adhanBuf;
+  const gain = adhanCtx.createGain();
+  gain.gain.value = 0.55;
+  const panner = adhanCtx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'linear';
+  panner.refDistance = 8;
+  panner.maxDistance = 70;
+  const mp = cellToWorld(LAYOUT.mosque.gx, LAYOUT.mosque.gz);
+  if (panner.positionX) {
+    panner.positionX.value = mp.x;
+    panner.positionY.value = 2;
+    panner.positionZ.value = mp.z;
+  }
+  src.connect(gain).connect(panner).connect(adhanCtx.destination);
+  src.start();
+  adhanLive = src;
+}
+function placeTags() {
+  const you = document.getElementById('tagYou');
+  const his = document.getElementById('tagMullah');
+  if (!you || !his) return;
+  const show = (el, b) => {
+    if (!playing || !b) { el.hidden = true; return; }
+    const pos = view.project(b.gx, b.gz);
+    el.hidden = pos.y < 0 || pos.y > window.innerHeight;
+    el.style.left = `${pos.x}px`;
+    el.style.top = `${pos.y}px`;
+  };
+  show(you, state.buildings.find((b) => b.tag === 'player'));
+  show(his, state.buildings.find((b) => b.tag === 'mullah'));
+  you.textContent = t(lang, 'yourHouse');
+  his.textContent = t(lang, 'mullahHouse');
+}
+function openTrade(id) {
+  const panel = document.getElementById('trade');
+  if (!panel) return;
+  panel.hidden = false;
+  const list = document.getElementById('tradeList');
+  list.innerHTML = '';
+  tradeList(state, id).forEach((row) => {
+    const line = document.createElement('div');
+    line.className = 'quest';
+    const buy = document.createElement('button');
+    buy.type = 'button';
+    buy.textContent = formatNum(row.buy, lang);
+    buy.addEventListener('click', () => {
+      const result = tradeWith(state, id, row.key, 'buy');
+      if (!result.ok) toast(t(lang, 'needCost'));
+      openTrade(id);
+      paint();
+    });
+    const sell = document.createElement('button');
+    sell.type = 'button';
+    sell.textContent = formatNum(row.sell, lang);
+    sell.addEventListener('click', () => {
+      const result = tradeWith(state, id, row.key, 'sell');
+      if (!result.ok) toast(t(lang, 'needCost'));
+      openTrade(id);
+      paint();
+    });
+    const name = document.createElement('span');
+    name.textContent = t(lang, row.key);
+    line.append(name, buy, sell);
+    list.appendChild(line);
+  });
+}
+function openTalk(v) {
+  const box = document.getElementById('talk');
+  if (!box) return;
+  box.hidden = false;
+  box.dataset.who = String(v.id);
+  const deed = (state.deeds || []).find((d) => d.giverId === v.id && d.status === 'open');
+  document.getElementById('talkHelp').hidden = !deed;
+  document.getElementById('talkNo').hidden = !deed;
+  const low = (state.rep || 0) < -40 || v.angry || v.child;
+  document.getElementById('talkTrade').disabled = !!low;
+  document.getElementById('talkHit').hidden = !!(v.child || v.role === 'child');
+}
 function doAction() {
+  const cleaned = cleanSpot(state);
+  if (cleaned.ok) { toast(t(lang, 'cleanAct')); persist(); paint(); return; }
+  const fixed = repairNear(state);
+  if (fixed.ok) { toast(t(lang, 'repairAct')); persist(); paint(); return; }
+  const scared = bonk(state);
+  if (scared.ok) { toast(t(lang, 'gdefend')); persist(); paint(); return; }
+  const node = nearestNode(state);
+  if (node && state.mode === 'walk') {
+    const result = gather(state);
+    if (!result.ok) toast(t(lang, result.reason === 'needAxe' || result.reason === 'needPick' ? result.reason : 'closer'));
+    else toast(`+${formatNum(result.n, lang)} ${t(lang, result.key)}`);
+    persist();
+    paint();
+    return;
+  }
   const p = player();
   let npc = null;
   let npcD = 1.7;
@@ -306,12 +437,67 @@ function doAction() {
     if (d < bestD) { best = b; bestD = d; }
   });
   if (npc && (!best || npcD <= bestD)) {
-    talkTo(npc);
+    openTalk(npc);
     return;
   }
   if (!best) { toast(t(lang, 'closer')); return; }
   state.selectedId = best.id;
   openPanel('detail');
+}
+
+function paintStage() {
+  const bar = document.getElementById('stageBar');
+  if (!bar) return;
+  const snap = stageSnapshot(state);
+  bar.hidden = !playing;
+  const title = document.getElementById('stageTitle');
+  if (title) title.textContent = `${t(lang, 'stageWord')} ${formatNum(snap.stage, lang)} – ${t(lang, 'stageGoals')}`;
+  const list = document.getElementById('stageGoals');
+  if (list) {
+    list.innerHTML = '';
+    snap.goals.forEach((g) => {
+      const li = document.createElement('li');
+      li.textContent = `${g.done ? '✓' : '○'} ${t(lang, `g${g.id}`)}`;
+      list.appendChild(li);
+    });
+  }
+  const pop = document.getElementById('stagePop');
+  if (pop) {
+    pop.hidden = !snap.notice;
+    const head = document.getElementById('stagePopTitle');
+    if (head) head.textContent = t(lang, 'stageDone');
+  }
+}
+
+function paintCraft() {
+  const root = document.getElementById('craftList');
+  if (!root) return;
+  const rows = recipeList(state);
+  const sig = JSON.stringify(rows.map((r) => [r.id, r.open, r.have, state.craftJob && state.craftJob.id]));
+  if (root.dataset.sig === sig) {
+    const bar = document.getElementById('craftBar');
+    if (bar && state.craftJob) bar.style.width = `${Math.max(8, 100 - state.craftJob.left * 70)}%`;
+    return;
+  }
+  root.dataset.sig = sig;
+  root.innerHTML = '';
+  rows.forEach((r) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'build-btn';
+    btn.disabled = !r.open;
+    const needs = Object.entries(r.need).map(([k, v]) => `${formatNum(v, lang)} ${t(lang, k)}`).join(' + ');
+    const name = t(lang, r.out);
+    btn.innerHTML = `<span>${r.open ? name : `${name} · ${t(lang, 'stageNeed')}`}</span><small dir="ltr">${needs}</small>`;
+    btn.addEventListener('click', () => {
+      if (!r.open) return;
+      root.dataset.pick = r.id;
+      document.getElementById('craftGo').dataset.recipe = r.id;
+    });
+    root.appendChild(btn);
+  });
+  const bar = document.getElementById('craftBar');
+  if (bar) bar.style.width = state.craftJob ? '40%' : '0%';
 }
 
 function paintTutorial() {
@@ -419,12 +605,31 @@ function paint() {
   });
   const wood = document.getElementById('stockWood');
   if (wood) wood.textContent = formatNum(state.resources.wood, lang);
-  document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang);
+  document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang, secondsThisHour(state.hour));
   const season = t(lang, SEASONS[state.season]);
   const phase = t(lang, phaseOf(state.hour));
   document.getElementById('clockMeta').textContent = `${t(lang, 'day')} ${formatNum(state.day, lang)} · ${season} · ${phase}`;
   document.getElementById('modeBtn').textContent = state.mode === 'walk' ? t(lang, 'modeToBuild') : t(lang, 'modeToWalk');
-  document.getElementById('qualityBtn').textContent = low ? t(lang, 'qualityLow') : t(lang, 'qualityHigh');
+  const qKey = quality === 'low' ? 'qualityLow' : quality === 'high' ? 'qualityHigh' : 'qualityMid';
+  document.getElementById('qualityBtn').textContent = t(lang, qKey);
+  paintStage();
+  paintCraft();
+  const repFill = document.getElementById('repFill');
+  if (repFill) {
+    const rep = Math.max(-100, Math.min(100, state.rep || 0));
+    repFill.style.width = `${(rep + 100) / 2}%`;
+  }
+  const deedNum = document.getElementById('deedNum');
+  if (deedNum) deedNum.textContent = formatNum(state.deedCount || 0, lang);
+  const adhanBtn = document.getElementById('adhanBtn');
+  if (adhanBtn) adhanBtn.textContent = adhanOn ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
+  const raidBtn = document.getElementById('raidBtn');
+  if (raidBtn) raidBtn.textContent = raidsOn ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
+  const act = document.getElementById('actionBtn');
+  if (act && playing && state.mode === 'walk') {
+    const node = nearestNode(state);
+    act.textContent = node ? t(lang, node.kind === 'rock' ? 'mine' : 'chop') : t(lang, 'act');
+  }
   document.getElementById('stickPref').textContent = stickPref ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
   document.getElementById('ps1Btn').textContent = ps1 ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
   const easyBtn = document.getElementById('easyBtn');
@@ -542,6 +747,24 @@ function bindStick(el, xKey, yKey) {
   el.addEventListener('pointercancel', end);
 }
 
+let lastTap = { t: 0, el: null };
+document.addEventListener('pointerdown', (e) => {
+  const btn = e.target.closest && e.target.closest('button, a, select');
+  if (!btn) return;
+  e.stopPropagation();
+}, true);
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('#hudMenu');
+  if (!btn) return;
+  const now = performance.now();
+  if (now - lastTap.t < 350) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    return;
+  }
+  lastTap = { t: now, el: btn };
+}, true);
+
 bindStick(document.getElementById('moveZone'), 'moveX', 'moveY');
 bindStick(document.getElementById('lookZone'), 'lookX', 'lookY');
 bindStick(document.getElementById('panZone'), 'panX', 'panY');
@@ -551,6 +774,7 @@ document.getElementById('playBtn').addEventListener('click', () => {
   playing = true;
   document.getElementById('menu').hidden = true;
   closePanels();
+  faceMosque();
 });
 document.getElementById('freshBtn').addEventListener('click', () => {
   state = createState();
@@ -598,6 +822,65 @@ document.getElementById('questsClose').addEventListener('click', closePanels);
 document.getElementById('hudPeople').addEventListener('click', () => { closeHud(); openPanel('people'); });
 document.getElementById('peopleClose').addEventListener('click', closePanels);
 document.getElementById('hudBuild').addEventListener('click', () => { closeHud(); openPanel('build'); });
+document.getElementById('hudCraft').addEventListener('click', () => { closeHud(); openPanel('craft'); });
+document.getElementById('craftClose').addEventListener('click', closePanels);
+document.getElementById('craftGo').addEventListener('click', () => {
+  const id = document.getElementById('craftGo').dataset.recipe || 'axe';
+  const result = craft(state, id);
+  if (!result.ok) toast(t(lang, result.reason === 'place' ? 'closer' : result.reason === 'locked' ? 'stageNeed' : 'needCost'));
+  paint();
+});
+document.getElementById('adhanBtn').addEventListener('click', () => {
+  adhanOn = !adhanOn;
+  saveSettings();
+  paint();
+});
+document.getElementById('raidBtn').addEventListener('click', () => {
+  raidsOn = !raidsOn;
+  setRaids(state, raidsOn);
+  saveSettings();
+  paint();
+});
+document.getElementById('talkClose').addEventListener('click', () => { document.getElementById('talk').hidden = true; });
+document.getElementById('tradeClose').addEventListener('click', () => { document.getElementById('trade').hidden = true; });
+document.getElementById('talkTrade').addEventListener('click', () => {
+  const id = Number(document.getElementById('talk').dataset.who);
+  document.getElementById('talk').hidden = true;
+  openTrade(id);
+});
+document.getElementById('talkHelp').addEventListener('click', () => {
+  const id = Number(document.getElementById('talk').dataset.who);
+  const deed = (state.deeds || []).find((d) => d.giverId === id && d.status === 'open');
+  const result = deed ? helpDeed(state, deed.id) : { ok: false };
+  if (!result.ok) toast(t(lang, 'needCost'));
+  document.getElementById('talk').hidden = true;
+  paint();
+});
+document.getElementById('talkNo').addEventListener('click', () => {
+  const id = Number(document.getElementById('talk').dataset.who);
+  const deed = (state.deeds || []).find((d) => d.giverId === id && d.status === 'open');
+  if (deed) refuseDeed(state, deed.id);
+  document.getElementById('talk').hidden = true;
+  paint();
+});
+document.getElementById('talkHit').addEventListener('click', () => {
+  const id = Number(document.getElementById('talk').dataset.who);
+  const result = shove(state, id);
+  document.getElementById('talk').hidden = true;
+  if (result.reason === 'child') toast(npcLine(lang, 'childRun'));
+  if (state.confront) document.getElementById('elder').hidden = false;
+  paint();
+});
+document.getElementById('fineBtn').addEventListener('click', () => {
+  const result = acceptFine(state);
+  if (!result.ok) toast(t(lang, 'needCost'));
+  else document.getElementById('elder').hidden = true;
+  paint();
+});
+document.getElementById('stageOk').addEventListener('click', () => {
+  dismissStage(state);
+  paintStage();
+});
 document.getElementById('buildClose').addEventListener('click', closePanels);
 document.getElementById('detailClose').addEventListener('click', closePanels);
 document.getElementById('hudPause').addEventListener('click', () => { closeHud(); openPanel('pause'); });
@@ -614,8 +897,8 @@ document.getElementById('modeBtn').addEventListener('click', () => { closeHud();
 document.getElementById('langEn').addEventListener('click', () => { lang = 'en'; applyLang(); });
 document.getElementById('langCkb').addEventListener('click', () => { lang = 'ckb'; applyLang(); });
 document.getElementById('qualityBtn').addEventListener('click', () => {
-  low = !low;
-  view.setQuality(low);
+  quality = quality === 'low' ? 'mid' : quality === 'mid' ? 'high' : 'low';
+  view.setQuality(quality);
   saveSettings();
   paint();
 });
@@ -788,15 +1071,17 @@ canvas.addEventListener('pointermove', (e) => {
   const dx = e.clientX - ptr.x;
   const dy = e.clientY - ptr.y;
   if (Math.hypot(dx, dy) > 6) ptr.moved = true;
+  if (playing && state.mode === 'build' && buildType) {
+    const cell = view.pick(e.clientX, e.clientY);
+    view.setGhost(cell, !!(cell && canPlace(state, buildType, cell.gx, cell.gz)));
+  }
   if (!ptr.moved) return;
   if (playing && state.mode === 'walk') {
-    walkCam.yaw += dx * 0.007;
+    walkCam.yaw -= dx * 0.007;
     walkCam.pitch = clamp(walkCam.pitch + dy * 0.005, 0.18, 1.15);
   } else {
-    const basis = cameraBasis(buildCam.yaw);
-    const scale = 0.012 * (buildCam.dist / 30);
-    buildCam.x -= (basis.right.x * dx + basis.forward.x * dy) * scale;
-    buildCam.z -= (basis.right.z * dx + basis.forward.z * dy) * scale;
+    buildCam.yaw -= dx * 0.006;
+    buildCam.pitch = clamp(buildCam.pitch + dy * 0.004, 0.45, 1.25);
   }
   ptr.x = e.clientX;
   ptr.y = e.clientY;
@@ -844,6 +1129,7 @@ if (!testMode && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
+loadAdhan();
 applyLang();
 showControls();
 
@@ -860,7 +1146,7 @@ function frame(now) {
     const focusHere = state.mode === 'walk' ? player() : worldToCell(buildCam.x, buildCam.z);
     tick(state, dt, {
       skipPlayer: state.mode === 'walk',
-      focus: { gx: focusHere.gx, gz: focusHere.gz, r: renderRadiusUnits(low) / 2 },
+      focus: { gx: focusHere.gx, gz: focusHere.gz, r: renderRadiusUnits(quality) / 2 },
     });
     saveLeft += dt;
     if (saveLeft > 5) { saveLeft = 0; persist(); }
@@ -871,21 +1157,39 @@ function frame(now) {
   if (walking) view.lookAtWalk(player().gx, player().gz, walkCam.yaw, walkCam.pitch);
   else view.lookAtBuild(buildCam);
   const here = walking ? cellToWorld(player().gx, player().gz) : { x: buildCam.x, z: buildCam.z };
-  const radius = renderRadiusUnits(low);
+  const radius = renderRadiusUnits(quality);
   const camDist = walking ? 5.2 : buildCam.dist;
-  const haze = metersToUnits(25);
-  view.setFog(camDist + haze, camDist + haze + metersToUnits(40));
+  const haze = metersToUnits(40);
+  view.setFog(camDist + haze, camDist + haze + metersToUnits(55));
   view.setPreview(!playing);
   view.sync(state, now / 1000, { x: here.x, z: here.z, radius });
   const boot = document.getElementById('boot');
   if (boot) boot.hidden = true;
+  if (state.adhan) {
+    state.adhan = 0;
+    const note = document.getElementById('adhanNote');
+    if (note) note.hidden = false;
+    playAdhan();
+    persist();
+  }
+  if (state.raidWarn) {
+    state.raidWarn = 0;
+    toast(t(lang, 'raidWarn'));
+  }
+  if (state.confront && document.getElementById('elder')) document.getElementById('elder').hidden = false;
+  placeTags();
+  if (adhanCtx && adhanCtx.listener && adhanCtx.listener.positionX && view.camera) {
+    adhanCtx.listener.positionX.value = view.camera.position.x;
+    adhanCtx.listener.positionY.value = view.camera.position.y;
+    adhanCtx.listener.positionZ.value = view.camera.position.z;
+  }
   view.render();
   updateSpeech();
   updateBoard();
   paintTutorial();
   paintUnlock();
   if (playing) {
-    document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang);
+    document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang, secondsThisHour(state.hour));
   }
   requestAnimationFrame(frame);
 }
@@ -902,19 +1206,19 @@ window.__SV = {
   playable,
   propKinds: () => view.propKinds(),
   cullReport: () => view.cullReport(),
-  renderRadius: () => renderRadiusUnits(low),
+  renderRadius: () => renderRadiusUnits(quality),
   setRiding(on) { riding = !!on; },
   isRiding: () => riding,
   tickNear(dt) {
     const who = player();
     tick(state, dt, {
       skipPlayer: true,
-      focus: { gx: who.gx, gz: who.gz, r: renderRadiusUnits(low) / 2 },
+      focus: { gx: who.gx, gz: who.gz, r: renderRadiusUnits(quality) / 2 },
     });
     const here = cellToWorld(who.gx, who.gz);
-    const radius = renderRadiusUnits(low);
-    const haze = metersToUnits(25);
-    view.setFog(5.2 + haze, 5.2 + haze + metersToUnits(40));
+    const radius = renderRadiusUnits(quality);
+    const haze = metersToUnits(40);
+    view.setFog(5.2 + haze, 5.2 + haze + metersToUnits(55));
     view.sync(state, 0, { x: here.x, z: here.z, radius });
   },
   suggest(type) { return suggestCell(state, type); },
@@ -998,7 +1302,7 @@ window.__SV = {
   cameraEyeY: () => cameraEyeY(walkCam.pitch),
   getWalkDebug() {
     const p = player();
-    const basis = cameraBasis(walkCam.yaw);
+    const basis = viewAxes(walkCam.yaw);
     return {
       x: p.gx,
       z: p.gz,
@@ -1013,6 +1317,26 @@ window.__SV = {
   getHillColor: () => view.getHillColor(),
   lookReport: () => view.lookReport(),
   i18nAudit,
+  stepKeys(dt, codes) {
+    (codes || []).forEach((code) => keys.add(code));
+    applyWalk(dt);
+    (codes || []).forEach((code) => keys.delete(code));
+  },
+  lookDrag(dx) {
+    walkCam.yaw -= dx * 0.007;
+    const p = player();
+    p.ry = walkCam.yaw;
+  },
+  gather() {
+    const result = gather(state);
+    paint();
+    return result;
+  },
+  craft(id) {
+    const result = craft(state, id);
+    paint();
+    return result;
+  },
   setRank(n) {
     const result = setRank(state, n);
     persist();
@@ -1030,9 +1354,9 @@ window.__SV = {
   },
   astarRoute,
   npcSchedule,
-  npcActiveCap: () => npcActiveCap(low),
-  vehicleCap: () => vehicleCap(low),
-  animalCap: () => animalCap(low),
+  npcActiveCap: () => npcActiveCap(lowQ()),
+  vehicleCap: () => vehicleCap(lowQ()),
+  animalCap: () => animalCap(lowQ()),
   herdSpot: (kind, phase) => herdSpot(state, kind, phase),
   carryBudget: () => carryBudget(state),
   moveGoods: (key, amount) => moveGoods(state, key, amount),
@@ -1116,7 +1440,7 @@ window.__SV = {
   stepNpcs(dt) {
     const who = player();
     stepNpcAi(state, dt ?? 0.2, {
-      low,
+      low: lowQ(),
       focus: { gx: who.gx, gz: who.gz, r: 99 },
     });
     paint();

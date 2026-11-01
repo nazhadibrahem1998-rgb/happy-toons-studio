@@ -60,16 +60,58 @@
   <p id="unlockText"></p>
   <button type="button" id="unlockOk" data-i18n="iosOk">باشە</button>
 </div>
+<div id="stageBar" hidden>
+  <b id="stageTitle"></b>
+  <ul id="stageGoals"></ul>
+</div>
+<div id="tagYou" class="house-tag" hidden></div>
+<div id="tagMullah" class="house-tag" hidden></div>
+<div id="adhanNote" class="banner float-note" hidden>
+  <p data-i18n="adhanBig">الله أكبر</p>
+  <p data-i18n="adhanCall">مەلا حوسێن بانگ دەدات</p>
+</div>
+<div id="talk" class="screen" hidden>
+  <div class="panel">
+    <h2 data-i18n="people">دانیشتووان</h2>
+    <button type="button" id="talkTrade" class="btn" data-i18n="trade">کڕین و فرۆشتن</button>
+    <button type="button" id="talkHelp" class="btn" data-i18n="helpYes">یارمەتی دەدەم</button>
+    <button type="button" id="talkNo" class="btn alt" data-i18n="helpNo">ناوەژم</button>
+    <button type="button" id="talkHit" class="btn alt" data-i18n="hit">لێدان</button>
+    <button type="button" id="talkClose" class="btn alt" data-i18n="close">داخستن</button>
+  </div>
+</div>
+<div id="trade" class="screen" hidden>
+  <div class="panel" data-scroll-panel="trade">
+    <h2 data-i18n="trade">کڕین و فرۆشتن</h2>
+    <p data-i18n="money">دینار</p>
+    <div id="tradeList"></div>
+    <button type="button" id="tradeClose" class="btn alt" data-i18n="close">داخستن</button>
+  </div>
+</div>
+<div id="elder" class="screen" hidden>
+  <div class="panel">
+    <h2>مەلا حوسێن</h2>
+    <p data-i18n="adhanCall">مەلا حوسێن بانگ دەدات</p>
+    <p>مەلا حوسێن دەڵێت چاکە بکە.</p>
+    <button type="button" id="fineBtn" class="btn" data-i18n="fine">سزا بدە</button>
+  </div>
+</div>
+<div id="stagePop" hidden>
+  <p id="stagePopTitle">مەرحەلە تەواو بوو</p>
+  <button type="button" id="stageOk" data-i18n="iosOk">باشە</button>
+</div>
 <div id="hud" hidden>
   <div class="res" id="resbar" data-scroll-panel="res"></div>
-  <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">Menu</button>
+  <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">مێنیو</button>
+  <div id="repBar"><span>😠</span><i id="repFill"></i><span>😊</span><b data-i18n="deeds">چاکە</b> <b id="deedNum" dir="ltr">٠</b></div>
   <div class="clock chip tiny"><b id="clockTime" dir="ltr">08:00</b> <span id="clockMeta"></span></div>
   <div id="hudPop" hidden data-scroll-panel="hud">
     <button type="button" id="modeBtn" class="chip">دۆخی ڕۆیشتن</button>
     <button type="button" id="hudBuild" class="chip" data-i18n="build">Build</button>
     <button type="button" id="hudPeople" class="chip" data-i18n="people">People</button>
     <button type="button" id="hudQuests" class="chip" data-i18n="quests">Quests</button>
-    <button type="button" id="hudPause" class="chip" data-i18n="pause">Pause</button>
+    <button type="button" id="hudPause" class="chip" data-i18n="pause">وەستان</button>
+    <button type="button" id="hudCraft" class="chip" data-i18n="craft">دروستکردن</button>
     <button type="button" id="rideBtn" class="chip" data-i18n="donkey">Donkey</button>
     <div id="camBtns" hidden>
       <button type="button" id="zoomIn" aria-label="نزیککردنەوە">+</button>
@@ -124,15 +166,23 @@
     </div>
     <div class="set-row">
       <span data-i18n="quality">Graphics</span>
-      <button type="button" id="qualityBtn" class="chip">نزم</button>
+      <button type="button" id="qualityBtn" class="chip">مامناوەند</button>
     </div>
-    <div class="set-row">
-      <span data-i18n="ps1">PS1 jitter</span>
-      <button type="button" id="ps1Btn" class="chip on">هەڵکراو</button>
+    <div class="set-row" hidden>
+      <span data-i18n="ps1">جووڵەی وێنەی کۆن</span>
+      <button type="button" id="ps1Btn" class="chip">کوژاوە</button>
     </div>
     <div class="set-row">
       <span data-i18n="easy">Easy</span>
-      <button type="button" id="easyBtn" class="chip" aria-pressed="false" data-i18n="easy">Easy</button>
+      <button type="button" id="easyBtn" class="chip" aria-pressed="false" data-i18n="easy">ئاسان</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="adhanSet">بانگ</span>
+      <button type="button" id="adhanBtn" class="chip">هەڵکراو</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="raidsSet">ڕێگر</span>
+      <button type="button" id="raidBtn" class="chip">هەڵکراو</button>
     </div>
     <div class="set-row">
       <span data-i18n="sticks">Build-mode sticks</span>
@@ -141,6 +191,7 @@
     <p><span data-i18n="stores">Stores on this device</span> <b id="stockWood" dir="ltr">48</b> <span data-i18n="wood">Wood</span></p>
     <p class="ai" id="aiNote" data-i18n="ai">دروستکراو بە یارمەتی زیرەکی دەستکرد</p>
     <p class="legal" id="creditLine" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
+    <p class="ai" data-i18n="adhanCredit"></p>
     <p class="tips" data-i18n="tips"></p>
     <p data-i18n="privacy"></p>
     <p><a href="privacy.html" data-i18n="privacyGame">This game’s privacy</a> · <a href="../privacy.html" data-i18n="privacySite">Studio privacy</a></p>
@@ -194,6 +245,16 @@
     <div id="peopleList"></div>
     <p class="tips" data-i18n="tips"></p>
     <button type="button" id="peopleClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="craft" class="screen" hidden>
+  <div class="panel" data-scroll-panel="craft">
+    <h2 data-i18n="craft">دروستکردن</h2>
+    <div id="craftList"></div>
+    <div id="craftTrack"><i id="craftBar"></i></div>
+    <button type="button" id="craftGo" class="btn" data-i18n="craft">دروستکردن</button>
+    <button type="button" id="craftClose" class="btn alt" data-i18n="close">داخستن</button>
   </div>
 </div>
 

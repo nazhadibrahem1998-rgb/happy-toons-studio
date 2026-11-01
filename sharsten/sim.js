@@ -12,7 +12,11 @@ export const CELL = 2;
 /** About 500×700 m compressed so the valley is walkable. 1 cell ≈ 9 m. */
 export const METERS_PER_CELL = 9;
 export function metersToUnits(m) { return (m / METERS_PER_CELL) * CELL; }
-export function renderRadiusUnits(low) { return metersToUnits(low ? 28 : 38); }
+export function renderRadiusUnits(q) {
+  const key = q === true || q === 'low' ? 'low' : q === 'high' ? 'high' : q === false ? 'high' : (q || 'mid');
+  const meters = key === 'low' ? 60 : key === 'high' ? 100 : 80;
+  return metersToUnits(meters);
+}
 export const CHUNK_CELLS = 2;
 export const MAP_BOUND = { minGx: -4, maxGx: GRID_W + 3, minGz: -4, maxGz: GRID_D + 3 };
 
@@ -36,12 +40,17 @@ export const LAYOUT = {
   westSpur: { gx: 12, gz: 30 },
   neSpur: { gx: 32, gz: 16 },
 };
-export const SECONDS_PER_HOUR = 12;
+export const SECONDS_PER_HOUR = 55;
+/** Day hours last long enough for ten real minutes of daylight. Night hours are short. */
+export function secondsThisHour(hour) {
+  const h = ((Math.floor(hour) % 24) + 24) % 24;
+  return h >= 6 && h < 18 ? 55 : 6;
+}
 export const SEASON_DAYS = 4;
 export const VILLAGER_CAP = 25;
 /** Non-player neighbours simulated on this device. No server and no online model. */
 export const NPC_COUNT = 24;
-const ROLES = ['farmer', 'shepherd', 'teacher', 'faithful'];
+const ROLES = ['farmer', 'shepherd', 'teacher', 'faithful', 'baker', 'smith', 'weaver', 'woodcutter', 'stonecutter', 'water', 'child'];
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
 export const WALK_SPEED = 6;
@@ -69,6 +78,13 @@ export const COSTS = {
   clinic: { wood: 8, stone: 12 },
   woodyard: { wood: 6 },
   quarry: { wood: 4, stone: 6 },
+  gate: { wood: 6, stone: 2 },
+  tower: { wood: 8, stone: 6 },
+  torchpost: { wood: 2 },
+  hound: { wood: 2, food: 2 },
+  barn: { wood: 10, stone: 4 },
+  stable: { wood: 8, stone: 2 },
+  wall: { wood: 2, stone: 1 },
 };
 
 export const UPGRADE = {
@@ -95,6 +111,7 @@ export const MAX_LEVEL = {
   house: 3, mosque: 3, school: 3, clinic: 2, teahouse: 2, tandoor: 2,
   woodyard: 2, quarry: 2, mill: 2, smith: 2, loom: 2, vineyard: 2, orchard_pom: 2, orchard_walnut: 2,
   pen_sheep: 2, pen_goat: 2, coop: 2, field: 1, spring: 1,
+  barn: 1, stable: 1, wall: 1,
 };
 
 const JOB_TYPES = {
@@ -310,7 +327,7 @@ export function npcSchedule(hour) {
   if (h < 6 || h >= 18) return 'home';
   if (h < 8) return 'street';
   if (h < 12) return 'work';
-  if (h < 14) return 'mosque';
+  if (h === 12) return 'mosque';
   if (h < 17) return 'work';
   return 'home';
 }
@@ -418,6 +435,9 @@ function addBuilding(state, type, gx, gz, opt = {}) {
     stage: opt.stage || 0,
     growth: opt.growth || 0,
     style: opt.style ?? 0,
+    anim: opt.anim || 0,
+    tag: opt.tag || '',
+    damage: opt.damage || 0,
   };
   state.buildings.push(b);
   return b;
@@ -692,9 +712,17 @@ function goalFor(state, v, phase) {
     if (!house) return { gx: v.gx, gz: v.gz };
     return { gx: house.gx + ((v.id % 3) - 1) * 0.2, gz: house.gz + 0.55 };
   }
+  if (v.role === 'mullah') {
+    if (phase === 'mosque' || state.adhan) return { gx: MX - 0.35, gz: MZ - 0.45 };
+    if ((state.ticks || 0) % 8 < 4) {
+      const home = state.buildings.find((b) => b.tag === 'mullah') || state.buildings.find((b) => b.id === v.homeId);
+      if (home) return { gx: home.gx, gz: home.gz + 0.7 };
+    }
+    return { gx: MX + 0.1, gz: MZ + 0.85 };
+  }
   if (phase === 'mosque') {
     const ox = ((v.id % 5) - 2) * 0.28;
-    return { gx: LAYOUT.mosque.gx + ox, gz: LAYOUT.mosque.gz + 1.05 };
+    return { gx: LAYOUT.mosque.gx + ox, gz: LAYOUT.mosque.gz + 0.35 };
   }
   if (phase === 'street' || v.role === 'faithful') {
     return { gx: v.streetGx, gz: v.streetGz };
@@ -707,15 +735,32 @@ function goalFor(state, v, phase) {
   if (v.role === 'shepherd') {
     return herdSpot(state, 'sheep', 'pasture');
   }
-  if (v.role === 'teacher') {
+  if (v.role === 'teacher' || v.role === 'child') {
     const school = state.buildings.find((b) => b.type === 'school');
     if (school) return { gx: school.gx + 0.35, gz: school.gz + 0.45 };
+  }
+  const workSpot = {
+    baker: 'tandoor', smith: 'smith', weaver: 'loom', woodcutter: 'woodyard', stonecutter: 'quarry', water: 'spring',
+  }[v.role];
+  if (workSpot) {
+    const place = state.buildings.find((b) => b.type === workSpot);
+    if (place) return { gx: place.gx + 0.35, gz: place.gz + 0.4 };
   }
   return { gx: v.streetGx, gz: v.streetGz };
 }
 
+function phaseFor(state, v) {
+  let phase = npcSchedule(state.hour);
+  if (phase === 'mosque') {
+    const half = secondsThisHour(state.hour) * 0.5;
+    if ((state.acc || 0) >= half) phase = 'work';
+    else if (v.role !== 'mullah' && v.prays === false) phase = 'work';
+  }
+  return phase;
+}
+
 function assignGoal(state, v) {
-  const phase = npcSchedule(state.hour);
+  const phase = phaseFor(state, v);
   v.mode = phase;
   const goal = goalFor(state, v, phase);
   v.goalGx = goal.gx;
@@ -783,6 +828,15 @@ export function stepNpcs(state, dt, opts = {}) {
     if (v.sayLeft > 0) v.sayLeft = Math.max(0, v.sayLeft - dt);
     const dist = player ? Math.hypot(v.gx - player.gx, v.gz - player.gz) : 99;
     const questLine = v.line && !String(v.line).startsWith('greet') && v.sayLeft > 0;
+    if ((state.rep || 0) < -15 && player && dist < 1.8) {
+      v.line = v.role === 'mullah' ? 'advise' : ['scold0', 'scold1', 'scold2'][v.id % 3];
+      v.sayLeft = Math.max(v.sayLeft, 1.2);
+      v.ry = Math.atan2(v.gx - player.gx, v.gz - player.gz);
+      v.greeting = false;
+      v.tx = v.gx;
+      v.tz = v.gz;
+      return;
+    }
     if (!questLine && dist < 1.65) {
       v.greeting = true;
       v.line = `greet${v.id % 4}`;
@@ -795,9 +849,12 @@ export function stepNpcs(state, dt, opts = {}) {
     v.greeting = false;
     if (v.line && String(v.line).startsWith('greet')) v.line = '';
     else if (v.sayLeft <= 0 && v.line && !String(v.line).startsWith('greet')) v.line = '';
+    if (v.stumble > 0) v.stumble = Math.max(0, v.stumble - dt);
     followPath(v);
     const dx = v.tx - v.gx;
     const dz = v.tz - v.gz;
+    if (v.hidden && phaseFor(state, v) !== 'mosque') v.hidden = false;
+    if (phaseFor(state, v) === 'mosque' && v.role !== 'mullah' && Math.hypot(v.gx - v.goalGx, v.gz - v.goalGz) < 0.42) v.hidden = true;
     if (Math.hypot(dx, dz) > 0.05) v.ry = Math.atan2(dx, dz);
   });
 }
@@ -805,6 +862,7 @@ export function stepNpcs(state, dt, opts = {}) {
 export function acceptQuest(state, id) {
   ensureVillageAi(state);
   const q = (state.npcQuests || []).find((item) => item.id === id);
+  if ((state.rep || 0) < -40) return { ok: false, reason: 'dislike' };
   if (!q || q.status !== 'open') return { ok: false, reason: 'closed' };
   q.status = 'active';
   const giver = state.villagers.find((v) => v.id === q.giverId);
@@ -1039,6 +1097,10 @@ export function stepHour(state) {
     v.happiness = clamp(v.happiness + d);
   });
   state.hour += 1;
+  if (state.hour === 12 && state.adhanDay !== state.day) {
+    state.adhanDay = state.day;
+    state.adhan = 1;
+  }
   if (state.hour >= 24) {
     state.hour = 0;
     state.day += 1;
@@ -1524,11 +1586,27 @@ export function tick(state, dt, opts = {}) {
   const step = Math.min(Math.max(dt, 0), 0.1);
   state.acc += step;
   let guard = 0;
-  while (state.acc >= SECONDS_PER_HOUR && guard < 4) {
-    state.acc -= SECONDS_PER_HOUR;
+  const hourLen = secondsThisHour(state.hour);
+  while (state.acc >= hourLen && guard < 3) {
+    state.acc -= hourLen;
     stepHour(state);
     guard += 1;
   }
+  state.seconds = (state.seconds || 0) + step;
+  if (state.swing > 0) state.swing = Math.max(0, state.swing - step);
+  state.buildings.forEach((b) => { if (b.anim > 0) b.anim = Math.max(0, b.anim - step); });
+  if (state.craftJob) {
+    state.craftJob.left -= step;
+    if (state.craftJob.left <= 0) finishCraft(state);
+  }
+  (state.nodes || []).forEach((n) => {
+    if (!n.alive && state.seconds >= n.back) {
+      n.alive = true;
+      n.hp = 3;
+    }
+  });
+  syncStage(state);
+  stepThreats(state, step);
   stepNpcs(state, step, opts);
   stepVehicles(state, step, opts);
   stepAnimals(state, step, opts);
@@ -1649,6 +1727,11 @@ export function createState() {
   stamp('smith', MX + 6, MZ + 2);
   stamp('loom', MX + 4, MZ - 3);
   stamp('school', MX - 2, MZ + 2);
+  stamp('house', 18, 28, { tag: 'mullah', style: 0 });
+  stamp('house', 19, 28, { tag: 'player', style: 1 });
+  state.buildings.filter((b) => b.type === 'house' && !b.tag && b.id % 5 === 0).slice(0, 3).forEach((b) => { b.damage = 1; });
+  const springB = state.buildings.find((b) => b.type === 'spring');
+  if (springB) springB.damage = 1;
   stamp('pen_sheep', 16, 29);
   stamp('pen_goat', 20, 29);
   stamp('coop', 16, 31);
@@ -1659,17 +1742,39 @@ export function createState() {
   while (state.villagers.length < 1 + NPC_COUNT && state.villagers.length < capacity(state)) spawnVillager(state);
   bindQuests(state);
   const player = state.villagers[0];
-  player.gx = MX + 1.35;
-  player.gz = MZ + 0.15;
-  player.tx = player.gx;
-  player.tz = player.gz;
+  const own = state.buildings.find((b) => b.tag === 'player');
+  const mullahHome = state.buildings.find((b) => b.tag === 'mullah');
+  const doorX = own ? own.gx - 0.15 : MX + 1;
+  const doorZ = own ? own.gz + 0.85 : MZ - 1.2;
+  player.gx = doorX;
+  player.gz = doorZ;
+  player.tx = doorX;
+  player.tz = doorZ;
+  player.ry = Math.atan2(MX - doorX, MZ - doorZ);
+  if (own) player.homeId = own.id;
+  const mullah = state.villagers.find((v) => !v.player && v.role === 'faithful');
+  if (mullah) {
+    mullah.role = 'mullah';
+    mullah.name = 'Mullah Husen';
+    mullah.nameCkb = 'مەلا حوسێن';
+    mullah.prays = true;
+    mullah.child = false;
+    if (mullahHome) mullah.homeId = mullahHome.id;
+    state.mullahId = mullah.id;
+  }
+  state.villagers.forEach((v) => {
+    if (v.player) return;
+    v.child = v.role === 'child';
+    if (v.prays == null) v.prays = v.role === 'mullah' || v.id % 5 !== 0;
+  });
   spawnHerds(state);
   spawnVehicles(state);
   retarget(state);
-  state.villagers[0].gx = MX + 1.35;
-  state.villagers[0].gz = MZ + 0.15;
-  state.villagers[0].tx = MX + 1.35;
-  state.villagers[0].tz = MZ + 0.15;
+  state.villagers[0].gx = doorX;
+  state.villagers[0].gz = doorZ;
+  state.villagers[0].tx = doorX;
+  state.villagers[0].tz = doorZ;
+  state.villagers[0].ry = Math.atan2(MX - doorX, MZ - doorZ);
   recompute(state);
   ensureProgress(state);
   return state;
@@ -1681,7 +1786,10 @@ const UNLOCK_LEVEL = {
   loom: 3, smith: 3,
   orchard_pom: 4, orchard_walnut: 4, vineyard: 4,
   school: 5, clinic: 5, teahouse: 5, quarry: 2,
+  barn: 3, stable: 4, wall: 2,
+  gate: 3, tower: 3, torchpost: 2, hound: 3,
 };
+const STAGE_OPEN = { barn: 2, stable: 4, wall: 2, pen_sheep: 4, pen_goat: 4 };
 const JOB_LEVEL = {
   farmer: 1, baker: 1, builder: 1,
   miller: 2, shepherd: 2,
@@ -1693,6 +1801,7 @@ const XP_FOR_RANK = [0, 0, 2, 4, 7, 11];
 
 export function isUnlocked(state, type) {
   if (state.easy) return true;
+  if ((STAGE_OPEN[type] || 99) <= (state.stage || 1)) return true;
   return (state.rank || 1) >= (UNLOCK_LEVEL[type] || 1);
 }
 
@@ -1804,13 +1913,511 @@ export function autoCollect(state) {
   return { got };
 }
 
+const STAGES = [
+  ['axe', 'wood', 'stone', 'house'],
+  ['broom', 'clean'],
+  ['deed', 'repair'],
+  ['plant', 'pot'],
+  ['help', 'bread'],
+  ['iron', 'defend'],
+];
+
+export const RECIPES = [
+  { id: 'axe', out: 'axe', n: 1, need: { wood: 2, stone: 1 }, stage: 1, tool: true },
+  { id: 'pick', out: 'pick', n: 1, need: { wood: 2, stone: 2 }, stage: 1, tool: true },
+  { id: 'broom', out: 'broom', n: 1, need: { wood: 1, fibre: 2 }, stage: 2, tool: true },
+  { id: 'staff', out: 'staff', n: 1, need: { wood: 2 }, stage: 2, tool: true },
+  { id: 'torch', out: 'torch', n: 1, need: { wood: 1, fibre: 1 }, stage: 2, tool: true },
+  { id: 'rope', out: 'rope', n: 1, need: { wood: 1, fibre: 2 }, stage: 2 },
+  { id: 'bucket', out: 'bucket', n: 1, need: { wood: 3, rope: 1 }, stage: 2, tool: true },
+  { id: 'pot', out: 'pot', n: 1, need: { clay: 2, water: 1 }, stage: 3 },
+  { id: 'fired', out: 'fired', n: 1, need: { pot: 1 }, stage: 3, place: 'tandoor' },
+  { id: 'flour', out: 'flour', n: 1, need: { grain: 2 }, stage: 4, place: 'mill' },
+  { id: 'bread', out: 'food', n: 2, need: { flour: 1, water: 1 }, stage: 4, place: 'tandoor' },
+  { id: 'brick', out: 'brick', n: 2, need: { stone: 1, clay: 2 }, stage: 4 },
+  { id: 'cloth', out: 'cloth', n: 1, need: { wool: 2 }, stage: 5, place: 'loom' },
+  { id: 'iron', out: 'iron', n: 1, need: { ore: 2 }, stage: 6, place: 'smith' },
+  { id: 'sickle', out: 'sickle', n: 1, need: { iron: 1, wood: 1 }, stage: 6, tool: true },
+  { id: 'hoe', out: 'hoe', n: 1, need: { iron: 1, wood: 2 }, stage: 6, tool: true },
+];
+
+function goalMet(state, id) {
+  const got = state.got || {};
+  const built = state.built || {};
+  const tools = state.tools || {};
+  if (id === 'axe') return (tools.axe || 0) >= 1;
+  if (id === 'wood') return (got.wood || 0) >= 10;
+  if (id === 'stone') return (got.stone || 0) >= 5;
+  if (id === 'house') return (built.house || 0) >= 1;
+  if (id === 'plant') return (state.planted || 0) >= 1;
+  if (id === 'rope') return (state.resources.rope || 0) >= 1 || (tools.bucket || 0) >= 1;
+  if (id === 'tandoor') return (built.tandoor || 0) >= 1;
+  if (id === 'pot') return (state.resources.pot || 0) + (state.resources.fired || 0) >= 1;
+  if (id === 'flour') return (got.flour || 0) >= 1 || (state.resources.flour || 0) >= 1;
+  if (id === 'bread') return (got.food || 0) >= 5;
+  if (id === 'help') return !!state.mosqueClean;
+  if (id === 'school') return state.buildings.some((b) => b.type === 'school' && b.level >= 2);
+  if (id === 'iron') return (state.resources.iron || 0) >= 1;
+  if (id === 'sickle') return (tools.sickle || 0) + (tools.hoe || 0) >= 1;
+  if (id === 'broom') return (tools.broom || 0) >= 1;
+  if (id === 'clean') return (state.cleaned || 0) >= 2;
+  if (id === 'deed') return (state.deedCount || 0) >= 1;
+  if (id === 'repair') return (state.repaired || 0) >= 1;
+  if (id === 'defend') return (state.defended || 0) >= 1;
+  return false;
+}
+
+function syncStage(state) {
+  ensureProgress(state);
+  const index = Math.max(0, (state.stage || 1) - 1);
+  const goals = STAGES[index];
+  if (!goals) return;
+  if (!goals.every((id) => goalMet(state, id))) return;
+  if (state.stageClear === state.stage) return;
+  state.stageClear = state.stage;
+  addRes(state, 'money', 6);
+  addRes(state, 'food', 2);
+  state.stageNotice = state.stage;
+  if (state.stage < STAGES.length) state.stage += 1;
+  bump(state);
+}
+
+export function stageSnapshot(state) {
+  ensureProgress(state);
+  const index = Math.max(0, Math.min(STAGES.length, state.stage || 1) - 1);
+  const goals = STAGES[index] || [];
+  return {
+    stage: state.stage || 1,
+    last: STAGES.length,
+    goals: goals.map((id) => ({ id, done: goalMet(state, id) })),
+    notice: state.stageNotice || 0,
+  };
+}
+
+export function dismissStage(state) {
+  state.stageNotice = 0;
+  bump(state);
+}
+
+function nearType(state, type) {
+  const p = state.villagers.find((v) => v.player);
+  if (!p) return false;
+  return state.buildings.some((b) => b.type === type && Math.hypot(b.gx - p.gx, b.gz - p.gz) < 3.2);
+}
+
+export function recipeList(state) {
+  ensureProgress(state);
+  return RECIPES.map((r) => ({
+    id: r.id,
+    out: r.out,
+    n: r.n,
+    need: r.need,
+    stage: r.stage,
+    place: r.place || '',
+    open: (state.stage || 1) >= r.stage,
+    have: Object.keys(r.need).every((k) => (state.resources[k] || 0) >= r.need[k]),
+  }));
+}
+
+function finishCraft(state) {
+  const job = state.craftJob;
+  state.craftJob = null;
+  if (!job) return;
+  const recipe = RECIPES.find((r) => r.id === job.id);
+  if (!recipe) return;
+  if (recipe.tool) {
+    state.tools[recipe.out] = Math.min(2, (state.tools[recipe.out] || 0) + 1);
+    if (!state.equipped) state.equipped = recipe.out;
+  } else {
+    addRes(state, recipe.out, recipe.n);
+    state.got[recipe.out] = (state.got[recipe.out] || 0) + recipe.n;
+  }
+  state.craftNote = recipe.out;
+  bump(state);
+}
+
+export function craft(state, id) {
+  ensureProgress(state);
+  if (state.craftJob) return { ok: false, reason: 'busy' };
+  const recipe = RECIPES.find((r) => r.id === id);
+  if (!recipe) return { ok: false, reason: 'missing' };
+  if ((state.stage || 1) < recipe.stage) return { ok: false, reason: 'locked' };
+  if (recipe.place && !nearType(state, recipe.place)) return { ok: false, reason: 'place', where: recipe.place };
+  if (!Object.keys(recipe.need).every((k) => (state.resources[k] || 0) >= recipe.need[k])) return { ok: false, reason: 'cost' };
+  Object.keys(recipe.need).forEach((k) => { state.resources[k] = round3(state.resources[k] - recipe.need[k]); });
+  const tier = recipe.tool ? (state.tools[recipe.out] || 0) : 0;
+  state.craftJob = { id, left: tier >= 1 ? 0.7 : 1.15 };
+  bump(state);
+  return { ok: true, left: state.craftJob.left };
+}
+
+export function equipTool(state, id) {
+  if (!(state.tools && state.tools[id])) return { ok: false };
+  state.equipped = id;
+  bump(state);
+  return { ok: true };
+}
+
+function ensureNodes(state) {
+  if (Array.isArray(state.nodes) && state.nodes.length) return;
+  state.nodes = [];
+  let id = 1;
+  const seeds = [];
+  for (let i = 0; i < 36; i += 1) {
+    const ang = i * 0.85;
+    const dist = 3.2 + (i % 6) * 0.7;
+    seeds.push([Math.round(MX + Math.cos(ang) * dist), Math.round(MZ + Math.sin(ang) * dist), i % 3 === 0 ? 'rock' : 'tree']);
+  }
+  seeds.forEach(([gx, gz, kind]) => {
+    if (state.nodes.length >= 22) return;
+    if (gx < 1 || gz < 1 || gx >= GRID_W - 1 || gz >= GRID_D - 1) return;
+    if (isRoad(gx, gz) || occupied(state, gx, gz)) return;
+    if (state.nodes.some((n) => n.gx === gx && n.gz === gz)) return;
+    state.nodes.push({ id: id++, kind, gx, gz, alive: true, hp: 3, back: 0 });
+  });
+}
+
+export function nearestNode(state, radius = 1.7) {
+  ensureNodes(state);
+  const p = state.villagers.find((v) => v.player);
+  if (!p) return null;
+  let best = null;
+  let bestD = radius;
+  state.nodes.forEach((n) => {
+    if (!n.alive) return;
+    const d = Math.hypot(n.gx - p.gx, n.gz - p.gz);
+    if (d < bestD) { best = n; bestD = d; }
+  });
+  return best;
+}
+
+export function gather(state) {
+  ensureProgress(state);
+  const node = nearestNode(state, 1.75);
+  if (!node) return { ok: false, reason: 'closer' };
+  const tool = node.kind === 'rock' ? 'pick' : 'axe';
+  const tier = state.tools[tool] || 0;
+  if (!tier) return { ok: false, reason: tool === 'pick' ? 'needPick' : 'needAxe' };
+  state.swing = 0.45;
+  state.equipped = tool;
+  const power = tier >= 2 ? 2 : 1;
+  node.hp -= power;
+  const key = node.kind === 'rock' ? 'stone' : 'wood';
+  addRes(state, key, power);
+  state.got[key] = (state.got[key] || 0) + power;
+  if (node.kind === 'tree' && (node.id % 2 === 0)) {
+    addRes(state, 'fibre', 1);
+    state.got.fibre = (state.got.fibre || 0) + 1;
+  }
+  if (node.kind === 'rock' && (node.id % 3 === 0)) {
+    addRes(state, 'clay', 1);
+    state.got.clay = (state.got.clay || 0) + 1;
+  }
+  if (node.kind === 'rock' && node.id % 5 === 0) {
+    addRes(state, 'ore', 1);
+    state.got.ore = (state.got.ore || 0) + 1;
+  }
+  let cleared = false;
+  if (node.hp <= 0) {
+    node.alive = false;
+    node.back = (state.seconds || 0) + 48;
+    cleared = true;
+  }
+  bump(state);
+  return { ok: true, key, n: power, kind: node.kind, cleared };
+}
+
+function bumpRep(state, n) {
+  if (state.rep == null) state.rep = 8;
+  state.rep = Math.max(-100, Math.min(100, Math.round(state.rep + n)));
+}
+
+function seedSpots(state) {
+  state.spots = [0, 1, 2, 3].map((i) => ({
+    id: i + 1,
+    gx: MX + (i % 2 ? 0.45 : -0.35),
+    gz: MZ + (i < 2 ? 0.4 : -0.3),
+    on: 1,
+  }));
+}
+
+function seedDeeds(state) {
+  const adults = state.villagers.filter((v) => !v.player && v.role !== 'child' && v.role !== 'mullah');
+  const kinds = ['water', 'bread', 'sheep', 'harvest', 'poor'];
+  state.deeds = adults.slice(0, 4).map((v, i) => ({ id: i + 1, kind: kinds[i % kinds.length], giverId: v.id, status: 'open' }));
+}
+
+function playerOf(state) {
+  return state.villagers.find((v) => v.player);
+}
+
+export function cleanSpot(state) {
+  ensureProgress(state);
+  const p = playerOf(state);
+  if (!p) return { ok: false };
+  if (!(state.tools.broom >= 1)) return { ok: false, reason: 'broom' };
+  const spot = (state.spots || []).find((s) => s.on && Math.hypot(s.gx - p.gx, s.gz - p.gz) < 1.35);
+  if (!spot) return { ok: false, reason: 'closer' };
+  spot.on = 0;
+  state.cleaned = (state.cleaned || 0) + 1;
+  state.deedCount = (state.deedCount || 0) + 1;
+  bumpRep(state, 8);
+  state.spark = 0.8;
+  const mullah = state.villagers.find((v) => v.role === 'mullah');
+  if (mullah) { mullah.line = 'thanks'; mullah.sayLeft = 3; }
+  if (state.amends) { state.amends = 0; bumpRep(state, 10); }
+  bump(state);
+  return { ok: true };
+}
+
+export function repairNear(state) {
+  ensureProgress(state);
+  const p = playerOf(state);
+  if (!p) return { ok: false };
+  const b = state.buildings.find((item) => item.damage && Math.hypot(item.gx - p.gx, item.gz - p.gz) < 1.6);
+  if (!b) return { ok: false, reason: 'closer' };
+  const cost = b.type === 'spring' ? { stone: 2, clay: 1 } : { wood: 2, stone: 1 };
+  if (!canAfford(state, cost)) return { ok: false, reason: 'cost' };
+  pay(state, cost);
+  b.damage = 0;
+  state.repaired = (state.repaired || 0) + 1;
+  state.swing = 0.45;
+  bumpRep(state, 6);
+  if (state.amends) { state.amends = 0; bumpRep(state, 10); }
+  bump(state);
+  return { ok: true };
+}
+
+export function helpDeed(state, id) {
+  ensureProgress(state);
+  const d = (state.deeds || []).find((item) => item.id === id && item.status === 'open');
+  const p = playerOf(state);
+  if (!d || !p) return { ok: false };
+  const giver = state.villagers.find((v) => v.id === d.giverId);
+  if (giver && Math.hypot(giver.gx - p.gx, giver.gz - p.gz) > 1.8) return { ok: false, reason: 'closer' };
+  if (d.kind === 'water' && (state.resources.water || 0) < 2) return { ok: false, reason: 'cost' };
+  if ((d.kind === 'bread' || d.kind === 'poor') && (state.resources.food || 0) < 1) return { ok: false, reason: 'cost' };
+  if (d.kind === 'water') state.resources.water = round3(state.resources.water - 2);
+  if (d.kind === 'bread' || d.kind === 'poor') state.resources.food = round3(state.resources.food - 1);
+  d.status = 'done';
+  state.deedCount = (state.deedCount || 0) + 1;
+  addRes(state, 'money', 3);
+  bumpRep(state, 10);
+  if (giver) { giver.line = 'thanks'; giver.sayLeft = 2.5; }
+  bump(state);
+  return { ok: true };
+}
+
+export function refuseDeed(state, id) {
+  const d = (state.deeds || []).find((item) => item.id === id && item.status === 'open');
+  if (!d) return { ok: false };
+  d.status = 'refused';
+  bumpRep(state, -8);
+  const giver = state.villagers.find((v) => v.id === d.giverId);
+  if (giver) { giver.line = 'scold1'; giver.sayLeft = 2.5; giver.angry = true; }
+  bump(state);
+  return { ok: true };
+}
+
+export function takeSelfish(state) {
+  const p = playerOf(state);
+  if (!p) return { ok: false };
+  const field = state.buildings.find((b) => b.type === 'field' && b.stage === 3 && Math.hypot(b.gx - p.gx, b.gz - p.gz) < 1.5);
+  if (field) {
+    field.stage = 0;
+    addRes(state, 'grain', 2);
+    bumpRep(state, -12);
+    bump(state);
+    return { ok: true, kind: 'grain' };
+  }
+  bumpRep(state, -8);
+  addRes(state, 'eggs', 1);
+  bump(state);
+  return { ok: true, kind: 'eggs' };
+}
+
+export function shove(state, id) {
+  const v = state.villagers.find((item) => item.id === id && !item.player);
+  const p = playerOf(state);
+  if (!v || !p) return { ok: false };
+  if (v.child || v.role === 'child') {
+    v.tx = v.gx + 1.4;
+    v.tz = v.gz + 0.4;
+    v.line = 'childRun';
+    v.sayLeft = 1.5;
+    return { ok: false, reason: 'child' };
+  }
+  if (Math.hypot(v.gx - p.gx, v.gz - p.gz) > 1.7) return { ok: false, reason: 'closer' };
+  v.stumble = 0.8;
+  v.angry = true;
+  v.line = 'angry';
+  v.sayLeft = 2.4;
+  const drop = 2 + (v.id % 3);
+  addRes(state, 'money', drop);
+  bumpRep(state, -24);
+  state.offences = (state.offences || 0) + 1;
+  state.villagers.forEach((other) => {
+    if (other.player || other.id === v.id) return;
+    if (Math.hypot(other.gx - v.gx, other.gz - v.gz) < 4) other.angry = true;
+  });
+  if (state.offences >= 3) state.confront = 1;
+  bump(state);
+  return { ok: true, dinar: drop };
+}
+
+export function acceptFine(state) {
+  if (!state.confront) return { ok: false };
+  if ((state.resources.money || 0) < 8) return { ok: false, reason: 'cost' };
+  state.resources.money = round3(state.resources.money - 8);
+  state.confront = 0;
+  state.amends = 1;
+  bumpRep(state, 4);
+  const mullah = state.villagers.find((v) => v.role === 'mullah');
+  if (mullah) { mullah.line = 'advise'; mullah.sayLeft = 3; }
+  bump(state);
+  return { ok: true };
+}
+
+const TRADE = {
+  farmer: ['grain'], baker: ['food'], shepherd: ['wool', 'milk'], smith: ['tools'],
+  weaver: ['cloth'], woodcutter: ['wood'], stonecutter: ['stone'], mullah: ['food'],
+};
+const BASE = { grain: 3, food: 4, wool: 5, milk: 4, tools: 8, cloth: 6, wood: 2, stone: 2, eggs: 3 };
+
+export function tradeList(state, id) {
+  const v = state.villagers.find((item) => item.id === id);
+  if (!v) return [];
+  const keys = TRADE[v.role] || ['food'];
+  const rep = state.rep || 0;
+  const mul = rep >= 40 ? 0.8 : rep < 0 ? 1.3 : 1;
+  return keys.map((key) => ({ key, buy: Math.max(1, Math.round((BASE[key] || 3) * mul)), sell: Math.max(1, Math.round((BASE[key] || 3) * 0.6 * (rep >= 40 ? 1.25 : 1))) }));
+}
+
+export function tradeWith(state, id, key, dir) {
+  const v = state.villagers.find((item) => item.id === id);
+  if (!v || v.child || v.role === 'child') return { ok: false, reason: 'child' };
+  if ((state.rep || 0) < -40 || v.angry) return { ok: false, reason: 'refuse' };
+  const row = tradeList(state, id).find((item) => item.key === key);
+  if (!row) return { ok: false };
+  if (dir === 'buy') {
+    if ((state.resources.money || 0) < row.buy) return { ok: false, reason: 'cost' };
+    state.resources.money = round3(state.resources.money - row.buy);
+    addRes(state, key, 1);
+  } else {
+    if ((state.resources[key] || 0) < 1) return { ok: false, reason: 'cost' };
+    state.resources[key] = round3(state.resources[key] - 1);
+    addRes(state, 'money', row.sell);
+  }
+  bump(state);
+  return { ok: true };
+}
+
+export function setRaids(state, on) {
+  state.raids = !!on;
+  if (!on) state.threats = [];
+  bump(state);
+  return { ok: true, raids: state.raids };
+}
+
+export function spawnRaid(state) {
+  state.threats = [
+    { id: 1, kind: 'bandit', gx: MX, gz: MZ - 8, hp: 2, flee: 0 },
+    { id: 2, kind: 'bandit', gx: MX + 2, gz: MZ - 7, hp: 2, flee: 0 },
+  ];
+  state.raidWarn = 1;
+  return state.threats.length;
+}
+
+function stepThreats(state, dt) {
+  if (!state.threats) state.threats = [];
+  if (state.raids === false) { state.threats = []; return; }
+  if (state.hour === 17 && state.day % 3 === 0 && state.warnDay !== state.day) {
+    state.warnDay = state.day;
+    state.raidWarn = 1;
+  }
+  if (state.hour === 18 && state.day % 3 === 0 && state.raidDay !== state.day) {
+    state.raidDay = state.day;
+    spawnRaid(state);
+  }
+  if ((state.hour >= 20 || state.hour < 5) && state.day % 2 === 0 && !state.threats.some((t) => t.kind === 'wolf')) {
+    const pen = herdSpot(state, 'sheep', 'pen');
+    state.threats.push({ id: 90 + state.day, kind: 'wolf', gx: pen.gx + 2, gz: pen.gz + 1, hp: 1, flee: 0 });
+  }
+  if (state.hour === 21 && state.day % 5 === 0 && !state.threats.some((t) => t.kind === 'bear')) {
+    state.threats.push({ id: 80 + state.day, kind: 'bear', gx: 8, gz: 6, hp: 2, flee: 0 });
+  }
+  const p = playerOf(state);
+  state.threats.forEach((t) => {
+    const away = t.flee ? -1 : 1;
+    const tx = t.flee ? t.gx : (t.kind === 'wolf' ? (herdSpot(state, 'sheep', 'pen').gx) : MX);
+    const tz = t.flee ? (t.gz - 8) : (t.kind === 'wolf' ? herdSpot(state, 'sheep', 'pen').gz : MZ);
+    const dx = tx - t.gx;
+    const dz = tz - t.gz;
+    const dist = Math.hypot(dx, dz) || 1;
+    const spd = (t.flee ? 3.2 : 1.1) * dt * (away < 0 ? 1 : 1);
+    t.gx += (dx / dist) * spd;
+    t.gz += (dz / dist) * spd;
+    if (p && !t.flee && Math.hypot(p.gx - t.gx, p.gz - t.gz) < 1.5 && (state.tools.torch || state.tools.staff)) {
+      t.hp -= dt * 2;
+    }
+    state.villagers.forEach((v) => {
+      if (v.player || t.flee) return;
+      if (Math.hypot(v.gx - t.gx, v.gz - t.gz) < 1.3) t.hp -= dt;
+    });
+    if (t.hp <= 0 && !t.flee) {
+      t.flee = 1;
+      addRes(state, 'money', t.kind === 'bandit' ? 4 : 1);
+      bumpRep(state, 6);
+      state.defended = (state.defended || 0) + 1;
+    }
+  });
+  state.threats = state.threats.filter((t) => !(t.flee && t.gz < MZ - 12));
+}
+
+export function bonk(state) {
+  const p = playerOf(state);
+  if (!p) return { ok: false };
+  const t = (state.threats || []).find((item) => !item.flee && Math.hypot(item.gx - p.gx, item.gz - p.gz) < 1.8);
+  if (!t) return { ok: false, reason: 'closer' };
+  const power = t.kind === 'wolf' || t.kind === 'bear' ? ((state.tools.torch || 0) ? 2 : 1) : ((state.tools.staff || 0) ? 2 : 1);
+  t.hp -= power;
+  state.swing = 0.4;
+  if (t.hp <= 0) {
+    t.flee = 1;
+    addRes(state, 'money', t.kind === 'bandit' ? 4 : 1);
+    bumpRep(state, 6);
+    state.defended = (state.defended || 0) + 1;
+  }
+  bump(state);
+  return { ok: true, flee: !!t.flee };
+}
+
 function ensureProgress(state) {
   if (!state.rank) state.rank = 1;
   if (state.xp == null) state.xp = 0;
   if (state.tutorial == null) state.tutorial = 0;
   if (!state.notice) state.notice = 0;
+  if (!state.stage) state.stage = 1;
+  if (!state.got) state.got = {};
+  if (!state.built) state.built = {};
+  if (!state.tools) state.tools = {};
+  if (state.seconds == null) state.seconds = 0;
+  if (!state.resources.clay) state.resources.clay = state.resources.clay || 0;
+  if (!state.resources.fibre) state.resources.fibre = 0;
+  if (!state.resources.ore) state.resources.ore = 0;
+  if (!state.resources.iron) state.resources.iron = 0;
+  if (!state.resources.rope) state.resources.rope = 0;
+  if (!state.resources.pot) state.resources.pot = 0;
+  if (!state.resources.fired) state.resources.fired = 0;
+  if (!state.resources.brick) state.resources.brick = 0;
+  if (state.rep == null) state.rep = 8;
+  if (state.raids == null) state.raids = true;
+  if (!state.spots) seedSpots(state);
+  if (!state.deeds) seedDeeds(state);
+  if (!state.threats) state.threats = [];
   applyPerks(state);
   ensureGoals(state);
+  ensureNodes(state);
 }
 
 function priced(state, cost) {
@@ -1851,8 +2458,10 @@ export function place(state, type, gx, gz) {
   pay(state, priced(state, COSTS[type]));
   grantXp(state, 1);
   completeGoal(state, 'place');
+  state.built = state.built || {};
+  state.built[type] = (state.built[type] || 0) + 1;
   const style = type === 'house' ? homes(state).length % 5 : 0;
-  const b = addBuilding(state, type, gx, gz, { style });
+  const b = addBuilding(state, type, gx, gz, { style, anim: 0.6 });
   state.lastPlacedId = b.id;
   state.selectedId = b.id;
   if (type === 'house') {
@@ -1932,6 +2541,7 @@ export function plant(state, id) {
   b.stage = 1;
   b.growth = 0;
   state.lastPlantedId = b.id;
+  state.planted = (state.planted || 0) + 1;
   state.villagers.forEach((v) => {
     if (v.job === 'farmer') v.workId = b.id;
   });
@@ -2018,6 +2628,12 @@ export function parseSave(raw) {
     if (!data || data.v !== 1 || !data.state || !data.state.resources || !Array.isArray(data.state.buildings)) return null;
     data.state.acc = data.state.acc || 0;
     data.state.rev = (data.state.rev || 0) + 1;
+    const hour = data.state.hour;
+    if (hour == null || hour < 6 || hour >= 18) {
+      data.state.hour = 8;
+      data.state.acc = 0;
+    }
+    if (data.state.season == null) data.state.season = 0;
     return data.state;
   } catch {
     return null;
@@ -2044,6 +2660,14 @@ export function cameraBasis(yaw) {
   };
 }
 
+/** Third-person axes. Forward matches the walk camera. Right is screen-right, not flipped by RTL. */
+export function viewAxes(yaw) {
+  return {
+    forward: { x: Math.sin(yaw), z: Math.cos(yaw) },
+    right: { x: -Math.cos(yaw), z: Math.sin(yaw) },
+  };
+}
+
 export function cameraEyeY(pitch, dist = 8) {
   return 1.4 + Math.sin(pitch) * dist;
 }
@@ -2053,10 +2677,10 @@ export function cameraEyeY(pitch, dist = 8) {
  * lookX +1 turns the view right. lookY +1 looks up (camera eye drops, pitch falls).
  */
 export function walkStep(pos, yaw, pitch, moveX, moveY, lookX, lookY, dt) {
-  const { forward, right } = cameraBasis(yaw);
+  const { forward, right } = viewAxes(yaw);
   const nx = pos.x + (forward.x * moveY + right.x * moveX) * WALK_SPEED * dt;
   const nz = pos.z + (forward.z * moveY + right.z * moveX) * WALK_SPEED * dt;
-  const nyaw = yaw + lookX * LOOK_YAW_SPEED * dt;
+  const nyaw = yaw - lookX * LOOK_YAW_SPEED * dt;
   const npitch = clamp(pitch - lookY * LOOK_PITCH_SPEED * dt, 0.18, 1.15);
   return { x: nx, z: nz, yaw: nyaw, pitch: npitch, forward, right };
 }
