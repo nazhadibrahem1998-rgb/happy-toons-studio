@@ -118,6 +118,7 @@
   <button type="button" id="stageOk" data-i18n="iosOk">باشە</button>
 </div>
 <div id="hud" hidden>
+  <span id="earlyTag">تاقیکردنەوەی سەرەتایی · Early test</span>
   <div class="res" id="resbar" data-scroll-panel="res"></div>
   <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">مێنیو</button>
   <div id="repBar"><span>😠</span><i id="repFill"></i><span>😊</span><b data-i18n="deeds">چاکە</b> <b id="deedNum" dir="ltr">٠</b></div>
@@ -154,6 +155,11 @@
 
 <div id="menu" class="screen">
   <div class="panel" data-scroll-panel="menu">
+    <div id="wipBanner" class="banner">
+      <p dir="rtl" lang="ckb">ئاگاداری: ئەم یارییە هێشتا تەواو نەکراوە و لە ژێر دروستکردندایە، هەڵە و گۆڕانکاری چاوەڕوان بکە</p>
+      <p dir="ltr" lang="en">Warning: this game is still unfinished and in development, so expect bugs and changes.</p>
+      <button type="button" id="wipDismiss" class="btn alt">باشە · OK</button>
+    </div>
     <div id="iosHint" class="banner" hidden>
       <p data-i18n="ios">For a full screen, tap Share, then Add to Home Screen.</p>
       <button type="button" id="iosDismiss" class="btn alt" data-i18n="iosOk">OK</button>

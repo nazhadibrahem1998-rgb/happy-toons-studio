@@ -1300,6 +1300,17 @@ if (!testMode && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
+try {
+  if (sessionStorage.getItem('sharsten-wip-ok') === '1') {
+    const wip = document.getElementById('wipBanner');
+    if (wip) wip.hidden = true;
+  }
+} catch { /* ignore */ }
+document.getElementById('wipDismiss').addEventListener('click', () => {
+  const wip = document.getElementById('wipBanner');
+  if (wip) wip.hidden = true;
+  try { sessionStorage.setItem('sharsten-wip-ok', '1'); } catch { /* ignore */ }
+});
 loadAdhan();
 applyLang();
 showControls();
