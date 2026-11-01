@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<!-- گوندی شارستێن (Sharsten Village) — © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance. Three.js (vendor/) © three.js authors, MIT. -->
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#6eaf45">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sharsten">
+<meta name="description" content="Sharsten Village — گوندی شارستێن. A calm 3D village life game by Happy Toons Studio.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Sharsten Village — Happy Toons Studio</title>
+<link rel="stylesheet" href="style.css">
+<script>
+(function () {
+  function block(e) {
+    var t = e.target;
+    if (t && t.closest && t.closest('[data-scroll-panel], textarea, input, select')) return;
+    if (e.cancelable) e.preventDefault();
+  }
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (type) {
+    document.addEventListener(type, block, { passive: false });
+  });
+  document.addEventListener('touchmove', block, { passive: false });
+  var last = 0;
+  document.addEventListener('touchend', function (e) {
+    var now = Date.now();
+    var t = e.target;
+    if (t && t.closest && t.closest('[data-scroll-panel], textarea, input, select')) { last = now; return; }
+    if (now - last < 300 && e.cancelable) e.preventDefault();
+    last = now;
+  }, { passive: false });
+})();
+</script>
+<!-- Cloudflare Web Analytics --><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "2702d2b8fa2345dea871b1550548be7a"}'></script>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="7c110135-c956-4967-9cfe-01d4da7f8ad1" data-domains="happytoonsstudio.com"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="toast" hidden></div>
+<div id="hud" hidden>
+  <div class="res" id="resbar"></div>
+  <button type="button" id="modeBtn" class="chip">Walk mode</button>
+  <button type="button" id="hudBuild" class="chip" data-i18n="build">Build</button>
+  <button type="button" id="hudPeople" class="chip" data-i18n="people">People</button>
+  <button type="button" id="hudQuests" class="chip" data-i18n="quests">Quests</button>
+  <button type="button" id="hudPause" class="chip" data-i18n="pause">Pause</button>
+  <div class="clock chip tiny"><b id="clockTime" dir="ltr">08:00</b> <span id="clockMeta"></span></div>
+  <div id="camBtns" hidden>
+  <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+  <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+  <button type="button" id="rotLeft" aria-label="Rotate left">↺</button>
+  <button type="button" id="rotRight" aria-label="Rotate right">↻</button>
+  </div>
+</div>
+<div id="buildSticks" hidden>
+  <div id="panZone" class="stick-zone" data-stick="pan"><div class="knob"></div></div>
+  <div id="orbitZone" class="stick-zone" data-stick="orbit"><div class="knob"></div></div>
+</div>
+<div id="walkControls" hidden>
+  <div id="moveZone" class="stick-zone" data-stick="move"><div class="knob"></div></div>
+  <div id="lookCluster">
+    <div id="lookZone" class="stick-zone" data-stick="look"><div class="knob"></div></div>
+    <button type="button" id="actionBtn" data-i18n="act">Do</button>
+  </div>
+</div>
+
+<div id="menu" class="screen">
+  <div class="panel" data-scroll-panel="menu">
+    <div id="iosHint" class="banner" hidden>
+      <p data-i18n="ios">For a full screen, tap Share, then Add to Home Screen.</p>
+      <button type="button" id="iosDismiss" class="btn alt" data-i18n="iosOk">OK</button>
+    </div>
+    <div class="logo-row">
+      <img src="../assets/img/logo.jpg" alt="Happy Toons Studio" width="54" height="54">
+      <div>
+        <p class="studio">Happy Toons Studio</p>
+        <div class="flag" aria-hidden="true"><i class="r"></i><i class="w"></i><i class="g"></i><b></b></div>
+      </div>
+    </div>
+    <h1 id="title">Sharsten Village</h1>
+    <p class="sub" id="subtitle">گوندی شارستێن</p>
+    <p class="tag" data-i18n="tag">A calm village life in a green mountain valley. Build, farm, and walk with your neighbours.</p>
+    <p class="age" data-i18n="age">For families and teens · no combat</p>
+    <button type="button" id="playBtn" class="btn" data-i18n="play">Play</button>
+    <div class="row">
+      <button type="button" id="helpBtn" class="btn alt" data-i18n="help">Help</button>
+      <button type="button" id="creditsBtn" class="btn alt" data-i18n="credits">Credits</button>
+    </div>
+    <button type="button" id="freshBtn" class="btn alt" data-i18n="fresh">New village</button>
+    <div class="set-row">
+      <span data-i18n="lang">Language</span>
+      <div class="row">
+        <button type="button" id="langEn" class="chip on" aria-pressed="true">English</button>
+        <button type="button" id="langCkb" class="chip" aria-pressed="false">کوردی</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span data-i18n="quality">Graphics</span>
+      <button type="button" id="qualityBtn" class="chip">Low</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="sticks">Build-mode sticks</span>
+      <button type="button" id="stickPref" class="chip">Off</button>
+    </div>
+    <p><span data-i18n="stores">Stores on this device</span> <b id="stockWood" dir="ltr">48</b> <span data-i18n="wood">Wood</span></p>
+    <p class="ai" id="aiNote">Made with AI assistance</p>
+    <p class="legal" id="creditLine">© Ayub Azizi – Happy Toons Studio</p>
+    <p class="tips" data-i18n="tips"></p>
+    <p data-i18n="privacy"></p>
+    <p><a href="privacy.html" data-i18n="privacyGame">This game’s privacy</a> · <a href="../privacy.html" data-i18n="privacySite">Studio privacy</a></p>
+  </div>
+</div>
+
+<div id="help" class="screen" hidden>
+  <div class="panel" data-scroll-panel="help">
+    <h2 data-i18n="help">Help</h2>
+    <p class="tips" data-i18n="tips"></p>
+    <p class="ai">Made with AI assistance</p>
+    <p class="legal">© Ayub Azizi – Happy Toons Studio</p>
+    <button type="button" id="helpClose" class="btn" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="credits" class="screen" hidden>
+  <div class="panel" data-scroll-panel="credits">
+    <h2 data-i18n="credits">Credits</h2>
+    <p>Happy Toons Studio</p>
+    <p class="legal" id="creditsLegal">© Ayub Azizi – Happy Toons Studio</p>
+    <p class="ai" id="creditsAi">Made with AI assistance</p>
+    <p>Sharsten Village is an original stylized game, inspired by the mountain village of Sharsten (شارەستێن) in Sulaymaniyah. No real person’s face is shown. There is no combat.</p>
+    <p data-i18n="privacy"></p>
+    <p><a href="privacy.html">This game’s privacy</a> · <a href="../privacy.html">Studio privacy</a></p>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="creditsClose" class="btn" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="quests" class="screen" hidden>
+  <div class="panel" data-scroll-panel="quests">
+    <h2 data-i18n="quests">Quests</h2>
+    <p><span data-i18n="goal">Village level</span> <b id="levelNum" dir="ltr">1</b> · <span data-i18n="happy">Happiness</span> <b id="happyNum" dir="ltr">0</b></p>
+    <div class="quest"><span data-i18n="qSpring">Fix the spring</span><b id="qSpring"></b></div>
+    <button type="button" id="fixBtn" class="btn" data-i18n="fix">Fix the spring</button>
+    <div class="quest"><span data-i18n="qSchool">Build the school</span><b id="qSchool"></b></div>
+    <div class="quest"><span data-i18n="qNewroz">Welcome guests for Newroz</span><b id="qNewroz"></b></div>
+    <button type="button" id="newrozBtn" class="btn" data-i18n="newroz">Welcome Newroz guests</button>
+    <button type="button" id="viewMosque" class="btn alt" data-i18n="mosque">Mosque</button>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="questsClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="people" class="screen" hidden>
+  <div class="panel" data-scroll-panel="people">
+    <h2 data-i18n="people">People</h2>
+    <div id="peopleList"></div>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="peopleClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="build" class="screen" hidden>
+  <div class="panel" data-scroll-panel="build">
+    <h2 data-i18n="build">Build</h2>
+    <div id="buildList"></div>
+    <button type="button" id="placeSuggest" class="btn" data-i18n="placeHere">Place here</button>
+    <button type="button" id="cancelBuild" class="btn alt" data-i18n="cancelBuild">Cancel</button>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="buildClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="detail" class="screen" hidden>
+  <div class="panel" data-scroll-panel="detail">
+    <h2 id="detailTitle">House</h2>
+    <p id="detailMeta"></p>
+    <button type="button" id="upgradeBtn" class="btn" data-i18n="upgrade">Upgrade</button>
+    <button type="button" id="detailFix" class="btn" data-i18n="fix">Fix the spring</button>
+    <button type="button" id="cleanBtn" class="btn" data-i18n="clean">Clean the mosque</button>
+    <button type="button" id="plantBtn" class="btn" data-i18n="plant">Plant wheat</button>
+    <button type="button" id="harvestBtn" class="btn" data-i18n="harvest">Harvest</button>
+    <button type="button" id="demolishBtn" class="btn alt" data-i18n="demolish">Remove</button>
+    <p id="detailNote"></p>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="detailClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="pause" class="screen" hidden>
+  <div class="panel" data-scroll-panel="pause">
+    <h2 data-i18n="pause">Pause</h2>
+    <button type="button" id="resumeBtn" class="btn" data-i18n="resume">Resume</button>
+    <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">Help</button>
+    <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">Menu</button>
+    <p class="legal">© Ayub Azizi – Happy Toons Studio</p>
+    <p class="tips" data-i18n="tips"></p>
+  </div>
+</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>

@@ -8,6 +8,9 @@ export const SAVE_KEY = 'sharsten-village-v1';
 export const SETTINGS_KEY = 'sharsten-settings-v1';
 export const GRID_W = 12;
 export const GRID_D = 10;
+export const CELL = 2;
+/** Open meadow around the build grid, then a hard stop at the hills. */
+export const MAP_BOUND = { minGx: -4, maxGx: GRID_W + 3, minGz: -3.5, maxGz: GRID_D + 2.5 };
 export const SECONDS_PER_HOUR = 2;
 export const SEASON_DAYS = 4;
 export const VILLAGER_CAP = 8;
@@ -88,6 +91,21 @@ export function isRoad(gx, gz) {
 
 export function isBlocked(gx, gz) {
   return isRoad(gx, gz);
+}
+
+export function cellToWorld(gx, gz) {
+  return {
+    x: (gx - (GRID_W - 1) / 2) * CELL,
+    y: 0,
+    z: (gz - (GRID_D - 1) / 2) * CELL,
+  };
+}
+
+/** Keep a walker inside the valley. Outside the build grid is allowed; past the hills is not. */
+export function clampToMap(gx, gz) {
+  const x = clamp(gx, MAP_BOUND.minGx, MAP_BOUND.maxGx);
+  const z = clamp(gz, MAP_BOUND.minGz, MAP_BOUND.maxGz);
+  return { gx: x, gz: z, hit: x !== gx || z !== gz };
 }
 
 function occupied(state, gx, gz) {
@@ -671,6 +689,12 @@ export function cleanMosque(state) {
   state.mosqueClean = true;
   recompute(state);
   bump(state);
+  return { ok: true };
+}
+
+export function setStock(state, key, value) {
+  if (!Object.prototype.hasOwnProperty.call(state.resources, key)) return { ok: false };
+  state.resources[key] = value;
   return { ok: true };
 }
 

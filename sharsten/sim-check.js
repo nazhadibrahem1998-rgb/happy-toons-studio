@@ -1,6 +1,6 @@
 import {
-  advanceHours, assignJob, averageHappiness, cameraBasis, cameraEyeY, celebrateNewroz,
-  cleanMosque, createState, demolish, harvest, phaseOf, place, plant, setHour, setSeason,
+  MAP_BOUND, advanceHours, assignJob, averageHappiness, cameraBasis, cameraEyeY, celebrateNewroz,
+  clampToMap, cleanMosque, createState, demolish, harvest, phaseOf, place, plant, setHour, setSeason,
   stickVector, upgrade, walkStep,
 } from './sim.js';
 
@@ -107,5 +107,10 @@ assert(upgrade(st, h.id).ok, 'upgrade');
 assert(st.buildings.find((b) => b.id === h.id).level === 2, 'level 2');
 
 assert(celebrateNewroz(createState()).ok === false, 'newroz needs tea');
+
+const open = clampToMap(-2, 2);
+assert(open.hit === false && open.gx === -2, 'open meadow past the plots');
+const edge = clampToMap(-20, 2);
+assert(edge.hit === true && edge.gx === MAP_BOUND.minGx, 'bounded at the hills');
 
 console.log('sim-check ok');
