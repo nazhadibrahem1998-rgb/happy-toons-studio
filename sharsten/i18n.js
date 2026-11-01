@@ -100,8 +100,13 @@ export const STR = {
     qSpring: 'Fix the spring',
     qSchool: 'Build the school',
     qNewroz: 'Welcome guests for Newroz',
+    qWheat: 'Bring wheat',
+    qChicken: 'Find the lost chicken',
+    qFence: 'Fix the fence',
     qDone: 'Done',
     qTodo: 'Still to do',
+    qActive: 'Started',
+    qOpen: 'Ready',
     ios: 'For a full screen, tap Share, then Add to Home Screen.',
     iosOk: 'OK',
     ai: 'Made with AI assistance',
@@ -219,8 +224,13 @@ export const STR = {
     qSpring: 'کانییەکە چاک بکە',
     qSchool: 'قوتابخانەکە دروست بکە',
     qNewroz: 'پێشوازی میوانانی نەورۆز',
+    qWheat: 'گەنم بهێنە',
+    qChicken: 'مریشکە ونبووەکە بدۆزەرەوە',
+    qFence: 'پەرژینەکە چاک بکە',
     qDone: 'تەواو',
     qTodo: 'ماوە',
+    qActive: 'دەستی پێکرد',
+    qOpen: 'ئامادەیە',
     ios: 'بۆ شاشەی تەواو، Share دابگرە، پاشان Add to Home Screen.',
     iosOk: 'باشە',
     ai: 'دروستکراو بە یارمەتی AI',
@@ -245,6 +255,30 @@ export const STR = {
     tips: 'شارستێن دۆڵێکی سەوزە: ڕێگایەکی قیرتاوکراو بە دار، ڕێگای خاکی، گەنم و ڕەزی ترێ.\n\nدۆخی دروستکردن: پەنجە بنێ بە زەوییەک، یان بیناکە هەڵبژێرە و «لێرە دایبنێ» دابگرە. ڕاکێشان بۆ جوڵاندنی دیمەن. زیاد و کەم بۆ زووم. دوگمەی سوڕانەوە بۆ کامێرا.\n\nدۆخی ڕۆیشتن: جۆیستیکی چەپ بەپێی کامێرا دەتبات. سەرەوە واتە بۆ پێشەوە. جۆیستیکی ڕاست، لەسەرووی دوگمەی «بیکە»، دەڕوانێت. سەرەوە واتە سەیرکردن بۆ سەرەوە. ڕاست واتە سوڕانەوە بۆ ڕاست.\n\nدانیشتووان بە ڕۆژ کار دەکەن و بە شەو دەچنەوە ماڵەوە. گەنم دوای چاندن گەشە دەکات. مەڕ خوری، بزن شیر، مریشک هێلکە دەدات.\n\nلێرە شەڕ نییە. مزگەوت پاک دەکرێتەوە و بەرز دەکرێتەوە. لابرناوی نییە.\n\nپێشکەوتن تەنها لەم مۆبایلە یان کۆمپیوتەرەدا دەمێنێتەوە.',
   },
 };
+
+/** Short neighbour lines. Both languages are required; the game picks from the language setting. */
+export const NPC_LINES = {
+  greet0: { en: 'Good day, neighbour.', ckb: 'ڕۆژباش، دراوسێ.' },
+  greet1: { en: 'The lanes are quiet today.', ckb: 'ئەمڕۆ ڕێچکەکان ئارامن.' },
+  greet2: { en: 'Peace upon you.', ckb: 'سەلام عەلەیکوم.' },
+  greet3: { en: 'The fields are green this spring.', ckb: 'ئەم بەهارە کێڵگەکان سەوزن.' },
+  wheatOffer: { en: 'Please bring me four measures of wheat.', ckb: 'تکایە چوار پێوانە گەنمم بۆ بهێنە.' },
+  wheatDone: { en: 'The wheat is here. Take these coins.', ckb: 'گەنمەکە گەیشت. ئەم پارەیە وەربگرە.' },
+  chickenOffer: { en: 'One hen slipped away. She is along the south lane.', ckb: 'مریشکێک ڕایکرد. لەسەر ڕێچکەی باشوورە.' },
+  chickenDone: { en: 'You found her. Please take this food.', ckb: 'دۆزیتەوە. ئەم خۆراکە وەربگرە.' },
+  fenceOffer: { en: 'A fence post broke. I need four wood.', ckb: 'کۆڵەکەیەکی پەرژین شکا. چوار دارم پێویستە.' },
+  fenceDone: { en: 'The fence stands. Coins and a tool for you.', ckb: 'پەرژینەکە ڕاوەستا. پارە و ئامرازێک بۆ تۆ.' },
+};
+
+export function linePairs() {
+  return Object.keys(NPC_LINES).map((id) => ({ id, en: NPC_LINES[id].en, ckb: NPC_LINES[id].ckb }));
+}
+
+export function npcLine(lang, id) {
+  const row = NPC_LINES[id];
+  if (!row) return '';
+  return lang === 'ckb' ? row.ckb : row.en;
+}
 
 export function t(lang, key) {
   const pack = STR[lang] || STR.en;

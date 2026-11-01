@@ -398,3 +398,91 @@ test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
   expect(summer.r).toBeGreaterThan(spring.r);
   assertClean(errors);
 });
+
+test('a neighbour follows the day, a quest finishes, and both languages have every line', async ({ page }, info) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  const report = await page.evaluate(() => {
+    const lines = window.__SV.linePairs();
+    const lineOk = lines.length >= 10 && lines.every((line) => line.en && line.ckb && line.en !== line.ckb);
+    const npc = window.__SV.getState().villagers.find((v) => !v.player);
+    const modes = [];
+    for (let h = 0; h < 24; h += 1) {
+      window.__SV.setHour(h);
+      const mode = window.__SV.getState().villagers.find((v) => v.id === npc.id).mode;
+      modes.push(mode === window.__SV.npcSchedule(h));
+    }
+    const lay = window.__SV.layout();
+    const mosque = window.__SV.astarRoute(lay.exits[1].gx, lay.exits[1].gz, lay.mosque.gx, lay.mosque.gz);
+    const state = window.__SV.getState();
+    const field = state.buildings.find((b) => b.type === 'field');
+    const house = state.buildings.find((b) => b.type === 'house');
+    const toField = window.__SV.astarRoute(lay.mosque.gx, lay.mosque.gz, field.gx, field.gz);
+    const toHome = window.__SV.astarRoute(lay.mosque.gx, lay.mosque.gz, house.gx, house.gz);
+    const near = (path, gx, gz) => !!path && Math.hypot(path[path.length - 1].gx - gx, path[path.length - 1].gz - gz) < 0.2;
+    const money0 = window.__SV.getState().resources.money;
+    const took = window.__SV.acceptQuest('wheat');
+    const done = window.__SV.turnInQuest('wheat');
+    const after = window.__SV.getState();
+    return {
+      lineOk,
+      schedule: modes.every(Boolean),
+      mosque: near(mosque, lay.mosque.gx, lay.mosque.gz),
+      field: near(toField, field.gx, field.gz),
+      home: near(toHome, house.gx, house.gz),
+      took: took.ok,
+      done: done.ok,
+      paid: after.resources.money >= money0 + 8,
+      status: after.npcQuests.find((q) => q.id === 'wheat').status,
+      capLow: window.__SV.npcActiveCap() === 12 || window.__SV.npcActiveCap() === 24,
+    };
+  });
+  expect(report.lineOk).toBe(true);
+  expect(report.schedule).toBe(true);
+  expect(report.mosque).toBe(true);
+  expect(report.field).toBe(true);
+  expect(report.home).toBe(true);
+  expect(report.took).toBe(true);
+  expect(report.done).toBe(true);
+  expect(report.paid).toBe(true);
+  expect(report.status).toBe('done');
+  expect(report.capLow).toBe(true);
+
+  await page.click('#hudQuests');
+  const board = page.locator('#questBoard');
+  await expect(board).toContainText('Bring wheat');
+  await expect(board).toContainText('Find the lost chicken');
+  await expect(board).toContainText('Fix the fence');
+  await expect(board.locator('[data-quest="wheat"]')).toContainText('Done');
+  const scroll = await page.evaluate(() => {
+    const el = document.querySelector('#quests [data-scroll-panel]');
+    return el.scrollHeight > el.clientHeight && !!el.querySelector('#questBoard');
+  });
+  expect(scroll).toBe(true);
+  await page.click('#questsClose');
+  await page.evaluate(() => document.getElementById('langCkb').click());
+  await page.click('#hudQuests');
+  await expect(page.locator('#questBoard')).toContainText('گەنم');
+  await expect(page.locator('#questBoard')).toContainText('مریشک');
+  await expect(page.locator('#questBoard')).toContainText('پەرژین');
+  await page.click('#questsClose');
+  await page.evaluate(() => document.getElementById('langEn').click());
+
+  const greet = await page.evaluate(() => {
+    window.__SV.setHour(9);
+    const npc = window.__SV.getState().villagers.find((v) => !v.player && !v.questId);
+    window.__SV.setWalkPose({ x: npc.gx, z: npc.gz + 0.4, yaw: 0, pitch: 0.4 });
+    window.__SV.stepNpcs(0.2);
+    const after = window.__SV.getState().villagers.find((v) => v.id === npc.id);
+    return { line: after.line, greeting: after.greeting };
+  });
+  expect(greet.greeting).toBe(true);
+  expect(String(greet.line).startsWith('greet')).toBe(true);
+  await expect(page.locator('#speech')).toBeVisible();
+  const speech = await page.locator('#speech').innerText();
+  expect(speech.length).toBeGreaterThan(3);
+  if (info.project.name === 'iphone-portrait') {
+    await page.screenshot({ path: `${ART}/sharsten-npc-greet.png` });
+  }
+  assertClean(errors);
+});

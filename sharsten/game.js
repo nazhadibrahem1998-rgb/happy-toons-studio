@@ -7,9 +7,10 @@ import {
   advanceHours, assignJob, cameraBasis, cameraEyeY, canPlace, celebrateNewroz,
   cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring, worldToCell,
   harvest, parseSave, phaseOf, place, plant, select, serialize, setHour, setSeason, setStock,
+  acceptQuest, astarRoute, npcActiveCap, npcSchedule, stepNpcs as stepNpcAi, turnInQuest,
   LAYOUT, isRoad, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
 } from './sim.js';
-import { formatClock, formatNum, t } from './i18n.js';
+import { formatClock, formatNum, linePairs, npcLine, t } from './i18n.js';
 import { createView } from './world.js';
 
 const canvas = document.getElementById('c');
@@ -36,6 +37,7 @@ let state = parseSave(localStorage.getItem(SAVE_KEY)) || createState();
 let playing = false;
 let buildType = null;
 let peopleSig = '';
+let questSig = '';
 let toastLeft = 0;
 let edgeLeft = 0;
 let saveLeft = 0;
@@ -195,17 +197,92 @@ function applyWalk(dt) {
   }
 }
 
+function talkTo(v) {
+  const q = (state.npcQuests || []).find((item) => item.giverId === v.id && item.status !== 'done');
+  if (q && q.status === 'open') {
+    acceptQuest(state, q.id);
+    toast(npcLine(lang, q.offer));
+    persist();
+    questSig = '';
+    paint();
+    return;
+  }
+  if (q && q.status === 'active') {
+    const result = turnInQuest(state, q.id);
+    v.line = result.ok ? q.done : q.offer;
+    v.sayLeft = 4;
+    toast(npcLine(lang, v.line));
+    if (result.ok) persist();
+    questSig = '';
+    paint();
+    return;
+  }
+  v.line = `greet${v.id % 4}`;
+  v.sayLeft = 2.5;
+  v.greeting = true;
+  paint();
+}
+
 function doAction() {
   const p = player();
+  let npc = null;
+  let npcD = 1.7;
+  state.villagers.forEach((v) => {
+    if (v.player) return;
+    const d = Math.hypot(v.gx - p.gx, v.gz - p.gz);
+    if (d < npcD) { npc = v; npcD = d; }
+  });
   let best = null;
   let bestD = 1.8;
   state.buildings.forEach((b) => {
     const d = Math.hypot(b.gx - p.gx, b.gz - p.gz);
     if (d < bestD) { best = b; bestD = d; }
   });
+  if (npc && (!best || npcD <= bestD)) {
+    talkTo(npc);
+    return;
+  }
   if (!best) { toast(t(lang, 'closer')); return; }
   state.selectedId = best.id;
   openPanel('detail');
+}
+
+function paintQuestBoard() {
+  const board = document.getElementById('questBoard');
+  if (!board) return;
+  const sig = `${lang}:${state.rev}:${(state.npcQuests || []).map((q) => `${q.id}:${q.status}`).join(',')}`;
+  if (sig === questSig) return;
+  questSig = sig;
+  board.replaceChildren();
+  (state.npcQuests || []).forEach((q) => {
+    const row = document.createElement('div');
+    row.className = 'quest';
+    row.dataset.quest = q.id;
+    const label = document.createElement('span');
+    label.textContent = t(lang, q.titleKey);
+    const status = document.createElement('b');
+    const key = q.status === 'done' ? 'qDone' : q.status === 'active' ? 'qActive' : 'qOpen';
+    status.textContent = t(lang, key);
+    row.append(label, status);
+    board.appendChild(row);
+  });
+}
+
+function updateSpeech() {
+  const el = document.getElementById('speech');
+  if (!el) return;
+  if (!playing) { el.hidden = true; return; }
+  const p = player();
+  let best = null;
+  let bestD = 1.75;
+  state.villagers.forEach((v) => {
+    if (v.player || !v.line) return;
+    const d = Math.hypot(v.gx - p.gx, v.gz - p.gz);
+    if (d < bestD) { best = v; bestD = d; }
+  });
+  if (!best) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = npcLine(lang, best.line);
 }
 
 function paint() {
@@ -224,6 +301,7 @@ function paint() {
   document.getElementById('stickPref').textContent = stickPref ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
   document.getElementById('levelNum').textContent = formatNum(state.level, lang);
   document.getElementById('happyNum').textContent = formatNum(snapshot(state).happiness, lang);
+  paintQuestBoard();
   document.getElementById('qSpring').textContent = state.quests.spring ? t(lang, 'qDone') : t(lang, 'qTodo');
   document.getElementById('qSchool').textContent = state.quests.school ? t(lang, 'qDone') : t(lang, 'qTodo');
   document.getElementById('qNewroz').textContent = state.quests.newroz ? t(lang, 'qDone') : t(lang, 'qTodo');
@@ -342,6 +420,7 @@ document.getElementById('freshBtn').addEventListener('click', () => {
   playing = false;
   persist();
   peopleSig = '';
+  questSig = '';
   paint();
   toast(t(lang, 'fresh'));
 });
@@ -580,6 +659,7 @@ function frame(now) {
   const boot = document.getElementById('boot');
   if (boot) boot.hidden = true;
   view.render();
+  updateSpeech();
   if (playing) {
     document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang);
   }
@@ -664,6 +744,7 @@ window.__SV = {
     state = createState();
     buildType = null;
     peopleSig = '';
+    questSig = '';
     persist();
     paint();
     view.sync(state, 0);
@@ -705,6 +786,31 @@ window.__SV = {
     };
   },
   getHillColor: () => view.getHillColor(),
+  astarRoute,
+  npcSchedule,
+  npcActiveCap: () => npcActiveCap(low),
+  linePairs,
+  stepNpcs(dt) {
+    const who = player();
+    stepNpcAi(state, dt ?? 0.2, {
+      low,
+      focus: { gx: who.gx, gz: who.gz, r: 99 },
+    });
+    paint();
+  },
+  acceptQuest(id) {
+    const result = acceptQuest(state, id);
+    questSig = '';
+    paint();
+    return result;
+  },
+  turnInQuest(id) {
+    const result = turnInQuest(state, id);
+    questSig = '';
+    if (result.ok) persist();
+    paint();
+    return result;
+  },
   projectCell(gx, gz) {
     if (state.mode === 'walk') view.lookAtWalk(player().gx, player().gz, walkCam.yaw, walkCam.pitch);
     else view.lookAtBuild(buildCam);

@@ -227,8 +227,8 @@ export function createView(canvas) {
   const boxes = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff), 40);
   scene.add(soil, wheat, vines, leaves, trunks, canopy, posts, boxes);
 
-  const vBody = pool(new THREE.BoxGeometry(0.38, 0.62, 0.28), mat(0xffffff), 8);
-  const vHead = pool(new THREE.SphereGeometry(0.16, 6, 5), mat(0xe6c2a0), 8);
+  const vBody = pool(new THREE.BoxGeometry(0.38, 0.62, 0.28), mat(0xffffff), 28);
+  const vHead = pool(new THREE.SphereGeometry(0.16, 6, 5), mat(0xe6c2a0), 28);
   const sheep = pool(new THREE.BoxGeometry(0.46, 0.32, 0.62), mat(0xf7f7f4), 6);
   const goats = pool(new THREE.BoxGeometry(0.4, 0.36, 0.62), mat(0xb08958), 4);
   const hens = pool(new THREE.BoxGeometry(0.22, 0.18, 0.28), mat(0xe6d2a8), 8);
@@ -534,7 +534,7 @@ export function createView(canvas) {
   function syncAgents(state, time) {
     let vi = 0;
     state.villagers.forEach((v) => {
-      if (vi >= 8) return;
+      if (vi >= 28) return;
       const p = cellToWorld(v.gx, v.gz);
       if (Math.hypot(p.x - cull.x, p.z - cull.z) > cull.radius) { stats.skipped += 1; return; }
       stats.rendered += 1;
@@ -542,8 +542,9 @@ export function createView(canvas) {
       const bob = moving ? Math.sin(time * 7 + v.id) * 0.04 : 0;
       const woman = !v.player && v.id % 2 === 0;
       const color = v.player ? 0x2f6f4f : woman ? 0xc44848 : 0x3d4a6a;
-      put(vBody, vi, p.x, 0.42 + bob, p.z, woman ? 0.85 : 0.7, 1, woman ? 0.9 : 0.55, 0, color);
-      put(vHead, vi, p.x, 0.9 + bob, p.z, 1, woman ? 0.7 : 0.85, 1, 0, woman ? 0xf2efe4 : 0xe6d2a0);
+      const face = v.ry || 0;
+      put(vBody, vi, p.x, 0.42 + bob, p.z, woman ? 0.85 : 0.7, 1, woman ? 0.9 : 0.55, face, color);
+      put(vHead, vi, p.x, 0.9 + bob, p.z, 1, woman ? 0.7 : 0.85, 1, face, woman ? 0xf2efe4 : 0xe6d2a0);
       vi += 1;
     });
     commit(vBody, vi);

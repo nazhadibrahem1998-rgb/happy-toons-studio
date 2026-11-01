@@ -67,6 +67,24 @@ canvas {
   pointer-events: none;
   text-align: center;
 }
+#speech {
+  position: fixed;
+  z-index: 9;
+  left: 50%;
+  bottom: calc(128px + var(--safe-b));
+  transform: translateX(-50%);
+  max-width: min(280px, calc(100% - 28px));
+  background: #efe6c9;
+  color: #1c2416;
+  border: 3px solid #1c3a18;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 4px 4px 0 #1c3a18;
+}
+#questBoard { margin: 4px 0 8px; }
 .screen {
   position: fixed;
   inset: 0;

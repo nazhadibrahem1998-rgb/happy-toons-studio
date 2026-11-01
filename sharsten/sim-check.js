@@ -1,8 +1,9 @@
 import {
-  LAYOUT, MAP_BOUND, advanceHours, assignJob, averageHappiness, cameraBasis, cameraEyeY, celebrateNewroz,
-  clampToMap, cleanMosque, createState, demolish, harvest, isRoad, phaseOf, place, plant, playable, reachExit, setHour, setSeason,
-  stickVector, suggestCell, upgrade, walkStep,
+  LAYOUT, MAP_BOUND, acceptQuest, advanceHours, assignJob, astarRoute, averageHappiness, cameraBasis, cameraEyeY,
+  celebrateNewroz, clampToMap, cleanMosque, createState, demolish, harvest, integrate, isRoad, npcActiveCap, npcSchedule,
+  phaseOf, place, plant, playable, reachExit, setHour, setSeason, stepNpcs, stickVector, suggestCell, turnInQuest, upgrade, walkStep,
 } from './sim.js';
+import { linePairs } from './i18n.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -130,5 +131,109 @@ assert(open.hit === false, 'street by the mosque is inside');
 const edge = clampToMap(-30, 2);
 assert(edge.hit === true, 'outside the fields is blocked');
 assert(playable(edge.gx, edge.gz), 'clamp lands inside');
+
+const wanted = ['greet0', 'greet1', 'greet2', 'greet3', 'wheatOffer', 'wheatDone', 'chickenOffer', 'chickenDone', 'fenceOffer', 'fenceDone'];
+const lines = linePairs();
+const seen = new Set(lines.map((line) => line.id));
+wanted.forEach((id) => assert(seen.has(id), `line ${id}`));
+lines.forEach((line) => {
+  assert(line.en && line.en.trim() && line.ckb && line.ckb.trim(), `empty ${line.id}`);
+  assert(line.en !== line.ckb, `same ${line.id}`);
+});
+
+const day = createState();
+const walker = day.villagers.find((v) => !v.player);
+for (let h = 0; h < 24; h += 1) {
+  setHour(day, h);
+  const mode = day.villagers.find((v) => v.id === walker.id).mode;
+  assert(mode === npcSchedule(h), `hour ${h} mode ${mode}`);
+}
+const mosquePath = astarRoute(LAYOUT.exits[1].gx, LAYOUT.exits[1].gz, LAYOUT.mosque.gx, LAYOUT.mosque.gz);
+assert(mosquePath && mosquePath.length > 2, 'mosque path');
+const mosqueEnd = mosquePath[mosquePath.length - 1];
+assert(Math.hypot(mosqueEnd.gx - LAYOUT.mosque.gx, mosqueEnd.gz - LAYOUT.mosque.gz) < 0.1, 'reaches mosque');
+const wheatField = day.buildings.find((b) => b.type === 'field');
+const home = day.buildings.find((b) => b.type === 'house');
+const fieldPath = astarRoute(LAYOUT.mosque.gx, LAYOUT.mosque.gz, wheatField.gx, wheatField.gz);
+const homePath = astarRoute(LAYOUT.mosque.gx, LAYOUT.mosque.gz, home.gx, home.gz);
+assert(fieldPath && Math.hypot(fieldPath[fieldPath.length - 1].gx - wheatField.gx, fieldPath[fieldPath.length - 1].gz - wheatField.gz) < 0.1, 'reaches field');
+assert(homePath && Math.hypot(homePath[homePath.length - 1].gx - home.gx, homePath[homePath.length - 1].gz - home.gz) < 0.1, 'reaches home');
+[mosquePath, fieldPath, homePath].forEach((path) => {
+  for (let i = 1; i < path.length; i += 1) {
+    const step = Math.hypot(path[i].gx - path[i - 1].gx, path[i].gz - path[i - 1].gz);
+    assert(step <= 1.75, `gap ${step}`);
+  }
+  path.slice(0, -1).forEach((cell) => assert(isRoad(cell.gx, cell.gz), 'lane'));
+});
+
+setHour(day, 12);
+const visitor = day.villagers.find((v) => !v.player && v.role === 'teacher');
+assert(visitor.mode === 'mosque', 'teacher visits mosque');
+assert(visitor.path && visitor.path.length > 1, 'teacher path');
+const visitEnd = visitor.path[visitor.path.length - 1];
+assert(Math.hypot(visitEnd.gx - LAYOUT.mosque.gx, visitEnd.gz - LAYOUT.mosque.gz) < 2.2, 'path ends at mosque');
+
+const budget = createState();
+const hero = budget.villagers[0];
+stepNpcs(budget, 0.2, { low: true, focus: { gx: hero.gx, gz: hero.gz, r: 999 } });
+const crowd = budget.villagers.filter((v) => !v.player);
+assert(crowd.length >= 24, `npcs ${crowd.length}`);
+assert(npcActiveCap(true) === 12 && npcActiveCap(false) === 24, 'caps');
+assert(crowd.filter((v) => v.ai === 'active').length === 12, 'low cap');
+assert(crowd.filter((v) => v.ai === 'throttle').length === crowd.length - 12, 'throttled');
+stepNpcs(budget, 0.2, { low: false, focus: { gx: hero.gx, gz: hero.gz, r: 0.25 } });
+const distant = crowd.filter((v) => Math.hypot(v.gx - hero.gx, v.gz - hero.gz) > 0.25);
+assert(distant.length > 0 && distant.every((v) => v.ai === 'lod' && v.updated === false), 'far lod');
+
+const greetState = createState();
+const neighbour = greetState.villagers.find((v) => !v.player);
+greetState.villagers[0].gx = neighbour.gx;
+greetState.villagers[0].gz = neighbour.gz + 0.4;
+stepNpcs(greetState, 0.2, { low: false, focus: { gx: neighbour.gx, gz: neighbour.gz, r: 4 } });
+assert(neighbour.greeting === true && String(neighbour.line).startsWith('greet'), 'greet');
+
+const quest = createState();
+const pay0 = quest.resources.money;
+const sack0 = quest.resources.grain;
+assert(acceptQuest(quest, 'wheat').ok, 'take wheat');
+assert(quest.npcQuests.find((q) => q.id === 'wheat').status === 'active', 'wheat active');
+assert(turnInQuest(quest, 'wheat').ok, 'finish wheat');
+assert(quest.npcQuests.find((q) => q.id === 'wheat').status === 'done', 'wheat done');
+assert(quest.resources.money >= pay0 + 8, 'wheat pay');
+assert(quest.resources.grain <= sack0 - 4, 'wheat spent');
+
+const chick = createState();
+const lost = chick.npcQuests.find((q) => q.id === 'chicken');
+assert(acceptQuest(chick, 'chicken').ok, 'take chicken');
+assert(turnInQuest(chick, 'chicken').ok === false, 'hen still lost');
+chick.villagers[0].gx = lost.spot.gx;
+chick.villagers[0].gz = lost.spot.gz;
+const food0 = chick.resources.food;
+assert(turnInQuest(chick, 'chicken').ok, 'hen found');
+assert(chick.resources.food >= food0 + 6, 'food reward');
+
+const fence = createState();
+const posts0 = fence.resources.wood;
+const tools0 = fence.resources.tools;
+const coins0 = fence.resources.money;
+assert(acceptQuest(fence, 'fence').ok, 'take fence');
+assert(turnInQuest(fence, 'fence').ok, 'fix fence');
+assert(fence.resources.wood <= posts0 - 4, 'wood spent');
+assert(fence.resources.tools >= tools0 + 1, 'tool');
+assert(fence.resources.money >= coins0 + 6, 'fence pay');
+
+const mover = createState();
+setHour(mover, 8);
+const farmer = mover.villagers.find((v) => !v.player && v.role === 'farmer');
+farmer.gx = farmer.path[0].gx;
+farmer.gz = farmer.path[0].gz;
+farmer.pathI = 0;
+mover.villagers[0].gx = 0;
+mover.villagers[0].gz = 0;
+const before = { gx: farmer.gx, gz: farmer.gz };
+stepNpcs(mover, 0.5, { low: false, focus: { gx: farmer.gx, gz: farmer.gz, r: 6 } });
+integrate(mover, 1, { focus: { gx: farmer.gx, gz: farmer.gz, r: 6 } });
+const shifted = Math.hypot(farmer.gx - before.gx, farmer.gz - before.gz);
+if (farmer.path.length > 1) assert(shifted > 0.05, 'walks the lane');
 
 console.log('sim-check ok');

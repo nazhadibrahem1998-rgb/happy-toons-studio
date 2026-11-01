@@ -38,7 +38,10 @@ export const LAYOUT = {
 };
 export const SECONDS_PER_HOUR = 2;
 export const SEASON_DAYS = 4;
-export const VILLAGER_CAP = 8;
+export const VILLAGER_CAP = 25;
+/** Non-player neighbours simulated on this device. No server and no online model. */
+export const NPC_COUNT = 24;
+const ROLES = ['farmer', 'shepherd', 'teacher', 'faithful'];
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
 export const WALK_SPEED = 6;
@@ -199,9 +202,9 @@ export function playable(gx, gz) {
   return false;
 }
 
-function nearestRoad(gx, gz) {
+function nearestRoad(gx, gz, radius = 4) {
   if (isRoad(gx, gz)) return { gx, gz };
-  for (let r = 1; r <= 4; r += 1) {
+  for (let r = 1; r <= radius; r += 1) {
     for (let dz = -r; dz <= r; dz += 1) {
       for (let dx = -r; dx <= r; dx += 1) {
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
@@ -212,19 +215,34 @@ function nearestRoad(gx, gz) {
   return null;
 }
 
-/** Street route on the road graph. The mosque plot itself is not a road, so the walk starts on the nearest street. */
-export function roadRoute(sx, sz, tx, tz) {
-  const start = nearestRoad(Math.round(sx), Math.round(sz));
-  if (!start || !isRoad(tx, tz)) return null;
-  const key = (gx, gz) => `${gx},${gz}`;
-  const prev = new Map();
-  const q = [start];
-  prev.set(key(start.gx, start.gz), '');
-  while (q.length) {
-    const cur = q.shift();
-    if (cur.gx === tx && cur.gz === tz) {
+function cellKey(gx, gz) {
+  return `${gx},${gz}`;
+}
+
+/** A* on the 4-connected road graph. Cost is one per lane step. Not a navmesh. */
+function astarRoads(start, goal) {
+  const h = (a) => Math.abs(a.gx - goal.gx) + Math.abs(a.gz - goal.gz);
+  const gScore = new Map([[cellKey(start.gx, start.gz), 0]]);
+  const prev = new Map([[cellKey(start.gx, start.gz), '']]);
+  const closed = new Set();
+  const open = [start];
+  const inOpen = new Set([cellKey(start.gx, start.gz)]);
+  while (open.length) {
+    let bestI = 0;
+    let bestF = Infinity;
+    for (let i = 0; i < open.length; i += 1) {
+      const node = open[i];
+      const f = gScore.get(cellKey(node.gx, node.gz)) + h(node);
+      if (f < bestF) { bestF = f; bestI = i; }
+    }
+    const cur = open.splice(bestI, 1)[0];
+    const ck = cellKey(cur.gx, cur.gz);
+    inOpen.delete(ck);
+    if (closed.has(ck)) continue;
+    closed.add(ck);
+    if (cur.gx === goal.gx && cur.gz === goal.gz) {
       const path = [];
-      let k = key(cur.gx, cur.gz);
+      let k = ck;
       while (k) {
         const [gx, gz] = k.split(',').map(Number);
         path.push({ gx, gz });
@@ -236,13 +254,58 @@ export function roadRoute(sx, sz, tx, tz) {
     [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dz]) => {
       const nx = cur.gx + dx;
       const nz = cur.gz + dz;
-      const nk = key(nx, nz);
-      if (prev.has(nk) || !isRoad(nx, nz)) return;
-      prev.set(nk, key(cur.gx, cur.gz));
-      q.push({ gx: nx, gz: nz });
+      if (!isRoad(nx, nz)) return;
+      const nk = cellKey(nx, nz);
+      if (closed.has(nk)) return;
+      const ng = gScore.get(ck) + 1;
+      if (ng >= (gScore.get(nk) ?? Infinity)) return;
+      gScore.set(nk, ng);
+      prev.set(nk, ck);
+      if (!inOpen.has(nk)) {
+        open.push({ gx: nx, gz: nz });
+        inOpen.add(nk);
+      }
     });
   }
   return null;
+}
+
+/** Street route on the road graph. The goal cell must itself be a lane. */
+export function roadRoute(sx, sz, tx, tz) {
+  const start = nearestRoad(Math.round(sx), Math.round(sz));
+  if (!start || !isRoad(tx, tz)) return null;
+  return astarRoads(start, { gx: tx, gz: tz });
+}
+
+/**
+ * Road-graph route that may finish on a plot (mosque, field, or house).
+ * The walk uses lanes, then one last step onto the plot. Local only.
+ */
+export function astarRoute(sx, sz, tx, tz) {
+  const start = nearestRoad(Math.round(sx), Math.round(sz), 8);
+  const goalRoad = nearestRoad(Math.round(tx), Math.round(tz), 8);
+  if (!start || !goalRoad) return null;
+  const path = astarRoads(start, goalRoad);
+  if (!path || !path.length) return null;
+  const last = path[path.length - 1];
+  if (Math.hypot(last.gx - tx, last.gz - tz) > 0.05) path.push({ gx: tx, gz: tz });
+  return path;
+}
+
+/** How many neighbours get a full update. Low phones stay on the smaller budget. */
+export function npcActiveCap(low) {
+  return low ? 12 : 24;
+}
+
+/** Day plan. Standing at the mosque is a visit, not a worship animation. */
+export function npcSchedule(hour) {
+  const h = ((Math.floor(hour) % 24) + 24) % 24;
+  if (h < 6 || h >= 18) return 'home';
+  if (h < 8) return 'street';
+  if (h < 12) return 'work';
+  if (h < 14) return 'mosque';
+  if (h < 17) return 'work';
+  return 'home';
 }
 
 /** Walk the road in small steps. A hit means the valley bound stopped the player. */
@@ -353,26 +416,63 @@ function addBuilding(state, type, gx, gz, opt = {}) {
   return b;
 }
 
+function streetAnchor(gx, gz, salt) {
+  const road = nearestRoad(Math.round(gx), Math.round(gz), 6);
+  if (!road) return { gx, gz };
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const dir = dirs[Math.abs(salt) % 4];
+  let x = road.gx;
+  let z = road.gz;
+  const steps = 2 + (Math.abs(salt) % 4);
+  for (let i = 0; i < steps; i += 1) {
+    const nx = x + dir[0];
+    const nz = z + dir[1];
+    if (!isRoad(nx, nz)) break;
+    x = nx;
+    z = nz;
+  }
+  return { gx: x, gz: z };
+}
+
 function spawnVillager(state, player = false) {
   const hs = homes(state);
   const home = hs.length ? hs[state.villagers.length % hs.length] : null;
   const n = state.nameCursor++;
+  const npcIndex = state.villagers.filter((v) => !v.player).length;
+  const gx = home ? home.gx + 0.2 : 6;
+  const gz = home ? home.gz + 0.6 : 3;
+  const anchor = streetAnchor(gx, gz, n + 1);
   const v = {
     id: state.nextId++,
     name: NAMES[n % NAMES.length],
     nameCkb: NAMES_CKB[n % NAMES_CKB.length],
     job: 'idle',
+    role: player ? 'player' : ROLES[npcIndex % ROLES.length],
     player: !!player,
     homeId: home ? home.id : 0,
     workId: 0,
+    questId: '',
     happiness: 66,
     fullness: 74,
     rest: 82,
     mode: 'home',
-    gx: home ? home.gx + 0.2 : 6,
-    gz: home ? home.gz + 0.6 : 3,
-    tx: home ? home.gx + 0.2 : 6,
-    tz: home ? home.gz + 0.6 : 3,
+    ai: 'idle',
+    gx,
+    gz,
+    tx: gx,
+    tz: gz,
+    streetGx: anchor.gx,
+    streetGz: anchor.gz,
+    goalGx: gx,
+    goalGz: gz,
+    path: [],
+    pathI: 0,
+    pathSig: '',
+    ry: 0,
+    line: '',
+    sayLeft: 0,
+    greeting: false,
+    updated: true,
   };
   state.villagers.push(v);
   return v;
@@ -428,21 +528,244 @@ function sendHome(state, v) {
   v.tz = house.gz + 0.62;
 }
 
+function lostChickenSpot() {
+  let x = MX;
+  let z = MZ + 1;
+  if (!isRoad(x, z)) {
+    const road = nearestRoad(MX, MZ, 4);
+    if (road) { x = road.gx; z = road.gz; }
+  }
+  for (let i = 0; i < 8; i += 1) {
+    if (isRoad(x, z + 1)) z += 1;
+    else break;
+  }
+  return { gx: x, gz: z };
+}
+
+function bindQuests(state) {
+  const giver = (role) => state.villagers.find((v) => !v.player && v.role === role);
+  const farmer = giver('farmer');
+  const shepherd = giver('shepherd');
+  const teacher = giver('teacher');
+  if (!farmer || !shepherd || !teacher) {
+    state.npcQuests = state.npcQuests || [];
+    return;
+  }
+  const spot = lostChickenSpot();
+  state.npcQuests = [
+    {
+      id: 'wheat', giverId: farmer.id, status: 'open', titleKey: 'qWheat',
+      need: { grain: 4 }, reward: { money: 8 }, offer: 'wheatOffer', done: 'wheatDone',
+    },
+    {
+      id: 'chicken', giverId: shepherd.id, status: 'open', titleKey: 'qChicken',
+      spot, found: false, reward: { food: 6 }, offer: 'chickenOffer', done: 'chickenDone',
+    },
+    {
+      id: 'fence', giverId: teacher.id, status: 'open', titleKey: 'qFence',
+      need: { wood: 4 }, reward: { money: 6, tools: 1 }, offer: 'fenceOffer', done: 'fenceDone',
+    },
+  ];
+  farmer.questId = 'wheat';
+  shepherd.questId = 'chicken';
+  teacher.questId = 'fence';
+}
+
+function ensureVillageAi(state) {
+  state.villagers.forEach((v, i) => {
+    if (!v.role) v.role = v.player ? 'player' : ROLES[i % ROLES.length];
+    if (!v.path) v.path = [];
+    if (v.pathI == null) v.pathI = 0;
+    if (v.pathSig == null) v.pathSig = '';
+    if (v.sayLeft == null) v.sayLeft = 0;
+    if (v.greeting == null) v.greeting = false;
+    if (v.line == null) v.line = '';
+    if (v.streetGx == null) {
+      const anchor = streetAnchor(v.gx, v.gz, v.id || i);
+      v.streetGx = anchor.gx;
+      v.streetGz = anchor.gz;
+    }
+  });
+  if (!state.npcQuests) bindQuests(state);
+}
+
+function goalFor(state, v, phase) {
+  if (phase === 'home') {
+    const hs = homes(state);
+    const house = state.buildings.find((b) => b.id === v.homeId && b.type === 'house')
+      || (hs.length ? hs[v.id % hs.length] : null);
+    if (!house) return { gx: v.gx, gz: v.gz };
+    return { gx: house.gx + ((v.id % 3) - 1) * 0.2, gz: house.gz + 0.55 };
+  }
+  if (phase === 'mosque') {
+    const ox = ((v.id % 5) - 2) * 0.28;
+    return { gx: LAYOUT.mosque.gx + ox, gz: LAYOUT.mosque.gz + 1.05 };
+  }
+  if (phase === 'street' || v.role === 'faithful') {
+    return { gx: v.streetGx, gz: v.streetGz };
+  }
+  if (v.role === 'farmer') {
+    const fields = state.buildings.filter((b) => b.type === 'field');
+    const field = fields.length ? fields[v.id % fields.length] : null;
+    if (field) return { gx: field.gx + 0.35, gz: field.gz + 0.35 };
+  }
+  if (v.role === 'shepherd') {
+    const herd = state.animals.filter((a) => a.kind === 'sheep' || a.kind === 'chicken');
+    const animal = herd.length ? herd[v.id % herd.length] : null;
+    if (animal) return { gx: animal.homeGx, gz: animal.homeGz };
+  }
+  if (v.role === 'teacher') {
+    const school = state.buildings.find((b) => b.type === 'school');
+    if (school) return { gx: school.gx + 0.35, gz: school.gz + 0.45 };
+  }
+  return { gx: v.streetGx, gz: v.streetGz };
+}
+
+function assignGoal(state, v) {
+  const phase = npcSchedule(state.hour);
+  v.mode = phase;
+  const goal = goalFor(state, v, phase);
+  v.goalGx = goal.gx;
+  v.goalGz = goal.gz;
+  const sig = `${phase}:${Math.round(goal.gx * 2)}:${Math.round(goal.gz * 2)}`;
+  if (sig !== v.pathSig) {
+    const route = astarRoute(v.gx, v.gz, goal.gx, goal.gz);
+    v.path = route && route.length ? route : [{ gx: goal.gx, gz: goal.gz }];
+    v.pathI = 0;
+    v.pathSig = sig;
+  }
+}
+
+function followPath(v) {
+  if (Math.hypot(v.gx - v.goalGx, v.gz - v.goalGz) < 0.35) {
+    v.pathI = Math.max(0, (v.path.length || 1) - 1);
+    v.tx = v.goalGx;
+    v.tz = v.goalGz;
+    return;
+  }
+  if (!v.path || !v.path.length) {
+    v.tx = v.goalGx;
+    v.tz = v.goalGz;
+    return;
+  }
+  let index = Math.min(v.pathI, v.path.length - 1);
+  let wp = v.path[index];
+  if (Math.hypot(v.gx - wp.gx, v.gz - wp.gz) < 0.22 && index < v.path.length - 1) {
+    index += 1;
+    v.pathI = index;
+    wp = v.path[index];
+  }
+  v.tx = wp.gx;
+  v.tz = wp.gz;
+}
+
+/** Local state machine: schedule, road path, greet. Far neighbours update less often. */
+export function stepNpcs(state, dt, opts = {}) {
+  ensureVillageAi(state);
+  const cap = npcActiveCap(!!opts.low);
+  const focus = opts.focus;
+  const player = state.villagers.find((v) => v.player);
+  const chicken = (state.npcQuests || []).find((q) => q.id === 'chicken' && q.status === 'active');
+  if (chicken && player && chicken.spot && Math.hypot(player.gx - chicken.spot.gx, player.gz - chicken.spot.gz) < 1.6) {
+    chicken.found = true;
+  }
+  const npcs = state.villagers.filter((v) => !v.player);
+  npcs.forEach((v) => {
+    v._d = focus ? Math.hypot(v.gx - focus.gx, v.gz - focus.gz) : 0;
+  });
+  npcs.sort((a, b) => a._d - b._d || a.id - b.id);
+  npcs.forEach((v, i) => {
+    const far = focus && focus.r != null && v._d > focus.r + 0.001;
+    const skipThrottle = i >= cap && ((state.ticks + v.id) % 4 !== 0);
+    if (far || skipThrottle) {
+      v.ai = far ? 'lod' : 'throttle';
+      v.updated = false;
+      v.hold = true;
+      return;
+    }
+    v.ai = i >= cap ? 'throttle' : 'active';
+    v.hold = false;
+    v.updated = true;
+    assignGoal(state, v);
+    if (v.sayLeft > 0) v.sayLeft = Math.max(0, v.sayLeft - dt);
+    const dist = player ? Math.hypot(v.gx - player.gx, v.gz - player.gz) : 99;
+    const questLine = v.line && !String(v.line).startsWith('greet') && v.sayLeft > 0;
+    if (!questLine && dist < 1.65) {
+      v.greeting = true;
+      v.line = `greet${v.id % 4}`;
+      v.ry = Math.atan2(player.gx - v.gx, player.gz - v.gz);
+      v.sayLeft = Math.max(v.sayLeft, 0.35);
+      v.tx = v.gx;
+      v.tz = v.gz;
+      return;
+    }
+    v.greeting = false;
+    if (v.line && String(v.line).startsWith('greet')) v.line = '';
+    else if (v.sayLeft <= 0 && v.line && !String(v.line).startsWith('greet')) v.line = '';
+    followPath(v);
+    const dx = v.tx - v.gx;
+    const dz = v.tz - v.gz;
+    if (Math.hypot(dx, dz) > 0.05) v.ry = Math.atan2(dx, dz);
+  });
+}
+
+export function acceptQuest(state, id) {
+  ensureVillageAi(state);
+  const q = (state.npcQuests || []).find((item) => item.id === id);
+  if (!q || q.status !== 'open') return { ok: false, reason: 'closed' };
+  q.status = 'active';
+  const giver = state.villagers.find((v) => v.id === q.giverId);
+  if (giver) { giver.line = q.offer; giver.sayLeft = 4; }
+  bump(state);
+  return { ok: true, line: q.offer };
+}
+
+export function turnInQuest(state, id) {
+  ensureVillageAi(state);
+  const q = (state.npcQuests || []).find((item) => item.id === id);
+  if (!q || q.status !== 'active') return { ok: false, reason: 'inactive' };
+  if (q.need && Object.keys(q.need).some((k) => (state.resources[k] || 0) < q.need[k])) {
+    return { ok: false, reason: 'need' };
+  }
+  if (q.id === 'chicken') {
+    const p = state.villagers.find((v) => v.player);
+    const near = !!(p && q.spot && Math.hypot(p.gx - q.spot.gx, p.gz - q.spot.gz) < 1.6);
+    if (!q.found && !near) return { ok: false, reason: 'lost' };
+    q.found = true;
+  }
+  if (q.need) {
+    Object.keys(q.need).forEach((k) => { state.resources[k] = round3(state.resources[k] - q.need[k]); });
+  }
+  Object.keys(q.reward || {}).forEach((k) => addRes(state, k, q.reward[k]));
+  q.status = 'done';
+  const giver = state.villagers.find((v) => v.id === q.giverId);
+  if (giver) { giver.line = q.done; giver.sayLeft = 4; }
+  bump(state);
+  return { ok: true, line: q.done };
+}
+
 export function retarget(state) {
+  ensureVillageAi(state);
   const working = state.hour >= 7 && state.hour < 17;
   state.villagers.forEach((v) => {
-    if (working && v.job !== 'idle') {
-      const w = workplace(state, v.job);
-      if (w) {
-        v.mode = 'work';
-        v.workId = w.id;
-        v.tx = w.gx + 0.4;
-        v.tz = w.gz + 0.55;
-        return;
+    if (v.player) {
+      if (working && v.job !== 'idle') {
+        const w = workplace(state, v.job);
+        if (w) {
+          v.mode = 'work';
+          v.workId = w.id;
+          v.tx = w.gx + 0.4;
+          v.tz = w.gz + 0.55;
+          return;
+        }
       }
+      v.mode = 'home';
+      sendHome(state, v);
+      return;
     }
-    v.mode = 'home';
-    sendHome(state, v);
+    assignGoal(state, v);
+    v.tx = v.goalGx;
+    v.tz = v.goalGz;
   });
   const day = working;
   state.animals.forEach((a) => {
@@ -674,6 +997,7 @@ export function tick(state, dt, opts = {}) {
     stepHour(state);
     guard += 1;
   }
+  stepNpcs(state, step, opts);
   integrate(state, step, opts);
 }
 
@@ -699,6 +1023,7 @@ export function integrate(state, dt, opts = {}) {
   };
   state.villagers.forEach((v) => {
     if (opts.skipPlayer && v.player) return;
+    if (v.hold || v.ai === 'lod') { v.updated = false; return; }
     if (!nearEnough(v)) { v.updated = false; return; }
     v.updated = true;
     moveOne(v);
@@ -724,7 +1049,7 @@ export function createState() {
     nameCursor: 0,
     mode: 'build',
     resources: {
-      wood: 48, stone: 36, water: 18, food: 24, money: 40, grain: 4, milk: 0, wool: 0, eggs: 0,
+      wood: 48, stone: 36, water: 18, food: 96, money: 40, grain: 4, milk: 0, wool: 0, eggs: 0,
       flour: 0, cloth: 0, tools: 0,
     },
     buildings: [],
@@ -733,6 +1058,7 @@ export function createState() {
     springFixed: false,
     mosqueClean: false,
     quests: { spring: false, school: false, newroz: false },
+    npcQuests: null,
     newrozYear: -1,
     harvested: 0,
     learning: 0,
@@ -777,9 +1103,8 @@ export function createState() {
     stamp(i % 2 ? 'orchard_walnut' : 'orchard_pom', gx, gz);
   });
   spawnVillager(state, true);
-  spawnVillager(state);
-  spawnVillager(state);
-  spawnVillager(state);
+  while (state.villagers.length < 1 + NPC_COUNT && state.villagers.length < capacity(state)) spawnVillager(state);
+  bindQuests(state);
   const player = state.villagers[0];
   player.gx = MX + 1.35;
   player.gz = MZ + 0.15;
