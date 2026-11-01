@@ -44,7 +44,7 @@ export const SECONDS_PER_HOUR = 55;
 /** Day hours last long enough for ten real minutes of daylight. Night hours are short. */
 export function secondsThisHour(hour) {
   const h = ((Math.floor(hour) % 24) + 24) % 24;
-  return h >= 6 && h < 18 ? 55 : 6;
+  return h >= 5 && h < 21 ? 48 : 12;
 }
 export const SEASON_DAYS = 4;
 export const VILLAGER_CAP = 25;
@@ -57,8 +57,9 @@ export const WALK_SPEED = 6;
 export const LOOK_YAW_SPEED = 1.5;
 export const LOOK_PITCH_SPEED = 1.05;
 
-const NAMES = ['Awin', 'Roj', 'Hevi', 'Dara', 'Shilan', 'Baran', 'Kardo', 'Lana'];
-const NAMES_CKB = ['ئاوین', 'ڕۆژ', 'هێڤی', 'دارا', 'شیلان', 'باران', 'کاردۆ', 'لانا'];
+const MEN = [['Ahmad', 'ئەحمەد'], ['Kaka Hama', 'کاکە حەمە'], ['Mama Rashid', 'مامە رەشید'], ['Salih', 'ساڵح'], ['Aziz', 'عەزیز'], ['Qadir', 'قادر'], ['Salim', 'سەلیم'], ['Kaka Awrahman', 'کاکە ئەورەحمان']];
+const WOMEN = [['Pura Fatima', 'پوورە فاتمە'], ['Khatun', 'خاتوون'], ['Gulal', 'گوڵال'], ['Naza', 'نازە'], ['Shamsa', 'شەمسە'], ['Halala', 'هەلالە']];
+const CHILDREN = [['Aram', 'ئارام'], ['Hiwa', 'هیوا'], ['Shakhawan', 'شاخەوان'], ['Zerin', 'زێرین']];
 
 export const COSTS = {
   house: { wood: 8, stone: 4 },
@@ -136,10 +137,27 @@ function round3(n) {
 }
 
 export function phaseOf(hour) {
-  return hour >= 6 && hour < 18 ? 'day' : 'night';
+  const h = ((Math.floor(hour) % 24) + 24) % 24;
+  return h >= 5 && h < 21 ? 'day' : 'night';
 }
 
 const ROADS = new Map();
+
+/** Cell polylines traced from the Sharsten satellite outline. 1 cell ≈ 9 m. */
+const ROAD_LINES = [
+  { kind: 'stone', pts: [[17, 29], [17, 31], [19, 31], [19, 29], [17, 29]] },
+  { kind: 'stone', pts: [[17, 29], [14, 26], [10, 22], [6, 16], [2, 12], [0, 10]] },
+  { kind: 'stone', pts: [[19, 30], [24, 30], [30, 31], [38, 30], [46, 30], [55, 30]] },
+  { kind: 'stone', pts: [[18, 31], [19, 36], [20, 44], [21, 54], [22, 62], [22, 71]] },
+  { kind: 'stone', pts: [[19, 29], [22, 24], [26, 16], [28, 8], [28, 4]] },
+  { kind: 'stone', pts: [[28, 4], [32, 8], [34, 14], [32, 20], [28, 26], [22, 29]] },
+  { kind: 'dirt', pts: [[17, 30], [14, 30], [12, 30]] },
+  { kind: 'dirt', pts: [[24, 28], [28, 22], [32, 16]] },
+  { kind: 'dirt', pts: [[19, 31], [21, 32], [20, 35], [23, 36], [22, 39], [25, 41], [23, 44]] },
+  { kind: 'dirt', pts: [[21, 32], [24, 33], [26, 31], [28, 34], [26, 37]] },
+  { kind: 'dirt', pts: [[23, 36], [26, 38], [24, 40], [27, 42]] },
+  { kind: 'dirt', pts: [[17, 31], [15, 33], [16, 36], [14, 38]] },
+];
 
 function traceRoad(kind, x0, z0, x1, z1) {
   let x = x0;
@@ -148,7 +166,8 @@ function traceRoad(kind, x0, z0, x1, z1) {
   const sz = Math.sign(z1 - z0);
   const paint = (gx, gz) => {
     const prev = ROADS.get(`${gx},${gz}`);
-    if (prev !== 'paved') ROADS.set(`${gx},${gz}`, kind);
+    if (prev === 'stone') return;
+    ROADS.set(`${gx},${gz}`, kind);
   };
   paint(x, z);
   let guard = 0;
@@ -162,28 +181,11 @@ function traceRoad(kind, x0, z0, x1, z1) {
 
 const MX = LAYOUT.mosque.gx;
 const MZ = LAYOUT.mosque.gz;
-traceRoad('paved', MX - 1, MZ - 1, MX + 1, MZ - 1);
-traceRoad('paved', MX + 1, MZ - 1, MX + 1, MZ + 1);
-traceRoad('paved', MX + 1, MZ + 1, MX - 1, MZ + 1);
-traceRoad('paved', MX - 1, MZ + 1, MX - 1, MZ - 1);
-traceRoad('paved', MX - 1, MZ - 1, LAYOUT.exits[0].gx, LAYOUT.exits[0].gz);
-traceRoad('paved', MX + 1, MZ, LAYOUT.exits[1].gx, LAYOUT.exits[1].gz);
-traceRoad('paved', MX, MZ + 1, LAYOUT.exits[2].gx, LAYOUT.exits[2].gz);
-traceRoad('paved', MX + 1, MZ - 1, MX + 2, MZ - 2);
-traceRoad('paved', MX + 2, MZ - 2, LAYOUT.loopApex.gx, LAYOUT.loopApex.gz);
-traceRoad('paved', LAYOUT.loopApex.gx, LAYOUT.loopApex.gz, MX + 14, MZ - 2);
-traceRoad('paved', MX + 2, MZ - 2, MX + 14, MZ - 2);
-traceRoad('dirt', MX - 1, MZ, LAYOUT.westSpur.gx, LAYOUT.westSpur.gz);
-traceRoad('dirt', MX + 6, MZ - 2, LAYOUT.neSpur.gx, LAYOUT.neSpur.gz);
-function windLane(points) {
-  for (let i = 0; i < points.length - 1; i += 1) {
-    traceRoad('dirt', points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
+ROAD_LINES.forEach((line) => {
+  for (let i = 0; i < line.pts.length - 1; i += 1) {
+    traceRoad(line.kind, line.pts[i][0], line.pts[i][1], line.pts[i + 1][0], line.pts[i + 1][1]);
   }
-}
-windLane([[MX + 1, MZ + 1], [MX + 3, MZ + 2], [MX + 2, MZ + 5], [MX + 5, MZ + 6], [MX + 4, MZ + 9], [MX + 7, MZ + 11], [MX + 5, MZ + 14]]);
-windLane([[MX + 3, MZ + 2], [MX + 6, MZ + 3], [MX + 8, MZ + 1], [MX + 10, MZ + 4], [MX + 8, MZ + 7]]);
-windLane([[MX + 5, MZ + 6], [MX + 8, MZ + 8], [MX + 6, MZ + 10], [MX + 9, MZ + 12]]);
-windLane([[MX - 1, MZ + 1], [MX - 3, MZ + 3], [MX - 2, MZ + 6], [MX - 4, MZ + 8]]);
+});
 ROADS.delete(`${MX},${MZ}`);
 
 export function roadKind(gx, gz) {
@@ -324,11 +326,11 @@ export function npcActiveCap(low) {
 /** Day plan. Standing at the mosque is a visit, not a worship animation. */
 export function npcSchedule(hour) {
   const h = ((Math.floor(hour) % 24) + 24) % 24;
-  if (h < 6 || h >= 18) return 'home';
+  if (h < 5 || h >= 21) return 'home';
   if (h < 8) return 'street';
   if (h < 12) return 'work';
   if (h === 12) return 'mosque';
-  if (h < 17) return 'work';
+  if (h < 21) return 'work';
   return 'home';
 }
 
@@ -466,15 +468,20 @@ function spawnVillager(state, player = false) {
   const home = hs.length ? hs[state.villagers.length % hs.length] : null;
   const n = state.nameCursor++;
   const npcIndex = state.villagers.filter((v) => !v.player).length;
+  const role = player ? 'player' : ROLES[npcIndex % ROLES.length];
+  const gender = role === 'child' ? 'child' : (role === 'water' || role === 'weaver' ? 'woman' : 'man');
+  const book = gender === 'child' ? CHILDREN : gender === 'woman' ? WOMEN : MEN;
+  const picked = book[n % book.length];
   const gx = home ? home.gx + 0.2 : 6;
   const gz = home ? home.gz + 0.6 : 3;
   const anchor = streetAnchor(gx, gz, n + 1);
   const v = {
     id: state.nextId++,
-    name: NAMES[n % NAMES.length],
-    nameCkb: NAMES_CKB[n % NAMES_CKB.length],
+    name: player ? 'Ahmad' : picked[0],
+    nameCkb: player ? 'ئەحمەد' : picked[1],
+    gender,
     job: 'idle',
-    role: player ? 'player' : ROLES[npcIndex % ROLES.length],
+    role,
     player: !!player,
     homeId: home ? home.id : 0,
     workId: 0,
@@ -1055,6 +1062,14 @@ export function stepHour(state) {
   const working = state.hour >= 7 && state.hour < 17;
   const winter = state.season === 3;
   addRes(state, 'water', state.springFixed ? 1.2 : 0.25);
+  state.buildings.forEach((b) => {
+    if (b.type !== 'field' || !b.sown || b.stage < 1 || b.stage >= 3) return;
+    b.growth = (b.growth || 0) + (b.watered ? 14 : 8);
+    if (b.growth >= 100) {
+      b.growth = 0;
+      b.stage += 1;
+    }
+  });
   const shepherdOn = working && state.villagers.some((v) => v.job === 'shepherd');
   const animalMul = (winter ? 0.65 : 1) * (shepherdOn ? 2.2 : 1);
   state.animals.forEach((a) => {
@@ -1475,7 +1490,8 @@ export function rideAnimal(state, id, steer, throttle, dt) {
   if (Math.abs(spd) < 0.01) return { ok: true, moved: false, gx: a.gx, gz: a.gz, yaw: a.yaw };
   const nx = a.gx + Math.sin(a.yaw) * spd * step;
   const nz = a.gz + Math.cos(a.yaw) * spd * step;
-  if (!playable(nx, nz) || solidAt(state, nx, nz)) {
+  const boxed = solidAt(state, a.gx, a.gz);
+  if (!playable(nx, nz) || (solidAt(state, nx, nz) && !boxed)) {
     return { ok: false, hit: true, gx: a.gx, gz: a.gz, yaw: a.yaw };
   }
   a.gx = nx;
@@ -1608,6 +1624,7 @@ export function tick(state, dt, opts = {}) {
   syncStage(state);
   stepThreats(state, step);
   stepNpcs(state, step, opts);
+  stepQuarrels(state, step);
   stepVehicles(state, step, opts);
   stepAnimals(state, step, opts);
   autoCollect(state);
@@ -1691,6 +1708,8 @@ export function createState() {
   };
   stamp('mosque', MX, MZ, { level: 1 });
   stamp('spring', MX - 4, MZ + 3, { level: 1 });
+  stamp('house', 18, 28, { tag: 'mullah', style: 0 });
+  stamp('house', 20, 28, { tag: 'player', style: 1 });
   let houses = 0;
   for (let gz = MZ - 3; gz <= MZ + 15 && houses < 32; gz += 1) {
     for (let gx = MX - 5; gx <= MX + 11 && houses < 32; gx += 1) {
@@ -1727,8 +1746,6 @@ export function createState() {
   stamp('smith', MX + 6, MZ + 2);
   stamp('loom', MX + 4, MZ - 3);
   stamp('school', MX - 2, MZ + 2);
-  stamp('house', 18, 28, { tag: 'mullah', style: 0 });
-  stamp('house', 19, 28, { tag: 'player', style: 1 });
   state.buildings.filter((b) => b.type === 'house' && !b.tag && b.id % 5 === 0).slice(0, 3).forEach((b) => { b.damage = 1; });
   const springB = state.buildings.find((b) => b.type === 'spring');
   if (springB) springB.damage = 1;
@@ -1915,11 +1932,11 @@ export function autoCollect(state) {
 
 const STAGES = [
   ['axe', 'wood', 'stone', 'house'],
+  ['plant', 'harvest', 'flour', 'bread'],
   ['broom', 'clean'],
   ['deed', 'repair'],
-  ['plant', 'pot'],
-  ['help', 'bread'],
-  ['iron', 'defend'],
+  ['help', 'defend'],
+  ['iron', 'sickle'],
 ];
 
 export const RECIPES = [
@@ -1954,7 +1971,8 @@ function goalMet(state, id) {
   if (id === 'tandoor') return (built.tandoor || 0) >= 1;
   if (id === 'pot') return (state.resources.pot || 0) + (state.resources.fired || 0) >= 1;
   if (id === 'flour') return (got.flour || 0) >= 1 || (state.resources.flour || 0) >= 1;
-  if (id === 'bread') return (got.food || 0) >= 5;
+  if (id === 'harvest') return (state.harvested || 0) >= 1;
+  if (id === 'bread') return (state.baked || 0) >= 3 || (got.food || 0) >= 5;
   if (id === 'help') return !!state.mosqueClean;
   if (id === 'school') return state.buildings.some((b) => b.type === 'school' && b.level >= 2);
   if (id === 'iron') return (state.resources.iron || 0) >= 1;
@@ -2279,10 +2297,10 @@ export function acceptFine(state) {
 }
 
 const TRADE = {
-  farmer: ['grain'], baker: ['food'], shepherd: ['wool', 'milk'], smith: ['tools'],
+  farmer: ['grain', 'barley'], baker: ['food', 'flour'], miller: ['flour', 'grain'], shepherd: ['wool', 'milk'], smith: ['tools'],
   weaver: ['cloth'], woodcutter: ['wood'], stonecutter: ['stone'], mullah: ['food'],
 };
-const BASE = { grain: 3, food: 4, wool: 5, milk: 4, tools: 8, cloth: 6, wood: 2, stone: 2, eggs: 3 };
+const BASE = { grain: 3, barley: 3, flour: 5, food: 8, wool: 5, milk: 4, tools: 8, cloth: 6, wood: 2, stone: 2, eggs: 3 };
 
 export function tradeList(state, id) {
   const v = state.villagers.find((item) => item.id === id);
@@ -2392,6 +2410,137 @@ export function bonk(state) {
   return { ok: true, flee: !!t.flee };
 }
 
+const QUARREL_LINE = {
+  land: ['qLandA', 'qLandB'],
+  property: ['qPropA', 'qPropB'],
+  house: ['qHouseA', 'qHouseB'],
+  trade: ['qDealA', 'qDealB'],
+};
+
+function adultsOf(state) {
+  return state.villagers.filter((v) => !v.player && v.role !== 'child' && v.role !== 'mullah' && !v.child);
+}
+
+function startQuarrel(state) {
+  const adults = adultsOf(state);
+  if (adults.length < 2) return;
+  const topics = ['land', 'property', 'house', 'trade'];
+  const topic = topics[state.day % topics.length];
+  const i = state.day % adults.length;
+  let j = (i + 1 + (state.day % 3)) % adults.length;
+  if (j === i) j = (i + 1) % adults.length;
+  state.quarrel = {
+    a: adults[i].id,
+    b: adults[j].id,
+    topic,
+    stage: 0,
+    age: 0,
+    settled: false,
+  };
+  state.quarrelNote = topic;
+  state.nextQuarrelDay = state.day + 1 + (state.day % 2);
+}
+
+function endQuarrelMood(state, ids) {
+  ids.forEach((id) => {
+    const v = state.villagers.find((item) => item.id === id);
+    if (!v) return;
+    v.quarrel = false;
+    v.grumpy = true;
+    v.grumpyUntil = state.day + 1;
+    v.happiness = clamp(v.happiness - 10);
+    v.line = '';
+  });
+  state.villagers.forEach((v) => { v.happiness = clamp((v.happiness || 60) - 3); });
+}
+
+export function settleQuarrel(state, how) {
+  ensureProgress(state);
+  const q = state.quarrel;
+  if (!q || q.settled) return { ok: false, reason: 'none' };
+  const a = state.villagers.find((v) => v.id === q.a);
+  const b = state.villagers.find((v) => v.id === q.b);
+  q.settled = true;
+  if (how === 'peace' || how === 'mullah') {
+    bumpRep(state, how === 'mullah' ? 8 : 12);
+    state.deedCount = (state.deedCount || 0) + 1;
+    [a, b].forEach((v) => {
+      if (!v) return;
+      v.quarrel = false;
+      v.grumpy = false;
+      v.happiness = clamp((v.happiness || 60) + 6);
+      v.line = 'qPeace';
+      v.sayLeft = 2.4;
+    });
+  } else if (how === 'sideA' || how === 'sideB') {
+    bumpRep(state, -2);
+    const win = how === 'sideA' ? a : b;
+    const lose = how === 'sideA' ? b : a;
+    if (win) { win.quarrel = false; win.favor = (win.favor || 0) + 1; win.happiness = clamp((win.happiness || 60) + 4); win.line = 'qPeace'; win.sayLeft = 2; }
+    if (lose) { lose.quarrel = false; lose.grumpy = true; lose.grumpyUntil = state.day + 1; lose.happiness = clamp((lose.happiness || 60) - 8); lose.line = 'scold1'; lose.sayLeft = 2; }
+  } else {
+    endQuarrelMood(state, [q.a, q.b]);
+  }
+  state.quarrel = null;
+  bump(state);
+  return { ok: true, how };
+}
+
+function stepQuarrels(state, dt) {
+  if (state.quarrelsOn === false) {
+    state.quarrel = null;
+    return;
+  }
+  state.villagers.forEach((v) => {
+    if (v.grumpyUntil != null && state.day > v.grumpyUntil) v.grumpy = false;
+  });
+  if (!state.quarrel) {
+    if (state.day < (state.nextQuarrelDay || 2)) return;
+    if (state.hour < 8 || state.hour > 18) return;
+    startQuarrel(state);
+    return;
+  }
+  const q = state.quarrel;
+  q.age += dt;
+  if (q.stage < 1 && q.age > 20) q.stage = 1;
+  if (q.stage < 2 && q.age > 40) q.stage = 2;
+  const a = state.villagers.find((v) => v.id === q.a);
+  const b = state.villagers.find((v) => v.id === q.b);
+  const lines = QUARREL_LINE[q.topic] || QUARREL_LINE.land;
+  if (a && b) {
+    a.quarrel = true;
+    b.quarrel = true;
+    a.line = lines[0];
+    b.line = lines[1];
+    a.sayLeft = 1.4;
+    b.sayLeft = 1.4;
+    const midX = (a.gx + b.gx) / 2;
+    const midZ = (a.gz + b.gz) / 2;
+    if (q.stage >= 1) {
+      a.tx = midX + 0.3;
+      a.tz = midZ;
+      b.tx = midX - 0.3;
+      b.tz = midZ;
+    }
+    if (q.stage >= 2) {
+      adultsOf(state).forEach((v) => {
+        if (v.id === a.id || v.id === b.id) return;
+        if (Math.hypot(v.gx - midX, v.gz - midZ) < 3.5) {
+          v.tx = midX;
+          v.tz = midZ;
+          v.line = 'qCrowd';
+          v.sayLeft = 0.8;
+        }
+      });
+    }
+  }
+  if (q.age > 75) {
+    endQuarrelMood(state, [q.a, q.b]);
+    state.quarrel = null;
+    state.quarrelNote = 'ignored';
+  }
+}
+
 function ensureProgress(state) {
   if (!state.rank) state.rank = 1;
   if (state.xp == null) state.xp = 0;
@@ -2412,6 +2561,8 @@ function ensureProgress(state) {
   if (!state.resources.brick) state.resources.brick = 0;
   if (state.rep == null) state.rep = 8;
   if (state.raids == null) state.raids = true;
+  if (state.quarrelsOn == null) state.quarrelsOn = true;
+  if (state.nextQuarrelDay == null) state.nextQuarrelDay = 2;
   if (!state.spots) seedSpots(state);
   if (!state.deeds) seedDeeds(state);
   if (!state.threats) state.threats = [];
@@ -2540,6 +2691,8 @@ export function plant(state, id) {
   if (b.stage !== 0) return { ok: false, reason: 'busy' };
   b.stage = 1;
   b.growth = 0;
+  b.sown = true;
+  b.crop = b.crop || 'wheat';
   state.lastPlantedId = b.id;
   state.planted = (state.planted || 0) + 1;
   state.villagers.forEach((v) => {
@@ -2550,11 +2703,58 @@ export function plant(state, id) {
   return { ok: true };
 }
 
+export function sow(state, id, crop) {
+  const b = byId(state, id);
+  if (!b || b.type !== 'field') return { ok: false, reason: 'not-field' };
+  b.crop = crop === 'barley' ? 'barley' : 'wheat';
+  b.plowed = true;
+  return plant(state, id);
+}
+
+export function waterField(state, id) {
+  const b = byId(state, id);
+  if (!b || b.type !== 'field') return { ok: false, reason: 'not-field' };
+  if ((state.resources.water || 0) < 1) return { ok: false, reason: 'cost' };
+  state.resources.water = round3(state.resources.water - 1);
+  b.watered = true;
+  bump(state);
+  return { ok: true };
+}
+
+export function millGrain(state) {
+  const p = state.villagers.find((v) => v.player);
+  const mill = state.buildings.find((b) => b.type === 'mill');
+  if (!p || !mill || Math.hypot(p.gx - mill.gx, p.gz - mill.gz) > 2.2) return { ok: false, reason: 'place' };
+  const key = (state.resources.grain || 0) >= 2 ? 'grain' : ((state.resources.barley || 0) >= 2 ? 'barley' : '');
+  if (!key) return { ok: false, reason: 'cost' };
+  state.resources[key] = round3(state.resources[key] - 2);
+  addRes(state, 'flour', 1);
+  state.got.flour = (state.got.flour || 0) + 1;
+  bump(state);
+  return { ok: true };
+}
+
+export function bakeBread(state) {
+  const p = state.villagers.find((v) => v.player);
+  const oven = state.buildings.find((b) => b.type === 'tandoor');
+  if (!p || !oven || Math.hypot(p.gx - oven.gx, p.gz - oven.gz) > 2.2) return { ok: false, reason: 'place' };
+  if ((state.resources.flour || 0) < 1 || (state.resources.water || 0) < 1) return { ok: false, reason: 'cost' };
+  state.resources.flour = round3(state.resources.flour - 1);
+  state.resources.water = round3(state.resources.water - 1);
+  addRes(state, 'food', 1);
+  state.baked = (state.baked || 0) + 1;
+  state.got.food = (state.got.food || 0) + 1;
+  bump(state);
+  return { ok: true };
+}
+
 export function harvest(state, id) {
   const b = byId(state, id);
   if (!b || b.type !== 'field') return { ok: false, reason: 'not-field' };
   if (b.stage !== 3) return { ok: false, reason: 'not-ready' };
-  addRes(state, 'grain', 8);
+  const pile = b.crop === 'barley' ? 'barley' : 'grain';
+  if (!state.resources[pile] && pile === 'barley') state.resources.barley = 0;
+  addRes(state, pile, 8);
   addRes(state, 'food', 1);
   b.stage = 0;
   b.growth = 0;

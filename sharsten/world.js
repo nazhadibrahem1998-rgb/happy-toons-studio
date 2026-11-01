@@ -580,7 +580,8 @@ export function createView(canvas) {
     }
     tiles.forEach((tile, n) => {
       let color = ((tile.gx + tile.gz) % 2 === 0) ? CELL_A[key] : CELL_B[key];
-      if (tile.kind) color = 0xb7a48a;
+      if (tile.kind === 'stone') color = 0xc8b8a0;
+      else if (tile.kind) color = 0xb7a48a;
       put(ground, n, tile.p.x, 0.08, tile.p.z, 1, 1, 1, 0, color);
       cellByInstance[n] = { gx: tile.gx, gz: tile.gz };
     });
@@ -928,26 +929,27 @@ export function createView(canvas) {
     sun.castShadow = quality !== 'low';
   }
 
+  let forceDay = true;
   function sky(state, painted, time) {
-    const h = previewSpring ? 11 : state.hour + (state.acc || 0) / 2;
-    const night = h < 5 || h >= 19;
-    const dawn = (h >= 5 && h < 8) || (h >= 17 && h < 19);
-    let top = 0x2f7ed6;
-    let horizon = 0xc6e6ff;
-    if (night) { top = 0x5d7eb8; horizon = 0xc5d8ee; }
-    else if (dawn) { top = 0xf0a06a; horizon = 0xffd7b0; }
-    else if (painted === 1) { top = 0x69b4e4; horizon = 0xf0e4c4; }
-    else if (painted === 2) { top = 0x6aa0cc; horizon = 0xf0c8a4; }
-    else if (painted === 3) { top = 0x9eb8cc; horizon = 0xe7eef4; }
+    const h = previewSpring || forceDay ? 11 : state.hour + (state.acc || 0) / 2;
+    const night = !forceDay && !previewSpring && (h < 5 || h >= 21);
+    const dawn = !night && !forceDay && ((h >= 5 && h < 7) || (h >= 19 && h < 21));
+    let top = 0x3a8fe0;
+    let horizon = 0xd7f0ff;
+    if (night) { top = 0x7aa6d8; horizon = 0xd4e8f8; }
+    else if (dawn) { top = 0xf0a06a; horizon = 0xffe0c0; }
+    else if (!forceDay && painted === 1) { top = 0x69b4e4; horizon = 0xf0e4c4; }
+    else if (!forceDay && painted === 2) { top = 0x6aa0cc; horizon = 0xf0c8a4; }
+    else if (!forceDay && painted === 3) { top = 0x9eb8cc; horizon = 0xe7eef4; }
     paintSky(top, horizon);
-    const haze = night ? 0xc5d8ee : 0xc6e6ff;
+    const haze = 0xd7f0ff;
     scene.background.set(haze);
     scene.fog.color.set(haze);
     renderer.setClearColor(haze, 1);
-    sun.color.set(night ? 0xd5e4ff : 0xffe0a8);
-    sun.intensity = night ? 0.9 : dawn ? 1.05 : 1.42;
-    hemi.intensity = night ? 0.55 : 0.78;
-    hemi.color.set(night ? 0xd7e6ff : 0xd4ecff);
+    sun.color.set(night ? 0xe4eeff : 0xffe0a8);
+    sun.intensity = night ? 1.15 : 1.55;
+    hemi.intensity = night ? 0.9 : 1.05;
+    hemi.color.set(0xe7f4ff);
     hemi.groundColor.set(painted === 0 ? 0x3e7a34 : (GRASS[SEASONS[painted]] || GRASS.spring));
     const ang = ((Math.min(18, Math.max(6, h)) - 6) / 12) * Math.PI;
     sun.position.set(Math.cos(ang) * 24, Math.sin(ang) * 22 + 2, 10);
@@ -957,8 +959,8 @@ export function createView(canvas) {
       const y = [2.15, 2.7, 3.15, 1.9, 2.35, 3.4][i];
       const z = [-6.4, -6.8, -7.4, -5.6, -6.1, -5.4][i];
       sprite.position.set(x, y, z);
-      sprite.material.opacity = night ? 0.18 : 0.88;
-      sprite.material.color.set(night ? 0x8aa0b8 : dawn ? 0xffe0c4 : 0xffffff);
+      sprite.material.opacity = night ? 0.72 : 0.92;
+      sprite.material.color.set(0xffffff);
     });
     look.preview = previewSpring;
     look.season = painted;
@@ -974,6 +976,7 @@ export function createView(canvas) {
     camera,
     hillMat,
     resize,
+    setDaylight(on) { forceDay = on !== false; },
     setQuality(next) {
       if (next === true) quality = 'low';
       else if (next === false) quality = 'high';

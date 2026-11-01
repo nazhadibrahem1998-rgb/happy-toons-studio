@@ -91,6 +91,7 @@ canvas {
   text-align: center;
   pointer-events: none;
   box-shadow: 4px 4px 0 #1c3a18;
+  white-space: pre-line;
 }
 #questBoard { margin: 4px 0 8px; }
 .screen {

@@ -188,9 +188,9 @@ test('resources tick and the day becomes night', async ({ page }) => {
   await page.evaluate(() => window.__SV.setHour(11));
   const day = await page.evaluate(() => window.__SV.getState().phase);
   expect(day).toBe('day');
-  await page.evaluate(() => window.__SV.advanceHours(8));
+  await page.evaluate(() => window.__SV.advanceHours(11));
   const night = await page.evaluate(() => window.__SV.getState());
-  expect(night.hour).toBe(19);
+  expect(night.hour).toBe(22);
   expect(night.phase).toBe('night');
   expect(night.resources.water).toBeGreaterThan(before.water);
   expect(night.villagers[0].mode).toBe('home');
@@ -411,29 +411,29 @@ test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
   expect(right.x).toBeGreaterThan(0.9);
 
   await page.evaluate(() => {
-    window.__SV.setWalkPose({ x: 5, z: 5, yaw: 0, pitch: 0.6 });
+    window.__SV.setWalkPose({ x: 22, z: 36, yaw: 0, pitch: 0.6 });
     window.__SV.setSticks({ moveX: 0, moveY: 1, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
     window.__SV.stepWalk(0.5);
   });
   const forward = await page.evaluate(() => window.__SV.getWalkDebug());
-  const fdx = forward.x - 5;
-  const fdz = forward.z - 5;
+  const fdx = forward.x - 22;
+  const fdz = forward.z - 36;
   expect(fdx * forward.forward.x + fdz * forward.forward.z).toBeGreaterThan(0.5);
   expect(Math.abs(fdx * forward.right.x + fdz * forward.right.z)).toBeLessThan(0.2);
 
   await page.evaluate(() => {
-    window.__SV.setWalkPose({ x: 5, z: 5, yaw: 0, pitch: 0.6 });
+    window.__SV.setWalkPose({ x: 22, z: 36, yaw: 0, pitch: 0.6 });
     window.__SV.setSticks({ moveX: 1, moveY: 0, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
     window.__SV.stepWalk(0.5);
   });
   const side = await page.evaluate(() => window.__SV.getWalkDebug());
-  const sdx = side.x - 5;
-  const sdz = side.z - 5;
+  const sdx = side.x - 22;
+  const sdz = side.z - 36;
   expect(sdx * side.right.x + sdz * side.right.z).toBeGreaterThan(0.5);
   expect(Math.abs(sdx * side.forward.x + sdz * side.forward.z)).toBeLessThan(0.2);
 
   const eyeBefore = await page.evaluate(() => {
-    window.__SV.setWalkPose({ x: 5, z: 5, yaw: 0, pitch: 0.7 });
+    window.__SV.setWalkPose({ x: 22, z: 36, yaw: 0, pitch: 0.7 });
     window.__SV.setSticks({ moveX: 0, moveY: 0, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
     return window.__SV.cameraEyeY();
   });

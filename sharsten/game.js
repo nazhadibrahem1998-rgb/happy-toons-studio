@@ -13,7 +13,7 @@ import {
   stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
   LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, secondsThisHour, snapshot, stickVector, suggestCell, tick, upgrade, viewAxes, walkStep,
   craft, dismissStage, equipTool, gather, nearestNode, recipeList, stageSnapshot,
-  cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, tradeList, tradeWith, setRaids, bonk,
+  cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, tradeList, tradeWith, setRaids, bonk, settleQuarrel,
 } from './sim.js';
 import { formatClock, formatNum, i18nAudit, linePairs, npcLine, t } from './i18n.js';
 import { createView } from './world.js';
@@ -36,6 +36,8 @@ if (navigator.deviceMemory && navigator.deviceMemory <= 2) quality = 'low';
 let stickPref = !!coarse;
 let adhanOn = true;
 let raidsOn = true;
+let alwaysDay = true;
+let quarrelsOn = true;
 let easy = false;
 try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
@@ -46,6 +48,8 @@ try {
     if (typeof saved.easy === 'boolean') easy = saved.easy;
     if (typeof saved.adhan === 'boolean') adhanOn = saved.adhan;
     if (typeof saved.raids === 'boolean') raidsOn = saved.raids;
+    if (typeof saved.alwaysDay === 'boolean') alwaysDay = saved.alwaysDay;
+    if (typeof saved.quarrels === 'boolean') quarrelsOn = saved.quarrels;
   }
 } catch { /* keep defaults */ }
 const lowQ = () => quality === 'low';
@@ -53,6 +57,7 @@ const lowQ = () => quality === 'low';
 let state = parseSave(localStorage.getItem(SAVE_KEY)) || createState();
 state.easy = easy;
 state.raids = raidsOn;
+state.quarrelsOn = quarrelsOn;
 let playing = false;
 let buildType = null;
 let peopleSig = '';
@@ -71,6 +76,7 @@ const walkCam = { yaw: -1.2, pitch: 0.42 };
 
 const view = createView(canvas);
 view.setQuality(quality);
+view.setDaylight(alwaysDay);
 view.resize();
 
 const resbar = document.getElementById('resbar');
@@ -103,6 +109,8 @@ function saveSettings() {
       quality,
       adhan: adhanOn,
       raids: raidsOn,
+      alwaysDay,
+      quarrels: quarrelsOn,
       sticks: stickPref,
       easy,
     }));
@@ -406,7 +414,27 @@ function openTalk(v) {
   document.getElementById('talkTrade').disabled = !!low;
   document.getElementById('talkHit').hidden = !!(v.child || v.role === 'child');
 }
+function openQuarrel() {
+  const box = document.getElementById('quarrel');
+  const q = state.quarrel;
+  if (!box || !q) return;
+  box.hidden = false;
+  const title = document.getElementById('quarrelTitle');
+  const key = { land: 'qLand', property: 'qProperty', house: 'qHouse', trade: 'qTrade' }[q.topic] || 'qLand';
+  if (title) title.textContent = t(lang, key);
+  const a = state.villagers.find((v) => v.id === q.a);
+  const b = state.villagers.find((v) => v.id === q.b);
+  const name = (v) => (v ? (lang === 'ckb' ? v.nameCkb : v.name) : '');
+  document.getElementById('sideA').textContent = `${t(lang, 'sideA')} · ${name(a)}`;
+  document.getElementById('sideB').textContent = `${t(lang, 'sideB')} · ${name(b)}`;
+}
 function doAction() {
+  const q = state.quarrel;
+  if (q && playing) {
+    const p = player();
+    const near = state.villagers.some((v) => (v.id === q.a || v.id === q.b) && Math.hypot(v.gx - p.gx, v.gz - p.gz) < 2.4);
+    if (near) { openQuarrel(); return; }
+  }
   const cleaned = cleanSpot(state);
   if (cleaned.ok) { toast(t(lang, 'cleanAct')); persist(); paint(); return; }
   const fixed = repairNear(state);
@@ -581,6 +609,12 @@ function updateBoard() {
   if (near) btn.textContent = t(lang, 'enter');
 }
 
+function villagerTitle(v) {
+  const name = lang === 'ckb' ? v.nameCkb : v.name;
+  const key = { water: 'waterJob', child: 'childJob', faithful: 'neighbour', woodcutter: 'woodJob', stonecutter: 'stoneJob', mullah: 'mullahJob', player: 'you' }[v.role] || v.role || 'neighbour';
+  const job = t(lang, key);
+  return lang === 'ckb' ? `${name} – ${job}` : `${name}, ${job}`;
+}
 function updateSpeech() {
   const el = document.getElementById('speech');
   if (!el) return;
@@ -595,7 +629,7 @@ function updateSpeech() {
   });
   if (!best) { el.hidden = true; return; }
   el.hidden = false;
-  el.textContent = npcLine(lang, best.line);
+  el.textContent = `${villagerTitle(best)}\n${npcLine(lang, best.line)}`;
 }
 
 function paint() {
@@ -625,6 +659,10 @@ function paint() {
   if (adhanBtn) adhanBtn.textContent = adhanOn ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
   const raidBtn = document.getElementById('raidBtn');
   if (raidBtn) raidBtn.textContent = raidsOn ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
+  const dayBtn = document.getElementById('dayBtn');
+  if (dayBtn) dayBtn.textContent = alwaysDay ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
+  const quarrelBtn = document.getElementById('quarrelBtn');
+  if (quarrelBtn) quarrelBtn.textContent = quarrelsOn ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
   const act = document.getElementById('actionBtn');
   if (act && playing && state.mode === 'walk') {
     const node = nearestNode(state);
@@ -682,7 +720,7 @@ function paint() {
         const row = document.createElement('div');
         row.className = 'vrow';
         const name = document.createElement('span');
-        name.textContent = `${lang === 'ckb' ? v.nameCkb : v.name} · ${formatNum(v.happiness, lang)}`;
+        name.textContent = `${villagerTitle(v)} · ${formatNum(v.happiness, lang)}`;
         const selEl = document.createElement('select');
         selEl.setAttribute('aria-label', t(lang, 'job'));
         JOBS.forEach((job) => {
@@ -841,6 +879,31 @@ document.getElementById('raidBtn').addEventListener('click', () => {
   saveSettings();
   paint();
 });
+document.getElementById('dayBtn').addEventListener('click', () => {
+  alwaysDay = !alwaysDay;
+  view.setDaylight(alwaysDay);
+  saveSettings();
+  paint();
+});
+document.getElementById('quarrelBtn').addEventListener('click', () => {
+  quarrelsOn = !quarrelsOn;
+  state.quarrelsOn = quarrelsOn;
+  if (!quarrelsOn) state.quarrel = null;
+  saveSettings();
+  paint();
+});
+function closeQuarrel(how) {
+  const result = settleQuarrel(state, how);
+  document.getElementById('quarrel').hidden = true;
+  if (result.ok) toast(t(lang, how === 'mullah' ? 'judge' : 'peace'));
+  persist();
+  paint();
+}
+document.getElementById('quarrelClose').addEventListener('click', () => { document.getElementById('quarrel').hidden = true; });
+document.getElementById('peaceBtn').addEventListener('click', () => closeQuarrel('peace'));
+document.getElementById('judgeBtn').addEventListener('click', () => closeQuarrel('mullah'));
+document.getElementById('sideA').addEventListener('click', () => closeQuarrel('sideA'));
+document.getElementById('sideB').addEventListener('click', () => closeQuarrel('sideB'));
 document.getElementById('talkClose').addEventListener('click', () => { document.getElementById('talk').hidden = true; });
 document.getElementById('tradeClose').addEventListener('click', () => { document.getElementById('trade').hidden = true; });
 document.getElementById('talkTrade').addEventListener('click', () => {

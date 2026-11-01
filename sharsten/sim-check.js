@@ -18,10 +18,10 @@ assert(phaseOf(s.hour) === 'day', 'morning is day');
 setHour(s, 11);
 assert(s.phase ? s.phase === 'day' : phaseOf(s.hour) === 'day', 'hour 11 day');
 const ticks = s.ticks;
-advanceHours(s, 8);
-assert(s.hour === 19, `hour ${s.hour}`);
+advanceHours(s, 11);
+assert(s.hour === 22, `hour ${s.hour}`);
 assert(phaseOf(s.hour) === 'night', 'night');
-assert(s.ticks === ticks + 8, 'ticks');
+assert(s.ticks === ticks + 11, 'ticks');
 assert(s.villagers[0].mode === 'home', 'home at night');
 
 const w = createState();
