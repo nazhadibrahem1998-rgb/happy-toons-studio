@@ -3,7 +3,7 @@
  * © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { CELL, GRID_D, GRID_W, SEASONS, cellToWorld, insideVillage, isRoad, roadKind } from './sim.js';
+import { CELL, GRID_D, GRID_W, LAYOUT, SEASONS, cellToWorld, insideVillage, isRoad, roadKind } from './sim.js';
 
 const STYLES = [
   { wall: 0xe4d3b0, tarp: false, tank: false, brick: false },
@@ -102,8 +102,8 @@ export function createView(canvas) {
   renderer.setClearColor(0x8ec8ef, 1);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x8ec8ef);
-  scene.fog = new THREE.Fog(0x8ec8ef, 36, 92);
-  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 180);
+  scene.fog = new THREE.Fog(0x8ec8ef, 40, 120);
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 520);
   const hemi = new THREE.HemisphereLight(0xd5eeff, 0x6a8a48, 0.85);
   const sun = new THREE.DirectionalLight(0xfff2d2, 1.05);
   sun.position.set(12, 18, 8);
@@ -111,7 +111,7 @@ export function createView(canvas) {
 
   const hillMat = mat(HILL.spring);
   const valleyMat = mat(GRASS.spring);
-  const valley = new THREE.Mesh(new THREE.PlaneGeometry(78, 68), valleyMat);
+  const valley = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), valleyMat);
   valley.rotation.x = -Math.PI / 2;
   valley.position.y = -0.04;
   scene.add(valley);
@@ -139,7 +139,7 @@ export function createView(canvas) {
   for (let i = 0; i < 18; i += 1) {
     const a = (i / 18) * Math.PI * 2;
     const h = 4.2 + (i % 5) * 1.15;
-    put(hills, i, Math.cos(a) * 27, h / 2, Math.sin(a) * 24, 1, h, 1, 0, HILL.spring);
+    put(hills, i, Math.cos(a) * 168, h / 2, Math.sin(a) * 150, 1, h, 1, 0, HILL.spring);
   }
   commit(hills, 18);
   scene.add(hills);
@@ -148,12 +148,13 @@ export function createView(canvas) {
   const mounts = pool(new THREE.ConeGeometry(6, 1, 5), mountMat, 6);
   for (let i = 0; i < 6; i += 1) {
     const h = 11 + (i % 3) * 3;
-    put(mounts, i, -16 + i * 6.5, h / 2, -30 - (i % 2) * 3, 1, h, 1, 0, 0x8a8e86);
+    put(mounts, i, -40 + i * 18, h / 2, -150 - (i % 2) * 8, 1.4, h, 1.4, 0, 0x8a8e86);
   }
   commit(mounts, 6);
   scene.add(mounts);
 
-  const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), mat(0xffffff), GRID_W * GRID_D);
+  const GROUND_CAP = 1800;
+  const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), mat(0xffffff), GROUND_CAP);
   scene.add(ground);
 
   const walls = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff), 40);
@@ -211,8 +212,8 @@ export function createView(canvas) {
 
   const poles = pool(new THREE.CylinderGeometry(0.05, 0.06, 2.2, 5), mat(0x4a4e52), 8);
   const polePos = [];
-  [8, 10, 12, 14].forEach((gx, i) => {
-    const p = cellToWorld(gx, 7);
+  [26, 34, 42, 50].forEach((gx, i) => {
+    const p = cellToWorld(gx, LAYOUT.exits[1].gz);
     put(poles, i, p.x, 1.1, p.z + 0.55, 1, 1, 1, 0, 0x4a4e52);
     polePos.push(new THREE.Vector3(p.x, 2.15, p.z + 0.55));
   });
@@ -334,23 +335,31 @@ export function createView(canvas) {
     seenSeason = season;
   }
 
+  let cull = { x: 0, z: 0, radius: 260 };
   function paintGround(season) {
     const key = SEASONS[season] || 'spring';
-    let n = 0;
+    const tiles = [];
     for (let gz = 0; gz < GRID_D; gz += 1) {
       for (let gx = 0; gx < GRID_W; gx += 1) {
         if (!insideVillage(gx, gz) && !isRoad(gx, gz)) continue;
         const p = cellToWorld(gx, gz);
-        const kind = roadKind(gx, gz);
-        let color = ((gx + gz) % 2 === 0) ? CELL_A[key] : CELL_B[key];
-        if (kind === 'paved') color = 0xb9b9b2;
-        else if (kind === 'dirt') color = 0xa1845c;
-        put(ground, n, p.x, 0.08, p.z, 1, 1, 1, 0, color);
-        cellByInstance[n] = { gx, gz };
-        n += 1;
+        const dist = Math.hypot(p.x - cull.x, p.z - cull.z);
+        if (dist > cull.radius) continue;
+        tiles.push({ gx, gz, dist, p, kind: roadKind(gx, gz) });
       }
     }
-    commit(ground, n);
+    if (tiles.length > GROUND_CAP) {
+      tiles.sort((a, b) => a.dist - b.dist);
+      tiles.length = GROUND_CAP;
+    }
+    tiles.forEach((tile, n) => {
+      let color = ((tile.gx + tile.gz) % 2 === 0) ? CELL_A[key] : CELL_B[key];
+      if (tile.kind === 'paved') color = 0xc8c2b8;
+      else if (tile.kind === 'dirt') color = 0xb7a48a;
+      put(ground, n, tile.p.x, 0.08, tile.p.z, 1, 1, 1, 0, color);
+      cellByInstance[n] = { gx: tile.gx, gz: tile.gz };
+    });
+    commit(ground, tiles.length);
   }
 
   function syncBuildings(state) {
@@ -596,11 +605,16 @@ export function createView(canvas) {
         y: (-v.y * 0.5 + 0.5) * rect.height,
       };
     },
-    sync(state, time) {
-      if (state.season !== seenSeason) {
-        applySeason(state.season);
-        paintGround(state.season);
-      }
+    setFog(near, far) {
+      scene.fog.near = near;
+      scene.fog.far = far;
+      camera.far = Math.max(far + 40, 180);
+      camera.updateProjectionMatrix();
+    },
+    sync(state, time, nextCull) {
+      if (nextCull) cull = nextCull;
+      if (state.season !== seenSeason) applySeason(state.season);
+      paintGround(state.season);
       syncBuildings(state);
       syncAgents(state, time);
       sky(state);

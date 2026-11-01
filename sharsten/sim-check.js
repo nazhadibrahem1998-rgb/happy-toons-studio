@@ -1,6 +1,6 @@
 import {
   LAYOUT, MAP_BOUND, advanceHours, assignJob, averageHappiness, cameraBasis, cameraEyeY, celebrateNewroz,
-  clampToMap, cleanMosque, createState, demolish, harvest, isRoad, phaseOf, place, plant, setHour, setSeason,
+  clampToMap, cleanMosque, createState, demolish, harvest, isRoad, phaseOf, place, plant, reachExit, setHour, setSeason,
   stickVector, suggestCell, upgrade, walkStep,
 } from './sim.js';
 
@@ -107,7 +107,14 @@ const map = createState();
 const mosqueAt = map.buildings.find((b) => b.type === 'mosque');
 assert(mosqueAt && mosqueAt.gx === LAYOUT.mosque.gx && mosqueAt.gz === LAYOUT.mosque.gz, 'mosque');
 assert(LAYOUT.exits.length === 3, 'three exits');
-LAYOUT.exits.forEach((exit) => assert(isRoad(exit.gx, exit.gz), exit.id));
+LAYOUT.exits.forEach((exit) => {
+  assert(isRoad(exit.gx, exit.gz), exit.id);
+  const walked = reachExit(exit);
+  assert(walked.ok, `${exit.id} ${walked.reason || 'walk'}`);
+});
+assert(isRoad(LAYOUT.loopApex.gx, LAYOUT.loopApex.gz), 'north loop');
+assert(isRoad(LAYOUT.westSpur.gx, LAYOUT.westSpur.gz), 'west spur');
+assert(isRoad(LAYOUT.neSpur.gx, LAYOUT.neSpur.gz), 'ne spur');
 assert(map.buildings.filter((b) => b.type === 'house').length >= 8, 'core houses');
 const st = createState();
 const plotH = suggestCell(st, 'house');

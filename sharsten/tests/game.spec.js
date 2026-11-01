@@ -250,7 +250,10 @@ test('starting layout has the mosque and three road exits', async ({ page }) => 
   layout.exits.forEach((exit) => expect(exit.road, exit.id).toBe(true));
   expect(layout.houses).toBeGreaterThanOrEqual(8);
   expect(layout.fields).toBeGreaterThanOrEqual(8);
-  expect(layout.mosque.gx).toBeLessThan(8);
+  expect(layout.mosque.gx).toBeLessThan(28);
+  const walked = await page.evaluate(() => window.__SV.reachExits());
+  expect(walked).toHaveLength(3);
+  walked.forEach((step) => expect(step.ok, step.id).toBe(true));
   assertClean(errors);
 });
 
@@ -322,12 +325,13 @@ test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
   expect(looked.eyeY).toBeLessThan(eyeBefore);
 
   const bound = await page.evaluate(() => {
-    window.__SV.setWalkPose({ x: -3.2, z: 2, yaw: Math.PI, pitch: 0.5 });
+    const min = window.__SV.mapBound().minGx;
+    window.__SV.setWalkPose({ x: min + 0.5, z: 8, yaw: Math.PI, pitch: 0.5 });
     window.__SV.setSticks({ moveX: 1, moveY: 0, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
     window.__SV.stepWalk(1);
-    return window.__SV.getWalkDebug();
+    return { x: window.__SV.getWalkDebug().x, min };
   });
-  expect(bound.x).toBe(-3);
+  expect(bound.x).toBe(bound.min);
 
   await page.click('#modeBtn');
   await expect(page.locator('body')).toHaveAttribute('data-mode', 'build');

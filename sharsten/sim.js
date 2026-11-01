@@ -6,35 +6,38 @@
 
 export const SAVE_KEY = 'sharsten-village-v1';
 export const SETTINGS_KEY = 'sharsten-settings-v1';
-export const GRID_W = 16;
-export const GRID_D = 16;
+export const GRID_W = 56;
+export const GRID_D = 72;
 export const CELL = 2;
-/** Open meadow around the pentagon village, then a hard stop at the hills. */
-export const MAP_BOUND = { minGx: -3, maxGx: GRID_W + 2, minGz: -3, maxGz: GRID_D + 2 };
+/** About 500×700 m compressed so the valley is walkable. 1 cell ≈ 9 m. */
+export const MAP_BOUND = { minGx: -4, maxGx: GRID_W + 3, minGz: -4, maxGz: GRID_D + 3 };
 
-/** Stylized Sharsten from the satellite outline, not a survey. */
+/** Stylized pentagon from the satellite outline, not a survey. */
 export const PENTAGON = [
-  [0, 2],
-  [8, 0],
-  [15, 7],
-  [13, 14],
-  [0, 15],
+  [0, 10],
+  [26, 2],
+  [55, 28],
+  [36, 71],
+  [10, 71],
 ];
 
 export const LAYOUT = {
-  mosque: { gx: 5, gz: 7 },
+  mosque: { gx: 18, gz: 30 },
   exits: [
-    { id: 'northwest', gx: 0, gz: 2 },
-    { id: 'east', gx: 15, gz: 7 },
-    { id: 'south', gx: 7, gz: 15 },
+    { id: 'northwest', gx: 0, gz: 10 },
+    { id: 'east', gx: 55, gz: 30 },
+    { id: 'south', gx: 22, gz: 71 },
   ],
+  loopApex: { gx: 28, gz: 4 },
+  westSpur: { gx: 12, gz: 30 },
+  neSpur: { gx: 32, gz: 16 },
 };
 export const SECONDS_PER_HOUR = 2;
 export const SEASON_DAYS = 4;
 export const VILLAGER_CAP = 8;
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
-export const WALK_SPEED = 2.4;
+export const WALK_SPEED = 6;
 export const LOOK_YAW_SPEED = 1.5;
 export const LOOK_PITCH_SPEED = 1.05;
 
@@ -106,30 +109,42 @@ export function phaseOf(hour) {
 const ROADS = new Map();
 
 function traceRoad(kind, x0, z0, x1, z1) {
-  const steps = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0), 1);
-  for (let s = 0; s <= steps; s += 1) {
-    const gx = Math.round(x0 + ((x1 - x0) * s) / steps);
-    const gz = Math.round(z0 + ((z1 - z0) * s) / steps);
+  let x = x0;
+  let z = z0;
+  const sx = Math.sign(x1 - x0);
+  const sz = Math.sign(z1 - z0);
+  const paint = (gx, gz) => {
     const prev = ROADS.get(`${gx},${gz}`);
     if (prev !== 'paved') ROADS.set(`${gx},${gz}`, kind);
+  };
+  paint(x, z);
+  let guard = 0;
+  while ((x !== x1 || z !== z1) && guard < 400) {
+    guard += 1;
+    if (x !== x1 && (z === z1 || Math.abs(x1 - x) >= Math.abs(z1 - z))) x += sx;
+    else z += sz;
+    paint(x, z);
   }
 }
 
-traceRoad('paved', 4, 6, 0, 2);
-traceRoad('paved', 6, 7, 15, 7);
-traceRoad('paved', 5, 8, 5, 12);
-traceRoad('paved', 5, 12, 7, 15);
-traceRoad('paved', 8, 5, 11, 3);
-traceRoad('paved', 11, 3, 13, 5);
-traceRoad('paved', 13, 5, 13, 7);
-traceRoad('paved', 8, 5, 8, 7);
-traceRoad('dirt', 5, 6, 5, 4);
-traceRoad('dirt', 5, 4, 7, 2);
-traceRoad('dirt', 4, 7, 1, 7);
-traceRoad('dirt', 4, 8, 2, 11);
-traceRoad('dirt', 6, 8, 9, 12);
-traceRoad('dirt', 6, 6, 8, 4);
-ROADS.delete(`${LAYOUT.mosque.gx},${LAYOUT.mosque.gz}`);
+const MX = LAYOUT.mosque.gx;
+const MZ = LAYOUT.mosque.gz;
+traceRoad('paved', MX - 1, MZ - 1, MX + 1, MZ - 1);
+traceRoad('paved', MX + 1, MZ - 1, MX + 1, MZ + 1);
+traceRoad('paved', MX + 1, MZ + 1, MX - 1, MZ + 1);
+traceRoad('paved', MX - 1, MZ + 1, MX - 1, MZ - 1);
+traceRoad('paved', MX - 1, MZ - 1, LAYOUT.exits[0].gx, LAYOUT.exits[0].gz);
+traceRoad('paved', MX + 1, MZ, LAYOUT.exits[1].gx, LAYOUT.exits[1].gz);
+traceRoad('paved', MX, MZ + 1, LAYOUT.exits[2].gx, LAYOUT.exits[2].gz);
+traceRoad('paved', MX + 1, MZ - 1, MX + 2, MZ - 2);
+traceRoad('paved', MX + 2, MZ - 2, LAYOUT.loopApex.gx, LAYOUT.loopApex.gz);
+traceRoad('paved', LAYOUT.loopApex.gx, LAYOUT.loopApex.gz, MX + 14, MZ - 2);
+traceRoad('paved', MX + 2, MZ - 2, MX + 14, MZ - 2);
+traceRoad('dirt', MX - 1, MZ, LAYOUT.westSpur.gx, LAYOUT.westSpur.gz);
+traceRoad('dirt', MX + 6, MZ - 2, LAYOUT.neSpur.gx, LAYOUT.neSpur.gz);
+for (let gz = MZ; gz <= MZ + 15; gz += 3) traceRoad('dirt', MX + 2, gz, MX + 14, gz);
+for (let gx = MX + 2; gx <= MX + 14; gx += 3) traceRoad('dirt', gx, MZ + 1, gx, MZ + 15);
+ROADS.delete(`${MX},${MZ}`);
 
 export function roadKind(gx, gz) {
   return ROADS.get(`${gx},${gz}`) || null;
@@ -155,6 +170,73 @@ export function insideVillage(gx, gz) {
 
 export function besideRoad(gx, gz) {
   return isRoad(gx + 1, gz) || isRoad(gx - 1, gz) || isRoad(gx, gz + 1) || isRoad(gx, gz - 1);
+}
+
+function nearestRoad(gx, gz) {
+  if (isRoad(gx, gz)) return { gx, gz };
+  for (let r = 1; r <= 4; r += 1) {
+    for (let dz = -r; dz <= r; dz += 1) {
+      for (let dx = -r; dx <= r; dx += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        if (isRoad(gx + dx, gz + dz)) return { gx: gx + dx, gz: gz + dz };
+      }
+    }
+  }
+  return null;
+}
+
+/** Street route on the road graph. The mosque plot itself is not a road, so the walk starts on the nearest street. */
+export function roadRoute(sx, sz, tx, tz) {
+  const start = nearestRoad(Math.round(sx), Math.round(sz));
+  if (!start || !isRoad(tx, tz)) return null;
+  const key = (gx, gz) => `${gx},${gz}`;
+  const prev = new Map();
+  const q = [start];
+  prev.set(key(start.gx, start.gz), '');
+  while (q.length) {
+    const cur = q.shift();
+    if (cur.gx === tx && cur.gz === tz) {
+      const path = [];
+      let k = key(cur.gx, cur.gz);
+      while (k) {
+        const [gx, gz] = k.split(',').map(Number);
+        path.push({ gx, gz });
+        k = prev.get(k);
+      }
+      path.reverse();
+      return path;
+    }
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dz]) => {
+      const nx = cur.gx + dx;
+      const nz = cur.gz + dz;
+      const nk = key(nx, nz);
+      if (prev.has(nk) || !isRoad(nx, nz)) return;
+      prev.set(nk, key(cur.gx, cur.gz));
+      q.push({ gx: nx, gz: nz });
+    });
+  }
+  return null;
+}
+
+/** Walk the road in small steps. A hit means the valley bound stopped the player. */
+export function reachExit(exit) {
+  const route = roadRoute(LAYOUT.mosque.gx, LAYOUT.mosque.gz, exit.gx, exit.gz);
+  if (!route) return { ok: false, id: exit.id, reason: 'no-route' };
+  let x = route[0].gx;
+  let z = route[0].gz;
+  for (let i = 1; i < route.length; i += 1) {
+    const dx = route[i].gx - x;
+    const dz = route[i].gz - z;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.3));
+    for (let s = 1; s <= steps; s += 1) {
+      const nx = x + (dx * s) / steps;
+      const nz = z + (dz * s) / steps;
+      if (clampToMap(nx, nz).hit) return { ok: false, id: exit.id, reason: 'blocked' };
+    }
+    x = route[i].gx;
+    z = route[i].gz;
+  }
+  return { ok: Math.hypot(x - exit.gx, z - exit.gz) < 0.75, id: exit.id, x, z };
 }
 
 export function isBlocked(gx, gz) {
@@ -255,7 +337,7 @@ function spawnVillager(state, player = false) {
 }
 
 function spawnAnimal(state, kind) {
-  const base = { sheep: [3.2, 1.4], goat: [6.2, 1.5], chicken: [6.6, 5.4] }[kind];
+  const base = { sheep: [23, 8.4], goat: [8.2, 26], chicken: [20.4, 32.2] }[kind];
   const n = state.animals.filter((a) => a.kind === kind).length;
   const a = {
     id: state.nextId++,
@@ -587,20 +669,30 @@ export function createState() {
     if (gx < 0 || gz < 0 || gx >= GRID_W || gz >= GRID_D) return;
     addBuilding(state, type, gx, gz, opt);
   };
-  stamp('mosque', LAYOUT.mosque.gx, LAYOUT.mosque.gz, { level: 1 });
-  stamp('spring', 2, 9, { level: 1 });
-  const houses = [
-    [4, 5], [6, 5], [3, 6], [7, 6], [3, 8], [7, 8], [4, 9], [6, 9],
-    [2, 6], [2, 8], [8, 6], [8, 8], [9, 8], [4, 10], [7, 10],
-    [1, 6], [10, 6], [10, 9], [3, 11], [8, 11], [11, 6],
-  ];
-  houses.forEach(([gx, gz], i) => stamp('house', gx, gz, { style: i % 5 }));
-  const wheat = [[3, 1], [4, 1], [5, 1], [6, 1], [1, 5], [1, 4], [8, 13], [4, 13], [9, 13]];
-  wheat.forEach(([gx, gz]) => stamp('field', gx, gz, { stage: 3, growth: 100 }));
-  const plowed = [[7, 1], [2, 3], [10, 2], [3, 13], [11, 12], [12, 11]];
-  plowed.forEach(([gx, gz]) => stamp('field', gx, gz, { stage: 0, growth: 0 }));
-  [[13, 4], [14, 4], [13, 8], [14, 8], [14, 9], [12, 3]].forEach(([gx, gz]) => stamp('vineyard', gx, gz));
-  [[11, 1], [12, 1], [11, 2], [13, 2], [10, 4]].forEach(([gx, gz], i) => {
+  stamp('mosque', MX, MZ, { level: 1 });
+  stamp('spring', MX - 4, MZ + 3, { level: 1 });
+  let houses = 0;
+  for (let gz = MZ - 4; gz <= MZ + 18 && houses < 24; gz += 1) {
+    for (let gx = MX - 2; gx <= MX + 16 && houses < 24; gx += 1) {
+      if (isRoad(gx, gz) || !besideRoad(gx, gz)) continue;
+      const dist = Math.hypot(gx - MX, gz - MZ);
+      if (dist < 1.5 || dist > 14) continue;
+      if (gx < MX && gz < MZ) continue;
+      if (dist > 7 && (gx + gz * 2) % 4 !== 0) continue;
+      if ((gx + gz) % 2 !== 0) continue;
+      const before = state.buildings.length;
+      stamp('house', gx, gz, { style: houses % 5 });
+      if (state.buildings.length > before) houses += 1;
+    }
+  }
+  [[22, 8], [24, 8], [26, 7], [30, 8], [16, 8], [8, 22], [8, 26], [6, 34], [48, 40], [50, 48]].forEach(([gx, gz]) => {
+    stamp('field', gx, gz, { stage: 3, growth: 100 });
+  });
+  [[20, 6], [34, 8], [6, 40], [40, 62], [18, 64], [28, 64]].forEach(([gx, gz]) => {
+    stamp('field', gx, gz, { stage: 0, growth: 0 });
+  });
+  [[46, 24], [48, 26], [46, 32], [48, 34], [44, 18], [40, 12]].forEach(([gx, gz]) => stamp('vineyard', gx, gz));
+  [[34, 8], [36, 10], [38, 8], [34, 12]].forEach(([gx, gz], i) => {
     stamp(i % 2 ? 'orchard_walnut' : 'orchard_pom', gx, gz);
   });
   spawnVillager(state, true);
@@ -608,8 +700,8 @@ export function createState() {
   spawnVillager(state);
   spawnVillager(state);
   const player = state.villagers[0];
-  player.gx = 6.35;
-  player.gz = 7.15;
+  player.gx = MX + 1.35;
+  player.gz = MZ + 0.15;
   player.tx = player.gx;
   player.tz = player.gz;
   spawnAnimal(state, 'sheep');
@@ -621,10 +713,10 @@ export function createState() {
   spawnAnimal(state, 'chicken');
   spawnAnimal(state, 'chicken');
   retarget(state);
-  state.villagers[0].gx = 6.35;
-  state.villagers[0].gz = 7.15;
-  state.villagers[0].tx = 6.35;
-  state.villagers[0].tz = 7.15;
+  state.villagers[0].gx = MX + 1.35;
+  state.villagers[0].gz = MZ + 0.15;
+  state.villagers[0].tx = MX + 1.35;
+  state.villagers[0].tz = MZ + 0.15;
   recompute(state);
   return state;
 }
