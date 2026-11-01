@@ -189,5 +189,7 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 a.soc-card p{color:var(--muted)}a.soc-card p b{color:var(--ink)}
 .nav{gap:14px}
 @media(min-width:1101px) and (max-width:1250px){.nav a{font-size:.95rem}.logo{font-size:1.25rem}}
+.nav a{white-space:nowrap}
+@media(min-width:1101px) and (max-width:1360px){.nav{gap:11px}.nav a{font-size:.9rem}.nav .btn{padding:8px 14px}}
 .g-cart{background:#f3edff}
 .price-row .price{font-size:1.7rem}
