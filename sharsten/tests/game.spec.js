@@ -162,7 +162,8 @@ test('a villager job produces, a field ripens, animals give goods', async ({ pag
   const errors = await openFresh(page);
   await page.click('#playBtn');
   const wood = await page.evaluate(() => {
-    const placed = window.__SV.place('woodyard', 0, 1);
+    const plot = window.__SV.suggest('woodyard');
+    const placed = window.__SV.place('woodyard', plot.gx, plot.gz);
     const who = window.__SV.getState().villagers[0].id;
     window.__SV.setHour(8);
     const job = window.__SV.assignJob(who, 'builder');
@@ -176,7 +177,8 @@ test('a villager job produces, a field ripens, animals give goods', async ({ pag
 
   const field = await page.evaluate(() => {
     window.__SV.setHour(7);
-    const placed = window.__SV.place('field', 0, 2);
+    const plot = window.__SV.suggest('field');
+    const placed = window.__SV.place('field', plot.gx, plot.gz);
     window.__SV.plant(placed.id);
     const farmer = window.__SV.getState().villagers[1].id;
     window.__SV.assignJob(farmer, 'farmer');
@@ -211,11 +213,44 @@ test('a villager job produces, a field ripens, animals give goods', async ({ pag
 
 test('autosave restores the village', async ({ page }) => {
   const errors = await openFresh(page);
-  await page.evaluate(() => window.__SV.place('house', 0, 1));
+  const cell = await page.evaluate(() => {
+    const plot = window.__SV.suggest('house');
+    window.__SV.place('house', plot.gx, plot.gz);
+    return plot;
+  });
   await page.reload();
   await page.waitForFunction(() => window.__SV && window.__SV.ready);
-  const kept = await page.evaluate(() => window.__SV.getState().buildings.some((b) => b.type === 'house' && b.gx === 0 && b.gz === 1));
+  const kept = await page.evaluate((plot) => window.__SV.getState().buildings.some((b) => b.type === 'house' && b.gx === plot.gx && b.gz === plot.gz), cell);
   expect(kept).toBe(true);
+  assertClean(errors);
+});
+
+test('starting layout has the mosque and three road exits', async ({ page }) => {
+  const errors = await openFresh(page);
+  const layout = await page.evaluate(() => {
+    const state = window.__SV.getState();
+    const lay = window.__SV.layout();
+    const mosque = state.buildings.find((b) => b.type === 'mosque');
+    return {
+      mosque: { gx: mosque.gx, gz: mosque.gz },
+      want: lay.mosque,
+      exits: lay.exits.map((exit) => ({
+        id: exit.id,
+        gx: exit.gx,
+        gz: exit.gz,
+        road: window.__SV.isRoad(exit.gx, exit.gz),
+      })),
+      houses: state.buildings.filter((b) => b.type === 'house').length,
+      fields: state.buildings.filter((b) => b.type === 'field' || b.type === 'vineyard' || String(b.type).startsWith('orchard')).length,
+    };
+  });
+  expect(layout.mosque).toEqual(layout.want);
+  expect(layout.exits).toHaveLength(3);
+  expect(layout.exits.map((exit) => exit.id).sort()).toEqual(['east', 'northwest', 'south']);
+  layout.exits.forEach((exit) => expect(exit.road, exit.id).toBe(true));
+  expect(layout.houses).toBeGreaterThanOrEqual(8);
+  expect(layout.fields).toBeGreaterThanOrEqual(8);
+  expect(layout.mosque.gx).toBeLessThan(8);
   assertClean(errors);
 });
 
@@ -292,8 +327,7 @@ test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
     window.__SV.stepWalk(1);
     return window.__SV.getWalkDebug();
   });
-  expect(bound.x).toBeGreaterThanOrEqual(-4);
-  expect(bound.x).toBeLessThan(-3);
+  expect(bound.x).toBe(-3);
 
   await page.click('#modeBtn');
   await expect(page.locator('body')).toHaveAttribute('data-mode', 'build');

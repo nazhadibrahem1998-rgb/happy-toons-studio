@@ -7,7 +7,7 @@ import {
   advanceHours, assignJob, cameraBasis, cameraEyeY, canPlace, celebrateNewroz,
   cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring,
   harvest, parseSave, phaseOf, place, plant, select, serialize, setHour, setSeason, setStock,
-  snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
+  LAYOUT, isRoad, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
 } from './sim.js';
 import { formatClock, formatNum, t } from './i18n.js';
 import { createView } from './world.js';
@@ -41,7 +41,7 @@ let edgeLeft = 0;
 let saveLeft = 0;
 const keys = new Set();
 const sticks = { moveX: 0, moveY: 0, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 };
-const buildCam = { yaw: 0.62, pitch: 1.02, dist: 30, x: 0, z: 1 };
+const buildCam = { yaw: 0.5, pitch: 1.02, dist: 42, x: -2, z: 0 };
 const walkCam = { yaw: 0.35, pitch: 0.48 };
 
 const view = createView(canvas);
@@ -565,6 +565,9 @@ window.__SV = {
   ready: true,
   SAVE_KEY,
   getState: () => snapshot(state),
+  layout: () => LAYOUT,
+  isRoad,
+  suggest(type) { return suggestCell(state, type); },
   place(type, gx, gz) {
     const result = place(state, type, gx, gz);
     if (result.ok) persist();

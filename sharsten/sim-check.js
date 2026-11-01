@@ -1,7 +1,7 @@
 import {
-  MAP_BOUND, advanceHours, assignJob, averageHappiness, cameraBasis, cameraEyeY, celebrateNewroz,
-  clampToMap, cleanMosque, createState, demolish, harvest, phaseOf, place, plant, setHour, setSeason,
-  stickVector, upgrade, walkStep,
+  LAYOUT, MAP_BOUND, advanceHours, assignJob, averageHappiness, cameraBasis, cameraEyeY, celebrateNewroz,
+  clampToMap, cleanMosque, createState, demolish, harvest, isRoad, phaseOf, place, plant, setHour, setSeason,
+  stickVector, suggestCell, upgrade, walkStep,
 } from './sim.js';
 
 function assert(cond, msg) {
@@ -23,7 +23,9 @@ assert(s.villagers[0].mode === 'home', 'home at night');
 const w = createState();
 setHour(w, 8);
 const water0 = w.resources.water;
-const placed = place(w, 'woodyard', 0, 1);
+const plotW = suggestCell(w, 'woodyard');
+assert(plotW, 'woodyard plot');
+const placed = place(w, 'woodyard', plotW.gx, plotW.gz);
 assert(placed.ok, 'woodyard');
 const wood0 = w.resources.wood;
 const who = w.villagers[0];
@@ -35,7 +37,9 @@ assert(w.resources.water > water0, 'water ticks');
 
 const f = createState();
 setHour(f, 7);
-const field = place(f, 'field', 0, 1);
+const plotF = suggestCell(f, 'field');
+assert(plotF, 'field plot');
+const field = place(f, 'field', plotF.gx, plotF.gz);
 assert(field.ok, 'field');
 assert(plant(f, field.id).ok, 'plant');
 assert(assignJob(f, f.villagers[1].id, 'farmer').ok, 'farmer');
@@ -99,10 +103,16 @@ assert(upLook.pitch < 0.7, 'pitch up');
 assert(cameraEyeY(upLook.pitch) < cameraEyeY(0.7), 'eye rises less when looking up');
 
 assert(averageHappiness(s) > 0, 'happy');
-const house = place(createState(), 'house', 0, 0);
-assert(house.ok, 'house');
+const map = createState();
+const mosqueAt = map.buildings.find((b) => b.type === 'mosque');
+assert(mosqueAt && mosqueAt.gx === LAYOUT.mosque.gx && mosqueAt.gz === LAYOUT.mosque.gz, 'mosque');
+assert(LAYOUT.exits.length === 3, 'three exits');
+LAYOUT.exits.forEach((exit) => assert(isRoad(exit.gx, exit.gz), exit.id));
+assert(map.buildings.filter((b) => b.type === 'house').length >= 8, 'core houses');
 const st = createState();
-const h = place(st, 'house', 0, 0);
+const plotH = suggestCell(st, 'house');
+assert(plotH, 'house plot');
+const h = place(st, 'house', plotH.gx, plotH.gz);
 assert(upgrade(st, h.id).ok, 'upgrade');
 assert(st.buildings.find((b) => b.id === h.id).level === 2, 'level 2');
 

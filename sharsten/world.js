@@ -3,7 +3,7 @@
  * © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { CELL, GRID_D, GRID_W, SEASONS, cellToWorld } from './sim.js';
+import { CELL, GRID_D, GRID_W, SEASONS, cellToWorld, insideVillage, isRoad, roadKind } from './sim.js';
 
 const STYLES = [
   { wall: 0xe4d3b0, tarp: false, tank: false, brick: false },
@@ -185,8 +185,7 @@ export function createView(canvas) {
   for (let i = 0; i < 40 && bushN < 24; i += 1) {
     const gx = -4 + hash(i) * 19;
     const gz = -3.5 + hash(i + 40) * 16;
-    const inside = gx > -0.2 && gx < GRID_W - 0.2 && gz > -0.2 && gz < GRID_D - 0.2;
-    if (inside) continue;
+    if (insideVillage(gx, gz)) continue;
     const p = cellToWorld(gx, gz);
     put(bushes, bushN, p.x, 0.35, p.z, 1, 1, 1, 0, 0x3f8f32);
     bushN += 1;
@@ -194,15 +193,15 @@ export function createView(canvas) {
   commit(bushes, bushN);
   scene.add(bushes);
 
-  const roadTrees = pool(new THREE.ConeGeometry(0.55, 1.3, 6), mat(0x2f7a32), 16);
-  const roadTrunks = pool(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 5), mat(0x6b4226), 16);
+  const roadTrees = pool(new THREE.ConeGeometry(0.55, 1.3, 6), mat(0x2f7a32), 32);
+  const roadTrunks = pool(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 5), mat(0x6b4226), 32);
   let treeN = 0;
-  for (let gx = 0; gx < GRID_W; gx += 2) {
-    const p = cellToWorld(gx, 4);
-    for (const side of [-1, 1]) {
-      if (treeN >= 16) break;
-      put(roadTrunks, treeN, p.x, 0.25, p.z + side * 1.35, 1, 1, 1, 0, 0x6b4226);
-      put(roadTrees, treeN, p.x, 1.15, p.z + side * 1.35, 1, 1, 1, 0, 0x2f7a32);
+  for (let gz = 0; gz < GRID_D; gz += 1) {
+    for (let gx = 0; gx < GRID_W; gx += 1) {
+      if (roadKind(gx, gz) !== 'paved' || (gx + gz) % 3 !== 0 || treeN >= 32) continue;
+      const p = cellToWorld(gx, gz);
+      put(roadTrunks, treeN, p.x, 0.25, p.z + 0.85, 1, 1, 1, 0, 0x6b4226);
+      put(roadTrees, treeN, p.x, 1.15, p.z + 0.85, 1, 1, 1, 0, 0x2f7a32);
       treeN += 1;
     }
   }
@@ -210,12 +209,12 @@ export function createView(canvas) {
   commit(roadTrunks, treeN);
   scene.add(roadTrees, roadTrunks);
 
-  const poles = pool(new THREE.CylinderGeometry(0.05, 0.06, 2.2, 5), mat(0x4a4e52), 6);
+  const poles = pool(new THREE.CylinderGeometry(0.05, 0.06, 2.2, 5), mat(0x4a4e52), 8);
   const polePos = [];
-  [0, 2, 6, 8].forEach((gz, i) => {
-    const p = cellToWorld(3, gz);
-    put(poles, i, p.x + 0.7, 1.1, p.z, 1, 1, 1, 0, 0x4a4e52);
-    polePos.push(new THREE.Vector3(p.x + 0.7, 2.15, p.z));
+  [8, 10, 12, 14].forEach((gx, i) => {
+    const p = cellToWorld(gx, 7);
+    put(poles, i, p.x, 1.1, p.z + 0.55, 1, 1, 1, 0, 0x4a4e52);
+    polePos.push(new THREE.Vector3(p.x, 2.15, p.z + 0.55));
   });
   commit(poles, 4);
   scene.add(poles);
@@ -252,8 +251,8 @@ export function createView(canvas) {
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.16), dark);
   seat.position.set(-0.08, 0.5, 0);
   bike.add(w1, w2, body, seat);
-  const home = cellToWorld(5, 2);
-  bike.position.set(home.x - 1.15, 0, home.z + 0.95);
+  const home = cellToWorld(6.4, 6.3);
+  bike.position.set(home.x, 0, home.z);
   scene.add(bike);
 
   const mosque = new THREE.Group();
@@ -297,14 +296,11 @@ export function createView(canvas) {
   cap.position.set(-0.95, 1.85, -0.15);
   mosque.add(cap);
   scene.add(mosque);
-  const mosqueSpot = cellToWorld(7, 2);
-  mosque.position.set(mosqueSpot.x, 0, mosqueSpot.z);
-
   const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.46), new THREE.MeshBasicMaterial({ map: flagTexture(), side: THREE.DoubleSide }));
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.8, 4), mat(0xeeeeee));
-  pole.position.set(mosqueSpot.x + 1.3, 0.9, mosqueSpot.z + 0.2);
-  flag.position.set(mosqueSpot.x + 1.68, 1.6, mosqueSpot.z + 0.2);
-  scene.add(pole, flag);
+  pole.position.set(1.35, 0.9, 0.35);
+  flag.position.set(1.72, 1.6, 0.35);
+  mosque.add(pole, flag);
 
   const springMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.12, 8), mat(0x3aa0d8));
   const springAt = cellToWorld(1, 8);
@@ -322,6 +318,7 @@ export function createView(canvas) {
   ghost.visible = false;
   scene.add(ghost);
 
+  const cellByInstance = [];
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   let low = false;
@@ -342,11 +339,14 @@ export function createView(canvas) {
     let n = 0;
     for (let gz = 0; gz < GRID_D; gz += 1) {
       for (let gx = 0; gx < GRID_W; gx += 1) {
+        if (!insideVillage(gx, gz) && !isRoad(gx, gz)) continue;
         const p = cellToWorld(gx, gz);
+        const kind = roadKind(gx, gz);
         let color = ((gx + gz) % 2 === 0) ? CELL_A[key] : CELL_B[key];
-        if (gz === 4) color = 0xb9b9b2;
-        else if (gx === 3) color = 0xa1845c;
+        if (kind === 'paved') color = 0xb9b9b2;
+        else if (kind === 'dirt') color = 0xa1845c;
         put(ground, n, p.x, 0.08, p.z, 1, 1, 1, 0, color);
+        cellByInstance[n] = { gx, gz };
         n += 1;
       }
     }
@@ -354,6 +354,17 @@ export function createView(canvas) {
   }
 
   function syncBuildings(state) {
+    const mosqueB = state.buildings.find((b) => b.type === 'mosque');
+    if (mosqueB) {
+      const p = cellToWorld(mosqueB.gx, mosqueB.gz);
+      mosque.position.set(p.x, 0, p.z);
+    }
+    const springB = state.buildings.find((b) => b.type === 'spring');
+    if (springB) {
+      const p = cellToWorld(springB.gx, springB.gz);
+      springMesh.position.set(p.x, 0.1, p.z);
+      stream.position.set(p.x - 0.25, 0.06, p.z + 1.3);
+    }
     const houses = state.buildings.filter((b) => b.type === 'house');
     let wi = 0;
     let ri = 0;
@@ -401,7 +412,7 @@ export function createView(canvas) {
       if (b.type === 'mosque' || b.type === 'spring' || b.type === 'house') return;
       const p = cellToWorld(b.gx, b.gz);
       if (b.type === 'field') {
-        put(soil, soilN, p.x, 0.12, p.z, 1, 1, 1, 0, 0x8a623c);
+        put(soil, soilN, p.x, 0.12, p.z, 1, 1, 1, 0, b.stage === 0 ? 0x4a3428 : 0x8a623c);
         soilN += 1;
         if (b.stage > 0) {
           const h = 0.18 + (b.growth / 100) * 0.75;
@@ -549,8 +560,7 @@ export function createView(canvas) {
       raycaster.setFromCamera(ndc, camera);
       const hits = raycaster.intersectObject(ground);
       if (!hits.length || hits[0].instanceId == null) return null;
-      const id = hits[0].instanceId;
-      return { gx: id % GRID_W, gz: Math.floor(id / GRID_W) };
+      return cellByInstance[hits[0].instanceId] || null;
     },
     lookAtBuild(cam) {
       const cp = Math.cos(cam.pitch);

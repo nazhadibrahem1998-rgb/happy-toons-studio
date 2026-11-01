@@ -6,11 +6,29 @@
 
 export const SAVE_KEY = 'sharsten-village-v1';
 export const SETTINGS_KEY = 'sharsten-settings-v1';
-export const GRID_W = 12;
-export const GRID_D = 10;
+export const GRID_W = 16;
+export const GRID_D = 16;
 export const CELL = 2;
-/** Open meadow around the build grid, then a hard stop at the hills. */
-export const MAP_BOUND = { minGx: -4, maxGx: GRID_W + 3, minGz: -3.5, maxGz: GRID_D + 2.5 };
+/** Open meadow around the pentagon village, then a hard stop at the hills. */
+export const MAP_BOUND = { minGx: -3, maxGx: GRID_W + 2, minGz: -3, maxGz: GRID_D + 2 };
+
+/** Stylized Sharsten from the satellite outline, not a survey. */
+export const PENTAGON = [
+  [0, 2],
+  [8, 0],
+  [15, 7],
+  [13, 14],
+  [0, 15],
+];
+
+export const LAYOUT = {
+  mosque: { gx: 5, gz: 7 },
+  exits: [
+    { id: 'northwest', gx: 0, gz: 2 },
+    { id: 'east', gx: 15, gz: 7 },
+    { id: 'south', gx: 7, gz: 15 },
+  ],
+};
 export const SECONDS_PER_HOUR = 2;
 export const SEASON_DAYS = 4;
 export const VILLAGER_CAP = 8;
@@ -85,12 +103,66 @@ export function phaseOf(hour) {
   return hour >= 6 && hour < 18 ? 'day' : 'night';
 }
 
+const ROADS = new Map();
+
+function traceRoad(kind, x0, z0, x1, z1) {
+  const steps = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0), 1);
+  for (let s = 0; s <= steps; s += 1) {
+    const gx = Math.round(x0 + ((x1 - x0) * s) / steps);
+    const gz = Math.round(z0 + ((z1 - z0) * s) / steps);
+    const prev = ROADS.get(`${gx},${gz}`);
+    if (prev !== 'paved') ROADS.set(`${gx},${gz}`, kind);
+  }
+}
+
+traceRoad('paved', 4, 6, 0, 2);
+traceRoad('paved', 6, 7, 15, 7);
+traceRoad('paved', 5, 8, 5, 12);
+traceRoad('paved', 5, 12, 7, 15);
+traceRoad('paved', 8, 5, 11, 3);
+traceRoad('paved', 11, 3, 13, 5);
+traceRoad('paved', 13, 5, 13, 7);
+traceRoad('paved', 8, 5, 8, 7);
+traceRoad('dirt', 5, 6, 5, 4);
+traceRoad('dirt', 5, 4, 7, 2);
+traceRoad('dirt', 4, 7, 1, 7);
+traceRoad('dirt', 4, 8, 2, 11);
+traceRoad('dirt', 6, 8, 9, 12);
+traceRoad('dirt', 6, 6, 8, 4);
+ROADS.delete(`${LAYOUT.mosque.gx},${LAYOUT.mosque.gz}`);
+
+export function roadKind(gx, gz) {
+  return ROADS.get(`${gx},${gz}`) || null;
+}
+
 export function isRoad(gx, gz) {
-  return gz === 4 || gx === 3;
+  return ROADS.has(`${gx},${gz}`);
+}
+
+export function insideVillage(gx, gz) {
+  const poly = PENTAGON;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
+    const xi = poly[i][0];
+    const zi = poly[i][1];
+    const xj = poly[j][0];
+    const zj = poly[j][1];
+    const crosses = (zi > gz) !== (zj > gz);
+    if (crosses && gx < ((xj - xi) * (gz - zi)) / ((zj - zi) || 1e-6) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+export function besideRoad(gx, gz) {
+  return isRoad(gx + 1, gz) || isRoad(gx - 1, gz) || isRoad(gx, gz + 1) || isRoad(gx, gz - 1);
 }
 
 export function isBlocked(gx, gz) {
-  return isRoad(gx, gz);
+  if (gx < 0 || gz < 0 || gx >= GRID_W || gz >= GRID_D) return true;
+  if (isRoad(gx, gz)) return true;
+  if (!insideVillage(gx, gz)) return true;
+  if (!besideRoad(gx, gz)) return true;
+  return false;
 }
 
 export function cellToWorld(gx, gz) {
@@ -183,7 +255,7 @@ function spawnVillager(state, player = false) {
 }
 
 function spawnAnimal(state, kind) {
-  const base = { sheep: [2.2, 6.4], goat: [2.5, 7.3], chicken: [4.6, 2.4] }[kind];
+  const base = { sheep: [3.2, 1.4], goat: [6.2, 1.5], chicken: [6.6, 5.4] }[kind];
   const n = state.animals.filter((a) => a.kind === kind).length;
   const a = {
     id: state.nextId++,
@@ -510,23 +582,34 @@ export function createState() {
     lastPlantedId: 0,
     selectedId: 0,
   };
-  addBuilding(state, 'mosque', 7, 2, { level: 1 });
-  addBuilding(state, 'spring', 1, 8, { level: 1 });
-  addBuilding(state, 'house', 5, 2, { style: 0 });
-  addBuilding(state, 'house', 6, 2, { style: 1 });
-  addBuilding(state, 'house', 5, 6, { style: 2 });
-  addBuilding(state, 'house', 8, 6, { style: 3 });
-  addBuilding(state, 'house', 6, 6, { style: 4 });
-  addBuilding(state, 'field', 7, 7, { stage: 2, growth: 48 });
-  addBuilding(state, 'vineyard', 9, 3);
-  addBuilding(state, 'vineyard', 10, 5);
+  const stamp = (type, gx, gz, opt = {}) => {
+    if (isRoad(gx, gz) || occupied(state, gx, gz)) return;
+    if (gx < 0 || gz < 0 || gx >= GRID_W || gz >= GRID_D) return;
+    addBuilding(state, type, gx, gz, opt);
+  };
+  stamp('mosque', LAYOUT.mosque.gx, LAYOUT.mosque.gz, { level: 1 });
+  stamp('spring', 2, 9, { level: 1 });
+  const houses = [
+    [4, 5], [6, 5], [3, 6], [7, 6], [3, 8], [7, 8], [4, 9], [6, 9],
+    [2, 6], [2, 8], [8, 6], [8, 8], [9, 8], [4, 10], [7, 10],
+    [1, 6], [10, 6], [10, 9], [3, 11], [8, 11], [11, 6],
+  ];
+  houses.forEach(([gx, gz], i) => stamp('house', gx, gz, { style: i % 5 }));
+  const wheat = [[3, 1], [4, 1], [5, 1], [6, 1], [1, 5], [1, 4], [8, 13], [4, 13], [9, 13]];
+  wheat.forEach(([gx, gz]) => stamp('field', gx, gz, { stage: 3, growth: 100 }));
+  const plowed = [[7, 1], [2, 3], [10, 2], [3, 13], [11, 12], [12, 11]];
+  plowed.forEach(([gx, gz]) => stamp('field', gx, gz, { stage: 0, growth: 0 }));
+  [[13, 4], [14, 4], [13, 8], [14, 8], [14, 9], [12, 3]].forEach(([gx, gz]) => stamp('vineyard', gx, gz));
+  [[11, 1], [12, 1], [11, 2], [13, 2], [10, 4]].forEach(([gx, gz], i) => {
+    stamp(i % 2 ? 'orchard_walnut' : 'orchard_pom', gx, gz);
+  });
   spawnVillager(state, true);
   spawnVillager(state);
   spawnVillager(state);
   spawnVillager(state);
   const player = state.villagers[0];
-  player.gx = 6.2;
-  player.gz = 3.1;
+  player.gx = 6.35;
+  player.gz = 7.15;
   player.tx = player.gx;
   player.tz = player.gz;
   spawnAnimal(state, 'sheep');
@@ -538,10 +621,10 @@ export function createState() {
   spawnAnimal(state, 'chicken');
   spawnAnimal(state, 'chicken');
   retarget(state);
-  state.villagers[0].gx = 6.2;
-  state.villagers[0].gz = 3.1;
-  state.villagers[0].tx = 6.2;
-  state.villagers[0].tz = 3.1;
+  state.villagers[0].gx = 6.35;
+  state.villagers[0].gz = 7.15;
+  state.villagers[0].tx = 6.35;
+  state.villagers[0].tz = 7.15;
   recompute(state);
   return state;
 }
