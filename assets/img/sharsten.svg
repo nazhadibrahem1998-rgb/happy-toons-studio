@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Sharsten Village">
+  <rect width="800" height="450" fill="#8ec8ef"/>
+  <path d="M0 180 C80 120 140 150 200 130 C280 100 320 150 400 120 C500 80 560 140 640 110 C720 90 760 140 800 120 L800 450 L0 450 Z" fill="#5fa83a"/>
+  <path d="M0 230 C120 190 200 220 300 200 C420 170 500 230 620 190 C700 170 760 210 800 190 L800 450 L0 450 Z" fill="#74b84e"/>
+  <rect x="70" y="250" width="660" height="18" fill="#b9b9b2"/>
+  <rect x="250" y="180" width="16" height="200" fill="#a1845c"/>
+  <rect x="360" y="210" width="90" height="48" fill="#e4d3b0" stroke="#5a4632" stroke-width="3"/>
+  <rect x="470" y="200" width="80" height="58" fill="#b9b9b4" stroke="#5a4632" stroke-width="3"/>
+  <rect x="478" y="188" width="40" height="12" fill="#2f6fbf"/>
+  <rect x="520" y="178" width="14" height="16" fill="#dedede"/>
+  <rect x="560" y="190" width="70" height="70" fill="#f4f1ea" stroke="#2f8f55" stroke-width="4"/>
+  <rect x="545" y="150" width="16" height="50" fill="#f7f4ee" stroke="#2f8f55" stroke-width="3"/>
+  <circle cx="120" cy="250" r="16" fill="#2f7a32"/>
+  <circle cx="200" cy="250" r="16" fill="#2f7a32"/>
+  <circle cx="640" cy="250" r="16" fill="#2f7a32"/>
+</svg>

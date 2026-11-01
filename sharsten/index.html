@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<!-- گوندی شارستێن (Sharsten Village) — © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance. Three.js (vendor/) © three.js authors, MIT. -->
+<html lang="ckb" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#6eaf45">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="گوندی شارستێن">
+<meta name="description" content="Sharsten Village — گوندی شارستێن. A calm 3D village life game by Happy Toons Studio.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>گوندی شارستێن — ستۆدیۆی هاپی توونز</title>
+<link rel="stylesheet" href="style.css">
+<script>
+(function () {
+  function block(e) {
+    var t = e.target;
+    if (t && t.closest && t.closest('[data-scroll-panel], textarea, input, select')) return;
+    if (e.cancelable) e.preventDefault();
+  }
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (type) {
+    document.addEventListener(type, block, { passive: false });
+  });
+  document.addEventListener('touchmove', block, { passive: false });
+  var last = 0;
+  document.addEventListener('touchend', function (e) {
+    var now = Date.now();
+    var t = e.target;
+    if (t && t.closest && t.closest('[data-scroll-panel], textarea, input, select')) { last = now; return; }
+    if (now - last < 300 && e.cancelable) e.preventDefault();
+    last = now;
+  }, { passive: false });
+})();
+</script>
+<!-- Cloudflare Web Analytics --><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "2702d2b8fa2345dea871b1550548be7a"}'></script>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="7c110135-c956-4967-9cfe-01d4da7f8ad1" data-domains="happytoonsstudio.com"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="boot" class="screen">
+  <div class="panel boot-panel">
+    <p class="studio" data-i18n="studio">ستۆدیۆی هاپی توونز</p>
+    <p class="boot-title" data-i18n="title">گوندی شارستێن</p>
+    <p data-i18n="subtitle">دۆڵێکی سەوز</p>
+    <p data-i18n="age">بۆ خێزان و گەنجان · شەڕی نییە</p>
+  </div>
+</div>
+<div id="toast" hidden></div>
+<div id="speech" hidden></div>
+<div id="tutorial" hidden>
+  <p id="tutorialText"></p>
+  <button type="button" id="tutorialNext" data-i18n="tutNext">دواتر</button>
+</div>
+<div id="unlockPop" hidden>
+  <p id="unlockTitle" data-i18n="unlocked">کرایەوە!</p>
+  <p id="unlockText"></p>
+  <button type="button" id="unlockOk" data-i18n="iosOk">باشە</button>
+</div>
+<div id="stageBar" hidden>
+  <b id="stageTitle"></b>
+  <ul id="stageGoals"></ul>
+</div>
+<div id="nameLayer"></div>
+<div id="tagYou" class="house-tag" hidden></div>
+<div id="tagMullah" class="house-tag" hidden></div>
+<div id="adhanNote" class="banner float-note" hidden>
+  <button type="button" id="adhanClose" class="x" aria-label="close">✕</button>
+  <p data-i18n="adhanBig">الله أكبر</p>
+  <p data-i18n="adhanCall">مەلا حوسێن بانگی نوێژی نیوەڕۆ دەدات</p>
+</div>
+<div id="talk" class="screen" hidden>
+  <div class="panel">
+    <button type="button" id="talkX" class="x" aria-label="close">✕</button>
+    <h2 data-i18n="people">دانیشتووان</h2>
+    <button type="button" id="talkTrade" class="btn" data-i18n="trade">کڕین و فرۆشتن</button>
+    <button type="button" id="talkHelp" class="btn" data-i18n="helpYes">یارمەتی دەدەم</button>
+    <button type="button" id="talkNo" class="btn alt" data-i18n="helpNo">ناوەژم</button>
+    <button type="button" id="talkHit" class="btn alt" data-i18n="hit">لێدان</button>
+    <button type="button" id="talkClose" class="btn alt" data-i18n="close">داخستن</button>
+  </div>
+</div>
+<div id="trade" class="screen" hidden>
+  <div class="panel" data-scroll-panel="trade">
+    <button type="button" id="tradeX" class="x" aria-label="close">✕</button>
+    <h2 data-i18n="trade">کڕین و فرۆشتن</h2>
+    <p data-i18n="money">دینار</p>
+    <div id="tradeList"></div>
+    <button type="button" id="tradeClose" class="btn alt" data-i18n="close">داخستن</button>
+  </div>
+</div>
+<div id="quarrel" class="screen" hidden>
+  <div class="panel">
+    <button type="button" id="quarrelX" class="x" aria-label="close">✕</button>
+    <h2 id="quarrelTitle"></h2>
+    <button type="button" id="peaceBtn" class="btn" data-i18n="peace">ئاشتکردنەوە</button>
+    <button type="button" id="judgeBtn" class="btn" data-i18n="judge">حوکمی مەلا حوسێن</button>
+    <button type="button" id="sideA" class="btn alt"></button>
+    <button type="button" id="sideB" class="btn alt"></button>
+    <button type="button" id="quarrelClose" class="btn alt" data-i18n="close">داخستن</button>
+  </div>
+</div>
+<div id="elder" class="screen" hidden>
+  <div class="panel">
+    <button type="button" id="elderX" class="x" aria-label="close">✕</button>
+    <h2>مەلا حوسێن</h2>
+    <p id="elderText" data-i18n="amends">تکایە چاکە بکە.</p>
+    <button type="button" id="fineBtn" class="btn" data-i18n="fine">سزاکە بدە</button>
+    <button type="button" id="elderDeed" class="btn" data-i18n="amendsDeed">لە جیاتی ئەوە مزگەوتەکە پاک بکەرەوە.</button>
+    <button type="button" id="elderLater" class="btn alt" data-i18n="later">دواتر</button>
+  </div>
+</div>
+<div id="stagePop" hidden>
+  <p id="stagePopTitle">مەرحەلە تەواو بوو</p>
+  <button type="button" id="stageOk" data-i18n="iosOk">باشە</button>
+</div>
+<div id="hud" hidden>
+  <span id="earlyTag">تاقیکردنەوەی سەرەتایی · Early test</span>
+  <div class="res" id="resbar" data-scroll-panel="res"></div>
+  <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">مێنیو</button>
+  <div id="repBar"><span>😠</span><i id="repFill"></i><span>😊</span><b data-i18n="deeds">چاکە</b> <b id="deedNum" dir="ltr">٠</b></div>
+  <div class="clock chip tiny"><b id="clockTime" dir="ltr">08:00</b> <span id="clockMeta"></span></div>
+  <div id="hudPop" hidden data-scroll-panel="hud">
+    <button type="button" id="modeBtn" class="chip">دۆخی ڕۆیشتن</button>
+    <button type="button" id="hudBuild" class="chip" data-i18n="build">Build</button>
+    <button type="button" id="hudPeople" class="chip" data-i18n="people">People</button>
+    <button type="button" id="hudQuests" class="chip" data-i18n="quests">Quests</button>
+    <button type="button" id="hudPause" class="chip" data-i18n="pause">وەستان</button>
+    <button type="button" id="hudCraft" class="chip" data-i18n="craft">دروستکردن</button>
+    <button type="button" id="rideBtn" class="chip" data-i18n="donkey">Donkey</button>
+    <div id="camBtns" hidden>
+      <button type="button" id="zoomIn" aria-label="نزیککردنەوە">+</button>
+      <button type="button" id="zoomOut" aria-label="دوورخستنەوە">−</button>
+      <button type="button" id="rotLeft" aria-label="سوڕانەوە بۆ چەپ">↺</button>
+      <button type="button" id="rotRight" aria-label="سوڕانەوە بۆ ڕاست">↻</button>
+    </div>
+  </div>
+</div>
+<div id="buildSticks" hidden>
+  <div id="panZone" class="stick-zone" data-stick="pan"><div class="knob"></div></div>
+  <div id="orbitZone" class="stick-zone" data-stick="orbit"><div class="knob"></div></div>
+</div>
+<div id="walkControls" hidden>
+  <div id="moveZone" class="stick-zone" data-stick="move"><div class="knob"></div></div>
+  <div id="lookCluster">
+    <button type="button" id="boardBtn" hidden>سواربە</button>
+    <div id="lookZone" class="stick-zone" data-stick="look"><div class="knob"></div></div>
+    <button type="button" id="actionBtn" data-i18n="act">بیکە</button>
+  </div>
+  <button type="button" id="swordBtn" aria-label="sword">⚔</button>
+</div>
+
+<div id="menu" class="screen">
+  <div class="panel" data-scroll-panel="menu">
+    <div id="wipBanner" class="banner">
+      <p dir="rtl" lang="ckb">ئاگاداری: ئەم یارییە هێشتا تەواو نەکراوە و لە ژێر دروستکردندایە، هەڵە و گۆڕانکاری چاوەڕوان بکە</p>
+      <p dir="ltr" lang="en">Warning: this game is still unfinished and in development, so expect bugs and changes.</p>
+      <button type="button" id="wipDismiss" class="btn alt">باشە · OK</button>
+    </div>
+    <div id="iosHint" class="banner" hidden>
+      <p data-i18n="ios">For a full screen, tap Share, then Add to Home Screen.</p>
+      <button type="button" id="iosDismiss" class="btn alt" data-i18n="iosOk">OK</button>
+    </div>
+    <div class="logo-row">
+      <img src="../assets/img/logo.jpg" alt="ستۆدیۆی هاپی توونز" width="54" height="54">
+      <div>
+        <p class="studio" data-i18n="studio">ستۆدیۆی هاپی توونز</p>
+        <div class="flag" aria-hidden="true"><i class="r"></i><i class="w"></i><i class="g"></i><b></b></div>
+      </div>
+    </div>
+    <h1 id="title">گوندی شارستێن</h1>
+    <p class="sub" id="subtitle">گوندی شارستێن</p>
+    <p class="tag" data-i18n="tag">A calm village life in a green mountain valley. Build, farm, and walk with your neighbours.</p>
+    <p class="age" data-i18n="age">For families and teens · no combat</p>
+    <button type="button" id="playBtn" class="btn" data-i18n="play">Play</button>
+    <div class="row">
+      <button type="button" id="helpBtn" class="btn alt" data-i18n="help">Help</button>
+      <button type="button" id="creditsBtn" class="btn alt" data-i18n="credits">Credits</button>
+    </div>
+    <button type="button" id="freshBtn" class="btn alt" data-i18n="fresh">New village</button>
+    <div class="set-row">
+      <span data-i18n="lang">Language</span>
+      <div class="row">
+        <button type="button" id="langEn" class="chip" aria-pressed="false">English</button>
+        <button type="button" id="langCkb" class="chip on" aria-pressed="true">کوردی</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span data-i18n="quality">Graphics</span>
+      <button type="button" id="qualityBtn" class="chip">مامناوەند</button>
+    </div>
+    <div class="set-row" hidden>
+      <span data-i18n="ps1">جووڵەی وێنەی کۆن</span>
+      <button type="button" id="ps1Btn" class="chip">کوژاوە</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="easy">Easy</span>
+      <button type="button" id="easyBtn" class="chip" aria-pressed="false" data-i18n="easy">ئاسان</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="adhanSet">بانگ</span>
+      <button type="button" id="adhanBtn" class="chip">هەڵکراو</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="raidsSet">ڕێگر</span>
+      <button type="button" id="raidBtn" class="chip">هەڵکراو</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="alwaysDay">هەمیشە ڕۆژ</span>
+      <button type="button" id="dayBtn" class="chip on">هەڵکراو</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="quarrelSet">کێشە</span>
+      <button type="button" id="quarrelBtn" class="chip on">هەڵکراو</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="sticks">Build-mode sticks</span>
+      <button type="button" id="stickPref" class="chip">کوژاوە</button>
+    </div>
+    <p><span data-i18n="stores">Stores on this device</span> <b id="stockWood" dir="ltr">48</b> <span data-i18n="wood">Wood</span></p>
+    <p class="ai" id="aiNote" data-i18n="ai">دروستکراو بە یارمەتی زیرەکی دەستکرد</p>
+    <p class="legal" id="creditLine" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
+    <p class="ai" data-i18n="adhanCredit"></p>
+    <p class="tips" data-i18n="tips"></p>
+    <p data-i18n="privacy"></p>
+    <p><a href="privacy.html" data-i18n="privacyGame">This game’s privacy</a> · <a href="../privacy.html" data-i18n="privacySite">Studio privacy</a></p>
+  </div>
+</div>
+
+<div id="help" class="screen" hidden>
+  <div class="panel" data-scroll-panel="help">
+    <h2 data-i18n="help">Help</h2>
+    <p class="tips" data-i18n="tips"></p>
+    <p class="ai" data-i18n="ai">دروستکراو بە یارمەتی زیرەکی دەستکرد</p>
+    <p class="legal" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
+    <button type="button" id="helpClose" class="btn" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="credits" class="screen" hidden>
+  <div class="panel" data-scroll-panel="credits">
+    <h2 data-i18n="credits">Credits</h2>
+    <p data-i18n="studio">ستۆدیۆی هاپی توونز</p>
+    <p class="legal" id="creditsLegal" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
+    <p class="ai" id="creditsAi" data-i18n="ai">دروستکراو بە یارمەتی زیرەکی دەستکرد</p>
+    <p data-i18n="thirdParty">پارچەی سەرچاوەکراوە لەژێر مۆڵەتی ئازاد بەکارهاتووە. ناوەکان لە خوارەوەن.</p>
+    <p class="tips">three.js (MIT) sky, camera damping, and grass wind. Yuka (MIT) arrive steering, also used to ease sword knockback. See sharsten/THIRD_PARTY_LICENSES.md.</p>
+    <p data-i18n="about">گوندی شارستێن یارییەکی ڕەسەنە، لە گوندی چیایی شارەستێن لە سلێمانی. ڕووخساری کەسی ڕاستەقینە نییە. شەڕی نییە.</p>
+    <p data-i18n="privacy"></p>
+    <p><a href="privacy.html" data-i18n="privacyGame">نهێنیی ئەم یارییە</a> · <a href="../privacy.html" data-i18n="privacySite">نهێنیی ستۆدیۆ</a></p>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="creditsClose" class="btn" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="quests" class="screen" hidden>
+  <div class="panel" data-scroll-panel="quests">
+    <h2 data-i18n="quests">Quests</h2>
+    <p><span data-i18n="goal">Village level</span> <b id="levelNum" dir="ltr">1</b> · <span data-i18n="happy">Happiness</span> <b id="happyNum" dir="ltr">0</b></p>
+    <div id="goalList"></div>
+    <div id="questBoard"></div>
+    <div class="quest"><span data-i18n="qSpring">Fix the spring</span><b id="qSpring"></b></div>
+    <button type="button" id="fixBtn" class="btn" data-i18n="fix">Fix the spring</button>
+    <div class="quest"><span data-i18n="qSchool">Build the school</span><b id="qSchool"></b></div>
+    <div class="quest"><span data-i18n="qNewroz">Welcome guests for Newroz</span><b id="qNewroz"></b></div>
+    <button type="button" id="newrozBtn" class="btn" data-i18n="newroz">Welcome Newroz guests</button>
+    <button type="button" id="viewMosque" class="btn alt" data-i18n="mosque">Mosque</button>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="questsClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="people" class="screen" hidden>
+  <div class="panel" data-scroll-panel="people">
+    <h2 data-i18n="people">People</h2>
+    <div id="peopleList"></div>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="peopleClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="craft" class="screen" hidden>
+  <div class="panel" data-scroll-panel="craft">
+    <h2 data-i18n="craft">دروستکردن</h2>
+    <div id="craftList"></div>
+    <div id="craftTrack"><i id="craftBar"></i></div>
+    <button type="button" id="craftGo" class="btn" data-i18n="craft">دروستکردن</button>
+    <button type="button" id="craftClose" class="btn alt" data-i18n="close">داخستن</button>
+  </div>
+</div>
+
+<div id="build" class="screen" hidden>
+  <div class="panel" data-scroll-panel="build">
+    <h2 data-i18n="build">Build</h2>
+    <div id="buildList"></div>
+    <button type="button" id="placeSuggest" class="btn" data-i18n="placeHere">Place here</button>
+    <button type="button" id="cancelBuild" class="btn alt" data-i18n="cancelBuild">Cancel</button>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="buildClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="detail" class="screen" hidden>
+  <div class="panel" data-scroll-panel="detail">
+    <h2 id="detailTitle">House</h2>
+    <p id="detailMeta"></p>
+    <button type="button" id="upgradeBtn" class="btn" data-i18n="upgrade">Upgrade</button>
+    <button type="button" id="detailFix" class="btn" data-i18n="fix">Fix the spring</button>
+    <button type="button" id="cleanBtn" class="btn" data-i18n="clean">Clean the mosque</button>
+    <button type="button" id="plantBtn" class="btn" data-i18n="plant">Plant wheat</button>
+    <button type="button" id="harvestBtn" class="btn" data-i18n="harvest">Harvest</button>
+    <button type="button" id="demolishBtn" class="btn alt" data-i18n="demolish">Remove</button>
+    <p id="detailNote"></p>
+    <p class="tips" data-i18n="tips"></p>
+    <button type="button" id="detailClose" class="btn alt" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<div id="pause" class="screen" hidden>
+  <div class="panel" data-scroll-panel="pause">
+    <h2 data-i18n="pause">Pause</h2>
+    <button type="button" id="resumeBtn" class="btn" data-i18n="resume">Resume</button>
+    <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">Help</button>
+    <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">Menu</button>
+    <p class="legal" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
+    <p class="tips" data-i18n="tips"></p>
+  </div>
+</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>

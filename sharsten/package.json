@@ -1,0 +1,12 @@
+{
+  "name": "sharsten-village",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sim": "node sim-check.js",
+    "test": "node sim-check.js && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}
