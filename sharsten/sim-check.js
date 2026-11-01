@@ -1,7 +1,7 @@
 import {
   LAYOUT, MAP_BOUND, acceptQuest, advanceHours, assignJob, astarRoute, averageHappiness, cameraBasis, cameraEyeY,
-  celebrateNewroz, clampToMap, cleanMosque, createState, demolish, driveVehicle, enterVehicle, exitVehicle, harvest,
-  integrate, isRoad, npcActiveCap, npcSchedule, phaseOf, place, plant, playable, reachExit, setHour, setSeason, stepNpcs,
+  canPlace, celebrateNewroz, clampToMap, cleanMosque, createState, demolish, driveVehicle, enterVehicle, exitVehicle, harvest,
+  integrate, isRoad, isUnlocked, npcActiveCap, npcSchedule, phaseOf, place, plant, playable, reachExit, setEasy, setHour, setSeason, stepNpcs,
   animalCap, carryBudget, DONKEY_SPEED, enterAnimal, exitAnimal, herdSpot, moveGoods, rideAnimal, stepAnimals,
   stepVehicles, stickVector, suggestCell, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, walkStep,
 } from './sim.js';
@@ -239,7 +239,8 @@ const shifted = Math.hypot(farmer.gx - before.gx, farmer.gz - before.gz);
 if (farmer.path.length > 1) assert(shifted > 0.05, 'walks the lane');
 
 const traffic = createState();
-assert(traffic.vehicles.length === 8, `fleet ${traffic.vehicles.length}`);
+assert(traffic.vehicles.length === 6, `fleet ${traffic.vehicles.length}`);
+assert(traffic.vehicles.every((v) => v.kind === 'cart'), 'wooden carts only');
 assert(vehicleCap(true) === 4 && vehicleCap(false) === 8, 'vehicle caps');
 traffic.villagers.forEach((v) => { v.gx = 28; v.gz = 4; v.tx = 28; v.tz = 4; });
 const ringCar = traffic.vehicles.find((v) => v.route === 'ring');
@@ -258,7 +259,7 @@ for (let i = 0; i < 240 && !lapped; i += 1) {
 assert(lapped, `loop seen ${lapSeen.size}`);
 
 const driver = createState();
-const bike = driver.vehicles.find((v) => v.kind === 'motorbike');
+const bike = driver.vehicles.find((v) => v.kind === 'cart');
 const pilot = driver.villagers[0];
 pilot.gx = bike.gx + 0.3;
 pilot.gz = bike.gz;
@@ -302,23 +303,12 @@ for (let i = 0; i < 30; i += 1) {
 assert(mosqueHit, 'mosque collision');
 
 const farm = createState();
-farm.villagers.forEach((v) => { v.gx = 8; v.gz = 8; v.tx = 8; v.tz = 8; });
 const ripeField = farm.buildings.find((b) => b.type === 'field' && b.stage === 3);
-const tractor = farm.vehicles.find((v) => v.kind === 'tractor');
-tractor.gx = ripeField.gx;
-tractor.gz = ripeField.gz;
-tractor.path = null;
+assert(ripeField, 'ripe plot');
 const grainBefore = farm.resources.grain;
-stepVehicles(farm, 0.2, { low: false, focus: { gx: ripeField.gx, gz: ripeField.gz, r: 30 } });
-assert(ripeField.stage === 4, `stubble ${ripeField.stage}`);
-assert(farm.resources.grain >= grainBefore + 6, 'wheat added');
-const bareField = farm.buildings.find((b) => b.type === 'field' && b.stage === 0 && !b.plowed);
-assert(bareField, 'unplowed plot');
-tractor.gx = bareField.gx;
-tractor.gz = bareField.gz;
-tractor.path = null;
-stepVehicles(farm, 0.2, { low: false, focus: { gx: bareField.gx, gz: bareField.gz, r: 30 } });
-assert(bareField.plowed === true && bareField.stage === 0, 'plowed dark plot');
+assert(harvest(farm, ripeField.id).ok, 'harvest');
+assert(ripeField.stage === 0, `cleared ${ripeField.stage}`);
+assert(farm.resources.grain >= grainBefore + 8, 'wheat added');
 
 const fleet = createState();
 const watcher = fleet.villagers[0];
@@ -380,7 +370,7 @@ const donkey = mount.animals.find((a) => a.kind === 'donkey');
 const rider = mount.villagers[0];
 rider.gx = donkey.gx + 0.2;
 rider.gz = donkey.gz;
-assert(DONKEY_SPEED < VEHICLE_SPEED.tractor, 'donkey slower than a tractor');
+assert(DONKEY_SPEED < VEHICLE_SPEED.cart, 'donkey slower than a cart');
 assert(enterAnimal(mount, donkey.id).ok, 'mount');
 assert(mount.riddenId === donkey.id, 'mounted');
 const saddle = { gx: donkey.gx, gz: donkey.gz };
@@ -411,5 +401,12 @@ assert(flockCap.animals.filter((a) => a.ai === 'active').length === 20, 'low ani
 stepAnimals(flockCap, 0.2, { low: false, focus: { gx: eye.gx, gz: eye.gz, r: 0.3 } });
 const farBeasts = flockCap.animals.filter((a) => Math.hypot(a.gx - eye.gx, a.gz - eye.gz) > 0.3);
 assert(farBeasts.length > 0 && farBeasts.every((a) => a.ai === 'lod' && a.updated === false), 'animal lod');
+
+const lock = createState();
+assert(isUnlocked(lock, 'house') && !isUnlocked(lock, 'teahouse'), 'later buildings stay locked');
+setEasy(lock, true);
+assert(isUnlocked(lock, 'teahouse'), 'easy mode unlocks');
+const plotTea = suggestCell(lock, 'teahouse');
+assert(plotTea && canPlace(lock, 'teahouse', plotTea.gx, plotTea.gz), 'easy can afford a tea house');
 
 console.log('sim-check ok');

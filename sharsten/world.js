@@ -271,8 +271,8 @@ export function createView(canvas) {
   const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), mat(0xffffff), GROUND_CAP);
   scene.add(ground);
 
-  const walls = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: mudTexture() }), 40);
-  const roofs = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: roofTexture() }), 40);
+  const walls = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: mudTexture() }), 140);
+  const roofs = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: roofTexture() }), 80);
   const beams = pool(new THREE.BoxGeometry(1.5, 0.08, 0.1), mat(0x5a3a22), 48);
   scene.add(walls, roofs, beams);
 
@@ -372,65 +372,30 @@ export function createView(canvas) {
     mesh.userData.wheel = true;
     return mesh;
   }
-  function buildTractor() {
+  function buildCart() {
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.32, 1.15), mat(0x2f6a32));
-    body.position.set(0, 0.48, 0);
-    const hood = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.22, 0.42), mat(0xc44848));
-    hood.position.set(0, 0.62, 0.42);
-    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.08), mat(0x2a241c));
-    stack.position.set(0.22, 0.78, -0.2);
-    g.add(body, hood, stack);
-    [[-0.38, -0.28], [0.38, -0.28]].forEach(([x, z]) => {
-      const w = axleWheel(0.28, 0.14, 0x241c16);
-      w.position.set(x, 0.28, z);
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 1.05), mat(0x8d5a32));
+    bed.position.y = 0.34;
+    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 1.05), mat(0xa56b3c));
+    sideL.position.set(-0.34, 0.46, 0);
+    const sideR = sideL.clone();
+    sideR.position.x = 0.34;
+    const front = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.06), mat(0xa56b3c));
+    front.position.set(0, 0.46, 0.5);
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.5), mat(0x6b4226));
+    shaft.position.set(0, 0.3, 0.75);
+    g.add(bed, sideL, sideR, front, shaft);
+    [[-0.36, -0.12], [0.36, -0.12]].forEach(([x, z]) => {
+      const w = axleWheel(0.2, 0.08, 0x4a3428);
+      w.position.set(x, 0.2, z);
       g.add(w);
     });
-    [[-0.34, 0.42], [0.34, 0.42]].forEach(([x, z]) => {
-      const w = axleWheel(0.16, 0.1, 0x241c16);
-      w.position.set(x, 0.16, z);
-      g.add(w);
-    });
-    return g;
-  }
-  function buildCar(paint) {
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.28, 1.25), mat(paint));
-    body.position.set(0, 0.36, 0);
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.24, 0.52), mat(0xd8e4ea));
-    cabin.position.set(0, 0.58, -0.05);
-    g.add(body, cabin);
-    [[-0.36, 0.38], [0.36, 0.38], [-0.36, -0.38], [0.36, -0.38]].forEach(([x, z]) => {
-      const w = axleWheel(0.16, 0.1, 0x241c16);
-      w.position.set(x, 0.16, z);
-      g.add(w);
-    });
-    return g;
-  }
-  function buildMotorbike() {
-    const g = new THREE.Group();
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.72), mat(0xc44848));
-    frame.position.set(0, 0.32, 0);
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.28), mat(0x2a241c));
-    seat.position.set(0, 0.4, -0.08);
-    const tank = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.22), mat(0xc44848));
-    tank.position.set(0, 0.4, 0.16);
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.06), mat(0x3a342c));
-    bar.position.set(0, 0.52, 0.28);
-    g.add(frame, seat, tank, bar);
-    const front = axleWheel(0.18, 0.08, 0x241c16);
-    front.position.set(0, 0.18, 0.34);
-    const rear = axleWheel(0.18, 0.08, 0x241c16);
-    rear.position.set(0, 0.18, -0.32);
-    g.add(front, rear);
     return g;
   }
   function meshFor(v) {
     let g = vehicleGroups.get(v.id);
     if (g) return g;
-    if (v.kind === 'tractor') g = buildTractor();
-    else if (v.kind === 'motorbike') g = buildMotorbike();
-    else g = buildCar(v.id % 2 === 0 ? 0xe6d3a4 : 0x3a5a8a);
+    g = buildCart();
     scene.add(g);
     vehicleGroups.set(v.id, g);
     return g;
@@ -473,12 +438,23 @@ export function createView(canvas) {
   const stone = mat(0xf4f1ea);
   const trim = mat(0x2f8f55);
   const hole = mat(0x3e4a55);
-  const hall = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.15, 1.5), stone);
-  hall.position.y = 0.58;
-  const band = new THREE.Mesh(new THREE.BoxGeometry(1.88, 0.1, 1.58), trim);
-  band.position.y = 1.12;
-  const terrace = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.08, 1.4), stone);
-  terrace.position.y = 1.22;
+  const court = 0.95;
+  const yard = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.04, 1.55), mat(0xe7f2d4));
+  yard.position.y = 0.05;
+  const wallN = new THREE.Mesh(new THREE.BoxGeometry(court * 2.15, 0.55, 0.1), stone);
+  wallN.position.set(0, 0.28, -court);
+  const wallS = wallN.clone();
+  wallS.position.z = court;
+  const wallW = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, court * 2), stone);
+  wallW.position.set(-court, 0.28, 0);
+  const wallE = wallW.clone();
+  wallE.position.x = court;
+  const hall = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.72, 1.55), stone);
+  hall.position.set(-0.62, 0.36, 0);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.08, 1.7), trim);
+  band.position.set(-0.62, 0.76, 0);
+  const terrace = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.4), stone);
+  terrace.position.set(0.15, 0.08, 0);
   for (let i = -1; i <= 1; i += 1) {
     const win = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.42, 0.06), hole);
     win.position.set(i * 0.42, 0.62, 0.76);
@@ -499,7 +475,7 @@ export function createView(canvas) {
   shaft.position.set(-0.95, 0.85, -0.15);
   const gallery = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 6), trim);
   gallery.position.set(-0.95, 1.55, -0.15);
-  mosque.add(hall, band, terrace, canopyTop, shaft, gallery);
+  mosque.add(yard, wallN, wallS, wallW, wallE, hall, band, terrace, canopyTop, shaft, gallery);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), stone);
   cap.position.set(-0.95, 1.85, -0.15);
   mosque.add(cap);
@@ -610,15 +586,27 @@ export function createView(canvas) {
       const s = STYLES[b.style % STYLES.length];
       const sc = 1 + (b.level - 1) * 0.08;
       const lod = dist > nearM;
-      put(walls, wi, p.x, 0.55 * sc, p.z, 1.45 * sc, lod ? 0.7 : 1.05 * sc, 1.28 * sc, 0, s.wall);
-      wi += 1;
-      put(roofs, ri, p.x, (lod ? 0.95 : 1.12) * sc, p.z, 1.62 * sc, 0.1, 1.46 * sc, 0, 0xffffff);
-      ri += 1;
-      if (!lod && beamN < 46) {
-        put(beams, beamN, p.x, 1.2 * sc, p.z - 0.25, 1, 1, 1, 0, 0x5a3a22);
-        beamN += 1;
-        put(beams, beamN, p.x, 1.2 * sc, p.z + 0.25, 1, 1, 1, 0, 0x5a3a22);
-        beamN += 1;
+      const L = b.style % 2 === 1;
+      if (lod || wi > 120) {
+        put(walls, wi, p.x, 0.32 * sc, p.z, 1.4 * sc, 0.5, 1.25 * sc, 0, s.wall);
+        wi += 1;
+        put(roofs, ri, p.x, 0.62 * sc, p.z - 0.2, 1.2 * sc, 0.08, 0.62 * sc, 0, 0xd8c4a4);
+        ri += 1;
+      } else {
+        put(walls, wi, p.x, 0.26, p.z - 0.62, 1.4, 0.4, 0.08, 0, s.wall);
+        wi += 1;
+        put(walls, wi, p.x, 0.26, p.z + 0.62, 1.4, 0.4, 0.08, 0, s.wall);
+        wi += 1;
+        put(walls, wi, p.x - 0.66, 0.26, p.z, 0.08, 0.4, 1.24, 0, s.wall);
+        wi += 1;
+        put(walls, wi, p.x + 0.66, 0.26, p.z, 0.08, 0.4, 1.24, 0, 0xe7e0d0);
+        wi += 1;
+        put(roofs, ri, p.x - (L ? 0.28 : 0), 0.58, p.z - 0.22, L ? 0.78 : 1.28, 0.08, 0.62, 0, 0xd8c4a4);
+        ri += 1;
+        if (L && ri < 78) {
+          put(roofs, ri, p.x + 0.32, 0.58, p.z + 0.18, 0.5, 0.08, 0.62, 0, 0xcbb896);
+          ri += 1;
+        }
       }
     });
     commit(walls, wi);
@@ -914,7 +902,7 @@ export function createView(canvas) {
       };
     },
     propKinds() {
-      return ['mud-house', 'earthen-roof', 'dirt-path', 'stone-mosque', 'well', 'donkey', 'ox', 'cow', 'sheep', 'goat', 'chicken', 'oil-lamp', 'stone-wall', 'tractor', 'car', 'motorbike'];
+      return ['mud-house', 'courtyard-house', 'flat-roof', 'earthen-roof', 'dirt-lane', 'stone-mosque', 'mosque-courtyard', 'well', 'donkey', 'ox', 'cow', 'sheep', 'goat', 'chicken', 'oil-lamp', 'stone-wall', 'wooden-cart'];
     },
     setGhost(cell) { ghostCell = cell; },
     setSelect(cell) { selectCell = cell; },

@@ -52,19 +52,22 @@
 <div id="toast" hidden></div>
 <div id="speech" hidden></div>
 <div id="hud" hidden>
-  <div class="res" id="resbar"></div>
-  <button type="button" id="modeBtn" class="chip">Walk mode</button>
-  <button type="button" id="hudBuild" class="chip" data-i18n="build">Build</button>
-  <button type="button" id="hudPeople" class="chip" data-i18n="people">People</button>
-  <button type="button" id="hudQuests" class="chip" data-i18n="quests">Quests</button>
-  <button type="button" id="hudPause" class="chip" data-i18n="pause">Pause</button>
-  <button type="button" id="rideBtn" class="chip">Donkey</button>
+  <div class="res" id="resbar" data-scroll-panel="res"></div>
+  <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">Menu</button>
   <div class="clock chip tiny"><b id="clockTime" dir="ltr">08:00</b> <span id="clockMeta"></span></div>
-  <div id="camBtns" hidden>
-  <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
-  <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
-  <button type="button" id="rotLeft" aria-label="Rotate left">↺</button>
-  <button type="button" id="rotRight" aria-label="Rotate right">↻</button>
+  <div id="hudPop" hidden data-scroll-panel="hud">
+    <button type="button" id="modeBtn" class="chip">Walk mode</button>
+    <button type="button" id="hudBuild" class="chip" data-i18n="build">Build</button>
+    <button type="button" id="hudPeople" class="chip" data-i18n="people">People</button>
+    <button type="button" id="hudQuests" class="chip" data-i18n="quests">Quests</button>
+    <button type="button" id="hudPause" class="chip" data-i18n="pause">Pause</button>
+    <button type="button" id="rideBtn" class="chip" data-i18n="donkey">Donkey</button>
+    <div id="camBtns" hidden>
+      <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+      <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+      <button type="button" id="rotLeft" aria-label="Rotate left">↺</button>
+      <button type="button" id="rotRight" aria-label="Rotate right">↻</button>
+    </div>
   </div>
 </div>
 <div id="buildSticks" hidden>
@@ -115,8 +118,12 @@
       <button type="button" id="qualityBtn" class="chip">Low</button>
     </div>
     <div class="set-row">
-      <span>PS1 jitter</span>
+      <span data-i18n="ps1">PS1 jitter</span>
       <button type="button" id="ps1Btn" class="chip on">On</button>
+    </div>
+    <div class="set-row">
+      <span data-i18n="easy">Easy</span>
+      <button type="button" id="easyBtn" class="chip" aria-pressed="false" data-i18n="easy">Easy</button>
     </div>
     <div class="set-row">
       <span data-i18n="sticks">Build-mode sticks</span>
@@ -124,7 +131,7 @@
     </div>
     <p><span data-i18n="stores">Stores on this device</span> <b id="stockWood" dir="ltr">48</b> <span data-i18n="wood">Wood</span></p>
     <p class="ai" id="aiNote">Made with AI assistance</p>
-    <p class="legal" id="creditLine">© Ayub Azizi – Happy Toons Studio</p>
+    <p class="legal" id="creditLine">© 2026 Ayub Azizi – Happy Toons Studio</p>
     <p class="tips" data-i18n="tips"></p>
     <p data-i18n="privacy"></p>
     <p><a href="privacy.html" data-i18n="privacyGame">This game’s privacy</a> · <a href="../privacy.html" data-i18n="privacySite">Studio privacy</a></p>
@@ -136,7 +143,7 @@
     <h2 data-i18n="help">Help</h2>
     <p class="tips" data-i18n="tips"></p>
     <p class="ai">Made with AI assistance</p>
-    <p class="legal">© Ayub Azizi – Happy Toons Studio</p>
+    <p class="legal">© 2026 Ayub Azizi – Happy Toons Studio</p>
     <button type="button" id="helpClose" class="btn" data-i18n="close">Close</button>
   </div>
 </div>
@@ -145,9 +152,9 @@
   <div class="panel" data-scroll-panel="credits">
     <h2 data-i18n="credits">Credits</h2>
     <p>Happy Toons Studio</p>
-    <p class="legal" id="creditsLegal">© Ayub Azizi – Happy Toons Studio</p>
+    <p class="legal" id="creditsLegal">© 2026 Ayub Azizi – Happy Toons Studio</p>
     <p class="ai" id="creditsAi">Made with AI assistance</p>
-    <p>Sharsten Village is an original stylized game, inspired by the mountain village of Sharsten (شارەستێن) in Sulaymaniyah. No real person’s face is shown. There is no combat.</p>
+    <p data-i18n="about">Sharsten Village is an original stylized game, inspired by the mountain village of Sharsten (شارەستێن) in Sulaymaniyah. No real person’s face is shown. There is no combat.</p>
     <p data-i18n="privacy"></p>
     <p><a href="privacy.html">This game’s privacy</a> · <a href="../privacy.html">Studio privacy</a></p>
     <p class="tips" data-i18n="tips"></p>
@@ -213,7 +220,7 @@
     <button type="button" id="resumeBtn" class="btn" data-i18n="resume">Resume</button>
     <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">Help</button>
     <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">Menu</button>
-    <p class="legal">© Ayub Azizi – Happy Toons Studio</p>
+    <p class="legal">© 2026 Ayub Azizi – Happy Toons Studio</p>
     <p class="tips" data-i18n="tips"></p>
   </div>
 </div>

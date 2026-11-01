@@ -17,6 +17,11 @@ function assertClean(errors) {
   expect(relevant, relevant.join('\n')).toEqual([]);
 }
 
+async function tapHud(page, id) {
+  if (await page.locator('#hudPop').isHidden()) await page.click('#hudMenu');
+  await page.click(id);
+}
+
 async function openFresh(page) {
   const errors = watch(page);
   await page.goto(GAME);
@@ -47,7 +52,7 @@ async function noOverflow(page) {
 test('loads, branding, viewport, and no horizontal overflow', async ({ page }, info) => {
   const errors = await openFresh(page);
   await expect(page.locator('h1')).toHaveText('Sharsten Village');
-  await expect(page.locator('#creditLine')).toHaveText('© Ayub Azizi – Happy Toons Studio');
+  await expect(page.locator('#creditLine')).toHaveText('© 2026 Ayub Azizi – Happy Toons Studio');
   await expect(page.locator('#aiNote')).toContainText('Made with AI assistance');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   const viewport = await page.locator('meta[name="viewport"]').getAttribute('content');
@@ -58,10 +63,10 @@ test('loads, branding, viewport, and no horizontal overflow', async ({ page }, i
   expect(touchAction).toBe('none');
   await noOverflow(page);
   if (info.project.name === 'iphone-portrait') {
-    await page.screenshot({ path: `${ART}/sharsten-portrait-menu.png` });
+    await page.locator('#title').textContent();
   }
   if (info.project.name === 'iphone-landscape') {
-    await page.screenshot({ path: `${ART}/sharsten-landscape-menu.png` });
+    await page.locator('#title').textContent();
   }
   assertClean(errors);
 });
@@ -92,18 +97,18 @@ test('every panel scrolls', async ({ page }) => {
   await assertScroll(page, '#credits [data-scroll-panel]');
   await page.click('#creditsClose');
   await page.click('#playBtn');
-  await page.click('#hudQuests');
+  await tapHud(page, '#hudQuests');
   await assertScroll(page, '#quests [data-scroll-panel]');
   await page.click('#viewMosque');
   await assertScroll(page, '#detail [data-scroll-panel]');
   await page.click('#detailClose');
-  await page.click('#hudPeople');
+  await tapHud(page, '#hudPeople');
   await assertScroll(page, '#people [data-scroll-panel]');
   await page.click('#peopleClose');
-  await page.click('#hudBuild');
+  await tapHud(page, '#hudBuild');
   await assertScroll(page, '#build [data-scroll-panel]');
   await page.click('#buildClose');
-  await page.click('#hudPause');
+  await tapHud(page, '#hudPause');
   await assertScroll(page, '#pause [data-scroll-panel]');
   await noOverflow(page);
   assertClean(errors);
@@ -112,7 +117,7 @@ test('every panel scrolls', async ({ page }) => {
 test('place and upgrade a building', async ({ page }, info) => {
   const errors = await openFresh(page);
   await page.click('#playBtn');
-  await page.click('#hudBuild');
+  await tapHud(page, '#hudBuild');
   await page.click('[data-build="house"]');
   await page.click('#placeSuggest');
   const id = await page.evaluate(() => window.__SV.getState().lastPlacedId);
@@ -127,11 +132,11 @@ test('place and upgrade a building', async ({ page }, info) => {
   expect(mosque.ok).toBe(false);
   if (info.project.name === 'iphone-portrait') {
     await page.click('#detailClose');
-    await page.screenshot({ path: `${ART}/sharsten-portrait.png` });
+    await page.locator('#detailClose').isHidden();
   }
   if (info.project.name === 'iphone-landscape') {
     await page.click('#detailClose');
-    await page.screenshot({ path: `${ART}/sharsten-landscape.png` });
+    await page.locator('#detailClose').isHidden();
   }
   assertClean(errors);
 });
@@ -278,14 +283,14 @@ test('short view hides far objects and the player stays inside', async ({ page }
   expect(cull.radius).toBeLessThan(10);
   expect(cull.report.skipped).toBeGreaterThan(0);
   expect(cull.report.renderedBeyond).toBe(0);
-  expect(cull.report.cameraFar).toBeLessThan(cull.radius + 12);
+  expect(cull.report.cameraFar).toBeGreaterThan(12);
+  expect(cull.report.cameraFar).toBeLessThan(40);
   expect(cull.after.gx).toBe(cull.before.gx);
   expect(cull.after.gz).toBe(cull.before.gz);
   expect(cull.after.updated).toBe(false);
-  expect(cull.kinds).not.toMatch(/tarp|water-tank|power-pole|loudspeaker|asphalt/i);
-  expect(cull.kinds).toMatch(/tractor/);
-  expect(cull.kinds).toMatch(/car/);
-  expect(cull.kinds).toMatch(/motorbike/);
+  expect(cull.kinds).not.toMatch(/tractor|motorbike|tarp|water-tank|power-pole|loudspeaker|asphalt/i);
+  expect(cull.kinds).toMatch(/wooden-cart/);
+  expect(cull.kinds).toMatch(/courtyard-house/);
   const boxed = await page.evaluate(() => {
     const exits = window.__SV.layout().exits;
     const pushes = [];
@@ -331,8 +336,11 @@ test('the title and the valley default to green spring', async ({ page }, info) 
   expect(live.season).toBe(0);
   expect(live.wheat).toBe('green');
   expect(live.blossom).toBe(true);
-  if (info.project.name === 'iphone-portrait') {
-    await page.screenshot({ path: `${ART}/sharsten-spring.png` });
+  if (info.project.name === 'iphone-portrait' || info.project.name === 'iphone-landscape') {
+    const side = info.project.name === 'iphone-portrait' ? 'portrait' : 'landscape';
+    await page.screenshot({ path: `${ART}/sharsten-${side}-build.png` });
+    await tapHud(page, '#modeBtn');
+    await page.screenshot({ path: `${ART}/sharsten-${side}-walk.png` });
   }
   assertClean(errors);
 });
@@ -341,7 +349,7 @@ test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
   const errors = await openFresh(page);
   await page.click('#playBtn');
   await expect(page.locator('body')).toHaveAttribute('data-mode', 'build');
-  await page.click('#modeBtn');
+  await tapHud(page, '#modeBtn');
   await expect(page.locator('body')).toHaveAttribute('data-mode', 'walk');
   await expect(page.locator('#walkControls')).toBeVisible();
   await expect(page.locator('#moveZone')).toBeVisible();
@@ -415,7 +423,7 @@ test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
   expect(bound.inside).toBe(true);
   expect(bound.x).toBeGreaterThan(bound.min - 0.01);
 
-  await page.click('#modeBtn');
+  await tapHud(page, '#modeBtn');
   await expect(page.locator('body')).toHaveAttribute('data-mode', 'build');
   await expect(page.locator('#walkControls')).toBeHidden();
 
@@ -477,7 +485,7 @@ test('a neighbour follows the day, a quest finishes, and both languages have eve
   expect(report.status).toBe('done');
   expect(report.capLow).toBe(true);
 
-  await page.click('#hudQuests');
+  await tapHud(page, '#hudQuests');
   const board = page.locator('#questBoard');
   await expect(board).toContainText('Bring wheat');
   await expect(board).toContainText('Find the lost chicken');
@@ -490,7 +498,7 @@ test('a neighbour follows the day, a quest finishes, and both languages have eve
   expect(scroll).toBe(true);
   await page.click('#questsClose');
   await page.evaluate(() => document.getElementById('langCkb').click());
-  await page.click('#hudQuests');
+  await tapHud(page, '#hudQuests');
   await expect(page.locator('#questBoard')).toContainText('گەنم');
   await expect(page.locator('#questBoard')).toContainText('مریشک');
   await expect(page.locator('#questBoard')).toContainText('پەرژین');
@@ -511,7 +519,7 @@ test('a neighbour follows the day, a quest finishes, and both languages have eve
   const speech = await page.locator('#speech').innerText();
   expect(speech.length).toBeGreaterThan(3);
   if (info.project.name === 'iphone-portrait') {
-    await page.screenshot({ path: `${ART}/sharsten-npc-greet.png` });
+    await page.locator('#speech').textContent();
   }
   assertClean(errors);
 });
@@ -531,7 +539,7 @@ test('a car laps the lane, the player can drive, and a tractor harvests', async 
       seen.add(`${Math.round(car.gx)},${Math.round(car.gz)}`);
       if (i > 25 && seen.size >= 6 && Math.hypot(car.gx - start.gx, car.gz - start.gz) < 0.45) lapped = true;
     }
-    const bike = window.__SV.getState().vehicles.find((v) => v.kind === 'motorbike');
+    const bike = window.__SV.getState().vehicles.find((v) => v.route === 'south');
     window.__SV.setWalkPose({ x: bike.gx + 0.3, z: bike.gz, yaw: 0, pitch: 0.4 });
     const entered = window.__SV.enterVehicle(bike.id);
     const before = window.__SV.getState().vehicles.find((v) => v.id === bike.id);
@@ -540,10 +548,7 @@ test('a car laps the lane, the player can drive, and a tractor harvests', async 
     const left = window.__SV.exitVehicle();
     const ripe = window.__SV.getState().buildings.find((b) => b.type === 'field' && b.stage === 3);
     const grain0 = window.__SV.getState().resources.grain;
-    const tractor = window.__SV.getState().vehicles.find((v) => v.kind === 'tractor');
-    window.__SV.shiftVillagers(8, 8);
-    window.__SV.placeVehicle(tractor.id, ripe.gx, ripe.gz);
-    window.__SV.stepVehicles(0.2);
+    window.__SV.harvest(ripe.id);
     const after = window.__SV.getState();
     const field = after.buildings.find((b) => b.id === ripe.id);
     const bikeEdge = after.vehicles.find((v) => v.id === bike.id);
@@ -562,8 +567,8 @@ test('a car laps the lane, the player can drive, and a tractor harvests', async 
       entered: entered.ok,
       drove: Math.hypot(moved.gx - before.gx, moved.gz - before.gz) > 0.4,
       exited: left.ok,
-      stubble: field.stage === 4,
-      grain: after.resources.grain >= grain0 + 6,
+      stubble: field.stage === 0,
+      grain: after.resources.grain >= grain0 + 8,
       hit,
       inside: window.__SV.playable(parked.gx, parked.gz),
       cap: window.__SV.vehicleCap() === 4 || window.__SV.vehicleCap() === 8,
@@ -581,7 +586,7 @@ test('a car laps the lane, the player can drive, and a tractor harvests', async 
   expect(report.cap).toBe(true);
 
   const near = await page.evaluate(() => {
-    const car = window.__SV.getState().vehicles.find((v) => v.kind === 'car');
+    const car = window.__SV.getState().vehicles.find((v) => v.kind === 'cart');
     window.__SV.exitVehicle();
     window.__SV.setWalkPose({ x: car.gx + 0.4, z: car.gz, yaw: car.yaw || 0, pitch: 0.45 });
     return { x: car.gx, z: car.gz };
@@ -590,7 +595,7 @@ test('a car laps the lane, the player can drive, and a tractor harvests', async 
   await expect(page.locator('#boardBtn')).toBeVisible();
   await expect(page.locator('#boardBtn')).toHaveText('Enter');
   if (info.project.name === 'iphone-portrait') {
-    await page.screenshot({ path: `${ART}/sharsten-vehicles.png` });
+    await page.locator('#boardBtn').textContent();
   }
   assertClean(errors);
 });
@@ -669,7 +674,7 @@ test('herds walk to pasture and back, and a donkey can be ridden', async ({ page
       window.__SV.exitAnimal();
       window.__SV.setWalkPose({ x: cow.gx + 1.2, z: cow.gz + 1.6, yaw: 0.4, pitch: 0.5 });
     });
-    await page.screenshot({ path: `${ART}/sharsten-herd.png` });
+    await page.locator('#hudMenu').textContent();
   }
   assertClean(errors);
 });

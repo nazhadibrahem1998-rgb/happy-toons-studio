@@ -6,11 +6,11 @@ import {
   COSTS, MAP_BOUND, SAVE_KEY, SETTINGS_KEY, SEASONS,
   advanceHours, assignJob, cameraBasis, cameraEyeY, canPlace, celebrateNewroz,
   cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring, worldToCell,
-  harvest, parseSave, phaseOf, place, plant, select, serialize, setHour, setSeason, setStock,
+  harvest, parseSave, phaseOf, place, plant, select, serialize, setEasy, setHour, setSeason, setStock,
   acceptQuest, animalCap, astarRoute, carryBudget, DONKEY_SPEED, driveVehicle, enterAnimal, enterVehicle,
   exitAnimal, exitVehicle, herdSpot, moveGoods, nearestAnimal, nearestVehicle, npcActiveCap, npcSchedule, rideAnimal,
   stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
-  LAYOUT, isRoad, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
+  LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
 } from './sim.js';
 import { formatClock, formatNum, linePairs, npcLine, t } from './i18n.js';
 import { createView } from './world.js';
@@ -20,22 +20,26 @@ const testMode = new URLSearchParams(location.search).has('test');
 const coarse = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 
 const RES = ['wood', 'stone', 'water', 'food', 'money', 'grain', 'flour', 'wool', 'eggs'];
+const RES_ICON = { wood: '▣', stone: '◆', water: '〜', food: '◑', money: '●', grain: '✶', flour: '◌', wool: '◍', eggs: '○' };
 const JOBS = ['idle', 'farmer', 'shepherd', 'baker', 'miller', 'weaver', 'smith', 'builder', 'teacher', 'healer', 'host'];
 const PANELS = ['help', 'credits', 'quests', 'people', 'build', 'detail', 'pause'];
 
 let lang = 'en';
 let low = !!coarse;
 let stickPref = !!coarse;
+let easy = false;
 try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
   if (saved) {
     if (saved.lang === 'ckb' || saved.lang === 'en') lang = saved.lang;
     if (saved.quality) low = saved.quality === 'low';
     if (typeof saved.sticks === 'boolean') stickPref = saved.sticks;
+    if (typeof saved.easy === 'boolean') easy = saved.easy;
   }
 } catch { /* keep defaults */ }
 
 let state = parseSave(localStorage.getItem(SAVE_KEY)) || createState();
+state.easy = easy;
 let playing = false;
 let buildType = null;
 let peopleSig = '';
@@ -59,7 +63,7 @@ const resbar = document.getElementById('resbar');
 RES.forEach((key) => {
   const chip = document.createElement('span');
   chip.className = 'chip tiny';
-  chip.innerHTML = `<span data-i18n="${key}"></span> <b id="res-${key}" dir="ltr"></b>`;
+  chip.innerHTML = `<i aria-hidden="true">${RES_ICON[key]}</i><span class="sr" data-i18n="${key}"></span><b id="res-${key}" dir="ltr"></b>`;
   resbar.appendChild(chip);
 });
 
@@ -83,6 +87,7 @@ function saveSettings() {
       lang,
       quality: low ? 'low' : 'high',
       sticks: stickPref,
+      easy,
     }));
   } catch { /* ignore */ }
 }
@@ -370,6 +375,11 @@ function paint() {
   document.getElementById('modeBtn').textContent = state.mode === 'walk' ? t(lang, 'modeToBuild') : t(lang, 'modeToWalk');
   document.getElementById('qualityBtn').textContent = low ? t(lang, 'qualityLow') : t(lang, 'qualityHigh');
   document.getElementById('stickPref').textContent = stickPref ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
+  const easyBtn = document.getElementById('easyBtn');
+  if (easyBtn) {
+    easyBtn.classList.toggle('on', !!state.easy);
+    easyBtn.setAttribute('aria-pressed', state.easy ? 'true' : 'false');
+  }
   document.getElementById('levelNum').textContent = formatNum(state.level, lang);
   document.getElementById('happyNum').textContent = formatNum(snapshot(state).happiness, lang);
   paintQuestBoard();
@@ -378,7 +388,9 @@ function paint() {
   document.getElementById('qNewroz').textContent = state.quests.newroz ? t(lang, 'qDone') : t(lang, 'qTodo');
   document.querySelectorAll('#buildList .build-btn').forEach((btn) => {
     const type = btn.dataset.build;
-    const cost = COSTS[type];
+    const cost = state.easy
+      ? Object.fromEntries(Object.entries(COSTS[type]).map(([k, v]) => [k, Math.max(1, Math.ceil(v / 2))]))
+      : COSTS[type];
     btn.querySelector('small').textContent = Object.entries(cost).map(([k, v]) => `${formatNum(v, lang)} ${t(lang, k)}`).join(' ');
     btn.classList.toggle('on', buildType === type);
     const cell = suggestCell(state, type);
@@ -499,14 +511,31 @@ document.getElementById('helpBtn').addEventListener('click', () => openPanel('he
 document.getElementById('helpClose').addEventListener('click', closePanels);
 document.getElementById('creditsBtn').addEventListener('click', () => openPanel('credits'));
 document.getElementById('creditsClose').addEventListener('click', closePanels);
-document.getElementById('hudQuests').addEventListener('click', () => openPanel('quests'));
+function closeHud() {
+  const pop = document.getElementById('hudPop');
+  if (pop) pop.hidden = true;
+  const btn = document.getElementById('hudMenu');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+document.getElementById('hudMenu').addEventListener('click', () => {
+  const pop = document.getElementById('hudPop');
+  pop.hidden = !pop.hidden;
+  document.getElementById('hudMenu').setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
+});
+document.getElementById('easyBtn').addEventListener('click', () => {
+  easy = !easy;
+  setEasy(state, easy);
+  saveSettings();
+  paint();
+});
+document.getElementById('hudQuests').addEventListener('click', () => { closeHud(); openPanel('quests'); });
 document.getElementById('questsClose').addEventListener('click', closePanels);
-document.getElementById('hudPeople').addEventListener('click', () => openPanel('people'));
+document.getElementById('hudPeople').addEventListener('click', () => { closeHud(); openPanel('people'); });
 document.getElementById('peopleClose').addEventListener('click', closePanels);
-document.getElementById('hudBuild').addEventListener('click', () => openPanel('build'));
+document.getElementById('hudBuild').addEventListener('click', () => { closeHud(); openPanel('build'); });
 document.getElementById('buildClose').addEventListener('click', closePanels);
 document.getElementById('detailClose').addEventListener('click', closePanels);
-document.getElementById('hudPause').addEventListener('click', () => openPanel('pause'));
+document.getElementById('hudPause').addEventListener('click', () => { closeHud(); openPanel('pause'); });
 document.getElementById('resumeBtn').addEventListener('click', closePanels);
 document.getElementById('pauseHelp').addEventListener('click', () => openPanel('help'));
 document.getElementById('pauseMenu').addEventListener('click', () => {
@@ -516,7 +545,7 @@ document.getElementById('pauseMenu').addEventListener('click', () => {
   showControls();
   persist();
 });
-document.getElementById('modeBtn').addEventListener('click', () => setMode(state.mode === 'walk' ? 'build' : 'walk'));
+document.getElementById('modeBtn').addEventListener('click', () => { closeHud(); setMode(state.mode === 'walk' ? 'build' : 'walk'); });
 document.getElementById('langEn').addEventListener('click', () => { lang = 'en'; applyLang(); });
 document.getElementById('langCkb').addEventListener('click', () => { lang = 'ckb'; applyLang(); });
 document.getElementById('qualityBtn').addEventListener('click', () => {
@@ -772,7 +801,8 @@ function frame(now) {
   const here = walking ? cellToWorld(player().gx, player().gz) : { x: buildCam.x, z: buildCam.z };
   const radius = renderRadiusUnits(low);
   const camDist = walking ? 5.2 : buildCam.dist;
-  view.setFog(Math.max(1.5, camDist * 0.35), camDist + radius * 0.92);
+  const haze = metersToUnits(25);
+  view.setFog(camDist + haze, camDist + haze + metersToUnits(40));
   view.setPreview(!playing);
   view.sync(state, now / 1000, { x: here.x, z: here.z, radius });
   const boot = document.getElementById('boot');
@@ -809,7 +839,8 @@ window.__SV = {
     });
     const here = cellToWorld(who.gx, who.gz);
     const radius = renderRadiusUnits(low);
-    view.setFog(2, 5.2 + radius * 0.92);
+    const haze = metersToUnits(25);
+    view.setFog(5.2 + haze, 5.2 + haze + metersToUnits(40));
     view.sync(state, 0, { x: here.x, z: here.z, radius });
   },
   suggest(type) { return suggestCell(state, type); },

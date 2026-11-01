@@ -158,8 +158,15 @@ traceRoad('paved', LAYOUT.loopApex.gx, LAYOUT.loopApex.gz, MX + 14, MZ - 2);
 traceRoad('paved', MX + 2, MZ - 2, MX + 14, MZ - 2);
 traceRoad('dirt', MX - 1, MZ, LAYOUT.westSpur.gx, LAYOUT.westSpur.gz);
 traceRoad('dirt', MX + 6, MZ - 2, LAYOUT.neSpur.gx, LAYOUT.neSpur.gz);
-for (let gz = MZ; gz <= MZ + 15; gz += 3) traceRoad('dirt', MX + 2, gz, MX + 14, gz);
-for (let gx = MX + 2; gx <= MX + 14; gx += 3) traceRoad('dirt', gx, MZ + 1, gx, MZ + 15);
+function windLane(points) {
+  for (let i = 0; i < points.length - 1; i += 1) {
+    traceRoad('dirt', points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
+  }
+}
+windLane([[MX + 1, MZ + 1], [MX + 3, MZ + 2], [MX + 2, MZ + 5], [MX + 5, MZ + 6], [MX + 4, MZ + 9], [MX + 7, MZ + 11], [MX + 5, MZ + 14]]);
+windLane([[MX + 3, MZ + 2], [MX + 6, MZ + 3], [MX + 8, MZ + 1], [MX + 10, MZ + 4], [MX + 8, MZ + 7]]);
+windLane([[MX + 5, MZ + 6], [MX + 8, MZ + 8], [MX + 6, MZ + 10], [MX + 9, MZ + 12]]);
+windLane([[MX - 1, MZ + 1], [MX - 3, MZ + 3], [MX - 2, MZ + 6], [MX - 4, MZ + 8]]);
 ROADS.delete(`${MX},${MZ}`);
 
 export function roadKind(gx, gz) {
@@ -1061,8 +1068,8 @@ export function setSeason(state, name) {
   return { ok: true };
 }
 
-export const VEHICLE_SPEED = { tractor: 1.7, car: 2.4, motorbike: 3.1 };
-const VEHICLE_KINDS = ['tractor', 'car', 'motorbike'];
+export const VEHICLE_SPEED = { cart: 1.55 };
+const VEHICLE_KINDS = ['cart'];
 
 /** How many vehicles get a full update. The rest wait or skip. */
 export function vehicleCap(low) {
@@ -1145,16 +1152,13 @@ function addVehicle(state, kind, gx, gz, route, path) {
 
 function spawnVehicles(state) {
   const ring = roadLoop();
-  const ringCar = addVehicle(state, 'car', ring[0].gx, ring[0].gz, 'ring', ring.map((c) => ({ gx: c.gx, gz: c.gz })));
-  ringCar.yaw = 0;
-  addVehicle(state, 'tractor', 20, 14, 'field', null);
-  addVehicle(state, 'tractor', 20, 22, 'field', null);
-  const east = shuttleLoop(28, MZ, 50, MZ);
-  addVehicle(state, 'car', 28, MZ, 'east', east);
-  addVehicle(state, 'car', 40, MZ, 'east', shuttleLoop(40, MZ, 54, MZ));
-  addVehicle(state, 'car', 18, 44, 'south', shuttleLoop(18, 44, 18, 58));
-  addVehicle(state, 'motorbike', 18, 52, 'south', shuttleLoop(18, 52, 18, 64));
-  addVehicle(state, 'car', 34, MZ, 'east', shuttleLoop(34, MZ, 48, MZ));
+  const lead = addVehicle(state, 'cart', ring[0].gx, ring[0].gz, 'ring', ring.map((c) => ({ gx: c.gx, gz: c.gz })));
+  lead.yaw = 0;
+  addVehicle(state, 'cart', 28, MZ, 'east', shuttleLoop(28, MZ, 48, MZ));
+  addVehicle(state, 'cart', 40, MZ, 'east', shuttleLoop(40, MZ, 54, MZ));
+  addVehicle(state, 'cart', 18, 44, 'south', shuttleLoop(18, 44, 18, 58));
+  addVehicle(state, 'cart', 18, 52, 'south', shuttleLoop(18, 52, 18, 64));
+  addVehicle(state, 'cart', 34, MZ, 'east', shuttleLoop(34, MZ, 46, MZ));
 }
 
 function ensureVehicles(state) {
@@ -1167,52 +1171,9 @@ function peopleNear(state, gx, gz, radius) {
   return state.villagers.some((v) => Math.hypot(v.gx - gx, v.gz - gz) < radius);
 }
 
-/** Ripe wheat becomes stubble and fills the grain store. Golden stalks are gone. */
-function harvestWithTractor(state, field) {
-  if (!field || field.type !== 'field' || field.stage !== 3) return false;
-  field.stage = 4;
-  field.growth = 12;
-  field.plowed = true;
-  addRes(state, 'grain', 6);
-  return true;
-}
-
-/** Bare plots go dark when the plough passes. */
-function plowWithTractor(state, field) {
-  if (!field || field.type !== 'field') return false;
-  if (field.stage === 3) return false;
-  if (field.plowed && field.stage !== 4) return false;
-  field.plowed = true;
-  field.stage = 0;
-  field.growth = 0;
-  return true;
-}
-
-function tractorAct(state, v) {
-  const field = state.buildings.find((b) => b.type === 'field' && Math.hypot(b.gx - v.gx, b.gz - v.gz) < 0.85);
-  if (!field) return false;
-  if (harvestWithTractor(state, field)) return true;
-  return plowWithTractor(state, field);
-}
-
-function tractorRoute(state, v) {
-  const fields = state.buildings.filter((b) => b.type === 'field');
-  const ripe = fields.filter((b) => b.stage === 3);
-  const bare = fields.filter((b) => b.stage === 4 || !b.plowed);
-  const list = ripe.length ? ripe : bare.length ? bare : fields;
-  if (!list.length) return [{ gx: v.gx, gz: v.gz }];
-  const field = list[(v.id + state.ticks) % list.length];
-  const route = astarRoute(v.gx, v.gz, field.gx, field.gz);
-  return route && route.length ? route : [{ gx: field.gx, gz: field.gz }];
-}
-
 function followVehiclePath(state, v, dt) {
-  if (v.kind === 'tractor' && tractorAct(state, v)) {
-    v.path = null;
-    v.pathSig = '';
-  }
   if (!v.path || !v.path.length) {
-    v.path = v.kind === 'tractor' ? tractorRoute(state, v) : (v.path || []);
+    v.path = v.path || [];
     v.pathI = 0;
   }
   if (!v.path.length) return;
@@ -1626,6 +1587,7 @@ export function createState() {
     vehicles: [],
     drivenId: 0,
     riddenId: 0,
+    easy: false,
     newrozYear: -1,
     harvested: 0,
     learning: 0,
@@ -1641,20 +1603,30 @@ export function createState() {
   stamp('mosque', MX, MZ, { level: 1 });
   stamp('spring', MX - 4, MZ + 3, { level: 1 });
   let houses = 0;
-  for (let gz = MZ - 4; gz <= MZ + 18 && houses < 24; gz += 1) {
-    for (let gx = MX - 2; gx <= MX + 16 && houses < 24; gx += 1) {
+  for (let gz = MZ - 3; gz <= MZ + 15 && houses < 32; gz += 1) {
+    for (let gx = MX - 5; gx <= MX + 11 && houses < 32; gx += 1) {
       if (isRoad(gx, gz) || !besideRoad(gx, gz)) continue;
       const dist = Math.hypot(gx - MX, gz - MZ);
-      if (dist < 1.5 || dist > 14) continue;
-      if (gx < MX && gz < MZ) continue;
-      if (dist > 7 && (gx + gz * 2) % 4 !== 0) continue;
-      if ((gx + gz) % 2 !== 0) continue;
+      if (dist < 2.1 || dist > 8.5) continue;
+      if ((gx * 3 + gz) % 5 === 0) continue;
       const before = state.buildings.length;
-      stamp('house', gx, gz, { style: houses % 5 });
+      stamp('house', gx, gz, { style: houses % 2 });
       if (state.buildings.length > before) houses += 1;
     }
   }
-  [[22, 8], [24, 8], [26, 7], [30, 8], [16, 8], [8, 22], [8, 26], [6, 34], [48, 40], [50, 48]].forEach(([gx, gz]) => {
+  let plots = 0;
+  for (let gz = 0; gz < GRID_D && plots < 36; gz += 1) {
+    for (let gx = 0; gx < GRID_W && plots < 36; gx += 1) {
+      if (isRoad(gx, gz) || !besideRoad(gx, gz)) continue;
+      const dist = Math.hypot(gx - MX, gz - MZ);
+      if (dist < 9 || dist > 18) continue;
+      if ((gx + gz) % 2 !== 0) continue;
+      const before = state.buildings.length;
+      stamp('field', gx, gz, { stage: plots % 4 === 0 ? 3 : 1, growth: plots % 4 === 0 ? 100 : 20 });
+      if (state.buildings.length > before) plots += 1;
+    }
+  }
+  [[22, 8], [26, 7], [16, 8], [8, 22], [8, 36], [30, 22], [12, 40], [36, 18]].forEach(([gx, gz]) => {
     stamp('field', gx, gz, { stage: 3, growth: 100 });
   });
   [[20, 6], [34, 8], [6, 40], [40, 62], [18, 64], [28, 64]].forEach(([gx, gz]) => {
@@ -1691,11 +1663,34 @@ export function createState() {
   return state;
 }
 
+const UNLOCK_LEVEL = {
+  school: 3, clinic: 3, teahouse: 3,
+  mill: 2, smith: 2, loom: 2, tandoor: 2, vineyard: 2, orchard_pom: 2, orchard_walnut: 2, quarry: 2,
+};
+
+export function isUnlocked(state, type) {
+  if (state.easy) return true;
+  return (state.level || 1) >= (UNLOCK_LEVEL[type] || 1);
+}
+
+function priced(state, cost) {
+  if (!cost || !state.easy) return cost;
+  const out = {};
+  Object.keys(cost).forEach((k) => { out[k] = Math.max(1, Math.ceil(cost[k] / 2)); });
+  return out;
+}
+
+export function setEasy(state, on) {
+  state.easy = !!on;
+  bump(state);
+  return { ok: true, easy: state.easy };
+}
+
 export function canPlace(state, type, gx, gz) {
-  if (!COSTS[type]) return false;
+  if (!COSTS[type] || !isUnlocked(state, type)) return false;
   if (gx < 0 || gz < 0 || gx >= GRID_W || gz >= GRID_D) return false;
   if (isBlocked(gx, gz) || occupied(state, gx, gz)) return false;
-  if (!canAfford(state, COSTS[type])) return false;
+  if (!canAfford(state, priced(state, COSTS[type]))) return false;
   return true;
 }
 
@@ -1713,7 +1708,7 @@ export function suggestCell(state, type) {
 
 export function place(state, type, gx, gz) {
   if (!canPlace(state, type, gx, gz)) return { ok: false, reason: 'blocked' };
-  pay(state, COSTS[type]);
+  pay(state, priced(state, COSTS[type]));
   const style = type === 'house' ? homes(state).length % 5 : 0;
   const b = addBuilding(state, type, gx, gz, { style });
   state.lastPlacedId = b.id;
@@ -1732,8 +1727,9 @@ export function upgrade(state, id) {
   if (!b) return { ok: false, reason: 'missing' };
   const max = MAX_LEVEL[b.type] || 1;
   if (b.level >= max) return { ok: false, reason: 'max' };
-  const cost = (UPGRADE[b.type] || [])[b.level - 1];
-  if (!cost) return { ok: false, reason: 'max' };
+  const raw = (UPGRADE[b.type] || [])[b.level - 1];
+  if (!raw) return { ok: false, reason: 'max' };
+  const cost = priced(state, raw);
   if (!canAfford(state, cost)) return { ok: false, reason: 'cost' };
   pay(state, cost);
   b.level += 1;
