@@ -264,31 +264,45 @@ textarea {
   min-height: 44px;
 }
 #touch { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
-#stickZone {
+#stickZone, #lookZone {
   pointer-events: auto;
   position: absolute;
+  width: var(--stick, 120px);
+  height: var(--stick, 120px);
+  touch-action: none;
+}
+#stickZone {
+  --stick: 120px;
   left: calc(16px + var(--safe-l));
   bottom: calc(16px + var(--safe-b));
-  width: 128px;
-  height: 128px;
 }
-#stick {
+#lookZone {
+  --stick: 112px;
+  --jump-w: 84px;
+  --jump-b: 28px;
+  --jump-r: 18px;
+  right: calc(var(--jump-r) + (var(--jump-w) - var(--stick)) / 2 + var(--safe-r));
+  bottom: calc(var(--jump-b) + var(--jump-w) + 14px + var(--safe-b));
+}
+#stick, #lookStick {
   position: absolute;
-  inset: 18px;
+  inset: 16px;
   border-radius: 50%;
   border: 2px solid rgba(62, 240, 255, 0.8);
   background: rgba(8, 10, 18, 0.88);
 }
-#knob {
+#lookStick { border-color: rgba(255, 62, 200, 0.85); }
+#knob, #lookKnob {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 46px;
-  height: 46px;
-  margin: -23px 0 0 -23px;
+  width: 42px;
+  height: 42px;
+  margin: -21px 0 0 -21px;
   border-radius: 50%;
   background: rgba(62, 240, 255, 0.85);
 }
+#lookKnob { background: rgba(255, 62, 200, 0.9); }
 #jumpBtn {
   pointer-events: auto;
   position: absolute;
@@ -348,9 +362,14 @@ textarea {
   #timer { font-size: 0.78rem; }
   .hud-actions { gap: 3px; flex: none; }
   .hud-actions button, #gemBtn { min-width: 32px; min-height: 32px; padding: 0 4px; font-size: 0.85rem; }
-  #stickZone { width: 108px; height: 108px; left: calc(10px + var(--safe-l)); bottom: calc(12px + var(--safe-b)); }
+  #stickZone { --stick: 104px; left: calc(10px + var(--safe-l)); bottom: calc(12px + var(--safe-b)); }
+  #lookZone { --stick: 96px; --jump-w: 72px; --jump-b: 18px; --jump-r: 12px; }
   #jumpBtn { width: 72px; height: 72px; right: calc(12px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); font-size: 0.82rem; }
   #dashBtn { width: 54px; height: 54px; right: calc(90px + var(--safe-r)); bottom: calc(24px + var(--safe-b)); }
+}
+@media (max-height: 420px) {
+  #lookZone { --stick: 88px; }
+  #stickZone { --stick: 100px; }
 }
 #flash {
   position: fixed;

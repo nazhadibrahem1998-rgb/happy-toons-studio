@@ -18,7 +18,7 @@ English is the default language. Kurdish (Sorani) is the second language and the
 | Jump | Space | Space |
 | Camera | Drag the mouse, or click to lock the pointer | ماوس ڕابکێشە، یان کلیک بۆ قفڵی نیشاندەر |
 | Pause | P or Esc | P یان Esc |
-| Phone | Left joystick, jump button on the right, drag to look. Play in landscape. | جۆیستیکی چەپ، دوگمەی بازدان لە ڕاست، ڕاکێشان بۆ کامێرا. یاری بە پانی. |
+| Phone | Left stick moves. Right stick, above Jump, looks around. Drag the screen to look too. | جۆیستیکی چەپ بۆ ڕۆیشتن. جۆیستیکی ڕاست، لە سەرەوەی بازدان، بۆ کامێرا. ڕاکێشانی شاشەش کامێرا دەگۆڕێت. |
 | Rivals | Easy, Medium, or Hard computer climbers. Off races alone. Offline only. | ڕکابەری ئاسان، مامناوەند، یان قورس. کوژاوە بۆ تەنها خۆت. تەنها بێهێڵ. |
 
 Floors 1–3 are the easy ones. Falling or touching a hazard sends you back to the last checkpoint immediately.

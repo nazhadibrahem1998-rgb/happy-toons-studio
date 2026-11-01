@@ -64,6 +64,8 @@ let yaw = 0;
 let pitch = 0.38;
 let joyX = 0;
 let joyY = 0;
+let lookX = 0;
+let lookY = 0;
 let touchJump = false;
 let touchDash = false;
 let gemMesh = null;
@@ -1099,6 +1101,48 @@ function stickEnd(e) {
 stickZone.addEventListener('pointerup', stickEnd);
 stickZone.addEventListener('pointercancel', stickEnd);
 
+const lookZone = document.getElementById('lookZone');
+const lookKnob = document.getElementById('lookKnob');
+let lookId = null;
+let lookOrigin = { x: 0, y: 0 };
+function lookMove(e) {
+  const dx = e.clientX - lookOrigin.x;
+  const dy = e.clientY - lookOrigin.y;
+  const max = 42;
+  const mag = Math.hypot(dx, dy) || 1;
+  const scale = Math.min(mag, max) / mag;
+  lookKnob.style.transform = `translate(${dx * scale}px, ${dy * scale}px)`;
+  lookX = (dx * scale) / max;
+  lookY = -(dy * scale) / max;
+}
+lookZone.addEventListener('pointerdown', (e) => {
+  lookId = e.pointerId;
+  const rect = lookZone.getBoundingClientRect();
+  lookOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  try { lookZone.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  lookMove(e);
+  e.preventDefault();
+});
+lookZone.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== lookId) return;
+  lookMove(e);
+});
+function lookEnd(e) {
+  if (e.pointerId !== lookId) return;
+  lookId = null;
+  lookX = 0;
+  lookY = 0;
+  lookKnob.style.transform = 'translate(0px, 0px)';
+}
+lookZone.addEventListener('pointerup', lookEnd);
+lookZone.addEventListener('pointercancel', lookEnd);
+
+function applyLookStick(dt) {
+  if (Math.abs(lookX) < 0.12 && Math.abs(lookY) < 0.12) return;
+  yaw += lookX * 2.15 * dt;
+  pitch = Math.max(0.18, Math.min(1.05, pitch - lookY * 1.15 * dt));
+}
+
 const jumpBtn = document.getElementById('jumpBtn');
 function jumpDown(e) {
   touchJump = true;
@@ -1288,6 +1332,7 @@ function frame(now) {
   last = now;
   if (document.hidden) return;
   if (mode === 'play' && !world.won && !upgradesOpen()) {
+    applyLookStick(dt);
     const beforeY = world.player.vy;
     const input = readInput();
     if (!holdRivals) decideRivals(world, dt);
@@ -1493,6 +1538,7 @@ async function installTestHook() {
         z: camera.position.z,
         aspect: camera.aspect,
         yaw,
+        pitch,
         px: world.player.x,
         pz: world.player.z,
       };
