@@ -1,5 +1,5 @@
 /**
- * گوندی شارستێن — English (default) and Sorani Kurdish.
+ * گوندی شارستێن — Sorani Kurdish (default) and English.
  * © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance.
  */
 
@@ -154,9 +154,9 @@ export const STR = {
     tips: 'Sharsten is a green spring valley of dirt lanes, mud houses, wheat and grape vines.\n\nBuild mode: tap a plot, or choose a building and press Place here. Drag to pan. Plus and minus zoom. The rotate buttons turn the view. Optional sticks pan and orbit.\n\nWalk mode: the left stick moves you relative to the camera. Stick up walks forward. The right stick, above the Do button, looks around. Stick up looks up. Stick right turns the view right.\n\nVillagers work by day and go home at night. Wheat grows after you plant it. Sheep give wool, goats give milk, chickens give eggs.\n\nNothing here is a fight. The mosque can be cleaned and upgraded. It cannot be removed.\n\nProgress is saved on this phone or computer only.',
   },
   ckb: {
-    studio: 'Happy Toons Studio',
+    studio: 'ستۆدیۆی هاپی توونز',
     title: 'گوندی شارستێن',
-    subtitle: 'Sharsten Village',
+    subtitle: 'دۆڵێکی سەوز',
     tag: 'ژیانی ئارامی گوند لە دۆڵێکی سەوزی چیا. دروست بکە، بچێنە و لەگەڵ دراوسێکان بڕۆ.',
     age: 'بۆ خێزان و گەنجان · شەڕی نییە',
     play: 'یاری بکە',
@@ -173,7 +173,7 @@ export const STR = {
     menu: 'مێنیو',
     donkey: 'کەر',
     easy: 'ئاسان',
-    ps1: 'جووڵەی PS1',
+    ps1: 'جووڵەی وێنەی کۆن',
     locked: 'داخراو',
     gPlace: 'شتێک دابنێ',
     gGather: 'دیارییەکی نزیک هەڵبگرە',
@@ -276,10 +276,10 @@ export const STR = {
     qTodo: 'ماوە',
     qActive: 'دەستی پێکرد',
     qOpen: 'ئامادەیە',
-    ios: 'بۆ شاشەی تەواو، Share دابگرە، پاشان Add to Home Screen.',
+    ios: 'بۆ شاشەی تەواو، دوگمەی هاوبەشکردن دابگرە، پاشان زیادی بکە بۆ شاشەی سەرەکی.',
     iosOk: 'باشە',
-    ai: 'دروستکراو بە یارمەتی AI',
-    credit: '© 2026 Ayub Azizi – Happy Toons Studio',
+    ai: 'دروستکراو بە یارمەتی زیرەکی دەستکرد',
+    credit: '© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز',
     about: 'گوندی شارستێن یارییەکی ڕەسەنە، لە گوندی چیایی شارەستێن لە سلێمانی. ڕووخساری کەسی ڕاستەقینە نییە. شەڕی نییە.',
     privacy: 'گوندەکەت تەنها لەم ئامێرەدا دەمێنێتەوە. هەژمار نییە. ناوت ناپرسین. پەڕەی نهێنیی ئەم یارییە و پەڕەی ستۆدیۆ ببینە.',
     privacyGame: 'نهێنیی ئەم یارییە',
@@ -298,7 +298,7 @@ export const STR = {
     fixed: 'کانییەکە ڕوون دەڕوات.',
     welcomed: 'میوانانی نەورۆز پێشوازی کران.',
     winterNo: 'گەنم تا کۆتایی زستان چاوەڕێ دەکات.',
-    tips: 'شارستێن دۆڵێکی سەوزە: ڕێگایەکی قیرتاوکراو بە دار، ڕێگای خاکی، گەنم و ڕەزی ترێ.\n\nدۆخی دروستکردن: پەنجە بنێ بە زەوییەک، یان بیناکە هەڵبژێرە و «لێرە دایبنێ» دابگرە. ڕاکێشان بۆ جوڵاندنی دیمەن. زیاد و کەم بۆ زووم. دوگمەی سوڕانەوە بۆ کامێرا.\n\nدۆخی ڕۆیشتن: جۆیستیکی چەپ بەپێی کامێرا دەتبات. سەرەوە واتە بۆ پێشەوە. جۆیستیکی ڕاست، لەسەرووی دوگمەی «بیکە»، دەڕوانێت. سەرەوە واتە سەیرکردن بۆ سەرەوە. ڕاست واتە سوڕانەوە بۆ ڕاست.\n\nدانیشتووان بە ڕۆژ کار دەکەن و بە شەو دەچنەوە ماڵەوە. گەنم دوای چاندن گەشە دەکات. مەڕ خوری، بزن شیر، مریشک هێلکە دەدات.\n\nلێرە شەڕ نییە. مزگەوت پاک دەکرێتەوە و بەرز دەکرێتەوە. لابرناوی نییە.\n\nپێشکەوتن تەنها لەم مۆبایلە یان کۆمپیوتەرەدا دەمێنێتەوە.',
+    tips: 'شارستێن دۆڵێکی سەوزی بەهارە: ڕێچکەی خاکی، خانووی قوڕ، گەنم و ڕەزی ترێ.\n\nدۆخی دروستکردن: پەنجە بنێ بە زەوییەک، یان بیناکە هەڵبژێرە و «لێرە دایبنێ» دابگرە. ڕاکێشان بۆ جوڵاندنی دیمەن. زیاد و کەم بۆ زووم. دوگمەی سوڕانەوە بۆ کامێرا.\n\nدۆخی ڕۆیشتن: جۆیستیکی چەپ بەپێی کامێرا دەتبات. سەرەوە واتە بۆ پێشەوە. جۆیستیکی ڕاست، لەسەرووی دوگمەی «بیکە»، دەڕوانێت. سەرەوە واتە سەیرکردن بۆ سەرەوە. ڕاست واتە سوڕانەوە بۆ ڕاست.\n\nدانیشتووان بە ڕۆژ کار دەکەن و بە شەو دەچنەوە ماڵەوە. گەنم دوای چاندن گەشە دەکات. مەڕ خوری، بزن شیر، مریشک هێلکە دەدات.\n\nلێرە شەڕ نییە. مزگەوت پاک دەکرێتەوە و بەرز دەکرێتەوە. لابرناوی نییە.\n\nپێشکەوتن تەنها لەم مۆبایلە یان کۆمپیوتەرەدا دەمێنێتەوە.',
   },
 };
 
@@ -331,9 +331,33 @@ export function npcLine(lang, id) {
 }
 
 export function t(lang, key) {
-  const pack = STR[lang] || STR.en;
-  if (pack[key] != null) return pack[key];
-  return STR.en[key] != null ? STR.en[key] : key;
+  const order = lang === 'en' ? ['en', 'ckb'] : ['ckb', 'en'];
+  for (const code of order) {
+    if (STR[code] && STR[code][key] != null) return STR[code][key];
+  }
+  return key;
+}
+
+/** Empty list means every Sorani string is natural Sorani, with an English twin. */
+export function i18nAudit() {
+  const problems = [];
+  const arabic = /[\u0600-\u06FF]/;
+  const latin = /[A-Za-z]{4,}/g;
+  Object.keys(STR.en).forEach((key) => {
+    const text = STR.ckb[key];
+    if (text == null) problems.push(`missing ${key}`);
+    else if (!arabic.test(text)) problems.push(`no-sorani ${key}`);
+    else if ((text.match(latin) || []).length) problems.push(`latin ${key}`);
+  });
+  Object.keys(STR.ckb).forEach((key) => {
+    if (STR.en[key] == null) problems.push(`missing-en ${key}`);
+  });
+  Object.keys(NPC_LINES).forEach((id) => {
+    const text = NPC_LINES[id].ckb;
+    if (!text || !arabic.test(text)) problems.push(`line ${id}`);
+    else if ((text.match(latin) || []).length) problems.push(`line-latin ${id}`);
+  });
+  return problems;
 }
 
 export function formatNum(n, lang) {

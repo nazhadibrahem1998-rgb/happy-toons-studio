@@ -1,4 +1,10 @@
 @font-face {
+  font-family: 'Vazirmatn';
+  src: url('fonts/Vazirmatn-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
   font-family: 'HT Kurdish';
   src: url('../assets/fonts/kurdish-bold.woff2') format('woff2');
   font-weight: 700;
@@ -33,13 +39,16 @@ html, body {
   overflow: hidden;
   background: #c6e6ff;
   color: var(--ink);
-  font-family: Nunito, 'HT Kurdish', sans-serif;
+  font-family: Vazirmatn, 'Noto Naskh Arabic', 'HT Kurdish', Nunito, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   touch-action: none;
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
   user-select: none;
 }
-html[lang="ckb"] body { font-family: 'HT Kurdish', Nunito, sans-serif; }
+html[lang="en"] body { font-family: Nunito, Vazirmatn, sans-serif; }
+#camBtns, #walkControls, #buildSticks { direction: ltr; }
 button, a, .chip { touch-action: manipulation; }
 input, select, textarea { user-select: text; font-size: 16px; touch-action: manipulation; }
 canvas {
@@ -96,6 +105,7 @@ canvas {
   padding: calc(8px + var(--safe-t)) calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l));
   background: rgba(48, 72, 48, 0.28);
 }
+.panel, .set-row, .quest, h1, h2, p, button, .chip { overflow-wrap: anywhere; }
 .panel {
   width: min(440px, 100%);
   max-height: min(520px, calc(var(--vv-h, 100dvh) - 16px - var(--safe-t) - var(--safe-b)));
@@ -143,6 +153,7 @@ h2 { margin: 0 0 8px; font-size: 1.25rem; }
 .row > * { flex: 1; min-width: 0; }
 .set-row, .vrow, .quest {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
   align-items: center;
@@ -173,7 +184,7 @@ h2 { margin: 0 0 8px; font-size: 1.25rem; }
 }
 .tips { min-height: 340px; white-space: pre-wrap; color: #4d463b; font-size: 0.92rem; }
 .ai, .legal { color: #6d6458; font-size: 0.8rem; }
-.legal { font-family: Nunito, sans-serif; }
+.legal { font-family: inherit; }
 a { color: #1d6b4f; }
 #hud {
   position: fixed;

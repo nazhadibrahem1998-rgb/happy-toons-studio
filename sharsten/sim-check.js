@@ -5,7 +5,7 @@ import {
   animalCap, carryBudget, DONKEY_SPEED, enterAnimal, exitAnimal, herdSpot, moveGoods, rideAnimal, stepAnimals,
   stepVehicles, stickVector, suggestCell, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, walkStep,
 } from './sim.js';
-import { linePairs } from './i18n.js';
+import { i18nAudit, linePairs } from './i18n.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -142,6 +142,8 @@ lines.forEach((line) => {
   assert(line.en && line.en.trim() && line.ckb && line.ckb.trim(), `empty ${line.id}`);
   assert(line.en !== line.ckb, `same ${line.id}`);
 });
+const audit = i18nAudit();
+assert(audit.length === 0, `sorani audit ${audit.join(', ')}`);
 
 const day = createState();
 const walker = day.villagers.find((v) => !v.player);

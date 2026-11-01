@@ -51,10 +51,11 @@ async function noOverflow(page) {
 
 test('loads, branding, viewport, and no horizontal overflow', async ({ page }, info) => {
   const errors = await openFresh(page);
-  await expect(page.locator('h1')).toHaveText('Sharsten Village');
-  await expect(page.locator('#creditLine')).toHaveText('© 2026 Ayub Azizi – Happy Toons Studio');
-  await expect(page.locator('#aiNote')).toContainText('Made with AI assistance');
-  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await expect(page.locator('h1')).toHaveText('گوندی شارستێن');
+  await expect(page.locator('#creditLine')).toHaveText('© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز');
+  await expect(page.locator('#aiNote')).toContainText('زیرەکی دەستکرد');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ckb');
   const viewport = await page.locator('meta[name="viewport"]').getAttribute('content');
   expect(viewport).toContain('user-scalable=no');
   expect(viewport).toContain('maximum-scale=1');
@@ -73,16 +74,49 @@ test('loads, branding, viewport, and no horizontal overflow', async ({ page }, i
 
 test('language switch, RTL, and digits', async ({ page }) => {
   const errors = await openFresh(page);
-  await page.click('#langCkb');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ckb');
   await expect(page.locator('h1')).toHaveText('گوندی شارستێن');
+  const audit = await page.evaluate(() => window.__SV.i18nAudit());
+  expect(audit).toEqual([]);
+  const latin = await page.evaluate(() => {
+    const re = /[A-Za-z]{4,}/;
+    return [...document.querySelectorAll('[data-i18n]')]
+      .filter((el) => el.offsetParent)
+      .map((el) => el.textContent.trim())
+      .filter((text) => re.test(text));
+  });
+  expect(latin).toEqual([]);
+  const layout = await page.evaluate(() => ({
+    html: getComputedStyle(document.documentElement).direction,
+    sticks: getComputedStyle(document.getElementById('walkControls')).direction,
+    font: getComputedStyle(document.body).fontFamily,
+    canvas: getComputedStyle(document.querySelector('canvas')).imageRendering,
+    text: getComputedStyle(document.body).imageRendering,
+  }));
+  expect(layout.html).toBe('rtl');
+  expect(layout.sticks).toBe('ltr');
+  expect(layout.font.toLowerCase()).toContain('vazirmatn');
+  expect(layout.canvas === 'pixelated' || layout.canvas === 'crisp-edges').toBe(true);
+  expect(layout.text).not.toBe('pixelated');
+  await noOverflow(page);
+  await page.click('#helpBtn');
+  await noOverflow(page);
+  const helpWide = await page.locator('#help .panel').evaluate((el) => el.scrollWidth <= el.clientWidth + 2);
+  expect(helpWide).toBe(true);
+  await page.click('#helpClose');
+  await page.click('#creditsBtn');
+  await noOverflow(page);
+  const creditsWide = await page.locator('#credits .panel').evaluate((el) => el.scrollWidth <= el.clientWidth + 2);
+  expect(creditsWide).toBe(true);
+  await page.click('#creditsClose');
   const wood = page.locator('#stockWood');
   await expect(wood).toHaveAttribute('dir', 'ltr');
   await expect(wood).toHaveText('٤٨');
   await page.click('#langEn');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await expect(page.locator('h1')).toHaveText('Sharsten Village');
+  await expect(page.locator('#creditLine')).toHaveText('© 2026 Ayub Azizi – Happy Toons Studio');
   await noOverflow(page);
   assertClean(errors);
 });
@@ -487,10 +521,10 @@ test('a neighbour follows the day, a quest finishes, and both languages have eve
 
   await tapHud(page, '#hudQuests');
   const board = page.locator('#questBoard');
-  await expect(board).toContainText('Bring wheat');
-  await expect(board).toContainText('Find the lost chicken');
-  await expect(board).toContainText('Fix the fence');
-  await expect(board.locator('[data-quest="wheat"]')).toContainText('Done');
+  await expect(board).toContainText('گەنم');
+  await expect(board).toContainText('مریشک');
+  await expect(board).toContainText('پەرژین');
+  await expect(board.locator('[data-quest="wheat"]')).toContainText('تەواو');
   const scroll = await page.evaluate(() => {
     const el = document.querySelector('#quests [data-scroll-panel]');
     return el.scrollHeight > el.clientHeight && !!el.querySelector('#questBoard');
@@ -504,6 +538,12 @@ test('a neighbour follows the day, a quest finishes, and both languages have eve
   await expect(page.locator('#questBoard')).toContainText('پەرژین');
   await page.click('#questsClose');
   await page.evaluate(() => document.getElementById('langEn').click());
+  await tapHud(page, '#hudQuests');
+  await expect(page.locator('#questBoard')).toContainText('Bring wheat');
+  await expect(page.locator('#questBoard')).toContainText('Done');
+  const questWide = await page.locator('#quests .panel').evaluate((el) => el.scrollWidth <= el.clientWidth + 2);
+  expect(questWide).toBe(true);
+  await page.click('#questsClose');
 
   const greet = await page.evaluate(() => {
     window.__SV.setHour(9);
@@ -593,7 +633,7 @@ test('a car laps the lane, the player can drive, and a tractor harvests', async 
   });
   expect(near.x).toBeGreaterThan(-5);
   await expect(page.locator('#boardBtn')).toBeVisible();
-  await expect(page.locator('#boardBtn')).toHaveText('Enter');
+  await expect(page.locator('#boardBtn')).toHaveText('سواربە');
   if (info.project.name === 'iphone-portrait') {
     await page.locator('#boardBtn').textContent();
   }

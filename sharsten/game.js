@@ -13,7 +13,7 @@ import {
   stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
   LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
 } from './sim.js';
-import { formatClock, formatNum, linePairs, npcLine, t } from './i18n.js';
+import { formatClock, formatNum, i18nAudit, linePairs, npcLine, t } from './i18n.js';
 import { createView } from './world.js';
 
 const canvas = document.getElementById('c');
@@ -25,7 +25,7 @@ const RES_ICON = { wood: '▣', stone: '◆', water: '〜', food: '◑', money: 
 const JOBS = ['idle', 'farmer', 'shepherd', 'baker', 'miller', 'weaver', 'smith', 'builder', 'teacher', 'healer', 'host'];
 const PANELS = ['help', 'credits', 'quests', 'people', 'build', 'detail', 'pause'];
 
-let lang = 'en';
+let lang = 'ckb';
 let low = !!coarse;
 let stickPref = !!coarse;
 let easy = false;
@@ -121,6 +121,12 @@ function applyLang() {
   document.getElementById('langCkb').setAttribute('aria-pressed', lang === 'ckb' ? 'true' : 'false');
   document.getElementById('title').textContent = t(lang, 'title');
   document.getElementById('subtitle').textContent = t(lang, 'subtitle');
+  document.title = `${t(lang, 'title')} — ${t(lang, 'studio')}`;
+  const logo = document.querySelector('.logo-row img');
+  if (logo) logo.alt = t(lang, 'studio');
+  ['zoomIn', 'zoomOut', 'rotLeft', 'rotRight'].forEach((id) => {
+    document.getElementById(id).setAttribute('aria-label', t(lang, id));
+  });
   peopleSig = '';
   paint();
   saveSettings();
@@ -420,6 +426,7 @@ function paint() {
   document.getElementById('modeBtn').textContent = state.mode === 'walk' ? t(lang, 'modeToBuild') : t(lang, 'modeToWalk');
   document.getElementById('qualityBtn').textContent = low ? t(lang, 'qualityLow') : t(lang, 'qualityHigh');
   document.getElementById('stickPref').textContent = stickPref ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
+  document.getElementById('ps1Btn').textContent = ps1 ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
   const easyBtn = document.getElementById('easyBtn');
   if (easyBtn) {
     easyBtn.classList.toggle('on', !!state.easy);
@@ -616,7 +623,7 @@ document.getElementById('ps1Btn').addEventListener('click', () => {
   ps1 = !ps1;
   view.setSnap(ps1);
   const btn = document.getElementById('ps1Btn');
-  btn.textContent = ps1 ? 'On' : 'Off';
+  btn.textContent = ps1 ? t(lang, 'sticksOn') : t(lang, 'sticksOff');
   btn.classList.toggle('on', ps1);
 });
 function mountDonkey(id) {
@@ -1005,6 +1012,7 @@ window.__SV = {
   },
   getHillColor: () => view.getHillColor(),
   lookReport: () => view.lookReport(),
+  i18nAudit,
   setRank(n) {
     const result = setRank(state, n);
     persist();

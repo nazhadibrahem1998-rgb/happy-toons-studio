@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- گوندی شارستێن (Sharsten Village) — © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance. Three.js (vendor/) © three.js authors, MIT. -->
-<html lang="en" dir="ltr">
+<html lang="ckb" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -8,12 +8,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Sharsten">
+<meta name="apple-mobile-web-app-title" content="گوندی شارستێن">
 <meta name="description" content="Sharsten Village — گوندی شارستێن. A calm 3D village life game by Happy Toons Studio.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<title>Sharsten Village — Happy Toons Studio</title>
+<title>گوندی شارستێن — ستۆدیۆی هاپی توونز</title>
 <link rel="stylesheet" href="style.css">
 <script>
 (function () {
@@ -43,39 +43,39 @@
 <canvas id="c"></canvas>
 <div id="boot" class="screen">
   <div class="panel boot-panel">
-    <p class="studio">Happy Toons Studio</p>
-    <p class="boot-title">Sharsten Village</p>
-    <p>گوندی شارستێن</p>
-    <p data-i18n="age">For families and teens · no combat</p>
+    <p class="studio" data-i18n="studio">ستۆدیۆی هاپی توونز</p>
+    <p class="boot-title" data-i18n="title">گوندی شارستێن</p>
+    <p data-i18n="subtitle">دۆڵێکی سەوز</p>
+    <p data-i18n="age">بۆ خێزان و گەنجان · شەڕی نییە</p>
   </div>
 </div>
 <div id="toast" hidden></div>
 <div id="speech" hidden></div>
 <div id="tutorial" hidden>
   <p id="tutorialText"></p>
-  <button type="button" id="tutorialNext">Next</button>
+  <button type="button" id="tutorialNext" data-i18n="tutNext">دواتر</button>
 </div>
 <div id="unlockPop" hidden>
-  <p id="unlockTitle">Unlocked!</p>
+  <p id="unlockTitle" data-i18n="unlocked">کرایەوە!</p>
   <p id="unlockText"></p>
-  <button type="button" id="unlockOk">OK</button>
+  <button type="button" id="unlockOk" data-i18n="iosOk">باشە</button>
 </div>
 <div id="hud" hidden>
   <div class="res" id="resbar" data-scroll-panel="res"></div>
   <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">Menu</button>
   <div class="clock chip tiny"><b id="clockTime" dir="ltr">08:00</b> <span id="clockMeta"></span></div>
   <div id="hudPop" hidden data-scroll-panel="hud">
-    <button type="button" id="modeBtn" class="chip">Walk mode</button>
+    <button type="button" id="modeBtn" class="chip">دۆخی ڕۆیشتن</button>
     <button type="button" id="hudBuild" class="chip" data-i18n="build">Build</button>
     <button type="button" id="hudPeople" class="chip" data-i18n="people">People</button>
     <button type="button" id="hudQuests" class="chip" data-i18n="quests">Quests</button>
     <button type="button" id="hudPause" class="chip" data-i18n="pause">Pause</button>
     <button type="button" id="rideBtn" class="chip" data-i18n="donkey">Donkey</button>
     <div id="camBtns" hidden>
-      <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
-      <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
-      <button type="button" id="rotLeft" aria-label="Rotate left">↺</button>
-      <button type="button" id="rotRight" aria-label="Rotate right">↻</button>
+      <button type="button" id="zoomIn" aria-label="نزیککردنەوە">+</button>
+      <button type="button" id="zoomOut" aria-label="دوورخستنەوە">−</button>
+      <button type="button" id="rotLeft" aria-label="سوڕانەوە بۆ چەپ">↺</button>
+      <button type="button" id="rotRight" aria-label="سوڕانەوە بۆ ڕاست">↻</button>
     </div>
   </div>
 </div>
@@ -86,9 +86,9 @@
 <div id="walkControls" hidden>
   <div id="moveZone" class="stick-zone" data-stick="move"><div class="knob"></div></div>
   <div id="lookCluster">
-    <button type="button" id="boardBtn" hidden>Enter</button>
+    <button type="button" id="boardBtn" hidden>سواربە</button>
     <div id="lookZone" class="stick-zone" data-stick="look"><div class="knob"></div></div>
-    <button type="button" id="actionBtn" data-i18n="act">Do</button>
+    <button type="button" id="actionBtn" data-i18n="act">بیکە</button>
   </div>
 </div>
 
@@ -99,13 +99,13 @@
       <button type="button" id="iosDismiss" class="btn alt" data-i18n="iosOk">OK</button>
     </div>
     <div class="logo-row">
-      <img src="../assets/img/logo.jpg" alt="Happy Toons Studio" width="54" height="54">
+      <img src="../assets/img/logo.jpg" alt="ستۆدیۆی هاپی توونز" width="54" height="54">
       <div>
-        <p class="studio">Happy Toons Studio</p>
+        <p class="studio" data-i18n="studio">ستۆدیۆی هاپی توونز</p>
         <div class="flag" aria-hidden="true"><i class="r"></i><i class="w"></i><i class="g"></i><b></b></div>
       </div>
     </div>
-    <h1 id="title">Sharsten Village</h1>
+    <h1 id="title">گوندی شارستێن</h1>
     <p class="sub" id="subtitle">گوندی شارستێن</p>
     <p class="tag" data-i18n="tag">A calm village life in a green mountain valley. Build, farm, and walk with your neighbours.</p>
     <p class="age" data-i18n="age">For families and teens · no combat</p>
@@ -118,17 +118,17 @@
     <div class="set-row">
       <span data-i18n="lang">Language</span>
       <div class="row">
-        <button type="button" id="langEn" class="chip on" aria-pressed="true">English</button>
-        <button type="button" id="langCkb" class="chip" aria-pressed="false">کوردی</button>
+        <button type="button" id="langEn" class="chip" aria-pressed="false">English</button>
+        <button type="button" id="langCkb" class="chip on" aria-pressed="true">کوردی</button>
       </div>
     </div>
     <div class="set-row">
       <span data-i18n="quality">Graphics</span>
-      <button type="button" id="qualityBtn" class="chip">Low</button>
+      <button type="button" id="qualityBtn" class="chip">نزم</button>
     </div>
     <div class="set-row">
       <span data-i18n="ps1">PS1 jitter</span>
-      <button type="button" id="ps1Btn" class="chip on">On</button>
+      <button type="button" id="ps1Btn" class="chip on">هەڵکراو</button>
     </div>
     <div class="set-row">
       <span data-i18n="easy">Easy</span>
@@ -136,11 +136,11 @@
     </div>
     <div class="set-row">
       <span data-i18n="sticks">Build-mode sticks</span>
-      <button type="button" id="stickPref" class="chip">Off</button>
+      <button type="button" id="stickPref" class="chip">کوژاوە</button>
     </div>
     <p><span data-i18n="stores">Stores on this device</span> <b id="stockWood" dir="ltr">48</b> <span data-i18n="wood">Wood</span></p>
-    <p class="ai" id="aiNote">Made with AI assistance</p>
-    <p class="legal" id="creditLine">© 2026 Ayub Azizi – Happy Toons Studio</p>
+    <p class="ai" id="aiNote" data-i18n="ai">دروستکراو بە یارمەتی زیرەکی دەستکرد</p>
+    <p class="legal" id="creditLine" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
     <p class="tips" data-i18n="tips"></p>
     <p data-i18n="privacy"></p>
     <p><a href="privacy.html" data-i18n="privacyGame">This game’s privacy</a> · <a href="../privacy.html" data-i18n="privacySite">Studio privacy</a></p>
@@ -151,8 +151,8 @@
   <div class="panel" data-scroll-panel="help">
     <h2 data-i18n="help">Help</h2>
     <p class="tips" data-i18n="tips"></p>
-    <p class="ai">Made with AI assistance</p>
-    <p class="legal">© 2026 Ayub Azizi – Happy Toons Studio</p>
+    <p class="ai" data-i18n="ai">دروستکراو بە یارمەتی زیرەکی دەستکرد</p>
+    <p class="legal" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
     <button type="button" id="helpClose" class="btn" data-i18n="close">Close</button>
   </div>
 </div>
@@ -160,12 +160,12 @@
 <div id="credits" class="screen" hidden>
   <div class="panel" data-scroll-panel="credits">
     <h2 data-i18n="credits">Credits</h2>
-    <p>Happy Toons Studio</p>
-    <p class="legal" id="creditsLegal">© 2026 Ayub Azizi – Happy Toons Studio</p>
-    <p class="ai" id="creditsAi">Made with AI assistance</p>
-    <p data-i18n="about">Sharsten Village is an original stylized game, inspired by the mountain village of Sharsten (شارەستێن) in Sulaymaniyah. No real person’s face is shown. There is no combat.</p>
+    <p data-i18n="studio">ستۆدیۆی هاپی توونز</p>
+    <p class="legal" id="creditsLegal" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
+    <p class="ai" id="creditsAi" data-i18n="ai">دروستکراو بە یارمەتی زیرەکی دەستکرد</p>
+    <p data-i18n="about">گوندی شارستێن یارییەکی ڕەسەنە، لە گوندی چیایی شارەستێن لە سلێمانی. ڕووخساری کەسی ڕاستەقینە نییە. شەڕی نییە.</p>
     <p data-i18n="privacy"></p>
-    <p><a href="privacy.html">This game’s privacy</a> · <a href="../privacy.html">Studio privacy</a></p>
+    <p><a href="privacy.html" data-i18n="privacyGame">نهێنیی ئەم یارییە</a> · <a href="../privacy.html" data-i18n="privacySite">نهێنیی ستۆدیۆ</a></p>
     <p class="tips" data-i18n="tips"></p>
     <button type="button" id="creditsClose" class="btn" data-i18n="close">Close</button>
   </div>
@@ -230,7 +230,7 @@
     <button type="button" id="resumeBtn" class="btn" data-i18n="resume">Resume</button>
     <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">Help</button>
     <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">Menu</button>
-    <p class="legal">© 2026 Ayub Azizi – Happy Toons Studio</p>
+    <p class="legal" data-i18n="credit">© ٢٠٢٦ ئەیوب عەزیزی – ستۆدیۆی هاپی توونز</p>
     <p class="tips" data-i18n="tips"></p>
   </div>
 </div>
