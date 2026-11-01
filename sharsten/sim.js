@@ -3,6 +3,7 @@
  * © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance.
  * Pure game rules: no DOM, no three.js. Safe to run in Node and the browser.
  */
+import { arriveSpeed } from './vendor/arrive.js';
 
 export const SAVE_KEY = 'sharsten-village-v1';
 export const SETTINGS_KEY = 'sharsten-settings-v1';
@@ -1827,7 +1828,12 @@ export function integrate(state, dt, opts = {}) {
       a.gz = a.tz;
       return;
     }
-    const s = Math.min(dist, speed * dt);
+    let cap = speed;
+    if (a.goalGx != null) {
+      const end = Math.hypot(a.gx - a.goalGx, a.gz - a.goalGz);
+      if (end < 1.4) cap = arriveSpeed(end, speed, 0.85, 0.05);
+    }
+    const s = Math.min(dist, cap * dt);
     a.gx += (dx / dist) * s;
     a.gz += (dz / dist) * s;
   };
@@ -2565,6 +2571,18 @@ function stepThreats(state, dt) {
   const p = playerOf(state);
   if (state.block > 0) state.block = Math.max(0, state.block - dt);
   state.threats.forEach((t) => {
+    const knock = Math.hypot(t.kx || 0, t.kz || 0);
+    if (knock > 0.02) {
+      const slide = Math.min(knock, arriveSpeed(knock, 3.4, 0.45, 0.02) * dt);
+      t.gx += (t.kx / knock) * slide;
+      t.gz += (t.kz / knock) * slide;
+      const left = Math.max(0, knock - slide);
+      t.kx *= left / knock;
+      t.kz *= left / knock;
+    } else {
+      t.kx = 0;
+      t.kz = 0;
+    }
     if (t.stun > 0) { t.stun = Math.max(0, t.stun - dt); return; }
     if (state.block > 0 && p && !t.flee && Math.hypot(p.gx - t.gx, p.gz - t.gz) < 1.45) {
       const len = Math.hypot(t.gx - p.gx, t.gz - p.gz) || 1;
@@ -2639,8 +2657,8 @@ export function swordStrike(state) {
     return { ok: false, reason: 'closer' };
   }
   const len = Math.hypot(foe.gx - p.gx, foe.gz - p.gz) || 1;
-  foe.gx += ((foe.gx - p.gx) / len) * 0.85;
-  foe.gz += ((foe.gz - p.gz) / len) * 0.85;
+  foe.kx = ((foe.gx - p.gx) / len) * 1.15;
+  foe.kz = ((foe.gz - p.gz) / len) * 1.15;
   foe.hp -= foe.kind === 'bear' ? 1 : 2;
   foe.stun = 0.7;
   if (foe.hp <= 0) {

@@ -9,6 +9,7 @@ import {
   faceForward, equipSword, swordStrike,
 } from './sim.js';
 import { i18nAudit, linePairs, t as tr } from './i18n.js';
+import { arriveSpeed } from './vendor/arrive.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -589,5 +590,8 @@ const spoons = createState().villagers.find((v) => v.nameCkb === 'حەمەی ک�
 assert(drej && drej.tall && drej.gender === 'man', 'tall khula');
 assert(fata && fata.gender === 'woman', 'fata is a woman');
 assert(spoons && spoons.role === 'spoon', 'spoon maker');
+assert(arriveSpeed(0.02, 1, 3, 0.05) === 0, 'arrive stops inside tolerance');
+assert(arriveSpeed(2, 0.7, 0.5, 0.05) === 0.7, 'arrive does not exceed the walk');
+assert(arriveSpeed(0.3, 0.7, 0.85, 0.05) < 0.5, 'arrive slows near a goal');
 
 console.log('sim-check ok');

@@ -8,6 +8,9 @@ import {
   cellToWorld, insideVillage, isRoad, metersToUnits, modelYaw, roadKind,
 } from './sim.js';
 import { createVillagerRig, poseVillager } from './villagers.js';
+import { Sky } from './vendor/Sky.js';
+import { createChase } from './vendor/chase-camera.js';
+import { grassWind, setGrassTime } from './vendor/grass-wind.js';
 
 const STYLES = [
   { wall: 0xc4a574 },
@@ -208,6 +211,18 @@ export function createView(canvas) {
   skyDome.frustumCulled = false;
   skyDome.renderOrder = -2;
   camera.add(skyDome);
+  const analyticSky = new Sky();
+  analyticSky.scale.setScalar(4.5);
+  analyticSky.frustumCulled = false;
+  analyticSky.renderOrder = -2;
+  analyticSky.material.depthWrite = false;
+  analyticSky.material.fog = false;
+  camera.add(analyticSky);
+  const skyUniforms = analyticSky.material.uniforms;
+  skyUniforms.turbidity.value = 4;
+  skyUniforms.rayleigh.value = 1.15;
+  skyUniforms.mieCoefficient.value = 0.004;
+  skyUniforms.mieDirectionalG.value = 0.82;
   const skyTop = new THREE.Color();
   const skyHorizon = new THREE.Color();
   const skyMix = new THREE.Color();
@@ -584,7 +599,8 @@ export function createView(canvas) {
   const treePuff = pool(new THREE.SphereGeometry(0.38, 8, 6), mat(0x2f8a34), 40);
   const rockMesh = pool(new THREE.DodecahedronGeometry(0.38, 0), mat(0x9aa0a4), 24);
   scene.add(treeTrunk, treeTop, treePuff, rockMesh);
-  const tufts = pool(new THREE.ConeGeometry(0.08, 0.22, 4), mat(0x3f8a32), 36);
+  const tuftMat = grassWind(mat(0x3f8a32));
+  const tufts = pool(new THREE.ConeGeometry(0.08, 0.22, 4), tuftMat, 36);
   for (let i = 0; i < 36; i += 1) {
     const a = (i / 36) * Math.PI * 2;
     const p = cellToWorld(LAYOUT.mosque.gx + Math.cos(a) * (2 + (i % 4)), LAYOUT.mosque.gz + Math.sin(a) * (2 + (i % 3)));
@@ -997,6 +1013,7 @@ export function createView(canvas) {
   }
 
   let animTime = 0;
+  const chase = createChase();
   let quality = 'mid';
   let ghostOk = true;
   function resize() {
@@ -1040,6 +1057,10 @@ export function createView(canvas) {
     hemi.color.set(0xe7f4ff);
     hemi.groundColor.set(painted === 0 ? 0x3e7a34 : (GRASS[SEASONS[painted]] || GRASS.spring));
     const ang = ((Math.min(18, Math.max(6, h)) - 6) / 12) * Math.PI;
+    const sunDir = new THREE.Vector3(Math.cos(ang), Math.sin(ang) * 0.85 + 0.15, 0.35).normalize();
+    skyUniforms.sunPosition.value.copy(sunDir);
+    analyticSky.visible = quality !== 'low';
+    skyDome.visible = quality === 'low';
     sun.position.set(Math.cos(ang) * 24, Math.sin(ang) * 22 + 2, 10);
     clouds.forEach((sprite, i) => {
       const drift = Math.sin(time * 0.15 + i) * 0.35;
@@ -1133,12 +1154,12 @@ export function createView(canvas) {
       const p = cellToWorld(gx, gz);
       const dist = 5.2;
       const cp = Math.cos(pitch);
-      camera.position.set(
-        p.x - Math.sin(yaw) * dist * cp,
-        1.4 + Math.sin(pitch) * dist,
-        p.z - Math.cos(yaw) * dist * cp,
-      );
-      camera.lookAt(p.x, 1.2, p.z);
+      const tx = p.x - Math.sin(yaw) * dist * cp;
+      const ty = 1.4 + Math.sin(pitch) * dist;
+      const tz = p.z - Math.cos(yaw) * dist * cp;
+      const cam = chase.follow(tx, ty, tz, p.x, 1.2, p.z, 0.22);
+      camera.position.set(cam.x, cam.y, cam.z);
+      camera.lookAt(cam.lx, cam.ly, cam.lz);
       camera.updateMatrixWorld(true);
       camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     },
@@ -1175,6 +1196,7 @@ export function createView(canvas) {
     },
     sync(state, time, nextCull) {
       animTime = time || 0;
+      setGrassTime(tuftMat, animTime);
       if (nextCull) cull = nextCull;
       const painted = previewSpring ? 0 : state.season;
       if (painted !== seenSeason) applySeason(painted);
