@@ -107,6 +107,7 @@ canvas {
 }
 .panel, .set-row, .quest, h1, h2, p, button, .chip { overflow-wrap: anywhere; }
 .panel {
+  position: relative;
   width: min(440px, 100%);
   max-height: min(520px, calc(var(--vv-h, 100dvh) - 16px - var(--safe-t) - var(--safe-b)));
   overflow-x: hidden;
@@ -301,7 +302,9 @@ html[dir="rtl"] #hudPop { right: auto; left: calc(8px + var(--safe-l)); }
 #repBar { display: flex; align-items: center; gap: 4px; flex: 1 0 100%; height: 16px; pointer-events: none; font-size: 12px; }
 #repFill { display: block; height: 8px; width: 50%; background: #3d7a32; border-radius: 4px; }
 .house-tag { position: fixed; z-index: 6; transform: translate(-50%, -120%); background: rgba(255,248,236,.94); border-radius: 8px; padding: 2px 6px; pointer-events: none; font-size: 13px; }
-.float-note { position: fixed; z-index: 14; top: calc(70px + var(--safe-t)); left: 50%; transform: translateX(-50%); width: min(320px, calc(100% - 24px)); text-align: center; }
+.float-note { position: fixed; z-index: 14; top: calc(70px + var(--safe-t)); left: 50%; transform: translateX(-50%); width: min(320px, calc(100% - 24px)); text-align: center; pointer-events: none; }
+.float-note button, .x { pointer-events: auto; }
+.x { position: absolute; top: 6px; inset-inline-end: 6px; width: 48px; height: 48px; min-width: 48px; min-height: 48px; padding: 0; z-index: 2; }
 #stageBar {
   position: fixed;
   z-index: 6;

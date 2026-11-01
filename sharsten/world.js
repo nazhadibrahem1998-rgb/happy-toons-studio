@@ -7,7 +7,7 @@ import {
   CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, SEASONS,
   cellToWorld, insideVillage, isRoad, metersToUnits, roadKind,
 } from './sim.js';
-import { createVillagerRig, posePrayer, poseVillager } from './villagers.js';
+import { createVillagerRig, poseVillager } from './villagers.js';
 
 const STYLES = [
   { wall: 0xc4a574 },
@@ -454,43 +454,47 @@ export function createView(canvas) {
   scene.add(rubble);
 
   const mosque = new THREE.Group();
-  const stone = mat(0xf4f1ea);
-  const trim = mat(0x2f8f55);
-  const hole = mat(0x3e4a55);
-  const yard = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.05, 3.4), mat(0xe7f2d4));
-  yard.position.y = 0.04;
-  const qiblaWall = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.78, 0.12), stone);
-  qiblaWall.position.set(-1.15, 0.4, 1.15);
-  qiblaWall.rotation.y = Math.PI / 4;
-  const mihrab = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.52, 0.1), hole);
-  mihrab.position.set(-1.02, 0.36, 1.02);
-  mihrab.rotation.y = Math.PI / 4;
-  const mihrabArch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 8, 1, false, 0, Math.PI), hole);
-  mihrabArch.rotation.z = Math.PI / 2;
-  mihrabArch.rotation.y = Math.PI / 4;
-  mihrabArch.position.set(-1.02, 0.6, 1.02);
-  const sideA = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.28, 0.08), stone);
-  sideA.position.set(-0.15, 0.16, 1.35);
-  sideA.rotation.y = Math.PI / 4;
-  const sideB = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.28, 0.08), stone);
-  sideB.position.set(-1.35, 0.16, 0.15);
-  sideB.rotation.y = Math.PI / 4;
-  const band = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 0.14), trim);
-  band.position.set(-1.15, 0.78, 1.15);
-  band.rotation.y = Math.PI / 4;
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 1.7, 6), stone);
-  shaft.position.set(-1.55, 0.85, 0.35);
-  const gallery = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 6), trim);
-  gallery.position.set(-1.55, 1.55, 0.35);
-  mosque.add(yard, qiblaWall, mihrab, mihrabArch, sideA, sideB, band, shaft, gallery);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), stone);
-  cap.position.set(-1.55, 1.85, 0.35);
-  mosque.add(cap);
+  mosque.rotation.y = Math.PI * 0.75;
+  const stone = mat(0xe4ddd2);
+  const mud = mat(0xd2b48c);
+  const wood = mat(0x6b4226);
+  const dark = mat(0x3e4a55);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.08, 3.15), mat(0xc8b090));
+  floor.position.y = 0.04;
+  const wallH = 1.02;
+  const wallY = 0.08 + wallH / 2;
+  const sideW = new THREE.Mesh(new THREE.BoxGeometry(0.16, wallH, 3.15), mud);
+  sideW.position.set(-1.0, wallY, 0);
+  const sideE = sideW.clone();
+  sideE.position.x = 1.0;
+  const qibla = new THREE.Mesh(new THREE.BoxGeometry(2.0, wallH, 0.16), stone);
+  qibla.position.set(0, wallY, -1.5);
+  const niche = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.58, 0.08), dark);
+  niche.position.set(0, 0.52, -1.38);
+  const jambL = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.74, 0.16), mud);
+  jambL.position.set(-0.69, 0.45, 1.5);
+  const jambR = jambL.clone();
+  jambR.position.x = 0.69;
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.28, 0.16), mud);
+  lintel.position.set(0, 0.96, 1.5);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 3.4), mat(0xc4a574));
+  roof.position.y = 1.16;
+  mosque.add(floor, sideW, sideE, qibla, niche, jambL, jambR, lintel, roof);
+  for (let i = -1; i <= 1; i += 1) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.06, 0.08), wood);
+    beam.position.set(0, 1.06, i * 0.72);
+    mosque.add(beam);
+  }
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.55, 0.46), stone);
+  tower.position.set(1.18, 0.78, 1.55);
+  const crown = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.1, 0.56), mud);
+  crown.position.set(1.18, 1.6, 1.55);
+  mosque.add(tower, crown);
   scene.add(mosque);
-  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.46), new THREE.MeshBasicMaterial({ map: flagTexture(), side: THREE.DoubleSide }));
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.8, 4), mat(0xeeeeee));
-  pole.position.set(1.35, 0.9, 0.35);
-  flag.position.set(1.72, 1.6, 0.35);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.28), new THREE.MeshBasicMaterial({ map: flagTexture(), side: THREE.DoubleSide }));
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 4), mat(0xeeeeee));
+  pole.position.set(1.18, 1.9, 1.55);
+  flag.position.set(1.4, 2.08, 1.55);
   mosque.add(pole, flag);
 
   const springMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.12, 8), mat(0x3aa0d8));
@@ -758,19 +762,28 @@ export function createView(canvas) {
       seen.add(v.id);
       rig.root.visible = true;
       const stumble = v.prayer ? 0 : (v.stumble ? 0.15 : 0);
+      const prev = rig._step || { x: p.x, z: p.z, t: time };
+      const speed = Math.hypot(p.x - prev.x, p.z - prev.z) / Math.max(0.016, time - prev.t);
+      rig._step = { x: p.x, z: p.z, t: time };
       rig.root.position.set(p.x + stumble, 0, p.z);
       rig.root.rotation.y = (v.ry || 0) + Math.PI;
-      if (v.prayer) posePrayer(rig, v.prayer);
-      else {
-        const moving = Math.hypot(v.tx - v.gx, v.tz - v.gz) > 0.05 || !!v.player;
-        poseVillager(rig, {
-          time,
-          seed: v.id || 0,
-          moving,
-          wave: !!v.greeting,
-          chop: state.swing > 0 && !!v.player,
-        });
-      }
+      const moving = speed > 0.25;
+      let action = 'idle';
+      if (v.prayer) action = v.prayer;
+      else if (v.greeting) action = 'wave';
+      else if (v.angry) action = 'quarrel';
+      else if ((state.swing > 0 && v.player) || (!moving && v.role === 'woodcutter')) action = 'chop';
+      else if (!moving && (v.role === 'farmer' || v.job === 'farmer')) action = 'hoe';
+      else if (!moving && (v.role === 'baker' || v.job === 'baker')) action = 'bake';
+      else if (moving && speed > 2.6) action = 'run';
+      else if (moving) action = 'walk';
+      else if (v.line && !String(v.line).startsWith('greet')) action = 'talk';
+      let tool = '';
+      if (v.role === 'shepherd' || v.job === 'shepherd') tool = 'staff';
+      else if (action === 'chop') tool = 'axe';
+      else if (action === 'hoe') tool = 'hoe';
+      else if (v.role === 'woodcutter' && moving) tool = 'sack';
+      poseVillager(rig, { time, seed: v.id || 0, action, tool });
     });
     villagerRigs.forEach((rig, id) => { if (!seen.has(id)) rig.root.visible = false; });
     let fi = 0;

@@ -2441,15 +2441,27 @@ export function shove(state, id) {
   return { ok: true, dinar: drop };
 }
 
-export function acceptFine(state) {
+export function acceptFine(state, how) {
   if (!state.confront) return { ok: false };
-  if ((state.resources.money || 0) < 8) return { ok: false, reason: 'cost' };
-  state.resources.money = round3(state.resources.money - 8);
+  const have = Math.max(0, state.resources.money || 0);
+  const deed = how === 'deed' || have <= 0;
+  let paid = 0;
+  if (deed) state.amendsDeed = 1;
+  else {
+    paid = Math.min(8, have);
+    state.resources.money = round3(have - paid);
+    state.amends = 1;
+  }
   state.confront = 0;
-  state.amends = 1;
-  bumpRep(state, 4);
+  bumpRep(state, deed ? 2 : 4);
   const mullah = state.villagers.find((v) => v.role === 'mullah');
-  if (mullah) { mullah.line = 'advise'; mullah.sayLeft = 3; }
+  if (mullah) { mullah.line = 'thanks'; mullah.sayLeft = 2; }
+  bump(state);
+  return { ok: true, paid, deed };
+}
+
+export function dismissConfront(state) {
+  state.confront = 0;
   bump(state);
   return { ok: true };
 }

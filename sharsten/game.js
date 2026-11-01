@@ -13,7 +13,7 @@ import {
   stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
   LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, secondsThisHour, snapshot, stickVector, suggestCell, tick, upgrade, viewAxes, walkStep,
   craft, dismissStage, equipTool, gather, nearestNode, recipeList, stageSnapshot,
-  cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, tradeList, tradeWith, setRaids, bonk, settleQuarrel, holdPrayer, prayerClock,
+  cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, dismissConfront, tradeList, tradeWith, setRaids, bonk, settleQuarrel, holdPrayer, prayerClock,
   plough, sow, waterField, millGrain, bakeBread,
 } from './sim.js';
 import { formatClock, formatNum, i18nAudit, linePairs, npcLine, t } from './i18n.js';
@@ -619,14 +619,16 @@ function updateBoard() {
 
 function villagerTitle(v) {
   const name = lang === 'ckb' ? v.nameCkb : v.name;
-  const key = { water: 'waterJob', child: 'childJob', faithful: 'neighbour', woodcutter: 'woodJob', stonecutter: 'stoneJob', mullah: 'mullahJob', player: 'you' }[v.role] || v.role || 'neighbour';
+  if (v.role === 'mullah') return name;
+  const key = { water: 'waterJob', child: 'childJob', faithful: 'neighbour', woodcutter: 'woodJob', stonecutter: 'stoneJob', player: 'you' }[v.role] || v.role || 'neighbour';
   const job = t(lang, key);
   return lang === 'ckb' ? `${name} – ${job}` : `${name}, ${job}`;
 }
 function updateSpeech() {
   const el = document.getElementById('speech');
   if (!el) return;
-  if (!playing) { el.hidden = true; return; }
+  const elder = document.getElementById('elder');
+  if (!playing || (elder && !elder.hidden)) { el.hidden = true; return; }
   const p = player();
   let best = null;
   let bestD = 1.75;
@@ -907,7 +909,45 @@ function closeQuarrel(how) {
   persist();
   paint();
 }
+function syncNotices() {
+  const note = document.getElementById('adhanNote');
+  const elder = document.getElementById('elder');
+  if (!note || !elder) return;
+  if (state.adhan) {
+    state.adhan = 0;
+    state.adhanQueued = 1;
+    playAdhan();
+  }
+  if (prayerClock(state)?.phase === 'salah') state.adhanQueued = 0;
+  const adhanOn = !!state.adhanQueued;
+  note.hidden = !adhanOn;
+  if (adhanOn) {
+    if (!elder.hidden) elder.hidden = true;
+    return;
+  }
+  if (state.confront === 1) {
+    elder.hidden = false;
+    state.confront = 2;
+  }
+}
+
+function closeElder() {
+  dismissConfront(state);
+  const elder = document.getElementById('elder');
+  if (elder) elder.hidden = true;
+}
 document.getElementById('quarrelClose').addEventListener('click', () => { document.getElementById('quarrel').hidden = true; });
+document.getElementById('quarrelX').addEventListener('click', () => { document.getElementById('quarrel').hidden = true; });
+document.getElementById('talkX').addEventListener('click', () => { document.getElementById('talk').hidden = true; });
+document.getElementById('tradeX').addEventListener('click', () => { document.getElementById('trade').hidden = true; });
+document.getElementById('adhanClose').addEventListener('click', () => {
+  state.adhanQueued = 0;
+  const note = document.getElementById('adhanNote');
+  if (note) note.hidden = true;
+  syncNotices();
+});
+document.getElementById('elderX').addEventListener('click', closeElder);
+document.getElementById('elderLater').addEventListener('click', closeElder);
 document.getElementById('peaceBtn').addEventListener('click', () => closeQuarrel('peace'));
 document.getElementById('judgeBtn').addEventListener('click', () => closeQuarrel('mullah'));
 document.getElementById('sideA').addEventListener('click', () => closeQuarrel('sideA'));
@@ -939,15 +979,17 @@ document.getElementById('talkHit').addEventListener('click', () => {
   const result = shove(state, id);
   document.getElementById('talk').hidden = true;
   if (result.reason === 'child') toast(npcLine(lang, 'childRun'));
-  if (state.confront) document.getElementById('elder').hidden = false;
+  syncNotices();
   paint();
 });
-document.getElementById('fineBtn').addEventListener('click', () => {
-  const result = acceptFine(state);
-  if (!result.ok) toast(t(lang, 'needCost'));
-  else document.getElementById('elder').hidden = true;
+function settleFine(how) {
+  const result = acceptFine(state, how);
+  document.getElementById('elder').hidden = true;
+  if (result.deed) toast(t(lang, 'amendsDeed'));
   paint();
-});
+}
+document.getElementById('fineBtn').addEventListener('click', () => settleFine('pay'));
+document.getElementById('elderDeed').addEventListener('click', () => settleFine('deed'));
 document.getElementById('stageOk').addEventListener('click', () => {
   dismissStage(state);
   paintStage();
@@ -1236,26 +1278,15 @@ function frame(now) {
   view.sync(state, now / 1000, { x: here.x, z: here.z, radius });
   const boot = document.getElementById('boot');
   if (boot) boot.hidden = true;
-  if (state.adhan) {
-    state.adhan = 0;
-    const note = document.getElementById('adhanNote');
-    if (note) note.hidden = false;
-    playAdhan();
-    persist();
-  }
   if (state.prayerThanks) {
     state.prayerThanks = 0;
     toast(t(lang, 'prayerJoin'));
-  }
-  if (prayerClock(state)?.phase === 'salah') {
-    const note = document.getElementById('adhanNote');
-    if (note) note.hidden = true;
   }
   if (state.raidWarn) {
     state.raidWarn = 0;
     toast(t(lang, 'raidWarn'));
   }
-  if (state.confront && document.getElementById('elder')) document.getElementById('elder').hidden = false;
+  syncNotices();
   placeTags();
   if (adhanCtx && adhanCtx.listener && adhanCtx.listener.positionX && view.camera) {
     adhanCtx.listener.positionX.value = view.camera.position.x;
@@ -1366,6 +1397,23 @@ window.__SV = {
   advanceHours(n) { advanceHours(state, n); persist(); paint(); },
   setStock(key, value) { return setStock(state, key, value); },
   setHour(h) { setHour(state, h); paint(); },
+  forceConfront() {
+    state.rep = -40;
+    state.offences = 3;
+    state.confront = 1;
+    state.resources.money = 0;
+  },
+  openNotices() {
+    syncNotices();
+    const note = document.getElementById('adhanNote');
+    const elder = document.getElementById('elder');
+    return {
+      adhan: !!(note && !note.hidden),
+      elder: !!(elder && !elder.hidden),
+      confront: state.confront || 0,
+      money: state.resources.money || 0,
+    };
+  },
   setSeason(name) {
     const result = setSeason(state, name);
     view.sync(state, 0);

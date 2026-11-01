@@ -917,3 +917,37 @@ test('village levels unlock, progress reloads, and the tutorial finishes by touc
   await expect(page.locator('#tutorial')).toBeHidden();
   assertClean(errors);
 });
+
+test('noon call with no dinar still lets the player close the dialog and walk', async ({ page }) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  await page.evaluate(() => {
+    for (let i = 0; i < 6; i += 1) window.__SV.advanceTutorial();
+  });
+  const queued = await page.evaluate(() => {
+    window.__SV.setWalkPose({ x: 22, z: 36, yaw: 0.4, pitch: 0.45 });
+    window.__SV.setHour(11);
+    window.__SV.advanceHours(1);
+    window.__SV.setStock('money', 0);
+    window.__SV.forceConfront();
+    return window.__SV.openNotices();
+  });
+  expect(queued.adhan).toBe(true);
+  expect(queued.elder).toBe(false);
+  await page.click('#adhanClose');
+  const amends = await page.evaluate(() => window.__SV.openNotices());
+  expect(amends.adhan).toBe(false);
+  expect(amends.elder).toBe(true);
+  await page.click('#fineBtn');
+  const after = await page.evaluate(() => {
+    const note = window.__SV.openNotices();
+    const z0 = window.__SV.getWalkDebug().z;
+    window.__SV.stepKeys(0.35, ['KeyW']);
+    const z1 = window.__SV.getWalkDebug().z;
+    return { ...note, moved: Math.abs(z1 - z0) };
+  });
+  expect(after.elder).toBe(false);
+  expect(after.confront).toBe(0);
+  expect(after.moved).toBeGreaterThan(0.2);
+  assertClean(errors);
+});

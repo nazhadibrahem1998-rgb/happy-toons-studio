@@ -67,11 +67,13 @@
 <div id="tagYou" class="house-tag" hidden></div>
 <div id="tagMullah" class="house-tag" hidden></div>
 <div id="adhanNote" class="banner float-note" hidden>
+  <button type="button" id="adhanClose" class="x" aria-label="close">✕</button>
   <p data-i18n="adhanBig">الله أكبر</p>
-  <p data-i18n="adhanCall">مەلا حوسێن بانگ دەدات</p>
+  <p data-i18n="adhanCall">مەلا حوسێن بانگی نوێژی نیوەڕۆ دەدات</p>
 </div>
 <div id="talk" class="screen" hidden>
   <div class="panel">
+    <button type="button" id="talkX" class="x" aria-label="close">✕</button>
     <h2 data-i18n="people">دانیشتووان</h2>
     <button type="button" id="talkTrade" class="btn" data-i18n="trade">کڕین و فرۆشتن</button>
     <button type="button" id="talkHelp" class="btn" data-i18n="helpYes">یارمەتی دەدەم</button>
@@ -82,6 +84,7 @@
 </div>
 <div id="trade" class="screen" hidden>
   <div class="panel" data-scroll-panel="trade">
+    <button type="button" id="tradeX" class="x" aria-label="close">✕</button>
     <h2 data-i18n="trade">کڕین و فرۆشتن</h2>
     <p data-i18n="money">دینار</p>
     <div id="tradeList"></div>
@@ -90,6 +93,7 @@
 </div>
 <div id="quarrel" class="screen" hidden>
   <div class="panel">
+    <button type="button" id="quarrelX" class="x" aria-label="close">✕</button>
     <h2 id="quarrelTitle"></h2>
     <button type="button" id="peaceBtn" class="btn" data-i18n="peace">ئاشتکردنەوە</button>
     <button type="button" id="judgeBtn" class="btn" data-i18n="judge">حوکمی مەلا حوسێن</button>
@@ -100,10 +104,12 @@
 </div>
 <div id="elder" class="screen" hidden>
   <div class="panel">
+    <button type="button" id="elderX" class="x" aria-label="close">✕</button>
     <h2>مەلا حوسێن</h2>
-    <p data-i18n="adhanCall">مەلا حوسێن بانگ دەدات</p>
-    <p>مەلا حوسێن دەڵێت چاکە بکە.</p>
-    <button type="button" id="fineBtn" class="btn" data-i18n="fine">سزا بدە</button>
+    <p id="elderText" data-i18n="amends">تکایە چاکە بکە.</p>
+    <button type="button" id="fineBtn" class="btn" data-i18n="fine">سزاکە بدە</button>
+    <button type="button" id="elderDeed" class="btn" data-i18n="amendsDeed">لە جیاتی ئەوە مزگەوتەکە پاک بکەرەوە.</button>
+    <button type="button" id="elderLater" class="btn alt" data-i18n="later">دواتر</button>
   </div>
 </div>
 <div id="stagePop" hidden>

@@ -4,7 +4,7 @@ import {
   integrate, isRoad, isUnlocked, npcActiveCap, npcSchedule, phaseOf, place, plant, playable, reachExit, setEasy, setHour, setSeason, stepNpcs,
   animalCap, carryBudget, DONKEY_SPEED, enterAnimal, exitAnimal, herdSpot, moveGoods, rideAnimal, stepAnimals,
   stepVehicles, stickVector, suggestCell, tick, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, viewAxes, walkStep,
-  bonk, shove, spawnRaid,
+  bonk, shove, spawnRaid, acceptFine, dismissConfront,
   QIBLA_YAW, holdPrayer, prayerClock, prayerOrder, prayerPoseName, saffLayout,
 } from './sim.js';
 import { i18nAudit, linePairs, t as tr } from './i18n.js';
@@ -528,5 +528,14 @@ pray.acc = 40;
 assert(prayerClock(pray) == null, 'prayer ends');
 stepNpcs(pray, 0.2, { low: false, focus: { gx: LAYOUT.mosque.gx, gz: LAYOUT.mosque.gz, r: 99 } });
 assert(imam.prayer === '' && imam.mode === 'work', 'they return to work');
+
+const broke = createState();
+broke.confront = 1;
+broke.resources.money = 0;
+broke.rep = -40;
+const fined = acceptFine(broke);
+assert(fined.ok && fined.deed && broke.confront === 0 && broke.resources.money === 0, 'fine closes with no dinar');
+broke.confront = 1;
+assert(dismissConfront(broke).ok && broke.confront === 0, 'later closes the amends');
 
 console.log('sim-check ok');
