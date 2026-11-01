@@ -478,23 +478,98 @@ function spawnVillager(state, player = false) {
   return v;
 }
 
+const ANIMAL_COUNTS = { sheep: 8, goat: 6, chicken: 8, donkey: 4, cow: 6, ox: 2 };
+const HERD_OF = {
+  sheep: 'flock', goat: 'flock', cow: 'cattle', ox: 'cattle', chicken: 'poultry', donkey: 'pack',
+};
+const PASTURE = {
+  flock: { gx: 26, gz: 10 },
+  cattle: { gx: 10, gz: 22 },
+  poultry: { gx: 22, gz: 36 },
+  pack: { gx: 14, gz: 34 },
+};
+const PEN_FALLBACK = {
+  flock: { gx: 16, gz: 29 },
+  cattle: { gx: 20, gz: 29 },
+  poultry: { gx: 16, gz: 31 },
+  pack: { gx: 16, gz: 32 },
+};
+
+/** Slower than a tractor. The donkey still cannot leave the valley. */
+export const DONKEY_SPEED = 1.25;
+
+export function animalCap(low) {
+  return low ? 20 : 40;
+}
+
+function herdName(kind) {
+  return HERD_OF[kind] || 'flock';
+}
+
+function fitPoint(gx, gz) {
+  const spot = clampToMap(gx, gz);
+  return { gx: spot.gx, gz: spot.gz };
+}
+
+function herderList(state) {
+  return state.villagers.filter((v) => !v.player && (v.role === 'shepherd' || v.job === 'shepherd'));
+}
+
+function herdForVillager(state, v) {
+  const list = herderList(state);
+  const idx = list.findIndex((h) => h.id === v.id);
+  return ['flock', 'cattle', 'poultry', 'pack'][(idx < 0 ? 0 : idx) % 4];
+}
+
+export function herdSpot(state, kind, phase) {
+  const herd = herdName(kind);
+  if (phase === 'pen') {
+    const type = herd === 'flock' ? 'pen_sheep' : herd === 'cattle' ? 'pen_goat' : herd === 'poultry' ? 'coop' : null;
+    const pen = type && state.buildings.find((b) => b.type === type);
+    if (pen) return fitPoint(pen.gx + 0.35, pen.gz + 0.35);
+    return fitPoint(PEN_FALLBACK[herd].gx, PEN_FALLBACK[herd].gz);
+  }
+  const day = PASTURE[herd];
+  return fitPoint(day.gx, day.gz);
+}
+
+function herdPhase(hour) {
+  const h = ((Math.floor(hour) % 24) + 24) % 24;
+  return h >= 7 && h < 17 ? 'pasture' : 'pen';
+}
+
 function spawnAnimal(state, kind) {
   const base = {
-    sheep: [23, 8.4], goat: [8.2, 26], chicken: [20.4, 32.2], donkey: [16.4, 31.2], ox: [21.2, 34.4],
+    sheep: [23, 8.4], goat: [8.2, 26], chicken: [20.4, 32.2], donkey: [18.8, 33.6], ox: [21.2, 34.4], cow: [12.2, 22],
   }[kind] || [20, 32];
   const n = state.animals.filter((a) => a.kind === kind).length;
+  const gx = base[0] + (n % 3) * 0.42;
+  const gz = base[1] + Math.floor(n / 3) * 0.36;
   const a = {
     id: state.nextId++,
     kind,
-    gx: base[0] + (n % 3) * 0.38,
-    gz: base[1] + Math.floor(n / 3) * 0.32,
-    tx: base[0] + (n % 3) * 0.38,
-    tz: base[1],
+    gx,
+    gz,
+    tx: gx,
+    tz: gz,
     homeGx: base[0],
     homeGz: base[1],
+    mode: 'idle',
+    ai: 'idle',
+    yaw: 0,
+    load: 0,
+    ridden: false,
+    hold: false,
+    updated: true,
   };
   state.animals.push(a);
   return a;
+}
+
+function spawnHerds(state) {
+  Object.keys(ANIMAL_COUNTS).forEach((kind) => {
+    for (let i = 0; i < ANIMAL_COUNTS[kind]; i += 1) spawnAnimal(state, kind);
+  });
 }
 
 function workersAt(state, id) {
@@ -590,6 +665,11 @@ function ensureVillageAi(state) {
 }
 
 function goalFor(state, v, phase) {
+  if ((v.role === 'shepherd' || v.job === 'shepherd') && phase !== 'mosque') {
+    const herd = herdForVillager(state, v);
+    const sample = herd === 'cattle' ? 'cow' : herd === 'poultry' ? 'chicken' : herd === 'pack' ? 'donkey' : 'sheep';
+    return herdSpot(state, sample, phase === 'home' ? 'pen' : 'pasture');
+  }
   if (phase === 'home') {
     const hs = homes(state);
     const house = state.buildings.find((b) => b.id === v.homeId && b.type === 'house')
@@ -610,9 +690,7 @@ function goalFor(state, v, phase) {
     if (field) return { gx: field.gx + 0.35, gz: field.gz + 0.35 };
   }
   if (v.role === 'shepherd') {
-    const herd = state.animals.filter((a) => a.kind === 'sheep' || a.kind === 'chicken');
-    const animal = herd.length ? herd[v.id % herd.length] : null;
-    if (animal) return { gx: animal.homeGx, gz: animal.homeGz };
+    return herdSpot(state, 'sheep', 'pasture');
   }
   if (v.role === 'teacher') {
     const school = state.buildings.find((b) => b.type === 'school');
@@ -767,25 +845,15 @@ export function retarget(state) {
     v.tx = v.goalGx;
     v.tz = v.goalGz;
   });
-  const day = working;
+  const phase = herdPhase(state.hour);
   state.animals.forEach((a) => {
-    const penType = a.kind === 'sheep' ? 'pen_sheep' : a.kind === 'goat' ? 'pen_goat' : 'coop';
-    const pen = state.buildings.find((b) => b.type === penType);
-    if (!day) {
-      a.tx = pen ? pen.gx + 0.3 : a.homeGx;
-      a.tz = pen ? pen.gz + 0.3 : a.homeGz;
-      return;
-    }
-    const seed = (a.id * 17 + state.ticks * 3) % 5;
-    if (pen && seed < 2) {
-      a.tx = pen.gx + ((seed - 1) * 0.4);
-      a.tz = pen.gz + 0.8;
-    } else {
-      a.tx = a.homeGx + (seed - 2) * 0.45;
-      a.tz = a.homeGz + ((a.id + state.ticks) % 3) * 0.28;
-    }
-    a.tx = clamp(a.tx, 0.3, GRID_W - 1.3);
-    a.tz = clamp(a.tz, 0.3, GRID_D - 1.3);
+    if (a.ridden) return;
+    const goal = herdSpot(state, a.kind, phase);
+    const spread = ((a.id % 5) - 2) * 0.32;
+    const spot = fitPoint(goal.gx + spread, goal.gz + ((a.id % 3) - 1) * 0.24);
+    a.tx = spot.gx;
+    a.tz = spot.gz;
+    a.mode = phase === 'pasture' ? 'graze' : 'idle';
   });
 }
 
@@ -917,8 +985,13 @@ export function stepHour(state) {
   const shepherdOn = working && state.villagers.some((v) => v.job === 'shepherd');
   const animalMul = (winter ? 0.65 : 1) * (shepherdOn ? 2.2 : 1);
   state.animals.forEach((a) => {
-    if (a.kind === 'sheep') addRes(state, 'wool', 0.16 * animalMul);
+    if (a.ridden) return;
+    if (a.kind === 'sheep') {
+      addRes(state, 'wool', 0.16 * animalMul);
+      addRes(state, 'milk', 0.05 * animalMul);
+    }
     if (a.kind === 'goat') addRes(state, 'milk', 0.18 * animalMul);
+    if (a.kind === 'cow') addRes(state, 'milk', 0.42 * animalMul);
     if (a.kind === 'chicken') addRes(state, 'eggs', 0.2 * animalMul);
   });
   if (working) {
@@ -1205,6 +1278,187 @@ export function stepVehicles(state, dt, opts = {}) {
   });
 }
 
+function animalGoal(state, a) {
+  const phase = herdPhase(state.hour);
+  const goal = herdSpot(state, a.kind, phase);
+  const spread = ((a.id % 5) - 2) * 0.32;
+  return fitPoint(goal.gx + spread, goal.gz + ((a.id % 3) - 1) * 0.24);
+}
+
+function herderForAnimal(state, a) {
+  const list = herderList(state);
+  if (!list.length) return null;
+  const herd = herdName(a.kind);
+  const idx = { flock: 0, cattle: 1, poultry: 2, pack: 3 }[herd] || 0;
+  return list[idx % list.length];
+}
+
+/** Idle, wander, graze, or follow the herder. Far animals update less often. */
+export function stepAnimals(state, dt, opts = {}) {
+  const cap = animalCap(!!opts.low);
+  const focus = opts.focus;
+  const list = state.animals.slice();
+  list.forEach((a) => {
+    a._d = focus ? Math.hypot(a.gx - focus.gx, a.gz - focus.gz) : 0;
+  });
+  list.sort((x, y) => x._d - y._d || x.id - y.id);
+  list.forEach((a, i) => {
+    if (a.ridden) {
+      a.ai = 'ridden';
+      a.mode = 'ridden';
+      a.hold = true;
+      a.updated = true;
+      return;
+    }
+    const far = focus && focus.r != null && a._d > focus.r + 0.001;
+    const skipThrottle = i >= cap && ((state.ticks + a.id) % 4 !== 0);
+    if (far || skipThrottle) {
+      a.ai = far ? 'lod' : 'throttle';
+      a.updated = false;
+      a.hold = true;
+      return;
+    }
+    a.ai = i >= cap ? 'throttle' : 'active';
+    a.hold = false;
+    a.updated = true;
+    const goal = animalGoal(state, a);
+    const herder = herderForAnimal(state, a);
+    const phase = herdPhase(state.hour);
+    const nearHerder = herder && herder.mode !== 'mosque' && Math.hypot(herder.gx - a.gx, herder.gz - a.gz) < 6;
+    if (nearHerder) {
+      a.mode = 'follow';
+      const spot = fitPoint(herder.gx + ((a.id % 3) - 1) * 0.45, herder.gz + 0.7);
+      a.tx = spot.gx;
+      a.tz = spot.gz;
+    } else if (Math.hypot(a.gx - goal.gx, a.gz - goal.gz) > 1.35) {
+      a.mode = 'wander';
+      a.tx = goal.gx;
+      a.tz = goal.gz;
+    } else {
+      const beat = (state.ticks + a.id) % 4;
+      a.mode = beat === 0 ? 'idle' : beat === 1 ? 'wander' : 'graze';
+      if (a.mode === 'wander') {
+        const spot = fitPoint(goal.gx + Math.sin(a.id) * 0.7, goal.gz + Math.cos(a.id) * 0.55);
+        a.tx = spot.gx;
+        a.tz = spot.gz;
+      } else {
+        a.tx = a.gx;
+        a.tz = a.gz;
+      }
+    }
+    if (a.kind === 'donkey' && !a.ridden && phase === 'pen' && a.load > 0) {
+      const pen = herdSpot(state, 'donkey', 'pen');
+      if (Math.hypot(a.gx - pen.gx, a.gz - pen.gz) < 1.6) {
+        const drop = Math.min(a.load, 1);
+        addRes(state, 'wool', drop);
+        a.load = Math.max(0, a.load - drop);
+      }
+    }
+    const dx = a.tx - a.gx;
+    const dz = a.tz - a.gz;
+    if (Math.hypot(dx, dz) > 0.05) a.yaw = Math.atan2(dx, dz);
+  });
+}
+
+/** Donkeys that are not being ridden can carry a larger load. */
+export function carryBudget(state) {
+  return state.animals.filter((a) => a.kind === 'donkey').reduce((sum, a) => sum + (a.ridden ? 2 : 8), 0);
+}
+
+export function moveGoods(state, key, amount) {
+  const cap = carryBudget(state);
+  const have = state.resources[key] || 0;
+  const budget = Math.max(0, Math.min(amount, cap, have));
+  let left = budget;
+  state.animals.forEach((a) => {
+    if (a.kind !== 'donkey' || left <= 0) return;
+    const space = (a.ridden ? 2 : 8) - (a.load || 0);
+    const take = Math.min(Math.max(space, 0), left);
+    a.load = (a.load || 0) + take;
+    left -= take;
+  });
+  const moved = budget - left;
+  state.lastHaul = moved;
+  return { ok: true, moved, cap };
+}
+
+export function nearestAnimal(state, kind, gx, gz, radius = 1.7) {
+  let best = null;
+  let bestD = radius;
+  state.animals.forEach((a) => {
+    if (a.ridden) return;
+    if (kind && a.kind !== kind) return;
+    const d = Math.hypot(a.gx - gx, a.gz - gz);
+    if (d < bestD) { best = a; bestD = d; }
+  });
+  return best;
+}
+
+export function enterAnimal(state, id) {
+  const a = state.animals.find((item) => item.id === id);
+  const p = state.villagers.find((item) => item.player);
+  if (!a || a.kind !== 'donkey' || !p) return { ok: false, reason: 'missing' };
+  if (Math.hypot(p.gx - a.gx, p.gz - a.gz) > 1.7) return { ok: false, reason: 'far' };
+  state.animals.forEach((item) => { item.ridden = false; });
+  state.vehicles.forEach((item) => { item.occupied = false; });
+  state.drivenId = 0;
+  a.ridden = true;
+  a.mode = 'ridden';
+  state.riddenId = a.id;
+  p.gx = a.gx;
+  p.gz = a.gz;
+  p.tx = a.gx;
+  p.tz = a.gz;
+  bump(state);
+  return { ok: true, id: a.id };
+}
+
+export function exitAnimal(state) {
+  const a = state.animals.find((item) => item.id === state.riddenId);
+  const p = state.villagers.find((item) => item.player);
+  if (!a || !p) return { ok: false, reason: 'none' };
+  a.ridden = false;
+  a.mode = 'idle';
+  state.riddenId = 0;
+  const spot = fitPoint(a.gx + Math.cos(a.yaw || 0) * 0.8, a.gz - Math.sin(a.yaw || 0) * 0.8);
+  if (!solidAt(state, spot.gx, spot.gz)) {
+    p.gx = spot.gx;
+    p.gz = spot.gz;
+  }
+  p.tx = p.gx;
+  p.tz = p.gz;
+  bump(state);
+  return { ok: true };
+}
+
+export function rideAnimal(state, id, steer, throttle, dt) {
+  const a = state.animals.find((item) => item.id === id);
+  const p = state.villagers.find((item) => item.player);
+  if (!a || !a.ridden) return { ok: false, reason: 'empty' };
+  const step = Math.min(Math.max(dt, 0), 0.1);
+  const gas = Math.max(-1, Math.min(1, throttle || 0));
+  const turn = Math.max(-1, Math.min(1, steer || 0));
+  a.yaw = (a.yaw || 0) + turn * 1.4 * step;
+  const spd = gas * DONKEY_SPEED;
+  if (Math.abs(spd) < 0.01) return { ok: true, moved: false, gx: a.gx, gz: a.gz, yaw: a.yaw };
+  const nx = a.gx + Math.sin(a.yaw) * spd * step;
+  const nz = a.gz + Math.cos(a.yaw) * spd * step;
+  if (!playable(nx, nz) || solidAt(state, nx, nz)) {
+    return { ok: false, hit: true, gx: a.gx, gz: a.gz, yaw: a.yaw };
+  }
+  a.gx = nx;
+  a.gz = nz;
+  a.tx = nx;
+  a.tz = nz;
+  if (p) {
+    p.gx = nx;
+    p.gz = nz;
+    p.tx = nx;
+    p.tz = nz;
+  }
+  return { ok: true, moved: true, gx: nx, gz: nz, yaw: a.yaw };
+}
+
 export function nearestVehicle(state, gx, gz, radius = 1.7) {
   ensureVehicles(state);
   let best = null;
@@ -1224,6 +1478,8 @@ export function enterVehicle(state, id) {
   if (!v || !p) return { ok: false, reason: 'missing' };
   if (Math.hypot(p.gx - v.gx, p.gz - v.gz) > 1.7) return { ok: false, reason: 'far' };
   state.vehicles.forEach((item) => { item.occupied = false; });
+  state.animals.forEach((item) => { item.ridden = false; });
+  state.riddenId = 0;
   v.occupied = true;
   state.drivenId = v.id;
   p.gx = v.gx;
@@ -1304,6 +1560,7 @@ export function tick(state, dt, opts = {}) {
   }
   stepNpcs(state, step, opts);
   stepVehicles(state, step, opts);
+  stepAnimals(state, step, opts);
   integrate(state, step, opts);
 }
 
@@ -1335,6 +1592,7 @@ export function integrate(state, dt, opts = {}) {
     moveOne(v);
   });
   state.animals.forEach((a) => {
+    if (a.ridden || a.hold || a.ai === 'lod') { a.updated = false; return; }
     if (!nearEnough(a)) { a.updated = false; return; }
     a.updated = true;
     moveOne(a);
@@ -1367,6 +1625,7 @@ export function createState() {
     npcQuests: null,
     vehicles: [],
     drivenId: 0,
+    riddenId: 0,
     newrozYear: -1,
     harvested: 0,
     learning: 0,
@@ -1407,6 +1666,9 @@ export function createState() {
   stamp('smith', MX + 6, MZ + 2);
   stamp('loom', MX + 4, MZ - 3);
   stamp('school', MX - 2, MZ + 2);
+  stamp('pen_sheep', 16, 29);
+  stamp('pen_goat', 20, 29);
+  stamp('coop', 16, 31);
   [[34, 8], [36, 10], [38, 8], [34, 12]].forEach(([gx, gz], i) => {
     stamp(i % 2 ? 'orchard_walnut' : 'orchard_pom', gx, gz);
   });
@@ -1418,16 +1680,7 @@ export function createState() {
   player.gz = MZ + 0.15;
   player.tx = player.gx;
   player.tz = player.gz;
-  spawnAnimal(state, 'sheep');
-  spawnAnimal(state, 'sheep');
-  spawnAnimal(state, 'goat');
-  spawnAnimal(state, 'goat');
-  spawnAnimal(state, 'chicken');
-  spawnAnimal(state, 'chicken');
-  spawnAnimal(state, 'donkey');
-  spawnAnimal(state, 'donkey');
-  spawnAnimal(state, 'ox');
-  spawnAnimal(state, 'ox');
+  spawnHerds(state);
   spawnVehicles(state);
   retarget(state);
   state.villagers[0].gx = MX + 1.35;

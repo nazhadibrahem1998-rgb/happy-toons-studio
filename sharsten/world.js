@@ -229,12 +229,18 @@ export function createView(canvas) {
 
   const vBody = pool(new THREE.BoxGeometry(0.38, 0.62, 0.28), mat(0xffffff), 28);
   const vHead = pool(new THREE.SphereGeometry(0.16, 6, 5), mat(0xe6c2a0), 28);
-  const sheep = pool(new THREE.BoxGeometry(0.46, 0.32, 0.62), mat(0xf7f7f4), 6);
-  const goats = pool(new THREE.BoxGeometry(0.4, 0.36, 0.62), mat(0xb08958), 4);
-  const hens = pool(new THREE.BoxGeometry(0.22, 0.18, 0.28), mat(0xe6d2a8), 8);
-  const donkeys = pool(new THREE.BoxGeometry(0.42, 0.36, 0.7), mat(0x8a6244), 4);
+  const sheep = pool(new THREE.BoxGeometry(0.46, 0.32, 0.62), mat(0xf7f7f4), 10);
+  const sheepHeads = pool(new THREE.BoxGeometry(0.22, 0.18, 0.24), mat(0xf7f7f4), 10);
+  const goats = pool(new THREE.BoxGeometry(0.4, 0.36, 0.62), mat(0xb08958), 8);
+  const goatHeads = pool(new THREE.BoxGeometry(0.18, 0.2, 0.26), mat(0xc4a06a), 8);
+  const hens = pool(new THREE.BoxGeometry(0.22, 0.18, 0.28), mat(0xe6d2a8), 10);
+  const henHeads = pool(new THREE.BoxGeometry(0.1, 0.1, 0.12), mat(0xc44848), 10);
+  const donkeys = pool(new THREE.BoxGeometry(0.42, 0.36, 0.7), mat(0x8a6244), 6);
+  const donkeyHeads = pool(new THREE.BoxGeometry(0.18, 0.22, 0.28), mat(0x6b4226), 6);
   const oxen = pool(new THREE.BoxGeometry(0.55, 0.42, 0.85), mat(0xd8d0c4), 4);
-  scene.add(vBody, vHead, sheep, goats, hens, donkeys, oxen);
+  const cows = pool(new THREE.BoxGeometry(0.58, 0.4, 0.9), mat(0xf4f1ea), 8);
+  const cowHeads = pool(new THREE.BoxGeometry(0.22, 0.22, 0.32), mat(0xe7e2d6), 8);
+  scene.add(vBody, vHead, sheep, sheepHeads, goats, goatHeads, hens, henHeads, donkeys, donkeyHeads, oxen, cows, cowHeads);
   const lampA = new THREE.PointLight(0xffb060, 0, metersToUnits(16), 2);
   const lampB = new THREE.PointLight(0xffb060, 0, metersToUnits(16), 2);
   scene.add(lampA, lampB);
@@ -638,7 +644,7 @@ export function createView(canvas) {
     let vi = 0;
     state.villagers.forEach((v) => {
       if (vi >= 28) return;
-      if (v.player && state.drivenId) return;
+      if (v.player && (state.drivenId || state.riddenId)) return;
       const p = cellToWorld(v.gx, v.gz);
       if (Math.hypot(p.x - cull.x, p.z - cull.z) > cull.radius) { stats.skipped += 1; return; }
       stats.rendered += 1;
@@ -654,37 +660,76 @@ export function createView(canvas) {
     commit(vBody, vi);
     commit(vHead, vi);
     let si = 0;
+    let sh = 0;
     let gi = 0;
+    let gh = 0;
     let hi = 0;
+    let hh = 0;
     let di = 0;
+    let dh = 0;
     let oi = 0;
+    let ci = 0;
+    let ch = 0;
     state.animals.forEach((a) => {
       const p = cellToWorld(a.gx, a.gz);
-      if (Math.hypot(p.x - cull.x, p.z - cull.z) > cull.radius) { stats.skipped += 1; return; }
+      const dist = Math.hypot(p.x - cull.x, p.z - cull.z);
+      if (dist > cull.radius) { stats.skipped += 1; return; }
       stats.rendered += 1;
-      const bob = Math.sin(time * 5 + a.id) * 0.03;
-      if (a.kind === 'sheep' && si < 6) {
-        put(sheep, si, p.x, 0.22 + bob, p.z, 1, 1, 1, 0, 0xf7f7f4);
+      const bob = a.mode === 'idle' || a.mode === 'graze' ? 0 : Math.sin(time * 5 + a.id) * 0.03;
+      const face = a.yaw || 0;
+      const detail = a.ai !== 'lod' && dist < metersToUnits(18);
+      const nose = face;
+      if (a.kind === 'sheep' && si < 10) {
+        put(sheep, si, p.x, 0.22 + bob, p.z, 1, 1, 1, face, 0xf7f7f4);
+        if (detail && sh < 10) {
+          put(sheepHeads, sh, p.x + Math.sin(nose) * 0.28, 0.4 + bob, p.z + Math.cos(nose) * 0.28, 1, 1, 1, face, 0xf7f7f4);
+          sh += 1;
+        }
         si += 1;
-      } else if (a.kind === 'goat' && gi < 4) {
-        put(goats, gi, p.x, 0.24 + bob, p.z, 1, 1, 1, 0, 0xb08958);
+      } else if (a.kind === 'goat' && gi < 8) {
+        put(goats, gi, p.x, 0.24 + bob, p.z, 1, 1, 1, face, 0xb08958);
+        if (detail && gh < 8) {
+          put(goatHeads, gh, p.x + Math.sin(nose) * 0.26, 0.46 + bob, p.z + Math.cos(nose) * 0.26, 1, 1, 1, face, 0xc4a06a);
+          gh += 1;
+        }
         gi += 1;
-      } else if (a.kind === 'donkey' && di < 4) {
-        put(donkeys, di, p.x, 0.28 + bob, p.z, 1, 1, 1, 0, 0x8a6244);
+      } else if (a.kind === 'donkey' && di < 6) {
+        put(donkeys, di, p.x, 0.28 + bob, p.z, 1, 1, 1, face, 0x8a6244);
+        if (detail && dh < 6) {
+          put(donkeyHeads, dh, p.x + Math.sin(nose) * 0.32, 0.52 + bob, p.z + Math.cos(nose) * 0.32, 1, 1, 1, face, 0x6b4226);
+          dh += 1;
+        }
         di += 1;
       } else if (a.kind === 'ox' && oi < 4) {
-        put(oxen, oi, p.x, 0.32 + bob, p.z, 1, 1, 1, 0, 0xd8d0c4);
+        put(oxen, oi, p.x, 0.32 + bob, p.z, 1, 1, 1, face, 0xd8d0c4);
         oi += 1;
-      } else if (a.kind === 'chicken' && hi < 8) {
-        put(hens, hi, p.x, 0.14 + bob, p.z, 1, 1, 1, 0, 0xe6d2a8);
+      } else if (a.kind === 'cow' && ci < 8) {
+        put(cows, ci, p.x, 0.32 + bob, p.z, 1, 1, 1, face, a.id % 2 ? 0xf4f1ea : 0xc4a574);
+        if (detail && ch < 8) {
+          put(cowHeads, ch, p.x + Math.sin(nose) * 0.38, 0.58 + bob, p.z + Math.cos(nose) * 0.38, 1, 1, 1, face, 0xe7e2d6);
+          ch += 1;
+        }
+        ci += 1;
+      } else if (a.kind === 'chicken' && hi < 10) {
+        put(hens, hi, p.x, 0.14 + bob, p.z, 1, 1, 1, face, 0xe6d2a8);
+        if (detail && hh < 10) {
+          put(henHeads, hh, p.x + Math.sin(nose) * 0.12, 0.26 + bob, p.z + Math.cos(nose) * 0.12, 1, 1, 1, face, 0xc44848);
+          hh += 1;
+        }
         hi += 1;
       }
     });
     commit(sheep, si);
+    commit(sheepHeads, sh);
     commit(goats, gi);
+    commit(goatHeads, gh);
     commit(hens, hi);
+    commit(henHeads, hh);
     commit(donkeys, di);
+    commit(donkeyHeads, dh);
     commit(oxen, oi);
+    commit(cows, ci);
+    commit(cowHeads, ch);
     const mp = cellToWorld(LAYOUT.mosque.gx, LAYOUT.mosque.gz);
     lampA.position.set(mp.x + 1.2, 1.4, mp.z);
     lampB.position.set(mp.x - 1.4, 1.1, mp.z + 1.2);
@@ -759,7 +804,7 @@ export function createView(canvas) {
       };
     },
     propKinds() {
-      return ['mud-house', 'earthen-roof', 'dirt-path', 'stone-mosque', 'well', 'donkey', 'ox', 'sheep', 'goat', 'chicken', 'oil-lamp', 'stone-wall', 'tractor', 'car', 'motorbike'];
+      return ['mud-house', 'earthen-roof', 'dirt-path', 'stone-mosque', 'well', 'donkey', 'ox', 'cow', 'sheep', 'goat', 'chicken', 'oil-lamp', 'stone-wall', 'tractor', 'car', 'motorbike'];
     },
     setGhost(cell) { ghostCell = cell; },
     setSelect(cell) { selectCell = cell; },

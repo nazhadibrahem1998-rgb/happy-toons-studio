@@ -7,8 +7,9 @@ import {
   advanceHours, assignJob, cameraBasis, cameraEyeY, canPlace, celebrateNewroz,
   cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring, worldToCell,
   harvest, parseSave, phaseOf, place, plant, select, serialize, setHour, setSeason, setStock,
-  acceptQuest, astarRoute, driveVehicle, enterVehicle, exitVehicle, nearestVehicle, npcActiveCap, npcSchedule,
-  stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
+  acceptQuest, animalCap, astarRoute, carryBudget, DONKEY_SPEED, driveVehicle, enterAnimal, enterVehicle,
+  exitAnimal, exitVehicle, herdSpot, moveGoods, nearestAnimal, nearestVehicle, npcActiveCap, npcSchedule, rideAnimal,
+  stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
   LAYOUT, isRoad, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
 } from './sim.js';
 import { formatClock, formatNum, linePairs, npcLine, t } from './i18n.js';
@@ -195,9 +196,33 @@ function applyDrive(dt) {
   }
 }
 
+function applyRide(dt) {
+  const a = state.animals.find((item) => item.id === state.riddenId);
+  if (!a) {
+    state.riddenId = 0;
+    riding = false;
+    applyWalkBody(dt);
+    return;
+  }
+  let mx = sticks.moveX + (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+  let my = sticks.moveY + (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
+  const mag = Math.hypot(mx, my);
+  if (mag > 1) { mx /= mag; my /= mag; }
+  const result = rideAnimal(state, a.id, mx, my, dt);
+  walkCam.yaw = a.yaw || 0;
+  if (result.hit && edgeLeft <= 0) {
+    toast(t(lang, 'edge'));
+    edgeLeft = 2.4;
+  }
+}
+
 function applyWalk(dt) {
   if (state.drivenId) {
     applyDrive(dt);
+    return;
+  }
+  if (state.riddenId) {
+    applyRide(dt);
     return;
   }
   applyWalkBody(dt);
@@ -211,7 +236,7 @@ function applyWalkBody(dt) {
   if (mag > 1) { mx /= mag; my /= mag; }
   const lookX = sticks.lookX + (keys.has('KeyE') ? 1 : 0) - (keys.has('KeyQ') ? 1 : 0);
   const lookY = sticks.lookY + (keys.has('KeyR') ? 1 : 0) - (keys.has('KeyF') ? 1 : 0);
-  const step = walkStep({ x: p.gx, z: p.gz }, walkCam.yaw, walkCam.pitch, mx, my, lookX, lookY, dt * (riding ? 1.75 : 1));
+  const step = walkStep({ x: p.gx, z: p.gz }, walkCam.yaw, walkCam.pitch, mx, my, lookX, lookY, dt);
   const bounded = clampToMap(step.x, step.z);
   p.gx = bounded.gx;
   p.gz = bounded.gz;
@@ -301,12 +326,15 @@ function updateBoard() {
   if (!btn) return;
   const show = playing && state.mode === 'walk' && !panelOpen();
   if (!show) { btn.hidden = true; return; }
-  if (state.drivenId) {
+  if (state.drivenId || state.riddenId) {
     btn.hidden = false;
     btn.textContent = t(lang, 'exit');
     return;
   }
-  const near = nearestVehicle(state, player().gx, player().gz, 1.7);
+  const who = player();
+  const vehicle = nearestVehicle(state, who.gx, who.gz, 1.7);
+  const donkey = nearestAnimal(state, 'donkey', who.gx, who.gz, 1.7);
+  const near = vehicle || donkey;
   btn.hidden = !near;
   if (near) btn.textContent = t(lang, 'enter');
 }
@@ -504,26 +532,55 @@ document.getElementById('ps1Btn').addEventListener('click', () => {
   btn.textContent = ps1 ? 'On' : 'Off';
   btn.classList.toggle('on', ps1);
 });
+function mountDonkey(id) {
+  const result = enterAnimal(state, id);
+  if (!result.ok) return result;
+  riding = true;
+  document.getElementById('rideBtn').classList.toggle('on', true);
+  const a = state.animals.find((item) => item.id === state.riddenId);
+  if (a) walkCam.yaw = a.yaw || 0;
+  return result;
+}
+
+function dismount() {
+  if (state.drivenId) exitVehicle(state);
+  if (state.riddenId) exitAnimal(state);
+  riding = false;
+  document.getElementById('rideBtn').classList.toggle('on', false);
+}
+
 document.getElementById('rideBtn').addEventListener('click', () => {
   if (state.drivenId) return;
-  riding = !riding;
-  document.getElementById('rideBtn').classList.toggle('on', riding);
-});
-document.getElementById('boardBtn').addEventListener('click', () => {
-  if (state.drivenId) {
-    exitVehicle(state);
-    riding = false;
+  if (state.riddenId) {
+    dismount();
     paint();
     return;
   }
-  const near = nearestVehicle(state, player().gx, player().gz, 1.7);
-  if (!near) return;
-  const result = enterVehicle(state, near.id);
-  if (!result.ok) return;
-  riding = false;
-  document.getElementById('rideBtn').classList.toggle('on', false);
-  const v = state.vehicles.find((item) => item.id === state.drivenId);
-  if (v) walkCam.yaw = v.yaw;
+  const near = nearestAnimal(state, 'donkey', player().gx, player().gz, 1.7);
+  if (!near) { toast(t(lang, 'closer')); return; }
+  mountDonkey(near.id);
+  paint();
+});
+document.getElementById('boardBtn').addEventListener('click', () => {
+  if (state.drivenId || state.riddenId) {
+    dismount();
+    paint();
+    return;
+  }
+  const who = player();
+  const vehicle = nearestVehicle(state, who.gx, who.gz, 1.7);
+  const donkey = nearestAnimal(state, 'donkey', who.gx, who.gz, 1.7);
+  if (vehicle && (!donkey || Math.hypot(vehicle.gx - who.gx, vehicle.gz - who.gz) <= Math.hypot(donkey.gx - who.gx, donkey.gz - who.gz))) {
+    const result = enterVehicle(state, vehicle.id);
+    if (!result.ok) return;
+    riding = false;
+    document.getElementById('rideBtn').classList.toggle('on', false);
+    walkCam.yaw = vehicle.yaw;
+    paint();
+    return;
+  }
+  if (!donkey) return;
+  mountDonkey(donkey.id);
   paint();
 });
 view.setSnap(true);
@@ -852,6 +909,43 @@ window.__SV = {
   npcSchedule,
   npcActiveCap: () => npcActiveCap(low),
   vehicleCap: () => vehicleCap(low),
+  animalCap: () => animalCap(low),
+  herdSpot: (kind, phase) => herdSpot(state, kind, phase),
+  carryBudget: () => carryBudget(state),
+  moveGoods: (key, amount) => moveGoods(state, key, amount),
+  donkeySpeed: () => DONKEY_SPEED,
+  stepAnimals(dt) {
+    const who = player();
+    stepAnimalAi(state, dt ?? 0.2, { low: false, focus: { gx: who.gx, gz: who.gz, r: 99 } });
+  },
+  enterAnimal(id) {
+    const result = mountDonkey(id);
+    return result;
+  },
+  exitAnimal() {
+    const result = exitAnimal(state);
+    riding = false;
+    document.getElementById('rideBtn').classList.toggle('on', false);
+    return result;
+  },
+  rideAnimal(id, steer, throttle, dt) { return rideAnimal(state, id, steer, throttle, dt); },
+  placeAnimal(id, gx, gz, yaw) {
+    const a = state.animals.find((item) => item.id === id);
+    if (!a) return false;
+    a.gx = gx;
+    a.gz = gz;
+    a.tx = gx;
+    a.tz = gz;
+    if (yaw != null) a.yaw = yaw;
+    if (a.ridden) {
+      const p = player();
+      p.gx = gx;
+      p.gz = gz;
+      p.tx = gx;
+      p.tz = gz;
+    }
+    return true;
+  },
   linePairs,
   stepVehicles(dt) {
     const who = player();

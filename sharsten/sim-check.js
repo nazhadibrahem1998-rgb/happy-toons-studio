@@ -2,7 +2,8 @@ import {
   LAYOUT, MAP_BOUND, acceptQuest, advanceHours, assignJob, astarRoute, averageHappiness, cameraBasis, cameraEyeY,
   celebrateNewroz, clampToMap, cleanMosque, createState, demolish, driveVehicle, enterVehicle, exitVehicle, harvest,
   integrate, isRoad, npcActiveCap, npcSchedule, phaseOf, place, plant, playable, reachExit, setHour, setSeason, stepNpcs,
-  stepVehicles, stickVector, suggestCell, turnInQuest, upgrade, vehicleCap, walkStep,
+  animalCap, carryBudget, DONKEY_SPEED, enterAnimal, exitAnimal, herdSpot, moveGoods, rideAnimal, stepAnimals,
+  stepVehicles, stickVector, suggestCell, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, walkStep,
 } from './sim.js';
 import { linePairs } from './i18n.js';
 
@@ -326,5 +327,89 @@ assert(fleet.vehicles.filter((v) => v.ai === 'active').length === 4, 'low vehicl
 stepVehicles(fleet, 0.2, { low: false, focus: { gx: watcher.gx, gz: watcher.gz, r: 0.2 } });
 const parked = fleet.vehicles.filter((v) => Math.hypot(v.gx - watcher.gx, v.gz - watcher.gz) > 0.2);
 assert(parked.length > 0 && parked.every((v) => v.ai === 'lod' && v.updated === false), 'vehicle lod');
+
+const herd = createState();
+assert(herd.animals.filter((a) => a.kind === 'cow').length >= 4, 'cows');
+assert(herd.animals.filter((a) => a.kind === 'donkey').length >= 4, 'donkeys');
+setHour(herd, 9);
+const daySheep = herd.animals.find((a) => a.kind === 'sheep');
+const pasture = herdSpot(herd, 'sheep', 'pasture');
+const fold = herdSpot(herd, 'sheep', 'pen');
+assert(Math.hypot(daySheep.gx - pasture.gx, daySheep.gz - pasture.gz) < 2.4, 'sheep at pasture');
+assert(daySheep.mode === 'graze', daySheep.mode);
+const herder = herd.villagers.find((v) => v.role === 'shepherd');
+assert(Math.hypot(herder.gx - pasture.gx, herder.gz - pasture.gz) < 2.6, 'herder leads out');
+setHour(herd, 20);
+const nightSheep = herd.animals.find((a) => a.id === daySheep.id);
+assert(nightSheep.mode === 'idle', nightSheep.mode);
+assert(Math.hypot(nightSheep.gx - fold.gx, nightSheep.gz - fold.gz) < 2.4, 'sheep back at the pen');
+assert(Math.hypot(nightSheep.gx - pasture.gx, nightSheep.gz - pasture.gz) > 6, 'left the pasture');
+herd.animals.forEach((a) => assert(playable(a.gx, a.gz), `${a.kind} inside`));
+
+const cowsOnly = createState();
+cowsOnly.animals = cowsOnly.animals.filter((a) => a.kind === 'cow');
+cowsOnly.resources.milk = 0;
+advanceHours(cowsOnly, 1);
+assert(cowsOnly.resources.milk > 0, 'cow milk');
+const sheepOnly = createState();
+sheepOnly.animals = sheepOnly.animals.filter((a) => a.kind === 'sheep');
+sheepOnly.resources.wool = 0;
+sheepOnly.resources.milk = 0;
+advanceHours(sheepOnly, 1);
+assert(sheepOnly.resources.wool > 0 && sheepOnly.resources.milk > 0, 'sheep wool and milk');
+const goatsOnly = createState();
+goatsOnly.animals = goatsOnly.animals.filter((a) => a.kind === 'goat');
+goatsOnly.resources.milk = 0;
+advanceHours(goatsOnly, 1);
+assert(goatsOnly.resources.milk > 0, 'goat milk');
+const hensOnly = createState();
+hensOnly.animals = hensOnly.animals.filter((a) => a.kind === 'chicken');
+hensOnly.resources.eggs = 0;
+advanceHours(hensOnly, 1);
+assert(hensOnly.resources.eggs > 0, 'eggs');
+
+const pack = createState();
+assert(carryBudget(pack) === pack.animals.filter((a) => a.kind === 'donkey').length * 8, 'donkey loads');
+pack.animals.forEach((a) => { if (a.kind === 'donkey') a.ridden = true; });
+assert(carryBudget(pack) < 20, 'ridden donkey carries less');
+const hauled = moveGoods(createState(), 'wood', 100);
+assert(hauled.moved === 32 && hauled.cap === 32, `haul ${hauled.moved}`);
+
+const mount = createState();
+const donkey = mount.animals.find((a) => a.kind === 'donkey');
+const rider = mount.villagers[0];
+rider.gx = donkey.gx + 0.2;
+rider.gz = donkey.gz;
+assert(DONKEY_SPEED < VEHICLE_SPEED.tractor, 'donkey slower than a tractor');
+assert(enterAnimal(mount, donkey.id).ok, 'mount');
+assert(mount.riddenId === donkey.id, 'mounted');
+const saddle = { gx: donkey.gx, gz: donkey.gz };
+for (let i = 0; i < 8; i += 1) rideAnimal(mount, donkey.id, 0, 1, 0.1);
+assert(Math.hypot(donkey.gx - saddle.gx, donkey.gz - saddle.gz) > 0.4, 'donkey walked');
+assert(playable(donkey.gx, donkey.gz), 'ride stays inside');
+assert(exitAnimal(mount).ok, 'dismount');
+assert(mount.riddenId === 0 && donkey.ridden === false, 'on foot');
+assert(enterAnimal(mount, donkey.id).ok, 'mount again');
+donkey.gx = 0.2;
+donkey.gz = 10;
+donkey.yaw = Math.atan2(-1, 0);
+rider.gx = donkey.gx;
+rider.gz = donkey.gz;
+let donkeyHit = false;
+for (let i = 0; i < 40; i += 1) {
+  const step = rideAnimal(mount, donkey.id, 0, 1, 0.1);
+  if (step.hit) donkeyHit = true;
+  assert(playable(donkey.gx, donkey.gz), 'donkey bound');
+}
+assert(donkeyHit, 'donkey stops at the edge');
+
+const flockCap = createState();
+const eye = flockCap.villagers[0];
+stepAnimals(flockCap, 0.2, { low: true, focus: { gx: eye.gx, gz: eye.gz, r: 999 } });
+assert(animalCap(true) === 20 && animalCap(false) === 40, 'animal caps');
+assert(flockCap.animals.filter((a) => a.ai === 'active').length === 20, 'low animal cap');
+stepAnimals(flockCap, 0.2, { low: false, focus: { gx: eye.gx, gz: eye.gz, r: 0.3 } });
+const farBeasts = flockCap.animals.filter((a) => Math.hypot(a.gx - eye.gx, a.gz - eye.gz) > 0.3);
+assert(farBeasts.length > 0 && farBeasts.every((a) => a.ai === 'lod' && a.updated === false), 'animal lod');
 
 console.log('sim-check ok');

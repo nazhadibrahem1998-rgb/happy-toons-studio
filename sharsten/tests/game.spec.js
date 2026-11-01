@@ -568,3 +568,82 @@ test('a car laps the lane, the player can drive, and a tractor harvests', async 
   }
   assertClean(errors);
 });
+
+test('herds walk to pasture and back, and a donkey can be ridden', async ({ page }, info) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  const report = await page.evaluate(() => {
+    window.__SV.setHour(9);
+    const day = window.__SV.herdSpot('sheep', 'pasture');
+    const sheep = window.__SV.getState().animals.find((a) => a.kind === 'sheep');
+    const out = Math.hypot(sheep.gx - day.gx, sheep.gz - day.gz);
+    window.__SV.setHour(20);
+    const fold = window.__SV.herdSpot('sheep', 'pen');
+    const back = window.__SV.getState().animals.find((a) => a.id === sheep.id);
+    const inside = window.__SV.getState().animals.every((a) => window.__SV.playable(a.gx, a.gz));
+    window.__SV.setStock('milk', 0);
+    window.__SV.setStock('wool', 0);
+    window.__SV.setStock('eggs', 0);
+    window.__SV.setHour(8);
+    window.__SV.advanceHours(2);
+    const goods = window.__SV.getState().resources;
+    const donkey = window.__SV.getState().animals.find((a) => a.kind === 'donkey');
+    window.__SV.setWalkPose({ x: donkey.gx + 0.2, z: donkey.gz, yaw: 0, pitch: 0.4 });
+    const mounted = window.__SV.enterAnimal(donkey.id);
+    const start = window.__SV.getState().animals.find((a) => a.id === donkey.id);
+    for (let i = 0; i < 8; i += 1) window.__SV.rideAnimal(donkey.id, 0, 1, 0.1);
+    const moved = window.__SV.getState().animals.find((a) => a.id === donkey.id);
+    const left = window.__SV.exitAnimal();
+    window.__SV.enterAnimal(donkey.id);
+    window.__SV.placeAnimal(donkey.id, 0.2, 10, Math.atan2(-1, 0));
+    let hit = false;
+    for (let i = 0; i < 40; i += 1) {
+      const step = window.__SV.rideAnimal(donkey.id, 0, 1, 0.1);
+      if (step.hit) hit = true;
+    }
+    const parked = window.__SV.getState().animals.find((a) => a.id === donkey.id);
+    return {
+      out,
+      back: Math.hypot(back.gx - fold.gx, back.gz - fold.gz),
+      leftPasture: Math.hypot(back.gx - day.gx, back.gz - day.gz),
+      graze: sheep.mode,
+      home: back.mode,
+      inside,
+      milk: goods.milk,
+      wool: goods.wool,
+      eggs: goods.eggs,
+      mounted: mounted.ok,
+      rode: Math.hypot(moved.gx - start.gx, moved.gz - start.gz) > 0.3,
+      left: left.ok,
+      hit,
+      bound: window.__SV.playable(parked.gx, parked.gz),
+      slower: window.__SV.donkeySpeed() < 1.7,
+      cap: window.__SV.animalCap() === 20 || window.__SV.animalCap() === 40,
+    };
+  });
+  expect(report.out).toBeLessThan(2.4);
+  expect(report.back).toBeLessThan(2.4);
+  expect(report.leftPasture).toBeGreaterThan(6);
+  expect(report.graze).toBe('graze');
+  expect(report.home).toBe('idle');
+  expect(report.inside).toBe(true);
+  expect(report.milk).toBeGreaterThan(0);
+  expect(report.wool).toBeGreaterThan(0);
+  expect(report.eggs).toBeGreaterThan(0);
+  expect(report.mounted).toBe(true);
+  expect(report.rode).toBe(true);
+  expect(report.left).toBe(true);
+  expect(report.hit).toBe(true);
+  expect(report.bound).toBe(true);
+  expect(report.slower).toBe(true);
+  expect(report.cap).toBe(true);
+  if (info.project.name === 'iphone-portrait') {
+    await page.evaluate(() => {
+      const cow = window.__SV.getState().animals.find((a) => a.kind === 'cow');
+      window.__SV.exitAnimal();
+      window.__SV.setWalkPose({ x: cow.gx + 1.2, z: cow.gz + 1.6, yaw: 0.4, pitch: 0.5 });
+    });
+    await page.screenshot({ path: `${ART}/sharsten-herd.png` });
+  }
+  assertClean(errors);
+});
