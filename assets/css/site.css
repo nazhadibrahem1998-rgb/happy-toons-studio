@@ -193,3 +193,8 @@ a.soc-card p{color:var(--muted)}a.soc-card p b{color:var(--ink)}
 @media(min-width:1101px) and (max-width:1360px){.nav{gap:11px}.nav a{font-size:.9rem}.nav .btn{padding:8px 14px}}
 .g-cart{background:#f3edff}
 .price-row .price{font-size:1.7rem}
+/* "N online now" pill (assets/js/online-now.js) */
+.online-now{display:inline-block;background:#fff;color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:3px 12px;font-weight:800;font-size:.85rem;line-height:1.4;box-shadow:0 3px 0 var(--ink)}
+.online-now[hidden]{display:none}
+.site-foot .online-now{margin-bottom:10px}
+.hero .online-now,.page-hero .online-now{margin:0 0 14px 8px}
