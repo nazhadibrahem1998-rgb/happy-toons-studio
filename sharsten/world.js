@@ -5,7 +5,7 @@
 import * as THREE from './vendor/three.module.min.js';
 import {
   CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, SEASONS,
-  cellToWorld, insideVillage, isRoad, metersToUnits, roadKind,
+  cellToWorld, insideVillage, isRoad, metersToUnits, modelYaw, roadKind,
 } from './sim.js';
 import { createVillagerRig, poseVillager } from './villagers.js';
 
@@ -54,6 +54,16 @@ function mudTexture() {
     for (let y = 0; y < s; y += 8) g.fillRect(0, y, s, 2);
     g.fillRect(0, 2, 2, 6);
     g.fillRect(16, 10, 2, 6);
+  });
+}
+function grassTexture() {
+  return pixelTex(32, (g, s) => {
+    g.fillStyle = '#67a84a';
+    g.fillRect(0, 0, s, s);
+    g.fillStyle = '#3f7a32';
+    for (let i = 0; i < 16; i += 1) g.fillRect((i * 9) % s, (i * 5) % s, 2, 4);
+    g.fillStyle = '#c2a06a';
+    g.fillRect(0, 18, s, 3);
   });
 }
 function roofTexture() {
@@ -171,6 +181,7 @@ export function createView(canvas) {
   scene.fog = new THREE.Fog(0xc6e6ff, 40, 120);
   const camera = new THREE.PerspectiveCamera(48, 0.2, 0.1, 40);
   const hemi = new THREE.HemisphereLight(0xd4ecff, 0x3e7a34, 0.78);
+  const ambient = new THREE.AmbientLight(0xfff4e0, 0.28);
   const sun = new THREE.DirectionalLight(0xffe0a8, 1.4);
   sun.position.set(12, 22, 8);
   sun.castShadow = true;
@@ -185,7 +196,10 @@ export function createView(canvas) {
   const sunTarget = new THREE.Object3D();
   scene.add(sunTarget);
   sun.target = sunTarget;
-  scene.add(hemi, sun);
+  scene.add(hemi, ambient, sun);
+  const sunBall = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff1c2, fog: false }));
+  sunBall.frustumCulled = false;
+  scene.add(sunBall);
   scene.add(camera);
 
   const skyGeo = new THREE.SphereGeometry(7.2, 10, 6);
@@ -282,7 +296,7 @@ export function createView(canvas) {
   scene.add(mounts);
 
   const GROUND_CAP = 1800;
-  const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), mat(0xffffff), GROUND_CAP);
+  const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), mat(0xffffff, { map: grassTexture() }), GROUND_CAP);
   scene.add(ground);
 
   const walls = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: mudTexture() }), 140);
@@ -391,24 +405,67 @@ export function createView(canvas) {
     mesh.userData.wheel = true;
     return mesh;
   }
+  function buildDonkey() {
+    const g = new THREE.Group();
+    const hide = mat(0x8a6244);
+    const dark = mat(0x4a3428);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.62, 8), hide);
+    body.rotation.x = Math.PI / 2;
+    body.position.set(0, 0.46, 0.15);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.22, 6), hide);
+    neck.position.set(0, 0.62, 0.42);
+    neck.rotation.x = 0.6;
+    const head = new THREE.Group();
+    head.position.set(0, 0.72, 0.52);
+    const skull = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.28), hide);
+    const earL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.04), dark);
+    earL.position.set(-0.07, 0.16, 0.02);
+    earL.rotation.z = 0.25;
+    const earR = earL.clone();
+    earR.position.x = 0.07;
+    earR.rotation.z = -0.25;
+    head.add(skull, earL, earR);
+    const legs = [];
+    [[-0.1, 0.28], [0.1, 0.28], [-0.1, -0.02], [0.1, -0.02]].forEach(([x, z]) => {
+      const leg = new THREE.Group();
+      leg.position.set(x, 0.36, z);
+      const limb = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.28, 0.07), dark);
+      limb.position.y = -0.14;
+      leg.add(limb);
+      g.add(leg);
+      legs.push(leg);
+    });
+    g.add(body, neck, head);
+    g.userData.legs = legs;
+    g.userData.head = head;
+    return g;
+  }
   function buildCart() {
     const g = new THREE.Group();
-    const bed = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 1.05), mat(0x8d5a32));
-    bed.position.y = 0.34;
-    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 1.05), mat(0xa56b3c));
-    sideL.position.set(-0.34, 0.46, 0);
+    const donkey = buildDonkey();
+    const cart = new THREE.Group();
+    cart.position.set(0, 0, -0.72);
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.9), mat(0x8d5a32));
+    bed.position.y = 0.36;
+    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.9), mat(0xa56b3c));
+    sideL.position.set(-0.34, 0.48, 0);
     const sideR = sideL.clone();
     sideR.position.x = 0.34;
-    const front = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.06), mat(0xa56b3c));
-    front.position.set(0, 0.46, 0.5);
-    const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.5), mat(0x6b4226));
-    shaft.position.set(0, 0.3, 0.75);
-    g.add(bed, sideL, sideR, front, shaft);
-    [[-0.36, -0.12], [0.36, -0.12]].forEach(([x, z]) => {
+    const front = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.06), mat(0xa56b3c));
+    front.position.set(0, 0.48, 0.42);
+    [-0.12, 0.12].forEach((x) => {
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.7), mat(0x6b4226));
+      shaft.position.set(x, 0.4, 0.7);
+      cart.add(shaft);
+    });
+    cart.add(bed, sideL, sideR, front);
+    [[-0.38, -0.05], [0.38, -0.05]].forEach(([x, z]) => {
       const w = axleWheel(0.2, 0.08, 0x4a3428);
       w.position.set(x, 0.2, z);
-      g.add(w);
+      cart.add(w);
     });
+    g.add(donkey, cart);
+    g.userData.donkey = donkey;
     return g;
   }
   function meshFor(v) {
@@ -436,9 +493,19 @@ export function createView(canvas) {
       g.position.set(p.x, 0, p.z);
       g.rotation.y = v.yaw || 0;
       const spin = v.travel || 0;
-      g.children.forEach((child) => {
-        if (child.userData && child.userData.wheel) child.rotation.x = spin * 2.2;
+      const moving = (v.speed || 0) > 0.05;
+      g.traverse((child) => {
+        if (child.userData && child.userData.wheel) child.rotation.x = spin * 2.4;
       });
+      const donkey = g.userData.donkey;
+      if (donkey) {
+        const bob = moving ? Math.sin(animTime * 10) * 0.03 : 0;
+        donkey.position.y = bob;
+        (donkey.userData.legs || []).forEach((leg, i) => {
+          leg.rotation.x = moving ? Math.sin(animTime * 10 + i) * 0.55 : 0;
+        });
+        if (donkey.userData.head) donkey.userData.head.rotation.x = moving ? Math.sin(animTime * 10) * 0.12 : 0;
+      }
     });
     vehicleGroups.forEach((g, id) => {
       if (!live.has(id)) g.visible = false;
@@ -513,9 +580,18 @@ export function createView(canvas) {
   ghost.visible = false;
   scene.add(ghost);
   const treeTrunk = pool(new THREE.CylinderGeometry(0.12, 0.16, 0.9, 6), mat(0x6b4226), 40);
-  const treeTop = pool(new THREE.ConeGeometry(0.55, 1.1, 7), mat(0x3aaa40), 40);
+  const treeTop = pool(new THREE.ConeGeometry(0.55, 1.1, 8), mat(0x3aaa40), 40);
+  const treePuff = pool(new THREE.SphereGeometry(0.38, 8, 6), mat(0x2f8a34), 40);
   const rockMesh = pool(new THREE.DodecahedronGeometry(0.38, 0), mat(0x9aa0a4), 24);
-  scene.add(treeTrunk, treeTop, rockMesh);
+  scene.add(treeTrunk, treeTop, treePuff, rockMesh);
+  const tufts = pool(new THREE.ConeGeometry(0.08, 0.22, 4), mat(0x3f8a32), 36);
+  for (let i = 0; i < 36; i += 1) {
+    const a = (i / 36) * Math.PI * 2;
+    const p = cellToWorld(LAYOUT.mosque.gx + Math.cos(a) * (2 + (i % 4)), LAYOUT.mosque.gz + Math.sin(a) * (2 + (i % 3)));
+    put(tufts, i, p.x, 0.12, p.z, 1, 1, 1, i, 0x3f8a32);
+  }
+  commit(tufts, 36);
+  scene.add(tufts);
   const handTool = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.08), mat(0xc4a574));
   handTool.visible = false;
   scene.add(handTool);
@@ -746,8 +822,15 @@ export function createView(canvas) {
     villagerRigs.forEach((rig) => { rig.root.visible = false; });
     state.villagers.forEach((v) => {
       if (villagerRigs.size >= 28 && !villagerRigs.has(v.id)) return;
-      if (v.player && (state.drivenId || state.riddenId)) return;
-      const p = cellToWorld(v.gx, v.gz);
+      let ride = null;
+      if (v.player && state.drivenId) {
+        const cart = (state.vehicles || []).find((item) => item.id === state.drivenId);
+        if (cart) ride = { yaw: cart.yaw || 0, gx: cart.gx, gz: cart.gz, back: 0.85, y: 0.5 };
+      } else if (v.player && state.riddenId) {
+        const mount = (state.animals || []).find((item) => item.id === state.riddenId);
+        if (mount) ride = { yaw: mount.yaw || 0, gx: mount.gx, gz: mount.gz, back: 0, y: 0.62 };
+      }
+      const p = ride ? cellToWorld(ride.gx, ride.gz) : cellToWorld(v.gx, v.gz);
       if (Math.hypot(p.x - cull.x, p.z - cull.z) > cull.radius) { stats.skipped += 1; return; }
       stats.rendered += 1;
       if (v.hidden) return;
@@ -761,15 +844,24 @@ export function createView(canvas) {
       }
       seen.add(v.id);
       rig.root.visible = true;
+      const baseScale = kind === 'child' ? 0.5 : 0.68;
+      rig.root.scale.setScalar(v.tall ? baseScale * 1.28 : baseScale);
       const stumble = v.prayer ? 0 : (v.stumble ? 0.15 : 0);
       const prev = rig._step || { x: p.x, z: p.z, t: time };
       const speed = Math.hypot(p.x - prev.x, p.z - prev.z) / Math.max(0.016, time - prev.t);
       rig._step = { x: p.x, z: p.z, t: time };
-      rig.root.position.set(p.x + stumble, 0, p.z);
-      rig.root.rotation.y = (v.ry || 0) + Math.PI;
-      const moving = speed > 0.25;
+      const faceYaw = ride ? ride.yaw : (v.ry || 0);
+      const ahead = { x: Math.sin(faceYaw), z: Math.cos(faceYaw) };
+      rig.root.position.set(
+        p.x - ahead.x * (ride ? ride.back : 0) + stumble,
+        ride ? ride.y : 0,
+        p.z - ahead.z * (ride ? ride.back : 0),
+      );
+      rig.root.rotation.y = modelYaw(faceYaw);
+      const moving = !ride && speed > 0.25;
       let action = 'idle';
-      if (v.prayer) action = v.prayer;
+      if (ride) action = 'sit';
+      else if (v.prayer) action = v.prayer;
       else if (v.greeting) action = 'wave';
       else if (v.angry) action = 'quarrel';
       else if ((state.swing > 0 && v.player) || (!moving && v.role === 'woodcutter')) action = 'chop';
@@ -783,7 +875,17 @@ export function createView(canvas) {
       else if (action === 'chop') tool = 'axe';
       else if (action === 'hoe') tool = 'hoe';
       else if (v.role === 'woodcutter' && moving) tool = 'sack';
-      poseVillager(rig, { time, seed: v.id || 0, action, tool });
+      const sword = (state.tools || {}).sword && v.player ? (state.swordOut ? 'hand' : 'belt') : '';
+      poseVillager(rig, {
+        time,
+        seed: v.id || 0,
+        action,
+        tool,
+        sword,
+        swing: state.swordSwing > 0 && v.player,
+        blocking: state.block > 0 && v.player,
+        happy: (v.happiness || 0) > 70,
+      });
     });
     villagerRigs.forEach((rig, id) => { if (!seen.has(id)) rig.root.visible = false; });
     let fi = 0;
@@ -894,6 +996,7 @@ export function createView(canvas) {
     mosque.visible = mosqueNear;
   }
 
+  let animTime = 0;
   let quality = 'mid';
   let ghostOk = true;
   function resize() {
@@ -910,6 +1013,8 @@ export function createView(canvas) {
     camera.updateProjectionMatrix();
     renderer.shadowMap.enabled = quality !== 'low';
     sun.castShadow = quality !== 'low';
+    const mapSize = quality === 'high' ? 1024 : 512;
+    sun.shadow.mapSize.set(mapSize, mapSize);
   }
 
   let forceDay = true;
@@ -1037,15 +1142,30 @@ export function createView(canvas) {
       camera.updateMatrixWorld(true);
       camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     },
-    project(gx, gz) {
+    project(gx, gz, y = 0.5) {
       const p = cellToWorld(gx, gz);
-      const v = new THREE.Vector3(p.x, 0.5, p.z);
-      v.project(camera);
+      const world = new THREE.Vector3(p.x, y, p.z);
+      const viewPos = world.clone().applyMatrix4(camera.matrixWorldInverse);
+      const v = world.clone().project(camera);
       const rect = canvas.getBoundingClientRect();
       return {
         x: (v.x * 0.5 + 0.5) * rect.width,
         y: (-v.y * 0.5 + 0.5) * rect.height,
+        behind: viewPos.z > -0.2,
+        dist: camera.position.distanceTo(world),
       };
+    },
+    blocked(gx, gz, y) {
+      const p = cellToWorld(gx, gz);
+      const target = new THREE.Vector3(p.x, y, p.z);
+      const dir = target.clone().sub(camera.position);
+      const dist = dir.length();
+      if (dist < 0.3) return false;
+      dir.multiplyScalar(1 / dist);
+      raycaster.set(camera.position, dir);
+      raycaster.far = Math.max(0.1, dist - 0.45);
+      const hits = raycaster.intersectObjects([mosque, valley], true);
+      return hits.some((hit) => hit.object.visible && hit.distance < dist - 0.5);
     },
     setFog(near, far) {
       scene.fog.near = near;
@@ -1054,6 +1174,7 @@ export function createView(canvas) {
       camera.updateProjectionMatrix();
     },
     sync(state, time, nextCull) {
+      animTime = time || 0;
       if (nextCull) cull = nextCull;
       const painted = previewSpring ? 0 : state.season;
       if (painted !== seenSeason) applySeason(painted);
@@ -1075,6 +1196,7 @@ export function createView(canvas) {
       } else ghost.visible = false;
       sunTarget.position.set(cull.x, 0, cull.z);
       sun.position.set(cull.x + 12, 20, cull.z + 8);
+      sunBall.position.set(cull.x + 10, 16, cull.z + 6);
       let ti = 0;
       let ri2 = 0;
       (state.nodes || []).forEach((n) => {
@@ -1088,11 +1210,13 @@ export function createView(canvas) {
           put(treeTrunk, ti, p.x, 0.45, p.z, 1, 1, 1, 0, 0x6b4226);
           const farTree = Math.hypot(p.x - cull.x, p.z - cull.z) > metersToUnits(40);
           put(treeTop, ti, p.x, farTree ? 1.05 : 1.25, p.z, farTree ? 0.7 : 1, farTree ? 0.7 : 1, farTree ? 0.7 : 1, 0, 0x3aaa40);
+          put(treePuff, ti, p.x, farTree ? 1.15 : 1.45, p.z, farTree ? 0.65 : 1.05, farTree ? 0.65 : 0.9, farTree ? 0.65 : 1.05, 0, 0x2f8a34);
           ti += 1;
         }
       });
       commit(treeTrunk, ti);
       commit(treeTop, ti);
+      commit(treePuff, ti);
       commit(rockMesh, ri2);
       const who = state.villagers.find((v) => v.player);
       if (who && state.equipped && (state.tools || {})[state.equipped]) {

@@ -6,6 +6,7 @@ import {
   stepVehicles, stickVector, suggestCell, tick, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, viewAxes, walkStep,
   bonk, shove, spawnRaid, acceptFine, dismissConfront,
   QIBLA_YAW, holdPrayer, prayerClock, prayerOrder, prayerPoseName, saffLayout,
+  faceForward, equipSword, swordStrike,
 } from './sim.js';
 import { i18nAudit, linePairs, t as tr } from './i18n.js';
 
@@ -537,5 +538,56 @@ const fined = acceptFine(broke);
 assert(fined.ok && fined.deed && broke.confront === 0 && broke.resources.money === 0, 'fine closes with no dinar');
 broke.confront = 1;
 assert(dismissConfront(broke).ok && broke.confront === 0, 'later closes the amends');
+
+const nose = faceForward(0.4);
+const step = viewAxes(0.4).forward;
+assert(nose.x * step.x + nose.z * step.z > 0.99, 'face matches the move direction');
+
+const wagon = createState();
+const cart = wagon.vehicles[0];
+const carter = wagon.villagers[0];
+carter.gx = cart.gx;
+carter.gz = cart.gz;
+assert(enterVehicle(wagon, cart.id).ok, 'board the cart');
+cart.yaw = 0.3;
+const heading0 = viewAxes(cart.yaw);
+driveVehicle(wagon, cart.id, -1, 1, 0.35);
+const turnedFwd = viewAxes(cart.yaw).forward;
+const leftDir = { x: -heading0.right.x, z: -heading0.right.z };
+assert(turnedFwd.x * leftDir.x + turnedFwd.z * leftDir.z > 0.02, 'left steer turns the cart left');
+const rigFace = faceForward(cart.yaw);
+const rigMove = viewAxes(cart.yaw).forward;
+assert(rigFace.x * rigMove.x + rigFace.z * rigMove.z > 0.99, 'cart and rider face travel');
+
+const war = createState();
+war.stage = 6;
+war.resources.iron = 2;
+war.resources.wood = 2;
+assert(craft(war, 'sword').ok, 'craft a sword');
+war.craftJob.left = 0.01;
+tick(war, 0.05);
+assert(war.tools.sword >= 1, 'sword is made');
+assert(equipSword(war, true).out === true, 'sword equipped');
+spawnRaid(war);
+const bandit = war.threats[0];
+war.villagers.forEach((v) => { if (!v.player) { v.gx += 40; v.gz += 40; } });
+const fighter = war.villagers[0];
+fighter.gx = bandit.gx;
+fighter.gz = bandit.gz + 0.3;
+const hp = bandit.hp;
+const slash = swordStrike(war);
+assert(slash.ok && bandit.hp < hp, 'sword hits a raider');
+
+const folk = createState().villagers.map((v) => v.nameCkb);
+['خولە ڕوت', 'حەسەنە نۆ نۆ', 'ئامە دەم شڕ', 'فاتە چاو پیس', 'خولە درێژ', 'مام ڕەسو', 'حەمەی کەوچکان', 'خولە پیزە', 'خولە دۆم', 'مەلا حوسێن'].forEach((name) => {
+  assert(folk.includes(name), name);
+});
+assert(new Set(folk).size === folk.length, 'unique names');
+const drej = createState().villagers.find((v) => v.nameCkb === 'خولە درێژ');
+const fata = createState().villagers.find((v) => v.nameCkb === 'فاتە چاو پیس');
+const spoons = createState().villagers.find((v) => v.nameCkb === 'حەمەی کەوچکان');
+assert(drej && drej.tall && drej.gender === 'man', 'tall khula');
+assert(fata && fata.gender === 'woman', 'fata is a woman');
+assert(spoons && spoons.role === 'spoon', 'spoon maker');
 
 console.log('sim-check ok');

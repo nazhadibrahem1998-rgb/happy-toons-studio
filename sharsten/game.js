@@ -14,6 +14,7 @@ import {
   LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, secondsThisHour, snapshot, stickVector, suggestCell, tick, upgrade, viewAxes, walkStep,
   craft, dismissStage, equipTool, gather, nearestNode, recipeList, stageSnapshot,
   cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, dismissConfront, tradeList, tradeWith, setRaids, bonk, settleQuarrel, holdPrayer, prayerClock,
+  faceForward, buySword, equipSword, swordStrike, swordBlock,
   plough, sow, waterField, millGrain, bakeBread,
 } from './sim.js';
 import { formatClock, formatNum, i18nAudit, linePairs, npcLine, t } from './i18n.js';
@@ -376,6 +377,7 @@ function placeTags() {
   show(his, state.buildings.find((b) => b.tag === 'mullah'));
   you.textContent = t(lang, 'yourHouse');
   his.textContent = t(lang, 'mullahHouse');
+  placeNames();
 }
 function openTrade(id) {
   const panel = document.getElementById('trade');
@@ -620,9 +622,50 @@ function updateBoard() {
 function villagerTitle(v) {
   const name = lang === 'ckb' ? v.nameCkb : v.name;
   if (v.role === 'mullah') return name;
-  const key = { water: 'waterJob', child: 'childJob', faithful: 'neighbour', woodcutter: 'woodJob', stonecutter: 'stoneJob', player: 'you' }[v.role] || v.role || 'neighbour';
+  const key = {
+    water: 'waterJob', child: 'childJob', faithful: 'neighbour', woodcutter: 'woodJob',
+    stonecutter: 'stoneJob', spoon: 'spoonJob', player: 'you', farmer: 'farmer',
+    shepherd: 'shepherd', baker: 'baker', teacher: 'teacher', smith: 'smith', weaver: 'weaver',
+  }[v.role] || v.role || 'neighbour';
   const job = t(lang, key);
-  return lang === 'ckb' ? `${name} – ${job}` : `${name}, ${job}`;
+  return `${name} – ${job}`;
+}
+const nameNodes = new Map();
+function placeNames() {
+  const layer = document.getElementById('nameLayer');
+  if (!layer) return;
+  if (!playing) { layer.replaceChildren(); nameNodes.clear(); return; }
+  const far = metersToUnits(25);
+  const lift = metersToUnits(0.3);
+  const fade = metersToUnits(8);
+  const live = new Set();
+  state.villagers.forEach((v, i) => {
+    let el = nameNodes.get(v.id);
+    if (!el) {
+      el = document.createElement('span');
+      el.className = 'name-float';
+      layer.appendChild(el);
+      nameNodes.set(v.id, el);
+    }
+    live.add(v.id);
+    const head = (v.role === 'child' ? 0.95 : 1.28) * (v.tall ? 1.28 : 1) + lift;
+    const pos = view.project(v.gx, v.gz, head);
+    const blocked = pos.dist < far && view.blocked(v.gx, v.gz, head);
+    if (v.hidden || pos.behind || pos.dist >= far || blocked) {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    el.textContent = villagerTitle(v);
+    const near = Math.max(0, Math.min(1, 1 - pos.dist / far));
+    el.style.opacity = String(Math.max(0, Math.min(1, (far - pos.dist) / fade)));
+    el.style.fontSize = `${(8 * (0.8 + 0.25 * near)).toFixed(1)}px`;
+    el.style.left = `${pos.x}px`;
+    el.style.top = `${pos.y - (i % 3) * 3}px`;
+  });
+  nameNodes.forEach((el, id) => {
+    if (!live.has(id)) { el.remove(); nameNodes.delete(id); }
+  });
 }
 function updateSpeech() {
   const el = document.getElementById('speech');
@@ -1145,6 +1188,21 @@ document.getElementById('viewMosque').addEventListener('click', () => {
   select(state, mosque.id);
   openPanel('detail');
 });
+document.getElementById('swordBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!((state.tools || {}).sword >= 1)) { toast(t(lang, 'swordNeed')); return; }
+  if (!state.swordOut) {
+    equipSword(state, true);
+    paint();
+    return;
+  }
+  const result = swordStrike(state);
+  if (result.reason === 'peace') toast(t(lang, 'swordPeace'));
+  else if (result.reason === 'child') toast(npcLine(lang, 'childRun'));
+  else if (result.reason === 'closer') equipSword(state, false);
+  paint();
+});
 document.getElementById('actionBtn').addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -1444,12 +1502,34 @@ window.__SV = {
     p.gz = pose.z;
     p.tx = pose.x;
     p.tz = pose.z;
-    if (pose.yaw != null) walkCam.yaw = pose.yaw;
+    if (pose.yaw != null) {
+      walkCam.yaw = pose.yaw;
+      p.ry = pose.yaw;
+    }
     if (pose.pitch != null) walkCam.pitch = pose.pitch;
   },
   setSticks(next) { Object.assign(sticks, next); },
   getSticks: () => ({ ...sticks }),
   stepWalk(dt) { applyWalk(dt); },
+  faceReport() {
+    const p = player();
+    const face = faceForward(p.ry || 0);
+    const move = viewAxes(walkCam.yaw).forward;
+    return {
+      face,
+      move,
+      dot: face.x * move.x + face.z * move.z,
+      ry: p.ry || 0,
+      yaw: walkCam.yaw,
+    };
+  },
+  equipSword(out) { return equipSword(state, out); },
+  swordStrike() {
+    const result = swordStrike(state);
+    paint();
+    return result;
+  },
+  swordBlock() { return swordBlock(state); },
   stickAxes: (dx, dy, radius) => stickVector(dx, dy, radius),
   cameraEyeY: () => cameraEyeY(walkCam.pitch),
   getWalkDebug() {

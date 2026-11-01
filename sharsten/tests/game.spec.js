@@ -951,3 +951,15 @@ test('noon call with no dinar still lets the player close the dialog and walk', 
   expect(after.moved).toBeGreaterThan(0.2);
   assertClean(errors);
 });
+
+test('the player face points along the move direction', async ({ page }) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  const report = await page.evaluate(() => {
+    window.__SV.setWalkPose({ x: 22, z: 36, yaw: 0.4, pitch: 0.45 });
+    window.__SV.stepKeys(0.2, ['KeyW']);
+    return window.__SV.faceReport();
+  });
+  expect(report.dot).toBeGreaterThan(0.95);
+  assertClean(errors);
+});

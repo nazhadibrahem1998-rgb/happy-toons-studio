@@ -16,7 +16,12 @@ function box(w, h, d) {
 }
 function ball(r) {
   const key = `s${r}`;
-  if (!geos.has(key)) geos.set(key, new THREE.SphereGeometry(r, 14, 10));
+  if (!geos.has(key)) geos.set(key, new THREE.SphereGeometry(r, 12, 8));
+  return geos.get(key);
+}
+function tube(r, h) {
+  const key = `c${r}x${h}`;
+  if (!geos.has(key)) geos.set(key, new THREE.CylinderGeometry(r, r * 0.92, h, 8));
   return geos.get(key);
 }
 function mat(hex, rough = 0.72) {
@@ -58,11 +63,11 @@ export function createVillagerRig(kind, salt = 0) {
   [-0.15, 0.15].forEach((x, i) => {
     hips[i].position.set(x, 0.95, 0);
     body.add(hips[i]);
-    piece(hips[i], box(0.26, 0.42, 0.28), cloth, 0, -0.21, 0);
-    shins[i].position.set(0, -0.42, 0);
+    piece(hips[i], tube(0.12, 0.4), cloth, 0, -0.2, 0);
+    shins[i].position.set(0, -0.4, 0);
     hips[i].add(shins[i]);
-    piece(shins[i], box(0.15, 0.36, 0.16), cloth, 0, -0.18, 0.01);
-    piece(shins[i], box(0.16, 0.08, 0.28), shoe, 0, -0.38, 0.06);
+    piece(shins[i], tube(0.07, 0.34), cloth, 0, -0.16, 0.01);
+    piece(shins[i], box(0.16, 0.08, 0.28), shoe, 0, -0.36, -0.04);
   });
 
   const torso = new THREE.Group();
@@ -86,15 +91,24 @@ export function createVillagerRig(kind, salt = 0) {
   const head = new THREE.Group();
   head.position.set(0, 0.58, 0);
   torso.add(head);
-  piece(head, box(0.14, 0.08, 0.12), skin, 0, -0.08, 0);
-  piece(head, ball(0.16), skin, 0, 0.06, 0);
-  const eye = mat(0x1a120e, 0.35);
-  piece(head, ball(0.028), eye, -0.055, 0.08, -0.13, false);
-  piece(head, ball(0.028), eye, 0.055, 0.08, -0.13, false);
-  piece(head, box(0.05, 0.012, 0.02), mat(0x2a2118, 0.7), -0.055, 0.11, -0.145, false);
-  piece(head, box(0.05, 0.012, 0.02), mat(0x2a2118, 0.7), 0.055, 0.11, -0.145, false);
-  piece(head, box(0.04, 0.05, 0.05), mat(0xe0b090, 0.6), 0, 0.04, -0.14, false);
-  piece(head, box(0.07, 0.015, 0.02), mat(0x6b3030, 0.55), 0, -0.01, -0.145, false);
+  piece(head, tube(0.07, 0.1), skin, 0, -0.1, 0);
+  piece(head, ball(0.17), skin, 0, 0.05, 0);
+  const white = mat(0xf4f1ea, 0.4);
+  const pupil = mat(0x1a120e, 0.3);
+  const browC = mat(0x3a2a22, 0.7);
+  const lids = [];
+  const brows = [];
+  [-0.06, 0.06].forEach((x) => {
+    piece(head, ball(0.045), white, x, 0.07, -0.145, false);
+    piece(head, ball(0.022), pupil, x, 0.07, -0.175, false);
+    const lid = piece(head, box(0.07, 0.02, 0.02), skin, x, 0.09, -0.15, false);
+    lids.push(lid);
+    const brow = piece(head, box(0.07, 0.018, 0.02), browC, x, 0.125, -0.15, false);
+    brows.push(brow);
+    piece(head, ball(0.04), skin, x > 0 ? 0.15 : -0.15, 0.04, 0, false);
+  });
+  piece(head, box(0.045, 0.06, 0.05), mat(0xe0b090, 0.55), 0, 0.03, -0.16, false);
+  const mouth = piece(head, box(0.08, 0.02, 0.02), mat(0x8a3a3a, 0.5), 0, -0.03, -0.16, false);
   if (kind === 'mullah') {
     piece(head, ball(0.175), wrap, 0, 0.12, 0.01);
     piece(head, box(0.08, 0.34, 0.05), wrap, 0.1, -0.08, 0.08);
@@ -105,6 +119,8 @@ export function createVillagerRig(kind, salt = 0) {
   } else {
     piece(head, ball(0.175), wrap, 0, 0.12, 0.01);
     piece(head, box(0.08, 0.38, 0.05), wrap, 0.12, -0.1, 0.08);
+    if (salt % 3 !== 1) piece(head, box(0.1, 0.08, 0.04), mat(0x4a3428, 0.8), 0, -0.02, -0.15, false);
+    if (salt % 2 === 0) piece(head, box(0.09, 0.03, 0.03), mat(0x3a2a22, 0.8), 0, -0.015, -0.17, false);
   }
 
   const shoulders = [new THREE.Group(), new THREE.Group()];
@@ -112,11 +128,11 @@ export function createVillagerRig(kind, salt = 0) {
   [-0.3, 0.3].forEach((x, i) => {
     shoulders[i].position.set(x, 0.38, 0);
     torso.add(shoulders[i]);
-    piece(shoulders[i], box(0.12, 0.28, 0.12), shirt, 0, -0.14, 0);
-    elbows[i].position.set(0, -0.28, 0);
+    piece(shoulders[i], tube(0.055, 0.26), shirt, 0, -0.13, 0);
+    elbows[i].position.set(0, -0.26, 0);
     shoulders[i].add(elbows[i]);
-    piece(elbows[i], box(0.1, 0.24, 0.1), skin, 0, -0.12, 0);
-    piece(elbows[i], box(0.1, 0.08, 0.08), skin, 0, -0.26, 0, false);
+    piece(elbows[i], tube(0.045, 0.22), skin, 0, -0.11, 0);
+    piece(elbows[i], ball(0.05), skin, 0, -0.24, -0.02, false);
   });
   if (kind === 'mullah') {
     for (let b = 0; b < 5; b += 1) {
@@ -128,12 +144,24 @@ export function createVillagerRig(kind, salt = 0) {
   const axe = piece(elbows[1], box(0.05, 0.46, 0.05), mat(0x8a5a32, 0.75), 0, -0.16, 0.02);
   const hoe = piece(elbows[1], box(0.05, 0.5, 0.05), mat(0x6b4226, 0.8), 0, -0.12, 0);
   const sack = piece(elbows[0], box(0.16, 0.14, 0.14), mat(0xc4a574, 0.85), 0, -0.2, 0.06);
+  const sword = new THREE.Group();
+  piece(sword, box(0.04, 0.16, 0.04), mat(0x6b4226, 0.7), 0, 0.05, 0, false);
+  piece(sword, box(0.12, 0.03, 0.04), mat(0xc4a574, 0.5), 0, 0.14, 0, false);
+  piece(sword, box(0.05, 0.46, 0.015), mat(0xd8dde4, 0.35), 0, 0.4, 0, false);
+  sword.position.set(0.1, -0.05, -0.08);
+  elbows[1].add(sword);
+  const sheath = piece(torso, box(0.04, 0.42, 0.03), mat(0x4a3428, 0.7), 0.18, 0.12, 0.08, false);
   staff.visible = false;
   axe.visible = false;
   hoe.visible = false;
   sack.visible = false;
+  sword.visible = false;
+  sheath.visible = false;
 
-  return { root, kind, body, hips, shins, shoulders, elbows, head, torso, staff, axe, hoe, sack, lock: [null, null] };
+  return {
+    root, kind, body, hips, shins, shoulders, elbows, head, torso,
+    staff, axe, hoe, sack, sword, sheath, face: { lids, brows, mouth }, lock: [null, null],
+  };
 }
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
@@ -190,6 +218,7 @@ const STILL = {
   hoe: { drop: 0.02, torso: -0.55, armL: -0.2, armR: -1.15, elbL: -0.3, elbR: -0.7, hipL: 0.2, hipR: -0.15 },
   bake: { drop: 0, torso: -0.25, armL: -0.9, armR: -0.9, elbL: -1.2, elbR: -1.1 },
   carry: { drop: 0, torso: -0.08, armL: -0.7, armR: -0.7, elbL: -1.15, elbR: -1.15 },
+  sit: { drop: -0.22, hipL: 1.15, hipR: 1.15, shinL: -1.2, shinR: -1.2, armL: -0.35, armR: -0.35, elbL: -0.6, elbR: -0.6 },
   wave: { armL: -2.4, elbL: -0.3, armR: 0.15, elbR: -0.25, headY: -0.2 },
   talk: { armL: 0.1, armR: -0.85, elbR: -1.1, headY: 0.25 },
   quarrel: { torsoY: 0.2, armL: -1.7, armR: -1.5, elbL: -0.4, elbR: -0.5, head: -0.1 },
@@ -279,6 +308,29 @@ export function poseVillager(rig, o) {
   rig.axe.visible = o.tool === 'axe';
   rig.hoe.visible = o.tool === 'hoe';
   rig.sack.visible = o.tool === 'sack';
+  const drawn = o.sword === 'hand';
+  rig.sword.visible = drawn;
+  rig.sheath.visible = o.sword === 'belt';
+  if (drawn && (action === 'chop' || o.swing)) {
+    rig.shoulders[1].rotation.x = -1.7 + Math.sin((o.time || 0) * 16) * 0.4;
+    rig.sword.rotation.x = -0.8;
+  } else if (drawn && o.blocking) {
+    rig.shoulders[1].rotation.x = -1.15;
+    rig.elbows[1].rotation.x = -0.4;
+    rig.sword.rotation.z = 0.6;
+  } else if (rig.sword) {
+    rig.sword.rotation.set(0.4, 0, 0.2);
+  }
+  if (rig.face) {
+    const blink = Math.sin((o.time || 0) * 0.7 + (o.seed || 0)) > 0.96 ? 0.15 : 1;
+    rig.face.lids.forEach((lid) => { lid.scale.y = blink; });
+    const angry = action === 'quarrel';
+    rig.face.brows.forEach((brow, i) => { brow.rotation.z = angry ? (i ? -0.5 : 0.5) : 0; });
+    const talking = action === 'talk' || action === 'wave';
+    rig.face.mouth.scale.y = talking ? 0.6 + Math.abs(Math.sin((o.time || 0) * 9)) * 1.8 : 1;
+    rig.face.mouth.scale.x = o.happy && !angry ? 1.35 : 1;
+    rig.face.mouth.position.y = o.happy && !angry ? -0.02 : -0.03;
+  }
 }
 
 export function posePrayer(rig, name) {

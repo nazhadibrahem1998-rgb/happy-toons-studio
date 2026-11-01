@@ -57,9 +57,33 @@ export const WALK_SPEED = 6;
 export const LOOK_YAW_SPEED = 1.5;
 export const LOOK_PITCH_SPEED = 1.05;
 
-const MEN = [['Ahmad', 'ئەحمەد'], ['Kaka Hama', 'کاکە حەمە'], ['Mama Rashid', 'مامە رەشید'], ['Salih', 'ساڵح'], ['Aziz', 'عەزیز'], ['Qadir', 'قادر'], ['Salim', 'سەلیم'], ['Kaka Awrahman', 'کاکە ئەورەحمان']];
-const WOMEN = [['Pura Fatima', 'پوورە فاتمە'], ['Khatun', 'خاتوون'], ['Gulal', 'گوڵال'], ['Naza', 'نازە'], ['Shamsa', 'شەمسە'], ['Halala', 'هەلالە']];
-const CHILDREN = [['Aram', 'ئارام'], ['Hiwa', 'هیوا'], ['Shakhawan', 'شاخەوان'], ['Zerin', 'زێرین']];
+/** Old village nicknames. The last faithful is renamed Mullah Husen after spawn. */
+const FOLK = [
+  ['Khula Rut', 'خولە ڕوت', 'farmer', 'man'],
+  ['Hasana No No', 'حەسەنە نۆ نۆ', 'shepherd', 'man'],
+  ['Ama Dam Shr', 'ئامە دەم شڕ', 'baker', 'man'],
+  ['Fata Chaw Pes', 'فاتە چاو پیس', 'weaver', 'woman'],
+  ['Khula Drezh', 'خولە درێژ', 'woodcutter', 'man', 1],
+  ['Mam Raso', 'مام ڕەسو', 'teacher', 'man'],
+  ['Hamay Kawchkan', 'حەمەی کەوچکان', 'spoon', 'man'],
+  ['Khula Piza', 'خولە پیزە', 'smith', 'man'],
+  ['Khula Dom', 'خولە دۆم', 'stonecutter', 'man'],
+  ['Baya Kchl', 'بایە کچڵ', 'farmer', 'man'],
+  ['Awa Kurzh', 'عەوە کورژ', 'shepherd', 'man'],
+  ['Pura Shrin', 'پورە شرین', 'water', 'woman'],
+  ['Mama Qadir', 'مامە قادر', 'smith', 'man'],
+  ['Nabata Bchuk', 'ناباتە بچوک', 'child', 'child'],
+  ['Smaya Kachal', 'سمایە کەچەڵ', 'woodcutter', 'man'],
+  ['Kwexa Smayl', 'کوێخا سمایڵ', 'teacher', 'man'],
+  ['Khana Nasre', 'خانە نەسرێ', 'weaver', 'woman'],
+  ['Dayka Hapsa', 'دایکە حەپسە', 'water', 'woman'],
+  ['Pira Majid', 'پیرە مەجید', 'stonecutter', 'man'],
+  ['Haji Wasman', 'حاجی وەسمان', 'baker', 'man'],
+  ['Kcha Zenab', 'کچە زێنەب', 'child', 'child'],
+  ['Kura Rasho', 'کوڕە ڕەشۆ', 'child', 'child'],
+  ['Gyana', 'گیانە', 'child', 'child'],
+  ['Shekha Rash', 'شێخە ڕەش', 'faithful', 'man'],
+];
 
 export const COSTS = {
   house: { wood: 8, stone: 4 },
@@ -596,17 +620,17 @@ function spawnVillager(state, player = false) {
   const home = hs.length ? hs[state.villagers.length % hs.length] : null;
   const n = state.nameCursor++;
   const npcIndex = state.villagers.filter((v) => !v.player).length;
-  const role = player ? 'player' : ROLES[npcIndex % ROLES.length];
-  const gender = role === 'child' ? 'child' : (role === 'water' || role === 'weaver' ? 'woman' : 'man');
-  const book = gender === 'child' ? CHILDREN : gender === 'woman' ? WOMEN : MEN;
-  const picked = book[n % book.length];
+  const picked = player ? null : FOLK[Math.min(npcIndex, FOLK.length - 1)];
+  const role = player ? 'player' : picked[2];
+  const gender = player ? 'man' : picked[3];
   const gx = home ? home.gx + 0.2 : 6;
   const gz = home ? home.gz + 0.6 : 3;
   const anchor = streetAnchor(gx, gz, n + 1);
   const v = {
     id: state.nextId++,
-    name: player ? 'Ahmad' : picked[0],
-    nameCkb: player ? 'ئەحمەد' : picked[1],
+    name: player ? 'Kaka Hama' : picked[0],
+    nameCkb: player ? 'کاکە حەمە' : picked[1],
+    tall: !!(picked && picked[4]),
     gender,
     job: 'idle',
     role,
@@ -874,7 +898,7 @@ function goalFor(state, v, phase) {
     if (school) return { gx: school.gx + 0.35, gz: school.gz + 0.45 };
   }
   const workSpot = {
-    baker: 'tandoor', smith: 'smith', weaver: 'loom', woodcutter: 'woodyard', stonecutter: 'quarry', water: 'spring',
+    baker: 'tandoor', smith: 'smith', spoon: 'smith', weaver: 'loom', woodcutter: 'woodyard', stonecutter: 'quarry', water: 'spring',
   }[v.role];
   if (workSpot) {
     const place = state.buildings.find((b) => b.type === workSpot);
@@ -1643,7 +1667,7 @@ export function rideAnimal(state, id, steer, throttle, dt) {
   const step = Math.min(Math.max(dt, 0), 0.1);
   const gas = Math.max(-1, Math.min(1, throttle || 0));
   const turn = Math.max(-1, Math.min(1, steer || 0));
-  a.yaw = (a.yaw || 0) + turn * 1.4 * step;
+  a.yaw = steerHeading(a.yaw, turn, gas, 1.4, step);
   const spd = gas * DONKEY_SPEED;
   if (Math.abs(spd) < 0.01) return { ok: true, moved: false, gx: a.gx, gz: a.gz, yaw: a.yaw };
   const nx = a.gx + Math.sin(a.yaw) * spd * step;
@@ -1661,6 +1685,7 @@ export function rideAnimal(state, id, steer, throttle, dt) {
     p.gz = nz;
     p.tx = nx;
     p.tz = nz;
+    p.ry = a.yaw;
   }
   return { ok: true, moved: true, gx: nx, gz: nz, yaw: a.yaw };
 }
@@ -1726,7 +1751,7 @@ export function driveVehicle(state, id, steer, throttle, dt) {
   const step = Math.min(Math.max(dt, 0), 0.1);
   const gas = Math.max(-1, Math.min(1, throttle || 0));
   const turn = Math.max(-1, Math.min(1, steer || 0));
-  v.yaw += turn * 1.8 * step;
+  v.yaw = steerHeading(v.yaw, turn, gas, 1.8, step);
   const spd = gas * (VEHICLE_SPEED[v.kind] || 2);
   if (Math.abs(spd) < 0.01) {
     v.speed = 0;
@@ -1751,6 +1776,7 @@ export function driveVehicle(state, id, steer, throttle, dt) {
     p.gz = nz;
     p.tx = nx;
     p.tz = nz;
+    p.ry = v.yaw;
   }
   return { ok: true, moved: true, gx: nx, gz: nz, yaw: v.yaw };
 }
@@ -1768,6 +1794,7 @@ export function tick(state, dt, opts = {}) {
   }
   state.seconds = (state.seconds || 0) + step;
   if (state.swing > 0) state.swing = Math.max(0, state.swing - step);
+  if (state.swordSwing > 0) state.swordSwing = Math.max(0, state.swordSwing - step);
   state.buildings.forEach((b) => { if (b.anim > 0) b.anim = Math.max(0, b.anim - step); });
   if (state.craftJob) {
     state.craftJob.left -= step;
@@ -2114,6 +2141,7 @@ export const RECIPES = [
   { id: 'iron', out: 'iron', n: 1, need: { ore: 2 }, stage: 6, place: 'smith' },
   { id: 'sickle', out: 'sickle', n: 1, need: { iron: 1, wood: 1 }, stage: 6, tool: true },
   { id: 'hoe', out: 'hoe', n: 1, need: { iron: 1, wood: 2 }, stage: 6, tool: true },
+  { id: 'sword', out: 'sword', n: 1, need: { iron: 1, wood: 1 }, stage: 6, tool: true },
 ];
 
 function goalMet(state, id) {
@@ -2535,7 +2563,16 @@ function stepThreats(state, dt) {
     state.threats.push({ id: 80 + state.day, kind: 'bear', gx: 8, gz: 6, hp: 2, flee: 0 });
   }
   const p = playerOf(state);
+  if (state.block > 0) state.block = Math.max(0, state.block - dt);
   state.threats.forEach((t) => {
+    if (t.stun > 0) { t.stun = Math.max(0, t.stun - dt); return; }
+    if (state.block > 0 && p && !t.flee && Math.hypot(p.gx - t.gx, p.gz - t.gz) < 1.45) {
+      const len = Math.hypot(t.gx - p.gx, t.gz - p.gz) || 1;
+      t.gx += ((t.gx - p.gx) / len) * 0.7;
+      t.gz += ((t.gz - p.gz) / len) * 0.7;
+      t.stun = 0.45;
+      return;
+    }
     const away = t.flee ? -1 : 1;
     const tx = t.flee ? t.gx : (t.kind === 'wolf' ? (herdSpot(state, 'sheep', 'pen').gx) : MX);
     const tz = t.flee ? (t.gz - 8) : (t.kind === 'wolf' ? herdSpot(state, 'sheep', 'pen').gz : MZ);
@@ -2560,6 +2597,67 @@ function stepThreats(state, dt) {
     }
   });
   state.threats = state.threats.filter((t) => !(t.flee && t.gz < MZ - 12));
+}
+
+export function buySword(state) {
+  const p = playerOf(state);
+  const smith = state.buildings.find((b) => b.type === 'smith');
+  if (!p || !smith || Math.hypot(p.gx - smith.gx, p.gz - smith.gz) > 2.4) return { ok: false, reason: 'place' };
+  if ((state.resources.money || 0) < 12) return { ok: false, reason: 'cost' };
+  state.resources.money = round3(state.resources.money - 12);
+  state.tools.sword = Math.min(2, (state.tools.sword || 0) + 1);
+  bump(state);
+  return { ok: true };
+}
+
+export function equipSword(state, out) {
+  if (!((state.tools || {}).sword >= 1)) return { ok: false, reason: 'none' };
+  state.swordOut = out == null ? !state.swordOut : !!out;
+  state.equipped = state.swordOut ? 'sword' : (state.equipped === 'sword' ? '' : state.equipped);
+  bump(state);
+  return { ok: true, out: !!state.swordOut };
+}
+
+export function swordStrike(state) {
+  const p = playerOf(state);
+  if (!p) return { ok: false };
+  if (!state.swordOut || !((state.tools || {}).sword >= 1)) return { ok: false, reason: 'sheathed' };
+  const child = state.villagers.find((v) => !v.player && (v.child || v.role === 'child') && Math.hypot(v.gx - p.gx, v.gz - p.gz) < 1.5);
+  if (child) return { ok: false, reason: 'child' };
+  const neighbour = state.villagers.find((v) => !v.player && v.role !== 'child' && !v.child && Math.hypot(v.gx - p.gx, v.gz - p.gz) < 1.5);
+  const foe = (state.threats || []).find((item) => !item.flee && Math.hypot(item.gx - p.gx, item.gz - p.gz) < 1.9);
+  state.swing = 0.42;
+  state.swordSwing = 0.42;
+  if (!foe) {
+    if (neighbour) {
+      bumpRep(state, -30);
+      neighbour.line = 'angry';
+      neighbour.sayLeft = 1.6;
+      bump(state);
+      return { ok: false, reason: 'peace' };
+    }
+    return { ok: false, reason: 'closer' };
+  }
+  const len = Math.hypot(foe.gx - p.gx, foe.gz - p.gz) || 1;
+  foe.gx += ((foe.gx - p.gx) / len) * 0.85;
+  foe.gz += ((foe.gz - p.gz) / len) * 0.85;
+  foe.hp -= foe.kind === 'bear' ? 1 : 2;
+  foe.stun = 0.7;
+  if (foe.hp <= 0) {
+    foe.flee = 1;
+    addRes(state, 'money', foe.kind === 'bandit' ? 4 : 1);
+    bumpRep(state, 6);
+    state.defended = (state.defended || 0) + 1;
+  }
+  bump(state);
+  return { ok: true, flee: !!foe.flee, hp: foe.hp };
+}
+
+export function swordBlock(state) {
+  if (!state.swordOut) return { ok: false, reason: 'sheathed' };
+  state.block = 0.45;
+  bump(state);
+  return { ok: true };
 }
 
 export function bonk(state) {
@@ -3039,6 +3137,31 @@ export function cameraBasis(yaw) {
     forward: { x: Math.sin(yaw), z: Math.cos(yaw) },
     right: { x: Math.cos(yaw), z: -Math.sin(yaw) },
   };
+}
+
+/**
+ * Model yaw whose local -Z (eyes and chest) matches the walk forward vector.
+ * The chase camera sits on the opposite side, so it sees the back.
+ */
+export function modelYaw(ry) {
+  return (ry || 0) + Math.PI;
+}
+
+/** World direction of the face for a villager whose ry is the move heading. */
+export function faceForward(ry) {
+  const yaw = modelYaw(ry);
+  return { x: -Math.sin(yaw), z: -Math.cos(yaw) };
+}
+
+/**
+ * Positive steer is right. Heading increases to the driver's left.
+ * In reverse the steer flips, the way a cart's wheels do.
+ */
+export function steerHeading(yaw, steer, throttle, rate, dt) {
+  const turn = Math.max(-1, Math.min(1, steer || 0));
+  const gas = Math.max(-1, Math.min(1, throttle || 0));
+  const sense = gas < 0 ? -1 : 1;
+  return (yaw || 0) - turn * sense * rate * dt;
 }
 
 /** Third-person axes. Forward matches the walk camera. Right is screen-right, not flipped by RTL. */
