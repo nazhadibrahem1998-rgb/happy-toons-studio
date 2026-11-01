@@ -727,7 +727,8 @@ export function createView(canvas) {
       const moving = Math.hypot(v.tx - v.gx, v.tz - v.gz) > 0.05 || v.player;
       const bob = moving ? Math.sin(time * 7 + v.id) * 0.04 : 0;
       const woman = !v.player && v.id % 2 === 0;
-      const color = v.player ? 0x2f6f4f : woman ? 0xc44848 : 0x3d4a6a;
+      const dressed = state.cosmetics && state.cosmetics.clothes;
+      const color = v.player ? 0x2f6f4f : woman ? (dressed ? 0xd45a78 : 0xc44848) : (dressed ? 0x2f6a8a : 0x3d4a6a);
       const face = v.ry || 0;
       put(vBody, vi, p.x, 0.42 + bob, p.z, woman ? 0.85 : 0.7, 1, woman ? 0.9 : 0.55, face, color);
       put(vHead, vi, p.x, 0.9 + bob, p.z, 1, woman ? 0.7 : 0.85, 1, face, woman ? 0xf2efe4 : 0xe6d2a0);

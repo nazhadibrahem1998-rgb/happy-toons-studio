@@ -51,6 +51,15 @@
 </div>
 <div id="toast" hidden></div>
 <div id="speech" hidden></div>
+<div id="tutorial" hidden>
+  <p id="tutorialText"></p>
+  <button type="button" id="tutorialNext">Next</button>
+</div>
+<div id="unlockPop" hidden>
+  <p id="unlockTitle">Unlocked!</p>
+  <p id="unlockText"></p>
+  <button type="button" id="unlockOk">OK</button>
+</div>
 <div id="hud" hidden>
   <div class="res" id="resbar" data-scroll-panel="res"></div>
   <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">Menu</button>
@@ -166,6 +175,7 @@
   <div class="panel" data-scroll-panel="quests">
     <h2 data-i18n="quests">Quests</h2>
     <p><span data-i18n="goal">Village level</span> <b id="levelNum" dir="ltr">1</b> · <span data-i18n="happy">Happiness</span> <b id="happyNum" dir="ltr">0</b></p>
+    <div id="goalList"></div>
     <div id="questBoard"></div>
     <div class="quest"><span data-i18n="qSpring">Fix the spring</span><b id="qSpring"></b></div>
     <button type="button" id="fixBtn" class="btn" data-i18n="fix">Fix the spring</button>

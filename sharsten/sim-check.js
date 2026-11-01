@@ -1,6 +1,6 @@
 import {
   LAYOUT, MAP_BOUND, acceptQuest, advanceHours, assignJob, astarRoute, averageHappiness, cameraBasis, cameraEyeY,
-  canPlace, celebrateNewroz, clampToMap, cleanMosque, createState, demolish, driveVehicle, enterVehicle, exitVehicle, harvest,
+  canPlace, celebrateNewroz, clampToMap, cleanMosque, createState, demolish, driveVehicle, enterVehicle, exitVehicle, grantXp, harvest,
   integrate, isRoad, isUnlocked, npcActiveCap, npcSchedule, phaseOf, place, plant, playable, reachExit, setEasy, setHour, setSeason, stepNpcs,
   animalCap, carryBudget, DONKEY_SPEED, enterAnimal, exitAnimal, herdSpot, moveGoods, rideAnimal, stepAnimals,
   stepVehicles, stickVector, suggestCell, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, walkStep,
@@ -406,6 +406,16 @@ const lock = createState();
 assert(isUnlocked(lock, 'house') && !isUnlocked(lock, 'teahouse'), 'later buildings stay locked');
 setEasy(lock, true);
 assert(isUnlocked(lock, 'teahouse'), 'easy mode unlocks');
+const ladder = createState();
+assert(isUnlocked(ladder, 'field') && isUnlocked(ladder, 'tandoor') && !isUnlocked(ladder, 'mill'), 'rank 1');
+grantXp(ladder, 2);
+assert(ladder.rank === 2 && isUnlocked(ladder, 'mill') && isUnlocked(ladder, 'pen_sheep'), 'rank 2');
+grantXp(ladder, 2);
+assert(ladder.rank === 3 && isUnlocked(ladder, 'loom') && isUnlocked(ladder, 'smith'), 'rank 3');
+grantXp(ladder, 3);
+assert(ladder.rank === 4 && isUnlocked(ladder, 'vineyard'), 'rank 4');
+grantXp(ladder, 4);
+assert(ladder.rank === 5 && isUnlocked(ladder, 'school'), 'rank 5');
 const plotTea = suggestCell(lock, 'teahouse');
 assert(plotTea && canPlace(lock, 'teahouse', plotTea.gx, plotTea.gz), 'easy can afford a tea house');
 

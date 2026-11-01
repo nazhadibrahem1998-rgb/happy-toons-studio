@@ -7,7 +7,8 @@ import {
   advanceHours, assignJob, cameraBasis, cameraEyeY, canPlace, celebrateNewroz,
   cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring, worldToCell,
   harvest, parseSave, phaseOf, place, plant, select, serialize, setEasy, setHour, setSeason, setStock,
-  acceptQuest, animalCap, astarRoute, carryBudget, DONKEY_SPEED, driveVehicle, enterAnimal, enterVehicle,
+  acceptQuest, advanceTutorial, animalCap, astarRoute, carryBudget, completeGoal, dismissNotice, DONKEY_SPEED,
+  driveVehicle, enterAnimal, enterVehicle, isUnlocked, jobUnlocked, setRank, TUTORIAL_STEPS, unlocks,
   exitAnimal, exitVehicle, herdSpot, moveGoods, nearestAnimal, nearestVehicle, npcActiveCap, npcSchedule, rideAnimal,
   stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
   LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
@@ -44,6 +45,7 @@ let playing = false;
 let buildType = null;
 let peopleSig = '';
 let questSig = '';
+let goalSig = '';
 let toastLeft = 0;
 let edgeLeft = 0;
 let saveLeft = 0;
@@ -278,6 +280,7 @@ function talkTo(v) {
   v.line = `greet${v.id % 4}`;
   v.sayLeft = 2.5;
   v.greeting = true;
+  completeGoal(state, 'greet');
   paint();
 }
 
@@ -303,6 +306,48 @@ function doAction() {
   if (!best) { toast(t(lang, 'closer')); return; }
   state.selectedId = best.id;
   openPanel('detail');
+}
+
+function paintTutorial() {
+  const box = document.getElementById('tutorial');
+  if (!box) return;
+  const step = state.tutorial == null ? 0 : state.tutorial;
+  const show = playing && step >= 0;
+  box.hidden = !show;
+  if (!show) return;
+  document.getElementById('tutorialText').textContent = t(lang, TUTORIAL_STEPS[Math.min(step, TUTORIAL_STEPS.length - 1)]);
+  document.getElementById('tutorialNext').textContent = t(lang, 'tutNext');
+}
+
+function paintUnlock() {
+  const box = document.getElementById('unlockPop');
+  if (!box) return;
+  const rank = state.notice || 0;
+  box.hidden = !(playing && rank >= 1);
+  if (box.hidden) return;
+  document.getElementById('unlockTitle').textContent = t(lang, 'unlocked');
+  document.getElementById('unlockText').textContent = t(lang, `unlock${rank}`);
+}
+
+function paintGoals() {
+  const root = document.getElementById('goalList');
+  if (!root) return;
+  const goals = state.goals || [];
+  const sig = `${lang}:${state.day}:${goals.map((g) => (g.done ? 1 : 0)).join('')}`;
+  if (sig === goalSig) return;
+  goalSig = sig;
+  root.replaceChildren();
+  const names = { place: 'gPlace', gather: 'gGather', greet: 'gGreet' };
+  goals.forEach((g) => {
+    const row = document.createElement('div');
+    row.className = 'quest';
+    const label = document.createElement('span');
+    label.textContent = t(lang, names[g.id] || g.id);
+    const mark = document.createElement('b');
+    mark.textContent = g.done ? t(lang, 'qDone') : t(lang, 'qTodo');
+    row.append(label, mark);
+    root.appendChild(row);
+  });
 }
 
 function paintQuestBoard() {
@@ -380,9 +425,12 @@ function paint() {
     easyBtn.classList.toggle('on', !!state.easy);
     easyBtn.setAttribute('aria-pressed', state.easy ? 'true' : 'false');
   }
-  document.getElementById('levelNum').textContent = formatNum(state.level, lang);
+  document.getElementById('levelNum').textContent = formatNum(state.rank || state.level, lang);
   document.getElementById('happyNum').textContent = formatNum(snapshot(state).happiness, lang);
   paintQuestBoard();
+  paintGoals();
+  paintTutorial();
+  paintUnlock();
   document.getElementById('qSpring').textContent = state.quests.spring ? t(lang, 'qDone') : t(lang, 'qTodo');
   document.getElementById('qSchool').textContent = state.quests.school ? t(lang, 'qDone') : t(lang, 'qTodo');
   document.getElementById('qNewroz').textContent = state.quests.newroz ? t(lang, 'qDone') : t(lang, 'qTodo');
@@ -521,6 +569,16 @@ document.getElementById('hudMenu').addEventListener('click', () => {
   const pop = document.getElementById('hudPop');
   pop.hidden = !pop.hidden;
   document.getElementById('hudMenu').setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
+});
+document.getElementById('tutorialNext').addEventListener('click', () => {
+  advanceTutorial(state);
+  persist();
+  paintTutorial();
+});
+document.getElementById('unlockOk').addEventListener('click', () => {
+  dismissNotice(state);
+  persist();
+  paintUnlock();
 });
 document.getElementById('easyBtn').addEventListener('click', () => {
   easy = !easy;
@@ -810,6 +868,8 @@ function frame(now) {
   view.render();
   updateSpeech();
   updateBoard();
+  paintTutorial();
+  paintUnlock();
   if (playing) {
     document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang);
   }
@@ -938,6 +998,21 @@ window.__SV = {
   },
   getHillColor: () => view.getHillColor(),
   lookReport: () => view.lookReport(),
+  setRank(n) {
+    const result = setRank(state, n);
+    persist();
+    paint();
+    return result;
+  },
+  unlocks,
+  isUnlocked: (type) => isUnlocked(state, type),
+  jobUnlocked: (job) => jobUnlocked(state, job),
+  advanceTutorial() {
+    const result = advanceTutorial(state);
+    persist();
+    paintTutorial();
+    return result;
+  },
   astarRoute,
   npcSchedule,
   npcActiveCap: () => npcActiveCap(low),

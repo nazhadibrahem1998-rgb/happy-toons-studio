@@ -36,7 +36,7 @@ export const LAYOUT = {
   westSpur: { gx: 12, gz: 30 },
   neSpur: { gx: 32, gz: 16 },
 };
-export const SECONDS_PER_HOUR = 2;
+export const SECONDS_PER_HOUR = 12;
 export const SEASON_DAYS = 4;
 export const VILLAGER_CAP = 25;
 /** Non-player neighbours simulated on this device. No server and no online model. */
@@ -647,6 +647,14 @@ function bindQuests(state) {
       id: 'fence', giverId: teacher.id, status: 'open', titleKey: 'qFence',
       need: { wood: 4 }, reward: { money: 6, tools: 1 }, offer: 'fenceOffer', done: 'fenceDone',
     },
+    {
+      id: 'water', giverId: farmer.id, status: 'open', titleKey: 'qWater',
+      need: { water: 4 }, reward: { food: 4 }, offer: 'waterOffer', done: 'waterDone',
+    },
+    {
+      id: 'wool', giverId: shepherd.id, status: 'open', titleKey: 'qWool',
+      need: { wool: 2 }, reward: { money: 5 }, offer: 'woolOffer', done: 'woolDone',
+    },
   ];
   farmer.questId = 'wheat';
   shepherd.questId = 'chicken';
@@ -1041,6 +1049,7 @@ export function stepHour(state) {
     }
   }
   state.ticks += 1;
+  ensureGoals(state);
   retarget(state);
   recompute(state);
   bump(state);
@@ -1511,6 +1520,7 @@ export function driveVehicle(state, id, steer, throttle, dt) {
 }
 
 export function tick(state, dt, opts = {}) {
+  ensureProgress(state);
   const step = Math.min(Math.max(dt, 0), 0.1);
   state.acc += step;
   let guard = 0;
@@ -1522,6 +1532,7 @@ export function tick(state, dt, opts = {}) {
   stepNpcs(state, step, opts);
   stepVehicles(state, step, opts);
   stepAnimals(state, step, opts);
+  autoCollect(state);
   integrate(state, step, opts);
 }
 
@@ -1660,17 +1671,146 @@ export function createState() {
   state.villagers[0].tx = MX + 1.35;
   state.villagers[0].tz = MZ + 0.15;
   recompute(state);
+  ensureProgress(state);
   return state;
 }
 
 const UNLOCK_LEVEL = {
-  school: 3, clinic: 3, teahouse: 3,
-  mill: 2, smith: 2, loom: 2, tandoor: 2, vineyard: 2, orchard_pom: 2, orchard_walnut: 2, quarry: 2,
+  house: 1, field: 1, spring: 1, tandoor: 1, woodyard: 1, coop: 1,
+  mill: 2, pen_sheep: 2, pen_goat: 2,
+  loom: 3, smith: 3,
+  orchard_pom: 4, orchard_walnut: 4, vineyard: 4,
+  school: 5, clinic: 5, teahouse: 5, quarry: 2,
 };
+const JOB_LEVEL = {
+  farmer: 1, baker: 1, builder: 1,
+  miller: 2, shepherd: 2,
+  weaver: 3, smith: 3,
+  host: 4,
+  teacher: 5, healer: 5,
+};
+const XP_FOR_RANK = [0, 0, 2, 4, 7, 11];
 
 export function isUnlocked(state, type) {
   if (state.easy) return true;
-  return (state.level || 1) >= (UNLOCK_LEVEL[type] || 1);
+  return (state.rank || 1) >= (UNLOCK_LEVEL[type] || 1);
+}
+
+export function jobUnlocked(state, job) {
+  if (job === 'idle' || state.easy) return true;
+  return (state.rank || 1) >= (JOB_LEVEL[job] || 1);
+}
+
+export function unlocks(rank) {
+  return Object.keys(UNLOCK_LEVEL).filter((type) => UNLOCK_LEVEL[type] <= rank);
+}
+
+function applyPerks(state) {
+  const rank = state.rank || 1;
+  state.cosmetics = { clothes: rank >= 3, decor: rank >= 4, mosqueCourt: rank >= 5 };
+}
+
+function syncRank(state) {
+  let rank = 1;
+  const xp = state.xp || 0;
+  for (let r = 5; r >= 1; r -= 1) {
+    if (xp >= XP_FOR_RANK[r]) { rank = r; break; }
+  }
+  if (!state.rank) state.rank = 1;
+  if (rank > state.rank) {
+    state.rank = rank;
+    state.notice = rank;
+    applyPerks(state);
+  }
+}
+
+export function grantXp(state, amount) {
+  state.xp = (state.xp || 0) + amount;
+  syncRank(state);
+  bump(state);
+  return { rank: state.rank, xp: state.xp, notice: state.notice || 0 };
+}
+
+export function setRank(state, rank) {
+  const next = Math.max(1, Math.min(5, Math.floor(rank) || 1));
+  state.rank = next;
+  state.xp = XP_FOR_RANK[next];
+  state.notice = next;
+  applyPerks(state);
+  bump(state);
+  return { rank: next };
+}
+
+function ensureGoals(state) {
+  if (state.goalDay === state.day && Array.isArray(state.goals) && state.goals.length === 3) return;
+  state.goalDay = state.day;
+  state.goals = [
+    { id: 'place', done: false, reward: { wood: 4 } },
+    { id: 'gather', done: false, reward: { food: 3 } },
+    { id: 'greet', done: false, reward: { money: 2 } },
+  ];
+}
+
+export function completeGoal(state, id) {
+  ensureGoals(state);
+  const goal = state.goals.find((item) => item.id === id);
+  if (!goal || goal.done) return { ok: false };
+  goal.done = true;
+  Object.keys(goal.reward).forEach((key) => addRes(state, key, goal.reward[key]));
+  grantXp(state, 1);
+  return { ok: true, reward: goal.reward };
+}
+
+export const TUTORIAL_STEPS = ['tutHello', 'tutBuild', 'tutWalk', 'tutDone'];
+
+export function advanceTutorial(state) {
+  if (state.tutorial == null) state.tutorial = 0;
+  if (state.tutorial < 0) return { ok: true, done: true, step: -1 };
+  state.tutorial += 1;
+  if (state.tutorial >= TUTORIAL_STEPS.length) {
+    state.tutorial = -1;
+    addRes(state, 'wood', 6);
+    grantXp(state, 1);
+  }
+  bump(state);
+  return { ok: true, done: state.tutorial < 0, step: state.tutorial };
+}
+
+export function dismissNotice(state) {
+  state.notice = 0;
+  bump(state);
+}
+
+export function autoCollect(state) {
+  const player = state.villagers.find((v) => v.player);
+  if (!player) return { got: false };
+  let got = false;
+  state.buildings.forEach((b) => {
+    if (Math.hypot(b.gx - player.gx, b.gz - player.gz) > 1.8) return;
+    if (b.type === 'field' && b.stage === 3) {
+      addRes(state, 'grain', 2);
+      addRes(state, 'food', 1);
+      b.stage = 1;
+      b.growth = 8;
+      got = true;
+    }
+    if ((b.type === 'spring') && b.pickedHour !== state.hour) {
+      b.pickedHour = state.hour;
+      addRes(state, 'water', 1);
+      got = true;
+    }
+  });
+  if (got) completeGoal(state, 'gather');
+  return { got };
+}
+
+function ensureProgress(state) {
+  if (!state.rank) state.rank = 1;
+  if (state.xp == null) state.xp = 0;
+  if (state.tutorial == null) state.tutorial = 0;
+  if (!state.notice) state.notice = 0;
+  applyPerks(state);
+  ensureGoals(state);
 }
 
 function priced(state, cost) {
@@ -1709,6 +1849,8 @@ export function suggestCell(state, type) {
 export function place(state, type, gx, gz) {
   if (!canPlace(state, type, gx, gz)) return { ok: false, reason: 'blocked' };
   pay(state, priced(state, COSTS[type]));
+  grantXp(state, 1);
+  completeGoal(state, 'place');
   const style = type === 'house' ? homes(state).length % 5 : 0;
   const b = addBuilding(state, type, gx, gz, { style });
   state.lastPlacedId = b.id;
@@ -1772,6 +1914,7 @@ export function assignJob(state, villagerId, job) {
   const v = state.villagers.find((x) => x.id === villagerId);
   if (!v) return { ok: false, reason: 'missing' };
   if (job !== 'idle' && !JOB_TYPES[job]) return { ok: false, reason: 'job' };
+  if (!jobUnlocked(state, job)) return { ok: false, reason: 'locked' };
   if (job !== 'idle' && !workplace(state, job)) return { ok: false, reason: 'no-workplace' };
   v.job = job;
   v.workId = job === 'idle' ? 0 : workplace(state, job).id;

@@ -241,6 +241,37 @@ a { color: #1d6b4f; }
 }
 #hudPop .chip, #hudPop button { width: 100%; }
 html[dir="rtl"] #hudPop { right: auto; left: calc(8px + var(--safe-l)); }
+#tutorial, #unlockPop {
+  position: fixed;
+  z-index: 12;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 24px));
+  background: #efe6c9;
+  color: #1c2416;
+  border: 4px solid #1c3a18;
+  box-shadow: 6px 6px 0 #1c3a18;
+  padding: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+#tutorial { bottom: calc(128px + var(--safe-b)); }
+#tutorial::before {
+  content: '';
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  margin-left: -10px;
+  border: 10px solid transparent;
+  border-bottom-color: #1c3a18;
+}
+#unlockPop { top: calc(48px + var(--safe-t)); }
+#tutorialNext, #unlockOk {
+  pointer-events: auto;
+  min-height: 56px;
+  font-size: 1.15rem;
+  width: 100%;
+}
 .res b, .clock b { font-weight: 700; }
 .chip.tiny { font-size: 12px; padding: 4px 6px; background: rgba(255, 248, 236, 0.92); }
 #camBtns, #walkControls, #buildSticks { direction: ltr; }

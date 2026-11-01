@@ -678,3 +678,51 @@ test('herds walk to pasture and back, and a donkey can be ridden', async ({ page
   }
   assertClean(errors);
 });
+
+test('village levels unlock, progress reloads, and the tutorial finishes by touch', async ({ page }) => {
+  const errors = await openFresh(page);
+  const table = await page.evaluate(() => {
+    const ranks = [];
+    for (let rank = 1; rank <= 5; rank += 1) {
+      window.__SV.setRank(rank);
+      ranks.push({
+        rank: window.__SV.getState().rank,
+        house: window.__SV.isUnlocked('house'),
+        tandoor: window.__SV.isUnlocked('tandoor'),
+        mill: window.__SV.isUnlocked('mill'),
+        pen: window.__SV.isUnlocked('pen_sheep'),
+        loom: window.__SV.isUnlocked('loom'),
+        smith: window.__SV.isUnlocked('smith'),
+        vineyard: window.__SV.isUnlocked('vineyard'),
+        school: window.__SV.isUnlocked('school'),
+        teacher: window.__SV.jobUnlocked('teacher'),
+      });
+    }
+    window.__SV.setRank(4);
+    return ranks;
+  });
+  expect(table[0].rank).toBe(1);
+  expect(table[0].house && table[0].tandoor).toBe(true);
+  expect(table[0].mill).toBe(false);
+  expect(table[1].mill && table[1].pen).toBe(true);
+  expect(table[1].loom).toBe(false);
+  expect(table[2].loom && table[2].smith).toBe(true);
+  expect(table[2].vineyard).toBe(false);
+  expect(table[3].vineyard).toBe(true);
+  expect(table[3].school).toBe(false);
+  expect(table[4].school && table[4].teacher).toBe(true);
+  await page.reload();
+  await page.waitForFunction(() => document.body.dataset.ready === '1' && window.__SV && window.__SV.ready);
+  const kept = await page.evaluate(() => window.__SV.getState().rank);
+  expect(kept).toBe(4);
+  await page.evaluate(() => document.getElementById('langCkb').click());
+  await page.click('#playBtn');
+  await expect(page.locator('#tutorial')).toBeVisible();
+  await expect(page.locator('#tutorialText')).toContainText('شارستێن');
+  for (let i = 0; i < 6; i += 1) {
+    if (await page.locator('#tutorial').isHidden()) break;
+    await page.locator('#tutorialNext').click();
+  }
+  await expect(page.locator('#tutorial')).toBeHidden();
+  assertClean(errors);
+});
