@@ -323,7 +323,7 @@ export function npcActiveCap(low) {
   return low ? 12 : 24;
 }
 
-/** Day plan. Standing at the mosque is a visit, not a worship animation. */
+/** Day plan. Noon is the walk to the mosque, then the congregation. */
 export function npcSchedule(hour) {
   const h = ((Math.floor(hour) % 24) + 24) % 24;
   if (h < 5 || h >= 21) return 'home';
@@ -332,6 +332,134 @@ export function npcSchedule(hour) {
   if (h === 12) return 'mosque';
   if (h < 21) return 'work';
   return 'home';
+}
+
+/** Southwest, toward Mecca from this valley. Facing uses the walk yaw. */
+export const QIBLA_YAW = Math.atan2(-1, 1);
+const PRAYER_ENTER = 12;
+const PRAYER_LEAVE = 36;
+const SAFF_WIDTH = 5;
+const SHOULDER = 0.16;
+const ROW_GAP = 0.2;
+const PRAYER_BEATS = [
+  ['qiyam', 3.6],
+  ['ruku', 3.0],
+  ['rise', 1.8],
+  ['sujud', 3.0],
+  ['sit', 2.0],
+  ['sujud', 3.0],
+  ['sit', 2.8],
+  ['salamR', 1.6],
+  ['salamL', 1.6],
+  ['qiyam', 1.6],
+];
+
+function qiblaAxes() {
+  const yaw = QIBLA_YAW;
+  return {
+    face: { x: Math.sin(yaw), z: Math.cos(yaw) },
+    back: { x: -Math.sin(yaw), z: -Math.cos(yaw) },
+    side: { x: Math.cos(yaw), z: -Math.sin(yaw) },
+  };
+}
+
+function slotAt(row, index, count, axes) {
+  const depth = 0.2 + (row + 1) * ROW_GAP;
+  const along = (index - (count - 1) / 2) * SHOULDER;
+  return {
+    gx: MX + axes.face.x * 0.02 + axes.back.x * depth + axes.side.x * along,
+    gz: MZ + axes.face.z * 0.02 + axes.back.z * depth + axes.side.z * along,
+  };
+}
+
+/** enter: walk in. salah: one shared cycle. null: back to work. */
+export function prayerClock(state) {
+  if (!state || state.hour !== 12) return null;
+  const acc = state.acc || 0;
+  if (acc < PRAYER_ENTER) return { phase: 'enter', t: acc };
+  if (acc < PRAYER_LEAVE) return { phase: 'salah', t: acc - PRAYER_ENTER };
+  return null;
+}
+
+export function prayerPoseName(t) {
+  let left = Math.max(0, t || 0);
+  for (let i = 0; i < PRAYER_BEATS.length; i += 1) {
+    if (left < PRAYER_BEATS[i][1] || i === PRAYER_BEATS.length - 1) return PRAYER_BEATS[i][0];
+    left -= PRAYER_BEATS[i][1];
+  }
+  return 'qiyam';
+}
+
+export function prayerOrder() {
+  return PRAYER_BEATS.map(([name]) => name);
+}
+
+function packSaff(list) {
+  const rows = [];
+  for (let i = 0; i < list.length; i += SAFF_WIDTH) rows.push(list.slice(i, i + SAFF_WIDTH));
+  return rows;
+}
+
+/** Imam in front, then men, women, and children. Each saff is one straight line. */
+export function saffLayout(state) {
+  const axes = qiblaAxes();
+  const people = state.villagers.filter((v) => !v.player && v.role !== 'mullah' && v.prays !== false);
+  const men = people.filter((v) => v.role !== 'child' && v.gender !== 'woman' && v.gender !== 'child');
+  const women = people.filter((v) => v.gender === 'woman' && v.role !== 'child');
+  const children = people.filter((v) => v.role === 'child' || v.gender === 'child');
+  const packed = [...packSaff(men), ...packSaff(women), ...packSaff(children)];
+  const rows = packed.map((members, row) => {
+    const kind = members[0].role === 'child' || members[0].gender === 'child'
+      ? 'child'
+      : (members[0].gender === 'woman' ? 'woman' : 'man');
+    return {
+      row,
+      kind,
+      members: members.map((v, i) => ({ id: v.id, ...slotAt(row, i, members.length, axes) })),
+    };
+  });
+  const mullah = state.villagers.find((v) => v.role === 'mullah');
+  return {
+    imam: { id: mullah ? mullah.id : 0, role: 'mullah', ...slotAt(-1, 0, 1, axes) },
+    rows,
+    player: slotAt(rows.length, 0, 1, axes),
+    yaw: QIBLA_YAW,
+  };
+}
+
+function saffSlotFor(state, v) {
+  const lay = saffLayout(state);
+  if (v.role === 'mullah') return { gx: lay.imam.gx, gz: lay.imam.gz };
+  for (let r = 0; r < lay.rows.length; r += 1) {
+    const found = lay.rows[r].members.find((m) => m.id === v.id);
+    if (found) return { gx: found.gx, gz: found.gz };
+  }
+  return { gx: MX, gz: MZ + 0.9 };
+}
+
+/** Walk into the courtyard to stand in the last row. Reputation rises once that day. */
+export function holdPrayer(state) {
+  const p = state.villagers.find((v) => v.player);
+  if (!p) return { ok: false, held: false };
+  const clock = prayerClock(state);
+  if (!clock || state.drivenId || state.riddenId) {
+    p.inPrayer = false;
+    p.prayer = '';
+    return { ok: false, held: false };
+  }
+  if (!p.inPrayer) {
+    if (Math.hypot(p.gx - MX, p.gz - MZ) > 0.95) return { ok: false, held: false };
+    p.inPrayer = true;
+    if (state.prayerJoinedDay !== state.day) {
+      state.prayerJoinedDay = state.day;
+      bumpRep(state, 8);
+      state.prayerThanks = 1;
+    }
+  }
+  const lay = saffLayout(state);
+  p.prayer = clock.phase === 'salah' ? prayerPoseName(clock.t) : 'qiyam';
+  p.ry = QIBLA_YAW;
+  return { ok: true, held: true, gx: lay.player.gx, gz: lay.player.gz, yaw: QIBLA_YAW, pose: p.prayer };
 }
 
 /** Walk the road in small steps. A hit means the valley bound stopped the player. */
@@ -720,17 +848,16 @@ function goalFor(state, v, phase) {
     return { gx: house.gx + ((v.id % 3) - 1) * 0.2, gz: house.gz + 0.55 };
   }
   if (v.role === 'mullah') {
-    if (phase === 'mosque' || state.adhan) return { gx: MX - 0.35, gz: MZ - 0.45 };
+    const clock = prayerClock(state);
+    if (clock && clock.phase === 'salah') return saffSlotFor(state, v);
+    if (clock || state.adhan) return { gx: MX + 0.02, gz: MZ + 0.82 };
     if ((state.ticks || 0) % 8 < 4) {
       const home = state.buildings.find((b) => b.tag === 'mullah') || state.buildings.find((b) => b.id === v.homeId);
       if (home) return { gx: home.gx, gz: home.gz + 0.7 };
     }
     return { gx: MX + 0.1, gz: MZ + 0.85 };
   }
-  if (phase === 'mosque') {
-    const ox = ((v.id % 5) - 2) * 0.28;
-    return { gx: LAYOUT.mosque.gx + ox, gz: LAYOUT.mosque.gz + 0.35 };
-  }
+  if (phase === 'mosque') return saffSlotFor(state, v);
   if (phase === 'street' || v.role === 'faithful') {
     return { gx: v.streetGx, gz: v.streetGz };
   }
@@ -759,8 +886,7 @@ function goalFor(state, v, phase) {
 function phaseFor(state, v) {
   let phase = npcSchedule(state.hour);
   if (phase === 'mosque') {
-    const half = secondsThisHour(state.hour) * 0.5;
-    if ((state.acc || 0) >= half) phase = 'work';
+    if (!prayerClock(state)) phase = 'work';
     else if (v.role !== 'mullah' && v.prays === false) phase = 'work';
   }
   return phase;
@@ -820,9 +946,11 @@ export function stepNpcs(state, dt, opts = {}) {
   });
   npcs.sort((a, b) => a._d - b._d || a.id - b.id);
   npcs.forEach((v, i) => {
+    const clock = prayerClock(state);
+    const worship = !!(clock && v.prays !== false);
     const far = focus && focus.r != null && v._d > focus.r + 0.001;
     const skipThrottle = i >= cap && ((state.ticks + v.id) % 4 !== 0);
-    if (far || skipThrottle) {
+    if ((far || skipThrottle) && !worship) {
       v.ai = far ? 'lod' : 'throttle';
       v.updated = false;
       v.hold = true;
@@ -831,6 +959,37 @@ export function stepNpcs(state, dt, opts = {}) {
     v.ai = i >= cap ? 'throttle' : 'active';
     v.hold = false;
     v.updated = true;
+    if (worship) {
+      v.hidden = false;
+      v.greeting = false;
+      v.mode = 'mosque';
+      assignGoal(state, v);
+      const slot = { gx: v.goalGx, gz: v.goalGz };
+      if (clock.phase === 'salah') {
+        const k = Math.min(1, dt * 2.4);
+        v.gx += (slot.gx - v.gx) * k;
+        v.gz += (slot.gz - v.gz) * k;
+        v.tx = v.gx;
+        v.tz = v.gz;
+        v.ry = QIBLA_YAW;
+        v.prayer = prayerPoseName(clock.t);
+      } else {
+        followPath(v);
+        const dx = v.tx - v.gx;
+        const dz = v.tz - v.gz;
+        if (Math.hypot(v.gx - slot.gx, v.gz - slot.gz) < 0.12) {
+          v.ry = QIBLA_YAW;
+          v.prayer = 'qiyam';
+          v.tx = slot.gx;
+          v.tz = slot.gz;
+        } else if (Math.hypot(dx, dz) > 0.05) {
+          v.ry = Math.atan2(dx, dz);
+          v.prayer = '';
+        }
+      }
+      return;
+    }
+    v.prayer = '';
     assignGoal(state, v);
     if (v.sayLeft > 0) v.sayLeft = Math.max(0, v.sayLeft - dt);
     const dist = player ? Math.hypot(v.gx - player.gx, v.gz - player.gz) : 99;
@@ -860,8 +1019,7 @@ export function stepNpcs(state, dt, opts = {}) {
     followPath(v);
     const dx = v.tx - v.gx;
     const dz = v.tz - v.gz;
-    if (v.hidden && phaseFor(state, v) !== 'mosque') v.hidden = false;
-    if (phaseFor(state, v) === 'mosque' && v.role !== 'mullah' && Math.hypot(v.gx - v.goalGx, v.gz - v.goalGz) < 0.42) v.hidden = true;
+    v.hidden = false;
     if (Math.hypot(dx, dz) > 0.05) v.ry = Math.atan2(dx, dz);
   });
 }

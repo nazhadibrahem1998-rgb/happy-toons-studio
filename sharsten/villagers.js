@@ -112,10 +112,45 @@ export function createVillagerRig(kind, salt = 0) {
     }
   });
 
-  return { root, kind, body, hips, shins, shoulders, elbows, head };
+  return { root, kind, body, hips, shins, shoulders, elbows, head, torso };
+}
+
+const PRAYER_POSE = {
+  qiyam: { torso: -0.04, hip: 0.02, shin: 0, arm: -0.82, elbow: -1.25, head: 0.06, headY: 0, drop: 0 },
+  ruku: { torso: -1.22, hip: 0.08, shin: 0.05, arm: -0.45, elbow: -0.25, head: 0.08, headY: 0, drop: 0 },
+  rise: { torso: -0.02, hip: 0, shin: 0, arm: -0.12, elbow: -0.18, head: 0, headY: 0, drop: 0 },
+  sujud: { torso: -1.32, hip: 1.42, shin: -1.5, arm: -0.85, elbow: -0.25, head: -0.4, headY: 0, drop: -0.46 },
+  sit: { torso: -0.16, hip: 1.32, shin: -1.65, arm: -0.5, elbow: -1.45, head: 0.12, headY: 0, drop: -0.4 },
+  salamR: { torso: -0.16, hip: 1.32, shin: -1.65, arm: -0.5, elbow: -1.45, head: 0.08, headY: -0.72, drop: -0.4 },
+  salamL: { torso: -0.16, hip: 1.32, shin: -1.65, arm: -0.5, elbow: -1.45, head: 0.08, headY: 0.72, drop: -0.4 },
+};
+
+/** One shared, slow cycle. The face is local -Z, so a negative torso pitch bows toward qibla. */
+export function posePrayer(rig, name) {
+  const target = PRAYER_POSE[name] || PRAYER_POSE.qiyam;
+  if (!rig._pose) rig._pose = { ...target };
+  Object.keys(target).forEach((key) => {
+    rig._pose[key] += (target[key] - rig._pose[key]) * 0.14;
+  });
+  const p = rig._pose;
+  rig.body.position.y = p.drop;
+  rig.torso.rotation.x = p.torso;
+  rig.hips[0].rotation.x = p.hip;
+  rig.hips[1].rotation.x = p.hip;
+  rig.shins[0].rotation.x = p.shin;
+  rig.shins[1].rotation.x = p.shin;
+  rig.shoulders[0].rotation.x = p.arm;
+  rig.shoulders[1].rotation.x = p.arm;
+  rig.elbows[0].rotation.x = p.elbow;
+  rig.elbows[1].rotation.x = p.elbow;
+  rig.head.rotation.x = p.head;
+  rig.head.rotation.y = p.headY;
 }
 
 export function poseVillager(rig, o) {
+  if (rig.torso) rig.torso.rotation.x = 0;
+  if (rig.head) rig.head.rotation.y = 0;
+  rig._pose = null;
   const s = o.moving ? Math.sin(o.time * 8 + o.seed) : 0;
   const bob = o.moving ? Math.abs(Math.cos(o.time * 8 + o.seed)) * 0.045 : Math.sin(o.time * 1.7 + o.seed) * 0.012;
   rig.body.position.y = bob;

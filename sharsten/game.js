@@ -13,7 +13,7 @@ import {
   stepAnimals as stepAnimalAi, stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
   LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, secondsThisHour, snapshot, stickVector, suggestCell, tick, upgrade, viewAxes, walkStep,
   craft, dismissStage, equipTool, gather, nearestNode, recipeList, stageSnapshot,
-  cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, tradeList, tradeWith, setRaids, bonk, settleQuarrel,
+  cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, tradeList, tradeWith, setRaids, bonk, settleQuarrel, holdPrayer, prayerClock,
   plough, sow, waterField, millGrain, bakeBread,
 } from './sim.js';
 import { formatClock, formatNum, i18nAudit, linePairs, npcLine, t } from './i18n.js';
@@ -275,7 +275,6 @@ function applyWalkBody(dt) {
   const lookY = sticks.lookY + (keys.has('KeyR') ? 1 : 0) - (keys.has('KeyF') ? 1 : 0);
   const run = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 1.65 : 1;
   const step = walkStep({ x: p.gx, z: p.gz }, walkCam.yaw, walkCam.pitch, mx, my, lookX, lookY, dt * run);
-  p.ry = walkCam.yaw;
   const bounded = clampToMap(step.x, step.z);
   p.gx = bounded.gx;
   p.gz = bounded.gz;
@@ -283,6 +282,14 @@ function applyWalkBody(dt) {
   p.tz = bounded.gz;
   walkCam.yaw = step.yaw;
   walkCam.pitch = step.pitch;
+  const held = holdPrayer(state);
+  if (held.held) {
+    p.gx = held.gx;
+    p.gz = held.gz;
+    p.tx = held.gx;
+    p.tz = held.gz;
+    p.ry = held.yaw;
+  } else p.ry = walkCam.yaw;
   if (bounded.hit && edgeLeft <= 0) {
     toast(t(lang, 'edge'));
     edgeLeft = 3;
@@ -1235,6 +1242,14 @@ function frame(now) {
     if (note) note.hidden = false;
     playAdhan();
     persist();
+  }
+  if (state.prayerThanks) {
+    state.prayerThanks = 0;
+    toast(t(lang, 'prayerJoin'));
+  }
+  if (prayerClock(state)?.phase === 'salah') {
+    const note = document.getElementById('adhanNote');
+    if (note) note.hidden = true;
   }
   if (state.raidWarn) {
     state.raidWarn = 0;

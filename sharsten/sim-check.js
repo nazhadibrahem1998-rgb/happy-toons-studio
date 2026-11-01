@@ -5,6 +5,7 @@ import {
   animalCap, carryBudget, DONKEY_SPEED, enterAnimal, exitAnimal, herdSpot, moveGoods, rideAnimal, stepAnimals,
   stepVehicles, stickVector, suggestCell, tick, turnInQuest, upgrade, VEHICLE_SPEED, vehicleCap, viewAxes, walkStep,
   bonk, shove, spawnRaid,
+  QIBLA_YAW, holdPrayer, prayerClock, prayerOrder, prayerPoseName, saffLayout,
 } from './sim.js';
 import { i18nAudit, linePairs, t as tr } from './i18n.js';
 
@@ -474,5 +475,58 @@ chopper.gx = rock.gx;
 chopper.gz = rock.gz;
 const mined = gather(camp);
 assert(mined.ok === false && mined.reason === 'needPick', 'pick before stone');
+
+const pray = createState();
+setHour(pray, 12);
+pray.acc = 2;
+assert(prayerClock(pray).phase === 'enter', 'walk into the mosque');
+const lay = saffLayout(pray);
+const face = { x: Math.sin(QIBLA_YAW), z: Math.cos(QIBLA_YAW) };
+const back = { x: -face.x, z: -face.z };
+const side = { x: Math.cos(QIBLA_YAW), z: -Math.sin(QIBLA_YAW) };
+const depthOf = (p) => (p.gx - LAYOUT.mosque.gx) * back.x + (p.gz - LAYOUT.mosque.gz) * back.z;
+const alongOf = (p) => (p.gx - LAYOUT.mosque.gx) * side.x + (p.gz - LAYOUT.mosque.gz) * side.z;
+assert(lay.imam.role === 'mullah', 'imam');
+assert(lay.rows.length >= 2, 'several saffs');
+lay.rows.forEach((row) => {
+  const depths = row.members.map(depthOf);
+  assert(Math.max(...depths) - Math.min(...depths) < 0.03, 'straight saff');
+  const sides = row.members.map(alongOf).sort((a, b) => a - b);
+  for (let i = 1; i < sides.length; i += 1) assert(Math.abs((sides[i] - sides[i - 1]) - 0.16) < 0.03, 'shoulder to shoulder');
+  assert(depthOf(row.members[0]) > depthOf(lay.imam) + 0.05, 'imam in front of the mihrab');
+});
+const manRows = lay.rows.filter((row) => row.kind === 'man');
+const womanRows = lay.rows.filter((row) => row.kind === 'woman');
+assert(manRows.length && womanRows.length, 'men and women both pray');
+assert(Math.max(...manRows.map((row) => row.row)) < Math.min(...womanRows.map((row) => row.row)), 'men’s rows are in front');
+const poseSeen = [];
+for (let t = 0; t < 24; t += 0.25) {
+  const name = prayerPoseName(t);
+  if (poseSeen[poseSeen.length - 1] !== name) poseSeen.push(name);
+}
+assert(poseSeen.join(',') === prayerOrder().join(','), `prayer order ${poseSeen.join(',')}`);
+pray.acc = 14;
+for (let i = 0; i < 30; i += 1) stepNpcs(pray, 0.2, { low: false, focus: { gx: LAYOUT.mosque.gx, gz: LAYOUT.mosque.gz, r: 99 } });
+const imam = pray.villagers.find((v) => v.role === 'mullah');
+const pose = prayerPoseName(pray.acc - 12);
+assert(imam.prayer === pose && imam.hidden !== true, 'imam is visible and synced');
+assert(Math.abs(imam.ry - QIBLA_YAW) < 0.001, 'faces qibla');
+const woman = pray.villagers.find((v) => v.gender === 'woman' && v.prays !== false);
+assert(woman && woman.prayer === pose && Math.abs(woman.ry - QIBLA_YAW) < 0.001, 'the row shares the cycle');
+assert(Math.hypot(imam.gx - lay.imam.gx, imam.gz - lay.imam.gz) < 0.08, 'imam on his spot');
+const worshipper = pray.villagers[0];
+worshipper.gx = LAYOUT.mosque.gx + 0.2;
+worshipper.gz = LAYOUT.mosque.gz + 0.2;
+const joined = holdPrayer(pray);
+assert(joined.held, 'player joins');
+assert((pray.rep || 0) >= 8, 'reputation for joining');
+const repNow = pray.rep;
+holdPrayer(pray);
+assert(pray.rep === repNow, 'reputation once');
+assert(depthOf(joined) > Math.max(...lay.rows.flatMap((row) => row.members.map(depthOf))), 'last row');
+pray.acc = 40;
+assert(prayerClock(pray) == null, 'prayer ends');
+stepNpcs(pray, 0.2, { low: false, focus: { gx: LAYOUT.mosque.gx, gz: LAYOUT.mosque.gz, r: 99 } });
+assert(imam.prayer === '' && imam.mode === 'work', 'they return to work');
 
 console.log('sim-check ok');

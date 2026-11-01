@@ -7,7 +7,7 @@ import {
   CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, SEASONS,
   cellToWorld, insideVillage, isRoad, metersToUnits, roadKind,
 } from './sim.js';
-import { createVillagerRig, poseVillager } from './villagers.js';
+import { createVillagerRig, posePrayer, poseVillager } from './villagers.js';
 
 const STYLES = [
   { wall: 0xc4a574 },
@@ -457,46 +457,34 @@ export function createView(canvas) {
   const stone = mat(0xf4f1ea);
   const trim = mat(0x2f8f55);
   const hole = mat(0x3e4a55);
-  const court = 0.95;
-  const yard = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.04, 1.55), mat(0xe7f2d4));
-  yard.position.y = 0.05;
-  const wallN = new THREE.Mesh(new THREE.BoxGeometry(court * 2.15, 0.55, 0.1), stone);
-  wallN.position.set(0, 0.28, -court);
-  const wallS = wallN.clone();
-  wallS.position.z = court;
-  const wallW = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, court * 2), stone);
-  wallW.position.set(-court, 0.28, 0);
-  const wallE = wallW.clone();
-  wallE.position.x = court;
-  const hall = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.72, 1.55), stone);
-  hall.position.set(-0.62, 0.36, 0);
-  const band = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.08, 1.7), trim);
-  band.position.set(-0.62, 0.76, 0);
-  const terrace = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.4), stone);
-  terrace.position.set(0.15, 0.08, 0);
-  for (let i = -1; i <= 1; i += 1) {
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.42, 0.06), hole);
-    win.position.set(i * 0.42, 0.62, 0.76);
-    const point = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.22, 4), hole);
-    point.position.set(i * 0.42, 0.92, 0.76);
-    mosque.add(win, point);
-  }
-  const canopyTop = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.55), mat(0xfffef8));
-  canopyTop.position.set(0.25, 1.62, 0);
-  for (const sx of [-0.05, 0.55]) {
-    for (const sz of [-0.18, 0.18]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.38, 4), stone);
-      post.position.set(sx, 1.42, sz);
-      mosque.add(post);
-    }
-  }
+  const yard = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.05, 3.4), mat(0xe7f2d4));
+  yard.position.y = 0.04;
+  const qiblaWall = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.78, 0.12), stone);
+  qiblaWall.position.set(-1.15, 0.4, 1.15);
+  qiblaWall.rotation.y = Math.PI / 4;
+  const mihrab = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.52, 0.1), hole);
+  mihrab.position.set(-1.02, 0.36, 1.02);
+  mihrab.rotation.y = Math.PI / 4;
+  const mihrabArch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 8, 1, false, 0, Math.PI), hole);
+  mihrabArch.rotation.z = Math.PI / 2;
+  mihrabArch.rotation.y = Math.PI / 4;
+  mihrabArch.position.set(-1.02, 0.6, 1.02);
+  const sideA = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.28, 0.08), stone);
+  sideA.position.set(-0.15, 0.16, 1.35);
+  sideA.rotation.y = Math.PI / 4;
+  const sideB = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.28, 0.08), stone);
+  sideB.position.set(-1.35, 0.16, 0.15);
+  sideB.rotation.y = Math.PI / 4;
+  const band = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 0.14), trim);
+  band.position.set(-1.15, 0.78, 1.15);
+  band.rotation.y = Math.PI / 4;
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 1.7, 6), stone);
-  shaft.position.set(-0.95, 0.85, -0.15);
+  shaft.position.set(-1.55, 0.85, 0.35);
   const gallery = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 6), trim);
-  gallery.position.set(-0.95, 1.55, -0.15);
-  mosque.add(yard, wallN, wallS, wallW, wallE, hall, band, terrace, canopyTop, shaft, gallery);
+  gallery.position.set(-1.55, 1.55, 0.35);
+  mosque.add(yard, qiblaWall, mihrab, mihrabArch, sideA, sideB, band, shaft, gallery);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), stone);
-  cap.position.set(-0.95, 1.85, -0.15);
+  cap.position.set(-1.55, 1.85, 0.35);
   mosque.add(cap);
   scene.add(mosque);
   const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.46), new THREE.MeshBasicMaterial({ map: flagTexture(), side: THREE.DoubleSide }));
@@ -769,17 +757,20 @@ export function createView(canvas) {
       }
       seen.add(v.id);
       rig.root.visible = true;
-      const stumble = v.stumble ? 0.15 : 0;
+      const stumble = v.prayer ? 0 : (v.stumble ? 0.15 : 0);
       rig.root.position.set(p.x + stumble, 0, p.z);
-      rig.root.rotation.y = v.ry || 0;
-      const moving = Math.hypot(v.tx - v.gx, v.tz - v.gz) > 0.05 || !!v.player;
-      poseVillager(rig, {
-        time,
-        seed: v.id || 0,
-        moving,
-        wave: !!v.greeting,
-        chop: state.swing > 0 && !!v.player,
-      });
+      rig.root.rotation.y = (v.ry || 0) + Math.PI;
+      if (v.prayer) posePrayer(rig, v.prayer);
+      else {
+        const moving = Math.hypot(v.tx - v.gx, v.tz - v.gz) > 0.05 || !!v.player;
+        poseVillager(rig, {
+          time,
+          seed: v.id || 0,
+          moving,
+          wave: !!v.greeting,
+          chop: state.swing > 0 && !!v.player,
+        });
+      }
     });
     villagerRigs.forEach((rig, id) => { if (!seen.has(id)) rig.root.visible = false; });
     let fi = 0;
