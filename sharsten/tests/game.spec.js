@@ -282,7 +282,10 @@ test('short view hides far objects and the player stays inside', async ({ page }
   expect(cull.after.gx).toBe(cull.before.gx);
   expect(cull.after.gz).toBe(cull.before.gz);
   expect(cull.after.updated).toBe(false);
-  expect(cull.kinds).not.toMatch(/motorbike|tractor|car|tarp|water-tank|power-pole|loudspeaker|asphalt/i);
+  expect(cull.kinds).not.toMatch(/tarp|water-tank|power-pole|loudspeaker|asphalt/i);
+  expect(cull.kinds).toMatch(/tractor/);
+  expect(cull.kinds).toMatch(/car/);
+  expect(cull.kinds).toMatch(/motorbike/);
   const boxed = await page.evaluate(() => {
     const exits = window.__SV.layout().exits;
     const pushes = [];
@@ -483,6 +486,85 @@ test('a neighbour follows the day, a quest finishes, and both languages have eve
   expect(speech.length).toBeGreaterThan(3);
   if (info.project.name === 'iphone-portrait') {
     await page.screenshot({ path: `${ART}/sharsten-npc-greet.png` });
+  }
+  assertClean(errors);
+});
+
+test('a car laps the lane, the player can drive, and a tractor harvests', async ({ page }, info) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  const report = await page.evaluate(() => {
+    window.__SV.shiftVillagers(28, 4);
+    const ring = window.__SV.getState().vehicles.find((v) => v.route === 'ring');
+    const start = { gx: ring.gx, gz: ring.gz };
+    const seen = new Set();
+    let lapped = false;
+    for (let i = 0; i < 240 && !lapped; i += 1) {
+      window.__SV.stepVehicles(0.1);
+      const car = window.__SV.getState().vehicles.find((v) => v.id === ring.id);
+      seen.add(`${Math.round(car.gx)},${Math.round(car.gz)}`);
+      if (i > 25 && seen.size >= 6 && Math.hypot(car.gx - start.gx, car.gz - start.gz) < 0.45) lapped = true;
+    }
+    const bike = window.__SV.getState().vehicles.find((v) => v.kind === 'motorbike');
+    window.__SV.setWalkPose({ x: bike.gx + 0.3, z: bike.gz, yaw: 0, pitch: 0.4 });
+    const entered = window.__SV.enterVehicle(bike.id);
+    const before = window.__SV.getState().vehicles.find((v) => v.id === bike.id);
+    for (let i = 0; i < 8; i += 1) window.__SV.driveVehicle(before.id, 0, 1, 0.1);
+    const moved = window.__SV.getState().vehicles.find((v) => v.id === bike.id);
+    const left = window.__SV.exitVehicle();
+    const ripe = window.__SV.getState().buildings.find((b) => b.type === 'field' && b.stage === 3);
+    const grain0 = window.__SV.getState().resources.grain;
+    const tractor = window.__SV.getState().vehicles.find((v) => v.kind === 'tractor');
+    window.__SV.shiftVillagers(8, 8);
+    window.__SV.placeVehicle(tractor.id, ripe.gx, ripe.gz);
+    window.__SV.stepVehicles(0.2);
+    const after = window.__SV.getState();
+    const field = after.buildings.find((b) => b.id === ripe.id);
+    const bikeEdge = after.vehicles.find((v) => v.id === bike.id);
+    window.__SV.setWalkPose({ x: bikeEdge.gx, z: bikeEdge.gz, yaw: 0, pitch: 0.4 });
+    window.__SV.enterVehicle(bikeEdge.id);
+    window.__SV.placeVehicle(bikeEdge.id, 0.2, 10, Math.atan2(-1, 0));
+    let hit = false;
+    for (let i = 0; i < 40; i += 1) {
+      const step = window.__SV.driveVehicle(bikeEdge.id, 0, 1, 0.1);
+      if (step.hit) hit = true;
+    }
+    const parked = window.__SV.getState().vehicles.find((v) => v.id === bikeEdge.id);
+    return {
+      lapped,
+      seen: seen.size,
+      entered: entered.ok,
+      drove: Math.hypot(moved.gx - before.gx, moved.gz - before.gz) > 0.4,
+      exited: left.ok,
+      stubble: field.stage === 4,
+      grain: after.resources.grain >= grain0 + 6,
+      hit,
+      inside: window.__SV.playable(parked.gx, parked.gz),
+      cap: window.__SV.vehicleCap() === 4 || window.__SV.vehicleCap() === 8,
+    };
+  });
+  expect(report.lapped).toBe(true);
+  expect(report.seen).toBeGreaterThanOrEqual(6);
+  expect(report.entered).toBe(true);
+  expect(report.drove).toBe(true);
+  expect(report.exited).toBe(true);
+  expect(report.stubble).toBe(true);
+  expect(report.grain).toBe(true);
+  expect(report.hit).toBe(true);
+  expect(report.inside).toBe(true);
+  expect(report.cap).toBe(true);
+
+  const near = await page.evaluate(() => {
+    const car = window.__SV.getState().vehicles.find((v) => v.kind === 'car');
+    window.__SV.exitVehicle();
+    window.__SV.setWalkPose({ x: car.gx + 0.4, z: car.gz, yaw: car.yaw || 0, pitch: 0.45 });
+    return { x: car.gx, z: car.gz };
+  });
+  expect(near.x).toBeGreaterThan(-5);
+  await expect(page.locator('#boardBtn')).toBeVisible();
+  await expect(page.locator('#boardBtn')).toHaveText('Enter');
+  if (info.project.name === 'iphone-portrait') {
+    await page.screenshot({ path: `${ART}/sharsten-vehicles.png` });
   }
   assertClean(errors);
 });

@@ -300,6 +300,102 @@ export function createView(canvas) {
     return g;
   });
 
+  const vehicleGroups = new Map();
+  function axleWheel(radius, width, color) {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 6), mat(color));
+    mesh.rotation.z = Math.PI / 2;
+    mesh.userData.wheel = true;
+    return mesh;
+  }
+  function buildTractor() {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.32, 1.15), mat(0x2f6a32));
+    body.position.set(0, 0.48, 0);
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.22, 0.42), mat(0xc44848));
+    hood.position.set(0, 0.62, 0.42);
+    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.08), mat(0x2a241c));
+    stack.position.set(0.22, 0.78, -0.2);
+    g.add(body, hood, stack);
+    [[-0.38, -0.28], [0.38, -0.28]].forEach(([x, z]) => {
+      const w = axleWheel(0.28, 0.14, 0x241c16);
+      w.position.set(x, 0.28, z);
+      g.add(w);
+    });
+    [[-0.34, 0.42], [0.34, 0.42]].forEach(([x, z]) => {
+      const w = axleWheel(0.16, 0.1, 0x241c16);
+      w.position.set(x, 0.16, z);
+      g.add(w);
+    });
+    return g;
+  }
+  function buildCar(paint) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.28, 1.25), mat(paint));
+    body.position.set(0, 0.36, 0);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.24, 0.52), mat(0xd8e4ea));
+    cabin.position.set(0, 0.58, -0.05);
+    g.add(body, cabin);
+    [[-0.36, 0.38], [0.36, 0.38], [-0.36, -0.38], [0.36, -0.38]].forEach(([x, z]) => {
+      const w = axleWheel(0.16, 0.1, 0x241c16);
+      w.position.set(x, 0.16, z);
+      g.add(w);
+    });
+    return g;
+  }
+  function buildMotorbike() {
+    const g = new THREE.Group();
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.72), mat(0xc44848));
+    frame.position.set(0, 0.32, 0);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.28), mat(0x2a241c));
+    seat.position.set(0, 0.4, -0.08);
+    const tank = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.22), mat(0xc44848));
+    tank.position.set(0, 0.4, 0.16);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.06), mat(0x3a342c));
+    bar.position.set(0, 0.52, 0.28);
+    g.add(frame, seat, tank, bar);
+    const front = axleWheel(0.18, 0.08, 0x241c16);
+    front.position.set(0, 0.18, 0.34);
+    const rear = axleWheel(0.18, 0.08, 0x241c16);
+    rear.position.set(0, 0.18, -0.32);
+    g.add(front, rear);
+    return g;
+  }
+  function meshFor(v) {
+    let g = vehicleGroups.get(v.id);
+    if (g) return g;
+    if (v.kind === 'tractor') g = buildTractor();
+    else if (v.kind === 'motorbike') g = buildMotorbike();
+    else g = buildCar(v.id % 2 === 0 ? 0xe6d3a4 : 0x3a5a8a);
+    scene.add(g);
+    vehicleGroups.set(v.id, g);
+    return g;
+  }
+  function syncVehicles(state) {
+    const live = new Set();
+    (state.vehicles || []).forEach((v) => {
+      live.add(v.id);
+      const g = meshFor(v);
+      const p = cellToWorld(v.gx, v.gz);
+      const dist = Math.hypot(p.x - cull.x, p.z - cull.z);
+      if (dist > cull.radius || v.ai === 'lod') {
+        g.visible = false;
+        stats.skipped += 1;
+        return;
+      }
+      g.visible = true;
+      stats.rendered += 1;
+      g.position.set(p.x, 0, p.z);
+      g.rotation.y = v.yaw || 0;
+      const spin = v.travel || 0;
+      g.children.forEach((child) => {
+        if (child.userData && child.userData.wheel) child.rotation.x = spin * 2.2;
+      });
+    });
+    vehicleGroups.forEach((g, id) => {
+      if (!live.has(id)) g.visible = false;
+    });
+  }
+
   const rubble = pool(new THREE.DodecahedronGeometry(0.28, 0), mat(0x9a9388), 5);
   [[2.2, 1.2], [2.6, 1.5], [8.4, 8.2], [1.4, 5.2], [10.2, 7.4]].forEach((g, i) => {
     const p = cellToWorld(g[0], g[1]);
@@ -468,14 +564,21 @@ export function createView(canvas) {
       stats.rendered += 1;
       const stalks = dist > metersToUnits(16) ? 2 : (low ? 3 : 6);
       if (b.type === 'field') {
-        put(soil, soilN, p.x, 0.12, p.z, 1, 1, 1, 0, b.stage === 0 ? 0x4a3428 : 0x8a623c);
+        let soilColor = 0x8a623c;
+        if (b.stage === 4) soilColor = 0x6a4e32;
+        else if (b.plowed) soilColor = 0x3a281c;
+        else if (b.stage === 0) soilColor = 0x9a7848;
+        put(soil, soilN, p.x, 0.12, p.z, 1, 1, 1, 0, soilColor);
         soilN += 1;
         if (b.stage > 0) {
-          const h = 0.18 + (b.growth / 100) * 0.75;
-          for (let k = 0; k < stalks; k += 1) {
+          const stubble = b.stage === 4;
+          const h = stubble ? 0.22 : 0.18 + (b.growth / 100) * 0.75;
+          const stalkColor = stubble ? 0xc6a15a : b.stage === 3 ? 0xf0d56a : wheatColor;
+          const count = stubble ? Math.min(stalks, 3) : stalks;
+          for (let k = 0; k < count; k += 1) {
             const ox = ((k % 3) - 1) * 0.38;
             const oz = (Math.floor(k / 3) - 0.5) * 0.4;
-            put(wheat, wheatN, p.x + ox, 0.12 + h / 2, p.z + oz, 1, h, 1, 0, b.stage === 3 ? 0xf0d56a : wheatColor);
+            put(wheat, wheatN, p.x + ox, 0.12 + h / 2, p.z + oz, 1, h, 1, 0, stalkColor);
             wheatN += 1;
           }
         }
@@ -535,6 +638,7 @@ export function createView(canvas) {
     let vi = 0;
     state.villagers.forEach((v) => {
       if (vi >= 28) return;
+      if (v.player && state.drivenId) return;
       const p = cellToWorld(v.gx, v.gz);
       if (Math.hypot(p.x - cull.x, p.z - cull.z) > cull.radius) { stats.skipped += 1; return; }
       stats.rendered += 1;
@@ -655,7 +759,7 @@ export function createView(canvas) {
       };
     },
     propKinds() {
-      return ['mud-house', 'earthen-roof', 'dirt-path', 'stone-mosque', 'well', 'donkey', 'ox', 'sheep', 'goat', 'chicken', 'oil-lamp', 'stone-wall'];
+      return ['mud-house', 'earthen-roof', 'dirt-path', 'stone-mosque', 'well', 'donkey', 'ox', 'sheep', 'goat', 'chicken', 'oil-lamp', 'stone-wall', 'tractor', 'car', 'motorbike'];
     },
     setGhost(cell) { ghostCell = cell; },
     setSelect(cell) { selectCell = cell; },
@@ -718,6 +822,7 @@ export function createView(canvas) {
       paintGround(state.season);
       syncBuildings(state);
       syncAgents(state, time);
+      syncVehicles(state);
       sky(state);
       if (selectCell) {
         const p = cellToWorld(selectCell.gx, selectCell.gz);

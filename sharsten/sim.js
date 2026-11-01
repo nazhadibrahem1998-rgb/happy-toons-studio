@@ -802,7 +802,7 @@ function snap(state) {
 
 function growField(state, b) {
   if (!b || b.type !== 'field') return;
-  if (b.stage === 0 || b.stage === 3) return;
+  if (b.stage === 0 || b.stage === 3 || b.stage === 4) return;
   if (state.season === 3) return;
   const rate = state.season === 1 ? 14 : state.season === 0 ? 12 : 7;
   b.growth = Math.min(100, b.growth + rate);
@@ -988,6 +988,311 @@ export function setSeason(state, name) {
   return { ok: true };
 }
 
+export const VEHICLE_SPEED = { tractor: 1.7, car: 2.4, motorbike: 3.1 };
+const VEHICLE_KINDS = ['tractor', 'car', 'motorbike'];
+
+/** How many vehicles get a full update. The rest wait or skip. */
+export function vehicleCap(low) {
+  return low ? 4 : 8;
+}
+
+function traceCells(x0, z0, x1, z1) {
+  const cells = [];
+  let x = x0;
+  let z = z0;
+  cells.push({ gx: x, gz: z });
+  const sx = Math.sign(x1 - x0);
+  const sz = Math.sign(z1 - z0);
+  let guard = 0;
+  while ((x !== x1 || z !== z1) && guard < 120) {
+    guard += 1;
+    if (x !== x1 && (z === z1 || Math.abs(x1 - x) >= Math.abs(z1 - z))) x += sx;
+    else z += sz;
+    cells.push({ gx: x, gz: z });
+  }
+  return cells;
+}
+
+/** Closed lane around the mosque. Cars lap this graph, not a navmesh. */
+export function roadLoop() {
+  const corners = [[MX - 1, MZ - 1], [MX + 1, MZ - 1], [MX + 1, MZ + 1], [MX - 1, MZ + 1]];
+  const loop = [];
+  corners.forEach((a, i) => {
+    const b = corners[(i + 1) % corners.length];
+    const seg = traceCells(a[0], a[1], b[0], b[1]);
+    seg.forEach((cell, idx) => {
+      if (i > 0 && idx === 0) return;
+      loop.push(cell);
+    });
+  });
+  if (loop.length > 1) {
+    const a = loop[0];
+    const b = loop[loop.length - 1];
+    if (a.gx === b.gx && a.gz === b.gz) loop.pop();
+  }
+  return loop;
+}
+
+function shuttleLoop(x0, z0, x1, z1) {
+  const go = traceCells(x0, z0, x1, z1);
+  const back = traceCells(x1, z1, x0, z0).slice(1, -1);
+  return go.concat(back);
+}
+
+function solidAt(state, gx, gz) {
+  const rx = Math.round(gx);
+  const rz = Math.round(gz);
+  const plot = state.buildings.find((b) => b.gx === rx && b.gz === rz);
+  if (!plot) return false;
+  return plot.type !== 'field';
+}
+
+function addVehicle(state, kind, gx, gz, route, path) {
+  const v = {
+    id: state.nextId++,
+    kind,
+    route: route || '',
+    gx,
+    gz,
+    yaw: 0,
+    speed: 0,
+    path: path || null,
+    pathI: 0,
+    pathSig: '',
+    ai: 'idle',
+    hold: false,
+    updated: true,
+    occupied: false,
+    stopped: false,
+    travel: 0,
+  };
+  state.vehicles.push(v);
+  return v;
+}
+
+function spawnVehicles(state) {
+  const ring = roadLoop();
+  const ringCar = addVehicle(state, 'car', ring[0].gx, ring[0].gz, 'ring', ring.map((c) => ({ gx: c.gx, gz: c.gz })));
+  ringCar.yaw = 0;
+  addVehicle(state, 'tractor', 20, 14, 'field', null);
+  addVehicle(state, 'tractor', 20, 22, 'field', null);
+  const east = shuttleLoop(28, MZ, 50, MZ);
+  addVehicle(state, 'car', 28, MZ, 'east', east);
+  addVehicle(state, 'car', 40, MZ, 'east', shuttleLoop(40, MZ, 54, MZ));
+  addVehicle(state, 'car', 18, 44, 'south', shuttleLoop(18, 44, 18, 58));
+  addVehicle(state, 'motorbike', 18, 52, 'south', shuttleLoop(18, 52, 18, 64));
+  addVehicle(state, 'car', 34, MZ, 'east', shuttleLoop(34, MZ, 48, MZ));
+}
+
+function ensureVehicles(state) {
+  if (!Array.isArray(state.vehicles)) state.vehicles = [];
+  if (!state.drivenId) state.drivenId = 0;
+  if (!state.vehicles.length) spawnVehicles(state);
+}
+
+function peopleNear(state, gx, gz, radius) {
+  return state.villagers.some((v) => Math.hypot(v.gx - gx, v.gz - gz) < radius);
+}
+
+/** Ripe wheat becomes stubble and fills the grain store. Golden stalks are gone. */
+function harvestWithTractor(state, field) {
+  if (!field || field.type !== 'field' || field.stage !== 3) return false;
+  field.stage = 4;
+  field.growth = 12;
+  field.plowed = true;
+  addRes(state, 'grain', 6);
+  return true;
+}
+
+/** Bare plots go dark when the plough passes. */
+function plowWithTractor(state, field) {
+  if (!field || field.type !== 'field') return false;
+  if (field.stage === 3) return false;
+  if (field.plowed && field.stage !== 4) return false;
+  field.plowed = true;
+  field.stage = 0;
+  field.growth = 0;
+  return true;
+}
+
+function tractorAct(state, v) {
+  const field = state.buildings.find((b) => b.type === 'field' && Math.hypot(b.gx - v.gx, b.gz - v.gz) < 0.85);
+  if (!field) return false;
+  if (harvestWithTractor(state, field)) return true;
+  return plowWithTractor(state, field);
+}
+
+function tractorRoute(state, v) {
+  const fields = state.buildings.filter((b) => b.type === 'field');
+  const ripe = fields.filter((b) => b.stage === 3);
+  const bare = fields.filter((b) => b.stage === 4 || !b.plowed);
+  const list = ripe.length ? ripe : bare.length ? bare : fields;
+  if (!list.length) return [{ gx: v.gx, gz: v.gz }];
+  const field = list[(v.id + state.ticks) % list.length];
+  const route = astarRoute(v.gx, v.gz, field.gx, field.gz);
+  return route && route.length ? route : [{ gx: field.gx, gz: field.gz }];
+}
+
+function followVehiclePath(state, v, dt) {
+  if (v.kind === 'tractor' && tractorAct(state, v)) {
+    v.path = null;
+    v.pathSig = '';
+  }
+  if (!v.path || !v.path.length) {
+    v.path = v.kind === 'tractor' ? tractorRoute(state, v) : (v.path || []);
+    v.pathI = 0;
+  }
+  if (!v.path.length) return;
+  if (peopleNear(state, v.gx, v.gz, 1.15)) {
+    v.stopped = true;
+    v.speed = 0;
+    return;
+  }
+  v.stopped = false;
+  const wp = v.path[v.pathI % v.path.length];
+  const dx = wp.gx - v.gx;
+  const dz = wp.gz - v.gz;
+  const dist = Math.hypot(dx, dz);
+  if (dist < 0.18) {
+    v.pathI = (v.pathI + 1) % v.path.length;
+    return;
+  }
+  v.yaw = Math.atan2(dx, dz);
+  const spd = Math.min(dist, (VEHICLE_SPEED[v.kind] || 2) * dt);
+  const nx = v.gx + (dx / dist) * spd;
+  const nz = v.gz + (dz / dist) * spd;
+  if (!playable(nx, nz) || solidAt(state, nx, nz)) {
+    v.stopped = true;
+    v.speed = 0;
+    return;
+  }
+  v.gx = nx;
+  v.gz = nz;
+  v.speed = VEHICLE_SPEED[v.kind] || 2;
+  v.travel = (v.travel || 0) + spd;
+}
+
+/** Local drivers. Far vehicles and extras past the cap update less often. */
+export function stepVehicles(state, dt, opts = {}) {
+  ensureVehicles(state);
+  const cap = vehicleCap(!!opts.low);
+  const focus = opts.focus;
+  const list = state.vehicles.slice();
+  list.forEach((v) => {
+    v._d = focus ? Math.hypot(v.gx - focus.gx, v.gz - focus.gz) : 0;
+  });
+  list.sort((a, b) => a._d - b._d || a.id - b.id);
+  list.forEach((v, i) => {
+    if (!VEHICLE_KINDS.includes(v.kind)) return;
+    if (v.occupied) {
+      v.ai = 'driven';
+      v.hold = false;
+      v.updated = true;
+      return;
+    }
+    const far = focus && focus.r != null && v._d > focus.r + 0.001;
+    const skipThrottle = i >= cap && ((state.ticks + v.id) % 4 !== 0);
+    if (far || skipThrottle) {
+      v.ai = far ? 'lod' : 'throttle';
+      v.updated = false;
+      v.hold = true;
+      return;
+    }
+    v.ai = i >= cap ? 'throttle' : 'active';
+    v.hold = false;
+    v.updated = true;
+    followVehiclePath(state, v, dt);
+  });
+}
+
+export function nearestVehicle(state, gx, gz, radius = 1.7) {
+  ensureVehicles(state);
+  let best = null;
+  let bestD = radius;
+  state.vehicles.forEach((v) => {
+    if (v.occupied) return;
+    const d = Math.hypot(v.gx - gx, v.gz - gz);
+    if (d < bestD) { best = v; bestD = d; }
+  });
+  return best;
+}
+
+export function enterVehicle(state, id) {
+  ensureVehicles(state);
+  const v = state.vehicles.find((item) => item.id === id);
+  const p = state.villagers.find((item) => item.player);
+  if (!v || !p) return { ok: false, reason: 'missing' };
+  if (Math.hypot(p.gx - v.gx, p.gz - v.gz) > 1.7) return { ok: false, reason: 'far' };
+  state.vehicles.forEach((item) => { item.occupied = false; });
+  v.occupied = true;
+  state.drivenId = v.id;
+  p.gx = v.gx;
+  p.gz = v.gz;
+  p.tx = v.gx;
+  p.tz = v.gz;
+  bump(state);
+  return { ok: true, id: v.id, kind: v.kind };
+}
+
+export function exitVehicle(state) {
+  ensureVehicles(state);
+  const v = state.vehicles.find((item) => item.id === state.drivenId);
+  const p = state.villagers.find((item) => item.player);
+  if (!v || !p) return { ok: false, reason: 'none' };
+  v.occupied = false;
+  state.drivenId = 0;
+  const spot = { gx: v.gx + Math.cos(v.yaw) * 0.85, gz: v.gz - Math.sin(v.yaw) * 0.85 };
+  if (playable(spot.gx, spot.gz) && !solidAt(state, spot.gx, spot.gz)) {
+    p.gx = spot.gx;
+    p.gz = spot.gz;
+  } else {
+    p.gx = v.gx;
+    p.gz = v.gz;
+  }
+  p.tx = p.gx;
+  p.tz = p.gz;
+  bump(state);
+  return { ok: true };
+}
+
+/** Left stick: steer (x) and throttle (y). Houses, the mosque, and the valley edge reject the move. */
+export function driveVehicle(state, id, steer, throttle, dt) {
+  ensureVehicles(state);
+  const v = state.vehicles.find((item) => item.id === id);
+  const p = state.villagers.find((item) => item.player);
+  if (!v || !v.occupied) return { ok: false, reason: 'empty' };
+  const step = Math.min(Math.max(dt, 0), 0.1);
+  const gas = Math.max(-1, Math.min(1, throttle || 0));
+  const turn = Math.max(-1, Math.min(1, steer || 0));
+  v.yaw += turn * 1.8 * step;
+  const spd = gas * (VEHICLE_SPEED[v.kind] || 2);
+  if (Math.abs(spd) < 0.01) {
+    v.speed = 0;
+    return { ok: true, moved: false, gx: v.gx, gz: v.gz, yaw: v.yaw };
+  }
+  const nx = v.gx + Math.sin(v.yaw) * spd * step;
+  const nz = v.gz + Math.cos(v.yaw) * spd * step;
+  const crowded = state.villagers.some((person) => !person.player && Math.hypot(person.gx - nx, person.gz - nz) < 0.55);
+  const crowdedCar = state.vehicles.some((other) => other.id !== v.id && Math.hypot(other.gx - nx, other.gz - nz) < 0.75);
+  if (!playable(nx, nz) || solidAt(state, nx, nz) || crowded || crowdedCar) {
+    v.speed = 0;
+    v.stopped = true;
+    return { ok: false, hit: true, gx: v.gx, gz: v.gz, yaw: v.yaw };
+  }
+  v.gx = nx;
+  v.gz = nz;
+  v.speed = Math.abs(spd);
+  v.stopped = false;
+  v.travel = (v.travel || 0) + Math.abs(spd) * step;
+  if (p) {
+    p.gx = nx;
+    p.gz = nz;
+    p.tx = nx;
+    p.tz = nz;
+  }
+  return { ok: true, moved: true, gx: nx, gz: nz, yaw: v.yaw };
+}
+
 export function tick(state, dt, opts = {}) {
   const step = Math.min(Math.max(dt, 0), 0.1);
   state.acc += step;
@@ -998,6 +1303,7 @@ export function tick(state, dt, opts = {}) {
     guard += 1;
   }
   stepNpcs(state, step, opts);
+  stepVehicles(state, step, opts);
   integrate(state, step, opts);
 }
 
@@ -1059,6 +1365,8 @@ export function createState() {
     mosqueClean: false,
     quests: { spring: false, school: false, newroz: false },
     npcQuests: null,
+    vehicles: [],
+    drivenId: 0,
     newrozYear: -1,
     harvested: 0,
     learning: 0,
@@ -1120,6 +1428,7 @@ export function createState() {
   spawnAnimal(state, 'donkey');
   spawnAnimal(state, 'ox');
   spawnAnimal(state, 'ox');
+  spawnVehicles(state);
   retarget(state);
   state.villagers[0].gx = MX + 1.35;
   state.villagers[0].gz = MZ + 0.15;
@@ -1247,6 +1556,7 @@ export function harvest(state, id) {
   addRes(state, 'food', 1);
   b.stage = 0;
   b.growth = 0;
+  b.plowed = true;
   state.harvested += 1;
   recompute(state);
   bump(state);

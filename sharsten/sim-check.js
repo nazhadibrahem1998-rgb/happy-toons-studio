@@ -1,7 +1,8 @@
 import {
   LAYOUT, MAP_BOUND, acceptQuest, advanceHours, assignJob, astarRoute, averageHappiness, cameraBasis, cameraEyeY,
-  celebrateNewroz, clampToMap, cleanMosque, createState, demolish, harvest, integrate, isRoad, npcActiveCap, npcSchedule,
-  phaseOf, place, plant, playable, reachExit, setHour, setSeason, stepNpcs, stickVector, suggestCell, turnInQuest, upgrade, walkStep,
+  celebrateNewroz, clampToMap, cleanMosque, createState, demolish, driveVehicle, enterVehicle, exitVehicle, harvest,
+  integrate, isRoad, npcActiveCap, npcSchedule, phaseOf, place, plant, playable, reachExit, setHour, setSeason, stepNpcs,
+  stepVehicles, stickVector, suggestCell, turnInQuest, upgrade, vehicleCap, walkStep,
 } from './sim.js';
 import { linePairs } from './i18n.js';
 
@@ -235,5 +236,95 @@ stepNpcs(mover, 0.5, { low: false, focus: { gx: farmer.gx, gz: farmer.gz, r: 6 }
 integrate(mover, 1, { focus: { gx: farmer.gx, gz: farmer.gz, r: 6 } });
 const shifted = Math.hypot(farmer.gx - before.gx, farmer.gz - before.gz);
 if (farmer.path.length > 1) assert(shifted > 0.05, 'walks the lane');
+
+const traffic = createState();
+assert(traffic.vehicles.length === 8, `fleet ${traffic.vehicles.length}`);
+assert(vehicleCap(true) === 4 && vehicleCap(false) === 8, 'vehicle caps');
+traffic.villagers.forEach((v) => { v.gx = 28; v.gz = 4; v.tx = 28; v.tz = 4; });
+const ringCar = traffic.vehicles.find((v) => v.route === 'ring');
+assert(ringCar && ringCar.path.length >= 8, 'ring');
+ringCar.path.forEach((cell) => assert(isRoad(cell.gx, cell.gz), `ring road ${cell.gx},${cell.gz}`));
+const lapStart = { gx: ringCar.gx, gz: ringCar.gz };
+const lapSeen = new Set();
+let lapped = false;
+for (let i = 0; i < 240 && !lapped; i += 1) {
+  stepVehicles(traffic, 0.1, { low: false, focus: { gx: ringCar.gx, gz: ringCar.gz, r: 40 } });
+  lapSeen.add(`${Math.round(ringCar.gx)},${Math.round(ringCar.gz)}`);
+  assert(playable(ringCar.gx, ringCar.gz), 'car stays inside');
+  assert(isRoad(Math.round(ringCar.gx), Math.round(ringCar.gz)), 'car stays on a lane');
+  if (i > 25 && lapSeen.size >= 6 && Math.hypot(ringCar.gx - lapStart.gx, ringCar.gz - lapStart.gz) < 0.35) lapped = true;
+}
+assert(lapped, `loop seen ${lapSeen.size}`);
+
+const driver = createState();
+const bike = driver.vehicles.find((v) => v.kind === 'motorbike');
+const pilot = driver.villagers[0];
+pilot.gx = bike.gx + 0.3;
+pilot.gz = bike.gz;
+assert(enterVehicle(driver, bike.id).ok, 'enter');
+assert(driver.drivenId === bike.id && bike.occupied, 'seated');
+const seat = { gx: bike.gx, gz: bike.gz };
+for (let i = 0; i < 10; i += 1) driveVehicle(driver, bike.id, 0, 1, 0.1);
+assert(Math.hypot(bike.gx - seat.gx, bike.gz - seat.gz) > 0.6, 'drove');
+assert(Math.hypot(pilot.gx - bike.gx, pilot.gz - bike.gz) < 0.05, 'player rides');
+assert(exitVehicle(driver).ok, 'exit');
+assert(driver.drivenId === 0 && bike.occupied === false, 'on foot');
+
+assert(enterVehicle(driver, bike.id).ok, 'enter again');
+bike.gx = 0.2;
+bike.gz = 10;
+bike.yaw = Math.atan2(-1, 0);
+pilot.gx = bike.gx;
+pilot.gz = bike.gz;
+let bounced = false;
+for (let i = 0; i < 50; i += 1) {
+  const step = driveVehicle(driver, bike.id, 0, 1, 0.1);
+  if (step.hit) bounced = true;
+  assert(playable(bike.gx, bike.gz), 'bound holds');
+}
+assert(bounced, 'edge stops the bike');
+assert(bike.gx > -4, `gx ${bike.gx}`);
+assert(playable(-10, 10) === false, 'past the valley is closed');
+
+bike.gx = LAYOUT.mosque.gx;
+bike.gz = LAYOUT.mosque.gz + 1.25;
+bike.yaw = Math.atan2(0, -1);
+pilot.gx = bike.gx;
+pilot.gz = bike.gz;
+let mosqueHit = false;
+for (let i = 0; i < 30; i += 1) {
+  const step = driveVehicle(driver, bike.id, 0, 1, 0.1);
+  if (step.hit) mosqueHit = true;
+  const onMosque = Math.round(bike.gx) === LAYOUT.mosque.gx && Math.round(bike.gz) === LAYOUT.mosque.gz;
+  assert(!onMosque, 'mosque blocks');
+}
+assert(mosqueHit, 'mosque collision');
+
+const farm = createState();
+farm.villagers.forEach((v) => { v.gx = 8; v.gz = 8; v.tx = 8; v.tz = 8; });
+const ripeField = farm.buildings.find((b) => b.type === 'field' && b.stage === 3);
+const tractor = farm.vehicles.find((v) => v.kind === 'tractor');
+tractor.gx = ripeField.gx;
+tractor.gz = ripeField.gz;
+tractor.path = null;
+const grainBefore = farm.resources.grain;
+stepVehicles(farm, 0.2, { low: false, focus: { gx: ripeField.gx, gz: ripeField.gz, r: 30 } });
+assert(ripeField.stage === 4, `stubble ${ripeField.stage}`);
+assert(farm.resources.grain >= grainBefore + 6, 'wheat added');
+const bareField = farm.buildings.find((b) => b.type === 'field' && b.stage === 0 && !b.plowed);
+assert(bareField, 'unplowed plot');
+tractor.gx = bareField.gx;
+tractor.gz = bareField.gz;
+tractor.path = null;
+stepVehicles(farm, 0.2, { low: false, focus: { gx: bareField.gx, gz: bareField.gz, r: 30 } });
+assert(bareField.plowed === true && bareField.stage === 0, 'plowed dark plot');
+
+const fleet = createState();
+const watcher = fleet.villagers[0];
+stepVehicles(fleet, 0.2, { low: true, focus: { gx: watcher.gx, gz: watcher.gz, r: 999 } });
+assert(fleet.vehicles.filter((v) => v.ai === 'active').length === 4, 'low vehicle cap');
+stepVehicles(fleet, 0.2, { low: false, focus: { gx: watcher.gx, gz: watcher.gz, r: 0.2 } });
+const parked = fleet.vehicles.filter((v) => Math.hypot(v.gx - watcher.gx, v.gz - watcher.gz) > 0.2);
+assert(parked.length > 0 && parked.every((v) => v.ai === 'lod' && v.updated === false), 'vehicle lod');
 
 console.log('sim-check ok');

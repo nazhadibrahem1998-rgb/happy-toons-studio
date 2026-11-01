@@ -7,7 +7,8 @@ import {
   advanceHours, assignJob, cameraBasis, cameraEyeY, canPlace, celebrateNewroz,
   cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring, worldToCell,
   harvest, parseSave, phaseOf, place, plant, select, serialize, setHour, setSeason, setStock,
-  acceptQuest, astarRoute, npcActiveCap, npcSchedule, stepNpcs as stepNpcAi, turnInQuest,
+  acceptQuest, astarRoute, driveVehicle, enterVehicle, exitVehicle, nearestVehicle, npcActiveCap, npcSchedule,
+  stepNpcs as stepNpcAi, stepVehicles as stepVehicleAi, turnInQuest, vehicleCap,
   LAYOUT, isRoad, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
 } from './sim.js';
 import { formatClock, formatNum, linePairs, npcLine, t } from './i18n.js';
@@ -175,7 +176,34 @@ function panBuild(dt) {
   buildCam.dist = clamp(buildCam.dist, 6, 10);
 }
 
+function applyDrive(dt) {
+  const v = state.vehicles.find((item) => item.id === state.drivenId);
+  if (!v) {
+    state.drivenId = 0;
+    applyWalkBody(dt);
+    return;
+  }
+  let mx = sticks.moveX + (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+  let my = sticks.moveY + (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
+  const mag = Math.hypot(mx, my);
+  if (mag > 1) { mx /= mag; my /= mag; }
+  const result = driveVehicle(state, v.id, mx, my, dt);
+  walkCam.yaw = v.yaw;
+  if (result.hit && edgeLeft <= 0) {
+    toast(t(lang, 'edge'));
+    edgeLeft = 2.4;
+  }
+}
+
 function applyWalk(dt) {
+  if (state.drivenId) {
+    applyDrive(dt);
+    return;
+  }
+  applyWalkBody(dt);
+}
+
+function applyWalkBody(dt) {
   const p = player();
   let mx = sticks.moveX + (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
   let my = sticks.moveY + (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
@@ -266,6 +294,21 @@ function paintQuestBoard() {
     row.append(label, status);
     board.appendChild(row);
   });
+}
+
+function updateBoard() {
+  const btn = document.getElementById('boardBtn');
+  if (!btn) return;
+  const show = playing && state.mode === 'walk' && !panelOpen();
+  if (!show) { btn.hidden = true; return; }
+  if (state.drivenId) {
+    btn.hidden = false;
+    btn.textContent = t(lang, 'exit');
+    return;
+  }
+  const near = nearestVehicle(state, player().gx, player().gz, 1.7);
+  btn.hidden = !near;
+  if (near) btn.textContent = t(lang, 'enter');
 }
 
 function updateSpeech() {
@@ -462,8 +505,26 @@ document.getElementById('ps1Btn').addEventListener('click', () => {
   btn.classList.toggle('on', ps1);
 });
 document.getElementById('rideBtn').addEventListener('click', () => {
+  if (state.drivenId) return;
   riding = !riding;
   document.getElementById('rideBtn').classList.toggle('on', riding);
+});
+document.getElementById('boardBtn').addEventListener('click', () => {
+  if (state.drivenId) {
+    exitVehicle(state);
+    riding = false;
+    paint();
+    return;
+  }
+  const near = nearestVehicle(state, player().gx, player().gz, 1.7);
+  if (!near) return;
+  const result = enterVehicle(state, near.id);
+  if (!result.ok) return;
+  riding = false;
+  document.getElementById('rideBtn').classList.toggle('on', false);
+  const v = state.vehicles.find((item) => item.id === state.drivenId);
+  if (v) walkCam.yaw = v.yaw;
+  paint();
 });
 view.setSnap(true);
 document.getElementById('stickPref').addEventListener('click', () => {
@@ -660,6 +721,7 @@ function frame(now) {
   if (boot) boot.hidden = true;
   view.render();
   updateSpeech();
+  updateBoard();
   if (playing) {
     document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang);
   }
@@ -789,7 +851,51 @@ window.__SV = {
   astarRoute,
   npcSchedule,
   npcActiveCap: () => npcActiveCap(low),
+  vehicleCap: () => vehicleCap(low),
   linePairs,
+  stepVehicles(dt) {
+    const who = player();
+    stepVehicleAi(state, dt ?? 0.2, {
+      low: false,
+      focus: { gx: who.gx, gz: who.gz, r: 99 },
+    });
+  },
+  shiftVillagers(gx, gz) {
+    state.villagers.forEach((v) => {
+      v.gx = gx;
+      v.gz = gz;
+      v.tx = gx;
+      v.tz = gz;
+    });
+  },
+  placeVehicle(id, gx, gz, yaw) {
+    const v = state.vehicles.find((item) => item.id === id);
+    if (!v) return false;
+    v.gx = gx;
+    v.gz = gz;
+    if (yaw != null) v.yaw = yaw;
+    v.path = null;
+    v.pathI = 0;
+    const p = player();
+    if (v.occupied && p) {
+      p.gx = gx;
+      p.gz = gz;
+      p.tx = gx;
+      p.tz = gz;
+    }
+    return true;
+  },
+  enterVehicle(id) {
+    const result = enterVehicle(state, id);
+    if (result.ok) {
+      riding = false;
+      const v = state.vehicles.find((item) => item.id === state.drivenId);
+      if (v) walkCam.yaw = v.yaw;
+    }
+    return result;
+  },
+  exitVehicle() { return exitVehicle(state); },
+  driveVehicle(id, steer, throttle, dt) { return driveVehicle(state, id, steer, throttle, dt); },
   stepNpcs(dt) {
     const who = player();
     stepNpcAi(state, dt ?? 0.2, {
