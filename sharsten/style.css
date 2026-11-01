@@ -309,6 +309,29 @@ html[dir="rtl"] #hudPop { right: auto; left: calc(8px + var(--safe-l)); }
   background: rgba(61, 122, 50, 0.85);
 }
 #moveZone, #panZone { left: calc(10px + var(--safe-l)); bottom: calc(12px + var(--safe-b)); }
+html[data-orient="portrait"] #clockMeta { display: none; }
+html[data-orient="portrait"] #hud { max-height: calc(44px + var(--safe-t)); }
+html[data-orient="portrait"] .res { max-height: 32px; }
+html[data-orient="portrait"] #tutorial { bottom: calc(132px + var(--safe-b)); }
+html[data-orient="landscape"] .stick-zone { width: 88px; height: 88px; }
+html[data-orient="landscape"] #moveZone,
+html[data-orient="landscape"] #panZone {
+  left: calc(8px + var(--safe-l));
+  bottom: calc(8px + var(--safe-b));
+}
+html[data-orient="landscape"] #lookCluster,
+html[data-orient="landscape"] #orbitZone {
+  right: calc(8px + var(--safe-r));
+  bottom: calc(8px + var(--safe-b));
+}
+html[data-orient="landscape"] #res { max-height: 36px; }
+html[data-orient="landscape"] #tutorial {
+  bottom: calc(108px + var(--safe-b));
+  width: min(300px, 46vw);
+}
+html[data-orient="landscape"] .panel {
+  max-height: calc(var(--vv-h, 100dvh) - 12px - var(--safe-t) - var(--safe-b));
+}
 #lookCluster {
   position: absolute;
   right: calc(8px + var(--safe-r));

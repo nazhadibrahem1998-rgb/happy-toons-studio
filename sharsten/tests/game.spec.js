@@ -679,6 +679,83 @@ test('herds walk to pasture and back, and a donkey can be ridden', async ({ page
   assertClean(errors);
 });
 
+test('rotation keeps the HUD, sticks, and panels in view', async ({ page }) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  await tapHud(page, '#modeBtn');
+  const pairs = [[390, 844], [844, 390], [375, 667], [667, 375], [412, 915], [915, 412]];
+  const before = await page.evaluate(() => {
+    const s = window.__SV.getState();
+    return { hour: s.hour, wood: s.resources.wood, rank: s.rank };
+  });
+  for (const [w, h] of pairs) {
+    await page.setViewportSize({ width: w, height: h });
+    const audit = await page.evaluate(() => {
+      const root = document.documentElement;
+      const vv = window.visualViewport;
+      root.style.setProperty('--safe-t', '36px');
+      root.style.setProperty('--safe-b', '24px');
+      root.style.setProperty('--safe-l', '10px');
+      root.style.setProperty('--safe-r', '10px');
+      const width = vv ? vv.width : window.innerWidth;
+      const height = vv ? vv.height : window.innerHeight;
+      root.dataset.orient = width >= height ? 'landscape' : 'portrait';
+      const box = (sel) => {
+        const el = document.querySelector(sel);
+        if (!el || el.closest('[hidden]')) return null;
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return null;
+        return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height };
+      };
+      const hit = (a, b) => a && b && a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+      const inside = (a) => a && a.l >= -1 && a.t >= -1 && a.r <= width + 1 && a.b <= height + 1;
+      const move = box('#moveZone');
+      const look = box('#lookZone');
+      const act = box('#actionBtn');
+      const hud = box('#hud');
+      const res = box('#resbar');
+      const menu = box('#hudMenu');
+      return {
+        orient: root.dataset.orient,
+        width,
+        height,
+        inside: [move, look, act, hud, res, menu].every(inside),
+        overlap: hit(move, look) || hit(move, act) || hit(hud, move) || hit(hud, act),
+        corners: move && look && (width < height || (move.l < width * 0.35 && look.r > width * 0.65 && move.b > height * 0.7 && look.b > height * 0.7)),
+        compact: height < width || (hud && hud.b < height * 0.22),
+        topRow: res && res.t < 80,
+        safe: move && res && move.l >= 8 && res.t >= 30 && move.b <= height - 20,
+      };
+    });
+    expect(audit.inside, `${w}x${h} inside`).toBe(true);
+    expect(audit.overlap, `${w}x${h} overlap`).toBe(false);
+    expect(audit.corners, `${w}x${h} corners`).toBe(true);
+    expect(audit.compact, `${w}x${h} compact`).toBe(true);
+    expect(audit.topRow, `${w}x${h} resources`).toBe(true);
+    expect(audit.safe, `${w}x${h} safe area`).toBe(true);
+    expect(audit.orient).toBe(w >= h ? 'landscape' : 'portrait');
+  }
+  await page.evaluate(() => {
+    const root = document.documentElement;
+    ['--safe-t', '--safe-b', '--safe-l', '--safe-r'].forEach((key) => root.style.removeProperty(key));
+  });
+  await tapHud(page, '#hudQuests');
+  await assertScroll(page, '#quests [data-scroll-panel]');
+  await page.click('#questsClose');
+  const after = await page.evaluate(() => {
+    const s = window.__SV.getState();
+    window.__SV.setWalkPose({ x: 19, z: 30, yaw: 0, pitch: 0.4 });
+    window.__SV.setSticks({ moveX: 0, moveY: 1, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
+    const z0 = window.__SV.getWalkDebug().z;
+    window.__SV.stepWalk(0.4);
+    return { hour: s.hour, wood: s.resources.wood, rank: s.rank, z0, z1: window.__SV.getWalkDebug().z };
+  });
+  expect(after.wood).toBe(before.wood);
+  expect(after.rank).toBe(before.rank);
+  expect(after.z1).toBeGreaterThan(after.z0);
+  assertClean(errors);
+});
+
 test('village levels unlock, progress reloads, and the tutorial finishes by touch', async ({ page }) => {
   const errors = await openFresh(page);
   const table = await page.evaluate(() => {

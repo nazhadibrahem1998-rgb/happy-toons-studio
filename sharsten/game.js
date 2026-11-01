@@ -821,10 +821,17 @@ function endPtr(e) {
 canvas.addEventListener('pointerup', endPtr);
 canvas.addEventListener('pointercancel', (e) => { if (ptr && e.pointerId === ptr.id) ptr = null; });
 
-window.addEventListener('resize', () => view.resize());
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => view.resize());
+function syncOrient() {
+  const vv = window.visualViewport;
+  const w = vv ? vv.width : window.innerWidth;
+  const h = vv ? vv.height : window.innerHeight;
+  document.documentElement.dataset.orient = w >= h ? 'landscape' : 'portrait';
+  view.resize();
 }
+syncOrient();
+window.addEventListener('resize', syncOrient);
+window.addEventListener('orientationchange', syncOrient);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', syncOrient);
 
 if (!testMode && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
