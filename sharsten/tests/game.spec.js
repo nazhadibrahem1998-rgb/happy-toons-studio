@@ -257,6 +257,57 @@ test('starting layout has the mosque and three road exits', async ({ page }) => 
   assertClean(errors);
 });
 
+test('short view hides far objects and the player stays inside', async ({ page }) => {
+  const errors = await openFresh(page);
+  await page.click('#playBtn');
+  const cull = await page.evaluate(() => {
+    window.__SV.setWalkPose({ x: 19, z: 30, yaw: 0, pitch: 0.45 });
+    const sheep = window.__SV.getState().animals.find((a) => a.kind === 'sheep');
+    const before = { gx: sheep.gx, gz: sheep.gz };
+    window.__SV.tickNear(0.4);
+    const after = window.__SV.getState().animals.find((a) => a.id === sheep.id);
+    return {
+      report: window.__SV.cullReport(),
+      radius: window.__SV.renderRadius(),
+      before,
+      after: { gx: after.gx, gz: after.gz, updated: after.updated },
+      kinds: window.__SV.propKinds().join(','),
+    };
+  });
+  expect(cull.radius).toBeGreaterThan(6);
+  expect(cull.radius).toBeLessThan(10);
+  expect(cull.report.skipped).toBeGreaterThan(0);
+  expect(cull.report.renderedBeyond).toBe(0);
+  expect(cull.report.cameraFar).toBeLessThan(cull.radius + 12);
+  expect(cull.after.gx).toBe(cull.before.gx);
+  expect(cull.after.gz).toBe(cull.before.gz);
+  expect(cull.after.updated).toBe(false);
+  expect(cull.kinds).not.toMatch(/motorbike|tractor|car|tarp|water-tank|power-pole|loudspeaker|asphalt/i);
+  const boxed = await page.evaluate(() => {
+    const exits = window.__SV.layout().exits;
+    const pushes = [];
+    exits.forEach((exit) => {
+      const dx = Math.sign(exit.gx - window.__SV.layout().mosque.gx) || 1;
+      const dz = Math.sign(exit.gz - window.__SV.layout().mosque.gz) || 0;
+      window.__SV.setWalkPose({ x: exit.gx, z: exit.gz, yaw: Math.atan2(dx, dz), pitch: 0.4 });
+      window.__SV.setSticks({ moveX: 0, moveY: 1, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
+      window.__SV.stepWalk(1.2);
+      const d = window.__SV.getWalkDebug();
+      pushes.push(window.__SV.playable(d.x, d.z));
+    });
+    [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dx, dz]) => {
+      window.__SV.setWalkPose({ x: 18 + dx * 8, z: 30 + dz * 8, yaw: Math.atan2(dx, dz), pitch: 0.4 });
+      window.__SV.setSticks({ moveX: 0, moveY: 1, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
+      window.__SV.stepWalk(2);
+      const d = window.__SV.getWalkDebug();
+      pushes.push(window.__SV.playable(d.x, d.z));
+    });
+    return pushes;
+  });
+  expect(boxed.every(Boolean)).toBe(true);
+  assertClean(errors);
+});
+
 test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
   const errors = await openFresh(page);
   await page.click('#playBtn');
@@ -329,9 +380,11 @@ test('walk sticks, mode toggle, bounds, and summer hills', async ({ page }) => {
     window.__SV.setWalkPose({ x: min + 0.5, z: 8, yaw: Math.PI, pitch: 0.5 });
     window.__SV.setSticks({ moveX: 1, moveY: 0, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 });
     window.__SV.stepWalk(1);
-    return { x: window.__SV.getWalkDebug().x, min };
+    const d = window.__SV.getWalkDebug();
+    return { x: d.x, z: d.z, min, inside: window.__SV.playable(d.x, d.z) };
   });
-  expect(bound.x).toBe(bound.min);
+  expect(bound.inside).toBe(true);
+  expect(bound.x).toBeGreaterThan(bound.min - 0.01);
 
   await page.click('#modeBtn');
   await expect(page.locator('body')).toHaveAttribute('data-mode', 'build');

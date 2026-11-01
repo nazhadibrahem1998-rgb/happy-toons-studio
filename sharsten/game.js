@@ -5,9 +5,9 @@
 import {
   COSTS, MAP_BOUND, SAVE_KEY, SETTINGS_KEY, SEASONS,
   advanceHours, assignJob, cameraBasis, cameraEyeY, canPlace, celebrateNewroz,
-  cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring,
+  cellToWorld, clamp, clampToMap, cleanMosque, createState, demolish, fixSpring, worldToCell,
   harvest, parseSave, phaseOf, place, plant, select, serialize, setHour, setSeason, setStock,
-  LAYOUT, isRoad, reachExit, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
+  LAYOUT, isRoad, playable, reachExit, renderRadiusUnits, snapshot, stickVector, suggestCell, tick, upgrade, walkStep,
 } from './sim.js';
 import { formatClock, formatNum, t } from './i18n.js';
 import { createView } from './world.js';
@@ -16,8 +16,8 @@ const canvas = document.getElementById('c');
 const testMode = new URLSearchParams(location.search).has('test');
 const coarse = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 
-const RES = ['wood', 'stone', 'water', 'food', 'money', 'grain', 'milk', 'wool', 'eggs'];
-const JOBS = ['idle', 'farmer', 'shepherd', 'baker', 'builder', 'teacher', 'healer', 'host'];
+const RES = ['wood', 'stone', 'water', 'food', 'money', 'grain', 'flour', 'wool', 'eggs'];
+const JOBS = ['idle', 'farmer', 'shepherd', 'baker', 'miller', 'weaver', 'smith', 'builder', 'teacher', 'healer', 'host'];
 const PANELS = ['help', 'credits', 'quests', 'people', 'build', 'detail', 'pause'];
 
 let lang = 'en';
@@ -41,7 +41,10 @@ let edgeLeft = 0;
 let saveLeft = 0;
 const keys = new Set();
 const sticks = { moveX: 0, moveY: 0, lookX: 0, lookY: 0, panX: 0, panY: 0, orbitX: 0, orbitY: 0 };
-const buildCam = { yaw: 0.55, pitch: 1.05, dist: 130, x: -12, z: 4 };
+const mosqueView = cellToWorld(LAYOUT.mosque.gx, LAYOUT.mosque.gz);
+const buildCam = { yaw: 0.62, pitch: 1.02, dist: 8.5, x: mosqueView.x, z: mosqueView.z };
+let ps1 = true;
+let riding = false;
 const walkCam = { yaw: 0.35, pitch: 0.48 };
 
 const view = createView(canvas);
@@ -167,7 +170,7 @@ function panBuild(dt) {
   const hi = cellToWorld(MAP_BOUND.maxGx, MAP_BOUND.maxGz);
   buildCam.x = clamp(buildCam.x, Math.min(lo.x, hi.x), Math.max(lo.x, hi.x));
   buildCam.z = clamp(buildCam.z, Math.min(lo.z, hi.z), Math.max(lo.z, hi.z));
-  buildCam.dist = clamp(buildCam.dist, 18, 210);
+  buildCam.dist = clamp(buildCam.dist, 6, 10);
 }
 
 function applyWalk(dt) {
@@ -178,7 +181,7 @@ function applyWalk(dt) {
   if (mag > 1) { mx /= mag; my /= mag; }
   const lookX = sticks.lookX + (keys.has('KeyE') ? 1 : 0) - (keys.has('KeyQ') ? 1 : 0);
   const lookY = sticks.lookY + (keys.has('KeyR') ? 1 : 0) - (keys.has('KeyF') ? 1 : 0);
-  const step = walkStep({ x: p.gx, z: p.gz }, walkCam.yaw, walkCam.pitch, mx, my, lookX, lookY, dt);
+  const step = walkStep({ x: p.gx, z: p.gz }, walkCam.yaw, walkCam.pitch, mx, my, lookX, lookY, dt * (riding ? 1.75 : 1));
   const bounded = clampToMap(step.x, step.z);
   p.gx = bounded.gx;
   p.gz = bounded.gz;
@@ -372,14 +375,26 @@ document.getElementById('qualityBtn').addEventListener('click', () => {
   saveSettings();
   paint();
 });
+document.getElementById('ps1Btn').addEventListener('click', () => {
+  ps1 = !ps1;
+  view.setSnap(ps1);
+  const btn = document.getElementById('ps1Btn');
+  btn.textContent = ps1 ? 'On' : 'Off';
+  btn.classList.toggle('on', ps1);
+});
+document.getElementById('rideBtn').addEventListener('click', () => {
+  riding = !riding;
+  document.getElementById('rideBtn').classList.toggle('on', riding);
+});
+view.setSnap(true);
 document.getElementById('stickPref').addEventListener('click', () => {
   stickPref = !stickPref;
   saveSettings();
   showControls();
   paint();
 });
-document.getElementById('zoomIn').addEventListener('click', () => { buildCam.dist = clamp(buildCam.dist - 12, 18, 210); });
-document.getElementById('zoomOut').addEventListener('click', () => { buildCam.dist = clamp(buildCam.dist + 12, 18, 210); });
+document.getElementById('zoomIn').addEventListener('click', () => { buildCam.dist = clamp(buildCam.dist - 1.2, 6, 10); });
+document.getElementById('zoomOut').addEventListener('click', () => { buildCam.dist = clamp(buildCam.dist + 1.2, 6, 10); });
 document.getElementById('rotLeft').addEventListener('click', () => { buildCam.yaw += 0.4; });
 document.getElementById('rotRight').addEventListener('click', () => { buildCam.yaw -= 0.4; });
 document.getElementById('placeSuggest').addEventListener('click', () => {
@@ -544,18 +559,26 @@ function frame(now) {
   if (playing && !panelOpen()) {
     if (state.mode === 'walk') applyWalk(dt);
     else panBuild(dt);
-    tick(state, dt, { skipPlayer: state.mode === 'walk' });
+    const focusHere = state.mode === 'walk' ? player() : worldToCell(buildCam.x, buildCam.z);
+    tick(state, dt, {
+      skipPlayer: state.mode === 'walk',
+      focus: { gx: focusHere.gx, gz: focusHere.gz, r: renderRadiusUnits(low) / 2 },
+    });
     saveLeft += dt;
     if (saveLeft > 5) { saveLeft = 0; persist(); }
   } else if (!playing) {
     buildCam.yaw += dt * 0.08;
   }
-  if (playing && state.mode === 'walk') view.lookAtWalk(player().gx, player().gz, walkCam.yaw, walkCam.pitch);
-  else view.lookAtBuild(buildCam);
-  const here = playing && state.mode === 'walk' ? cellToWorld(player().gx, player().gz) : { x: buildCam.x, z: buildCam.z };
   const walking = playing && state.mode === 'walk';
-  view.setFog(walking ? 28 : 90, walking ? 88 : 340);
-  view.sync(state, now / 1000, { x: here.x, z: here.z, radius: walking ? 72 : 240 });
+  if (walking) view.lookAtWalk(player().gx, player().gz, walkCam.yaw, walkCam.pitch);
+  else view.lookAtBuild(buildCam);
+  const here = walking ? cellToWorld(player().gx, player().gz) : { x: buildCam.x, z: buildCam.z };
+  const radius = renderRadiusUnits(low);
+  const camDist = walking ? 5.2 : buildCam.dist;
+  view.setFog(Math.max(1.5, camDist * 0.35), camDist + radius * 0.92);
+  view.sync(state, now / 1000, { x: here.x, z: here.z, radius });
+  const boot = document.getElementById('boot');
+  if (boot) boot.hidden = true;
   view.render();
   if (playing) {
     document.getElementById('clockTime').textContent = formatClock(state.hour, state.acc || 0, lang);
@@ -572,6 +595,23 @@ window.__SV = {
   mapBound: () => MAP_BOUND,
   isRoad,
   reachExits: () => LAYOUT.exits.map((exit) => reachExit(exit)),
+  playable,
+  propKinds: () => view.propKinds(),
+  cullReport: () => view.cullReport(),
+  renderRadius: () => renderRadiusUnits(low),
+  setRiding(on) { riding = !!on; },
+  isRiding: () => riding,
+  tickNear(dt) {
+    const who = player();
+    tick(state, dt, {
+      skipPlayer: true,
+      focus: { gx: who.gx, gz: who.gz, r: renderRadiusUnits(low) / 2 },
+    });
+    const here = cellToWorld(who.gx, who.gz);
+    const radius = renderRadiusUnits(low);
+    view.setFog(2, 5.2 + radius * 0.92);
+    view.sync(state, 0, { x: here.x, z: here.z, radius });
+  },
   suggest(type) { return suggestCell(state, type); },
   place(type, gx, gz) {
     const result = place(state, type, gx, gz);

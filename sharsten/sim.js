@@ -10,6 +10,10 @@ export const GRID_W = 56;
 export const GRID_D = 72;
 export const CELL = 2;
 /** About 500×700 m compressed so the valley is walkable. 1 cell ≈ 9 m. */
+export const METERS_PER_CELL = 9;
+export function metersToUnits(m) { return (m / METERS_PER_CELL) * CELL; }
+export function renderRadiusUnits(low) { return metersToUnits(low ? 28 : 38); }
+export const CHUNK_CELLS = 2;
 export const MAP_BOUND = { minGx: -4, maxGx: GRID_W + 3, minGz: -4, maxGz: GRID_D + 3 };
 
 /** Stylized pentagon from the satellite outline, not a survey. */
@@ -46,6 +50,9 @@ const NAMES_CKB = ['ئاوین', 'ڕۆژ', 'هێڤی', 'دارا', 'شیلان',
 
 export const COSTS = {
   house: { wood: 8, stone: 4 },
+  mill: { wood: 8, stone: 6 },
+  smith: { stone: 8, wood: 6 },
+  loom: { wood: 7, stone: 2 },
   field: { wood: 2 },
   vineyard: { wood: 6, water: 3 },
   orchard_pom: { wood: 6, water: 2 },
@@ -68,6 +75,9 @@ export const UPGRADE = {
   clinic: [{ wood: 6, stone: 8 }],
   teahouse: [{ wood: 8, stone: 6 }],
   tandoor: [{ stone: 6, wood: 4 }],
+  mill: [{ wood: 6, stone: 4 }],
+  smith: [{ stone: 6, wood: 4 }],
+  loom: [{ wood: 4 }],
   woodyard: [{ wood: 6 }],
   quarry: [{ wood: 4, stone: 4 }],
   vineyard: [{ wood: 4, water: 2 }],
@@ -80,7 +90,7 @@ export const UPGRADE = {
 
 export const MAX_LEVEL = {
   house: 3, mosque: 3, school: 3, clinic: 2, teahouse: 2, tandoor: 2,
-  woodyard: 2, quarry: 2, vineyard: 2, orchard_pom: 2, orchard_walnut: 2,
+  woodyard: 2, quarry: 2, mill: 2, smith: 2, loom: 2, vineyard: 2, orchard_pom: 2, orchard_walnut: 2,
   pen_sheep: 2, pen_goat: 2, coop: 2, field: 1, spring: 1,
 };
 
@@ -88,6 +98,9 @@ const JOB_TYPES = {
   farmer: ['field', 'vineyard', 'orchard_pom', 'orchard_walnut'],
   shepherd: ['pen_sheep', 'pen_goat', 'coop'],
   baker: ['tandoor'],
+  miller: ['mill'],
+  smith: ['smith'],
+  weaver: ['loom'],
   builder: ['woodyard', 'quarry'],
   teacher: ['school'],
   healer: ['clinic'],
@@ -172,6 +185,20 @@ export function besideRoad(gx, gz) {
   return isRoad(gx + 1, gz) || isRoad(gx - 1, gz) || isRoad(gx, gz + 1) || isRoad(gx, gz - 1);
 }
 
+/** Village, its lanes, and a narrow ring of fields. Nothing past that is walkable. */
+export function playable(gx, gz) {
+  const rx = Math.round(gx);
+  const rz = Math.round(gz);
+  if (isRoad(rx, rz)) return true;
+  if (insideVillage(gx, gz)) return true;
+  for (let dz = -2; dz <= 2; dz += 1) {
+    for (let dx = -2; dx <= 2; dx += 1) {
+      if (insideVillage(gx + dx, gz + dz)) return true;
+    }
+  }
+  return false;
+}
+
 function nearestRoad(gx, gz) {
   if (isRoad(gx, gz)) return { gx, gz };
   for (let r = 1; r <= 4; r += 1) {
@@ -247,6 +274,13 @@ export function isBlocked(gx, gz) {
   return false;
 }
 
+export function worldToCell(x, z) {
+  return {
+    gx: x / CELL + (GRID_W - 1) / 2,
+    gz: z / CELL + (GRID_D - 1) / 2,
+  };
+}
+
 export function cellToWorld(gx, gz) {
   return {
     x: (gx - (GRID_W - 1) / 2) * CELL,
@@ -255,11 +289,19 @@ export function cellToWorld(gx, gz) {
   };
 }
 
-/** Keep a walker inside the valley. Outside the build grid is allowed; past the hills is not. */
+/** Pull a walker back onto the village or its fields. Roads stop at the exits. */
 export function clampToMap(gx, gz) {
-  const x = clamp(gx, MAP_BOUND.minGx, MAP_BOUND.maxGx);
-  const z = clamp(gz, MAP_BOUND.minGz, MAP_BOUND.maxGz);
-  return { gx: x, gz: z, hit: x !== gx || z !== gz };
+  if (playable(gx, gz)) return { gx, gz, hit: false };
+  let x = gx;
+  let z = gz;
+  const tx = LAYOUT.mosque.gx;
+  const tz = LAYOUT.mosque.gz;
+  for (let i = 0; i < 16; i += 1) {
+    x += (tx - x) * 0.35;
+    z += (tz - z) * 0.35;
+    if (playable(x, z)) return { gx: x, gz: z, hit: true };
+  }
+  return { gx: tx, gz: tz, hit: true };
 }
 
 function occupied(state, gx, gz) {
@@ -337,7 +379,9 @@ function spawnVillager(state, player = false) {
 }
 
 function spawnAnimal(state, kind) {
-  const base = { sheep: [23, 8.4], goat: [8.2, 26], chicken: [20.4, 32.2] }[kind];
+  const base = {
+    sheep: [23, 8.4], goat: [8.2, 26], chicken: [20.4, 32.2], donkey: [16.4, 31.2], ox: [21.2, 34.4],
+  }[kind] || [20, 32];
   const n = state.animals.filter((a) => a.kind === kind).length;
   const a = {
     id: state.nextId++,
@@ -462,9 +506,29 @@ function produce(state, v) {
     }
     return;
   }
-  if (v.job === 'baker' && state.resources.grain >= 1) {
+  if (v.job === 'baker') {
+    if (state.resources.flour >= 1) {
+      state.resources.flour = round3(state.resources.flour - 1);
+      addRes(state, 'food', 2 * ((b && b.level) || 1));
+    } else if (state.resources.grain >= 1) {
+      state.resources.grain = round3(state.resources.grain - 1);
+      addRes(state, 'food', 2 * ((b && b.level) || 1));
+    }
+    return;
+  }
+  if (v.job === 'miller' && state.resources.grain >= 1) {
     state.resources.grain = round3(state.resources.grain - 1);
-    addRes(state, 'food', 2 * ((b && b.level) || 1));
+    addRes(state, 'flour', 1);
+    return;
+  }
+  if (v.job === 'weaver' && state.resources.wool >= 2) {
+    state.resources.wool = round3(state.resources.wool - 2);
+    addRes(state, 'cloth', 1);
+    return;
+  }
+  if (v.job === 'smith' && state.resources.stone >= 1) {
+    state.resources.stone = round3(state.resources.stone - 1);
+    addRes(state, 'tools', 1);
     return;
   }
   if (v.job === 'host') {
@@ -628,11 +692,22 @@ export function integrate(state, dt, opts = {}) {
     a.gx += (dx / dist) * s;
     a.gz += (dz / dist) * s;
   };
+  const nearEnough = (a) => {
+    if (!opts.focus) return true;
+    if (a.player) return true;
+    return Math.hypot(a.gx - opts.focus.gx, a.gz - opts.focus.gz) <= opts.focus.r + 0.001;
+  };
   state.villagers.forEach((v) => {
     if (opts.skipPlayer && v.player) return;
+    if (!nearEnough(v)) { v.updated = false; return; }
+    v.updated = true;
     moveOne(v);
   });
-  state.animals.forEach(moveOne);
+  state.animals.forEach((a) => {
+    if (!nearEnough(a)) { a.updated = false; return; }
+    a.updated = true;
+    moveOne(a);
+  });
 }
 
 export function createState() {
@@ -650,6 +725,7 @@ export function createState() {
     mode: 'build',
     resources: {
       wood: 48, stone: 36, water: 18, food: 24, money: 40, grain: 4, milk: 0, wool: 0, eggs: 0,
+      flour: 0, cloth: 0, tools: 0,
     },
     buildings: [],
     villagers: [],
@@ -692,6 +768,11 @@ export function createState() {
     stamp('field', gx, gz, { stage: 0, growth: 0 });
   });
   [[46, 24], [48, 26], [46, 32], [48, 34], [44, 18], [40, 12]].forEach(([gx, gz]) => stamp('vineyard', gx, gz));
+  stamp('tandoor', MX + 3, MZ + 2);
+  stamp('mill', MX + 4, MZ + 4);
+  stamp('smith', MX + 6, MZ + 2);
+  stamp('loom', MX + 4, MZ - 3);
+  stamp('school', MX - 2, MZ + 2);
   [[34, 8], [36, 10], [38, 8], [34, 12]].forEach(([gx, gz], i) => {
     stamp(i % 2 ? 'orchard_walnut' : 'orchard_pom', gx, gz);
   });
@@ -710,8 +791,10 @@ export function createState() {
   spawnAnimal(state, 'goat');
   spawnAnimal(state, 'chicken');
   spawnAnimal(state, 'chicken');
-  spawnAnimal(state, 'chicken');
-  spawnAnimal(state, 'chicken');
+  spawnAnimal(state, 'donkey');
+  spawnAnimal(state, 'donkey');
+  spawnAnimal(state, 'ox');
+  spawnAnimal(state, 'ox');
   retarget(state);
   state.villagers[0].gx = MX + 1.35;
   state.villagers[0].gz = MZ + 0.15;

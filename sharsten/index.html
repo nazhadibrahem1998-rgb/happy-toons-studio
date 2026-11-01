@@ -41,6 +41,14 @@
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="boot" class="screen">
+  <div class="panel boot-panel">
+    <p class="studio">Happy Toons Studio</p>
+    <p class="boot-title">Sharsten Village</p>
+    <p>گوندی شارستێن</p>
+    <p data-i18n="age">For families and teens · no combat</p>
+  </div>
+</div>
 <div id="toast" hidden></div>
 <div id="hud" hidden>
   <div class="res" id="resbar"></div>
@@ -49,6 +57,7 @@
   <button type="button" id="hudPeople" class="chip" data-i18n="people">People</button>
   <button type="button" id="hudQuests" class="chip" data-i18n="quests">Quests</button>
   <button type="button" id="hudPause" class="chip" data-i18n="pause">Pause</button>
+  <button type="button" id="rideBtn" class="chip">Donkey</button>
   <div class="clock chip tiny"><b id="clockTime" dir="ltr">08:00</b> <span id="clockMeta"></span></div>
   <div id="camBtns" hidden>
   <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
@@ -102,6 +111,10 @@
     <div class="set-row">
       <span data-i18n="quality">Graphics</span>
       <button type="button" id="qualityBtn" class="chip">Low</button>
+    </div>
+    <div class="set-row">
+      <span>PS1 jitter</span>
+      <button type="button" id="ps1Btn" class="chip on">On</button>
     </div>
     <div class="set-row">
       <span data-i18n="sticks">Build-mode sticks</span>

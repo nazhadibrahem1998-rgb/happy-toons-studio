@@ -49,6 +49,8 @@ canvas {
   height: 100%;
   display: block;
   touch-action: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 [hidden] { display: none !important; }
 #toast {
@@ -84,11 +86,12 @@ canvas {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  background: var(--paper);
-  border: 3px solid var(--ink);
-  border-radius: 18px;
+  background: #efe6c9;
+  border: 4px solid #1c3a18;
+  border-radius: 0;
   padding: 14px 14px 12px;
-  box-shadow: 0 10px 0 rgba(42, 36, 28, 0.25);
+  box-shadow: 8px 8px 0 #1c3a18;
+  color: #1c2416;
 }
 .logo-row { display: flex; align-items: center; gap: 10px; }
 .logo-row img { width: 54px; height: 54px; border-radius: 12px; border: 2px solid var(--ink); object-fit: cover; }
@@ -106,14 +109,15 @@ h2 { margin: 0 0 8px; font-size: 1.25rem; }
 }
 .btn, .chip, .build-btn {
   font: inherit;
-  border-radius: 999px;
-  border: 2px solid var(--ink);
-  background: #f0c14a;
-  color: var(--ink);
+  border-radius: 0;
+  border: 3px solid #1c2416;
+  background: #d7ec9a;
+  color: #1c2416;
   padding: 10px 12px;
   width: 100%;
   margin: 6px 0;
   cursor: pointer;
+  box-shadow: 3px 3px 0 #1c2416;
 }
 .btn.alt, .chip { background: transparent; }
 .chip.on, .btn.on { background: var(--green); color: #fff; }
@@ -243,9 +247,12 @@ a { color: #1d6b4f; }
 #buildList .build-btn small { display: block; font-size: 0.72rem; opacity: 0.8; }
 #buildList .build-btn:disabled { opacity: 0.45; }
 .banner {
-  border: 2px solid var(--green);
-  border-radius: 12px;
+  border: 3px solid #1c3a18;
+  border-radius: 0;
   padding: 8px;
   margin-bottom: 8px;
-  background: rgba(61, 122, 50, 0.08);
+  background: #e7f6c8;
 }
+#boot { z-index: 40; background: #9fd0ea; }
+.boot-panel { text-align: center; margin-top: 10vh; }
+.boot-title { font-size: 1.7rem; margin: 8px 0; }

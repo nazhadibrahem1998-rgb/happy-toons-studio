@@ -1,6 +1,6 @@
 import {
   LAYOUT, MAP_BOUND, advanceHours, assignJob, averageHappiness, cameraBasis, cameraEyeY, celebrateNewroz,
-  clampToMap, cleanMosque, createState, demolish, harvest, isRoad, phaseOf, place, plant, reachExit, setHour, setSeason,
+  clampToMap, cleanMosque, createState, demolish, harvest, isRoad, phaseOf, place, plant, playable, reachExit, setHour, setSeason,
   stickVector, suggestCell, upgrade, walkStep,
 } from './sim.js';
 
@@ -125,9 +125,10 @@ assert(st.buildings.find((b) => b.id === h.id).level === 2, 'level 2');
 
 assert(celebrateNewroz(createState()).ok === false, 'newroz needs tea');
 
-const open = clampToMap(-2, 2);
-assert(open.hit === false && open.gx === -2, 'open meadow past the plots');
-const edge = clampToMap(-20, 2);
-assert(edge.hit === true && edge.gx === MAP_BOUND.minGx, 'bounded at the hills');
+const open = clampToMap(LAYOUT.mosque.gx + 1.2, LAYOUT.mosque.gz);
+assert(open.hit === false, 'street by the mosque is inside');
+const edge = clampToMap(-30, 2);
+assert(edge.hit === true, 'outside the fields is blocked');
+assert(playable(edge.gx, edge.gz), 'clamp lands inside');
 
 console.log('sim-check ok');
