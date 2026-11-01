@@ -14,6 +14,7 @@ import {
   LAYOUT, isRoad, metersToUnits, playable, reachExit, renderRadiusUnits, secondsThisHour, snapshot, stickVector, suggestCell, tick, upgrade, viewAxes, walkStep,
   craft, dismissStage, equipTool, gather, nearestNode, recipeList, stageSnapshot,
   cleanSpot, repairNear, helpDeed, refuseDeed, shove, acceptFine, tradeList, tradeWith, setRaids, bonk, settleQuarrel,
+  plough, sow, waterField, millGrain, bakeBread,
 } from './sim.js';
 import { formatClock, formatNum, i18nAudit, linePairs, npcLine, t } from './i18n.js';
 import { createView } from './world.js';
@@ -1319,6 +1320,31 @@ window.__SV = {
   harvest(id) {
     const result = harvest(state, id);
     if (result.ok) persist();
+    paint();
+    return result;
+  },
+  plough(id) {
+    const result = plough(state, id);
+    paint();
+    return result;
+  },
+  sow(id, crop) {
+    const result = sow(state, id, crop);
+    paint();
+    return result;
+  },
+  waterField(id) {
+    const result = waterField(state, id);
+    paint();
+    return result;
+  },
+  millGrain() {
+    const result = millGrain(state);
+    paint();
+    return result;
+  },
+  bakeBread() {
+    const result = bakeBread(state);
     paint();
     return result;
   },

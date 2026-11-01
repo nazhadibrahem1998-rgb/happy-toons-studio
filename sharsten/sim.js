@@ -14,7 +14,7 @@ export const METERS_PER_CELL = 9;
 export function metersToUnits(m) { return (m / METERS_PER_CELL) * CELL; }
 export function renderRadiusUnits(q) {
   const key = q === true || q === 'low' ? 'low' : q === 'high' ? 'high' : q === false ? 'high' : (q || 'mid');
-  const meters = key === 'low' ? 60 : key === 'high' ? 100 : 80;
+  const meters = key === 'low' ? 70 : 100;
   return metersToUnits(meters);
 }
 export const CHUNK_CELLS = 2;
@@ -2699,6 +2699,17 @@ export function plant(state, id) {
     if (v.job === 'farmer') v.workId = b.id;
   });
   retarget(state);
+  bump(state);
+  return { ok: true };
+}
+
+export function plough(state, id) {
+  const b = byId(state, id);
+  if (!b || b.type !== 'field') return { ok: false, reason: 'not-field' };
+  if (b.stage === 3) return { ok: false, reason: 'busy' };
+  b.plowed = true;
+  b.stage = 0;
+  b.sown = false;
   bump(state);
   return { ok: true };
 }

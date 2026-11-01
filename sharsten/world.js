@@ -1,5 +1,5 @@
 /**
- * گوندی شارستێن — low-poly valley. Instanced meshes, no shadows.
+ * گوندی شارستێن — smooth-shaded valley, soft sun shadows, jointed villagers.
  * © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance.
  */
 import * as THREE from './vendor/three.module.min.js';
@@ -7,6 +7,7 @@ import {
   CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, SEASONS,
   cellToWorld, insideVillage, isRoad, metersToUnits, roadKind,
 } from './sim.js';
+import { createVillagerRig, poseVillager } from './villagers.js';
 
 const STYLES = [
   { wall: 0xc4a574 },
@@ -299,11 +300,7 @@ export function createView(canvas) {
   const boxes = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff), 40);
   scene.add(soil, wheat, vines, leaves, trunks, canopy, posts, boxes);
 
-  const vBody = pool(new THREE.BoxGeometry(0.36, 0.42, 0.22), mat(0xffffff), 28);
-  const vHead = pool(new THREE.SphereGeometry(0.13, 8, 6), mat(0xe6c2a0), 28);
-  const vHat = pool(new THREE.SphereGeometry(0.15, 8, 6), mat(0xffffff), 28);
-  const vBeard = pool(new THREE.BoxGeometry(0.12, 0.08, 0.06), mat(0xffffff), 28);
-  const vLimb = pool(new THREE.BoxGeometry(0.1, 0.28, 0.1), mat(0xffffff), 28 * 8);
+  const villagerRigs = new Map();
   const sheep = pool(new THREE.BoxGeometry(0.46, 0.32, 0.62), mat(0xf7f7f4), 10);
   const sheepHeads = pool(new THREE.BoxGeometry(0.22, 0.18, 0.24), mat(0xf7f7f4), 10);
   const goats = pool(new THREE.BoxGeometry(0.4, 0.36, 0.62), mat(0xb08958), 8);
@@ -315,7 +312,7 @@ export function createView(canvas) {
   const oxen = pool(new THREE.BoxGeometry(0.55, 0.42, 0.85), mat(0xd8d0c4), 4);
   const cows = pool(new THREE.BoxGeometry(0.58, 0.4, 0.9), mat(0xf4f1ea), 8);
   const cowHeads = pool(new THREE.BoxGeometry(0.22, 0.22, 0.32), mat(0xe7e2d6), 8);
-  scene.add(vBody, vHead, vHat, vBeard, vLimb, sheep, sheepHeads, goats, goatHeads, hens, henHeads, donkeys, donkeyHeads, oxen, cows, cowHeads);
+  scene.add(sheep, sheepHeads, goats, goatHeads, hens, henHeads, donkeys, donkeyHeads, oxen, cows, cowHeads);
   const foes = pool(new THREE.BoxGeometry(0.34, 0.7, 0.28), mat(0xffffff), 12);
   scene.add(foes);
   const lampA = new THREE.PointLight(0xffb060, 0, metersToUnits(18), 2);
@@ -753,56 +750,38 @@ export function createView(canvas) {
   }
 
   function syncAgents(state, time) {
-    let vi = 0;
+    const seen = new Set();
+    villagerRigs.forEach((rig) => { rig.root.visible = false; });
     state.villagers.forEach((v) => {
-      if (vi >= 28) return;
+      if (villagerRigs.size >= 28 && !villagerRigs.has(v.id)) return;
       if (v.player && (state.drivenId || state.riddenId)) return;
       const p = cellToWorld(v.gx, v.gz);
       if (Math.hypot(p.x - cull.x, p.z - cull.z) > cull.radius) { stats.skipped += 1; return; }
       stats.rendered += 1;
       if (v.hidden) return;
-      const moving = Math.hypot(v.tx - v.gx, v.tz - v.gz) > 0.05 || v.player;
-      const phase = time * (moving ? 8 : 2) + v.id;
-      const swing = moving ? Math.sin(phase) : 0;
-      const breath = 1 + Math.sin(time * 1.7 + v.id) * 0.03;
-      const woman = !v.player && v.role !== 'mullah' && v.role !== 'child' && v.id % 2 === 0;
-      const mullah = v.role === 'mullah';
-      const child = v.role === 'child';
-      const sc = child ? 0.72 : 1;
-      const yaw = v.ry || 0;
-      const stumble = v.stumble ? 0.15 : 0;
-      const x = p.x + stumble;
-      const z = p.z;
-      const tunic = mullah ? 0xf4efe4 : (v.player ? 0x2f6f4f : (woman ? 0xd45a78 : 0xc4a574));
-      const pants = mullah ? 0x1c1612 : (woman ? tunic : 0x3d4a6a);
-      const hat = mullah ? 0xf7f4ee : (woman ? 0xf2efe4 : 0xc47a3a);
-      const skin = 0xe6c2a0;
-      const bob = breath * 0.02;
-      put(vBody, vi, x, (0.78 + bob) * sc, z, (mullah ? 0.46 : 0.36) * sc, 0.42 * breath * sc, 0.22 * sc, yaw, mullah ? 0x241c18 : tunic);
-      put(vHead, vi, x, (1.12 + bob) * sc, z, sc, sc, sc, yaw, skin);
-      put(vHat, vi, x, (1.24 + bob) * sc, z, sc, mullah ? 0.7 : 0.55, sc, yaw, hat);
-      put(vBeard, vi, x, (1.02 + bob) * sc, z, mullah ? 1 : 0.02, mullah ? 1 : 0.02, mullah ? 1 : 0.02, yaw, mullah ? 0xd8d8d8 : skin);
-      const arm = (state.swing > 0 && v.player) ? -1.1 : (v.greeting ? -1.6 : swing * 0.6);
-      for (let side = 0; side < 2; side += 1) {
-        const sign = side ? 1 : -1;
-        const rx = side ? -swing * 0.6 : arm;
-        const jx = x + Math.cos(yaw) * 0.2 * sign;
-        const jz = z - Math.sin(yaw) * 0.2 * sign;
-        putRot(vLimb, vi * 8 + side, jx, 1.05 * sc, jz, 0.1 * sc, 0.28 * sc, 0.1 * sc, rx, yaw, 0, mullah && side === 0 ? 0xc4a574 : skin);
-        putRot(vLimb, vi * 8 + 2 + side, jx, (1.05 - Math.cos(rx) * 0.22) * sc, jz, 0.09 * sc, 0.24 * sc, 0.09 * sc, rx * 0.8, yaw, 0, skin);
-        const lx = x + Math.cos(yaw) * 0.08 * sign;
-        const lz = z - Math.sin(yaw) * 0.08 * sign;
-        const leg = sign * swing * 0.7;
-        putRot(vLimb, vi * 8 + 4 + side, lx, 0.62 * sc, lz, 0.12 * sc, 0.28 * sc, 0.12 * sc, leg, yaw, 0, pants);
-        putRot(vLimb, vi * 8 + 6 + side, lx, (0.62 - 0.2) * sc, lz, 0.1 * sc, 0.26 * sc, 0.1 * sc, leg * 0.5, yaw, 0, mullah ? 0xf4efe4 : pants);
+      const kind = v.role === 'mullah' ? 'mullah' : (v.role === 'child' || v.gender === 'child' ? 'child' : (v.gender === 'woman' ? 'woman' : 'man'));
+      let rig = villagerRigs.get(v.id);
+      if (!rig || rig.kind !== kind) {
+        if (rig) scene.remove(rig.root);
+        rig = createVillagerRig(kind, v.id || 0);
+        villagerRigs.set(v.id, rig);
+        scene.add(rig.root);
       }
-      vi += 1;
+      seen.add(v.id);
+      rig.root.visible = true;
+      const stumble = v.stumble ? 0.15 : 0;
+      rig.root.position.set(p.x + stumble, 0, p.z);
+      rig.root.rotation.y = v.ry || 0;
+      const moving = Math.hypot(v.tx - v.gx, v.tz - v.gz) > 0.05 || !!v.player;
+      poseVillager(rig, {
+        time,
+        seed: v.id || 0,
+        moving,
+        wave: !!v.greeting,
+        chop: state.swing > 0 && !!v.player,
+      });
     });
-    commit(vBody, vi);
-    commit(vHead, vi);
-    commit(vHat, vi);
-    commit(vBeard, vi);
-    commit(vLimb, vi * 8);
+    villagerRigs.forEach((rig, id) => { if (!seen.has(id)) rig.root.visible = false; });
     let fi = 0;
     (state.threats || []).forEach((t) => {
       if (fi >= 12) return;
