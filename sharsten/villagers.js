@@ -195,7 +195,7 @@ function rootDelta(rig) {
 function plantFeet(rig, o) {
   const delta = rootDelta(rig);
   const stride = o.action === 'run' ? 0.3 : 0.22;
-  const freq = o.action === 'run' ? 10 : 7.2;
+  const freq = (o.action === 'run' ? 10 : 7.2) * (o.gait || 1);
   const phase = (o.time || 0) * freq + (o.seed || 0);
   [-0.15, 0.15].forEach((sx, i) => {
     const s = Math.sin(phase + i * Math.PI);
@@ -240,7 +240,7 @@ function sample(action, o) {
     base.drop = Math.sin(t * 1.6 + seed) * 0.015;
     base.head = Math.sin(t * 0.7 + seed) * 0.04;
   } else if (action === 'walk' || action === 'run') {
-    const f = action === 'run' ? 10.5 : 7.2;
+    const f = (action === 'run' ? 10.5 : 7.2) * (o.gait || 1);
     const a = action === 'run' ? 0.9 : 0.65;
     const s = Math.sin(t * f + seed);
     base.drop = Math.abs(Math.cos(t * f + seed)) * (action === 'run' ? 0.05 : 0.035);

@@ -54,7 +54,10 @@ export const NPC_COUNT = 24;
 const ROLES = ['farmer', 'shepherd', 'teacher', 'faithful', 'baker', 'smith', 'weaver', 'woodcutter', 'stonecutter', 'water', 'child'];
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
-export const WALK_SPEED = 6;
+/** Calm stroll. 3.9 is 35% slower than the old pace of 6. Sprint multiplies this. */
+export const WALK_SPEED = 3.9;
+/** Player walk and run cycles scale with WALK_SPEED so the feet keep the old stride. */
+export const PLAYER_GAIT = WALK_SPEED / 6;
 export const LOOK_YAW_SPEED = 1.5;
 export const LOOK_PITCH_SPEED = 1.05;
 

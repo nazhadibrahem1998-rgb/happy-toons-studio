@@ -434,9 +434,8 @@ function openQuarrel() {
   if (title) title.textContent = t(lang, key);
   const a = state.villagers.find((v) => v.id === q.a);
   const b = state.villagers.find((v) => v.id === q.b);
-  const name = (v) => (v ? (lang === 'ckb' ? v.nameCkb : v.name) : '');
-  document.getElementById('sideA').textContent = `${t(lang, 'sideA')} · ${name(a)}`;
-  document.getElementById('sideB').textContent = `${t(lang, 'sideB')} · ${name(b)}`;
+  document.getElementById('sideA').textContent = `${t(lang, 'sideA')} · ${a ? villagerTitle(a) : ''}`;
+  document.getElementById('sideB').textContent = `${t(lang, 'sideB')} · ${b ? villagerTitle(b) : ''}`;
 }
 function doAction() {
   const q = state.quarrel;
@@ -620,15 +619,13 @@ function updateBoard() {
 }
 
 function villagerTitle(v) {
-  const name = lang === 'ckb' ? v.nameCkb : v.name;
-  if (v.role === 'mullah') return name;
   const key = {
     water: 'waterJob', child: 'childJob', faithful: 'neighbour', woodcutter: 'woodJob',
     stonecutter: 'stoneJob', spoon: 'spoonJob', player: 'you', farmer: 'farmer',
     shepherd: 'shepherd', baker: 'baker', teacher: 'teacher', smith: 'smith', weaver: 'weaver',
+    mullah: 'mullahJob', miller: 'miller', healer: 'healer', host: 'host', builder: 'builder',
   }[v.role] || v.role || 'neighbour';
-  const job = t(lang, key);
-  return `${name} – ${job}`;
+  return t(lang, key);
 }
 const nameNodes = new Map();
 function placeNames() {
@@ -656,6 +653,8 @@ function placeNames() {
       return;
     }
     el.hidden = false;
+    el.lang = lang === 'ckb' ? 'ckb' : 'en';
+    el.dir = lang === 'ckb' ? 'rtl' : 'ltr';
     el.textContent = villagerTitle(v);
     const near = Math.max(0, Math.min(1, 1 - pos.dist / far));
     el.style.opacity = String(Math.max(0, Math.min(1, (far - pos.dist) / fade)));

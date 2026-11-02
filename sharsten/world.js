@@ -4,7 +4,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import {
-  CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, SEASONS,
+  CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, PLAYER_GAIT, SEASONS,
   cellToWorld, insideVillage, isRoad, metersToUnits, modelYaw, roadKind,
 } from './sim.js';
 import { createVillagerRig, poseVillager } from './villagers.js';
@@ -898,6 +898,7 @@ export function createView(canvas) {
         action,
         tool,
         sword,
+        gait: v.player ? PLAYER_GAIT : 1,
         swing: state.swordSwing > 0 && v.player,
         blocking: state.block > 0 && v.player,
         happy: (v.happiness || 0) > 70,
