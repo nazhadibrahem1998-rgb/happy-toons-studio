@@ -9,4 +9,4 @@ File: `sharsten/audio/adhan.ogg` and `sharsten/audio/adhan.mp3` (a smaller copy 
 - Licence: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) (public domain dedication)
 - The clip is the opening call, about 42 seconds. No other recording is used.
 
-The in-game notice names Mullah Husen. The recording itself is a generic licensed adhan, not a depiction of a real person in the game.
+The in-game notice names the religious teacher by that job, not by a personal name. The recording itself is a generic licensed adhan, not a depiction of a real person in the game.

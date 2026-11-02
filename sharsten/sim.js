@@ -54,7 +54,10 @@ export const NPC_COUNT = 24;
 const ROLES = ['farmer', 'shepherd', 'teacher', 'faithful', 'baker', 'smith', 'weaver', 'woodcutter', 'stonecutter', 'water', 'child'];
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
-export const WALK_SPEED = 6;
+/** Calm stroll. 3.9 is 35% slower than the old pace of 6. Sprint multiplies this. */
+export const WALK_SPEED = 3.9;
+/** Player walk and run cycles scale with WALK_SPEED so the feet keep the old stride. */
+export const PLAYER_GAIT = WALK_SPEED / 6;
 export const LOOK_YAW_SPEED = 1.5;
 export const LOOK_PITCH_SPEED = 1.05;
 
@@ -69,7 +72,7 @@ const FOLK = [
   ['Hamay Kawchkan', 'حەمەی کەوچکان', 'spoon', 'man'],
   ['Khula Piza', 'خولە پیزە', 'smith', 'man'],
   ['Khula Dom', 'خولە دۆم', 'stonecutter', 'man'],
-  ['Baya Kchl', 'بایە کچڵ', 'farmer', 'man'],
+  ['Baya Kchl', 'بایە کچڵ', 'miller', 'man'],
   ['Awa Kurzh', 'عەوە کورژ', 'shepherd', 'man'],
   ['Pura Shrin', 'پورە شرین', 'water', 'woman'],
   ['Mama Qadir', 'مامە قادر', 'smith', 'man'],
@@ -78,7 +81,7 @@ const FOLK = [
   ['Kwexa Smayl', 'کوێخا سمایڵ', 'teacher', 'man'],
   ['Khana Nasre', 'خانە نەسرێ', 'weaver', 'woman'],
   ['Dayka Hapsa', 'دایکە حەپسە', 'water', 'woman'],
-  ['Pira Majid', 'پیرە مەجید', 'stonecutter', 'man'],
+  ['Pira Majid', 'پیرە مەجید', 'healer', 'man'],
   ['Haji Wasman', 'حاجی وەسمان', 'baker', 'man'],
   ['Kcha Zenab', 'کچە زێنەب', 'child', 'child'],
   ['Kura Rasho', 'کوڕە ڕەشۆ', 'child', 'child'],
@@ -857,9 +860,62 @@ function ensureVillageAi(state) {
     }
   });
   if (!state.npcQuests) bindQuests(state);
+  ensureCraftRoles(state);
+}
+
+/** Older saves had no miller or doctor. The spare farmer and stonecutter take those jobs. */
+function ensureCraftRoles(state) {
+  const of = (role) => state.villagers.filter((v) => !v.player && v.role === role);
+  if (!of('miller').length) {
+    const extra = of('farmer')[1] || of('water')[1];
+    if (extra) extra.role = 'miller';
+  }
+  if (!of('healer').length) {
+    const extra = of('stonecutter')[1] || of('smith')[1];
+    if (extra) extra.role = 'healer';
+  }
+}
+
+function placeOf(state, type) {
+  return state.buildings.find((b) => b.type === type) || null;
+}
+
+function beside(b, v, ox, oz) {
+  const s = ((v.id % 5) - 2) * 0.16;
+  return { gx: b.gx + ox + s, gz: b.gz + oz + ((v.id % 2) * 0.14) };
+}
+
+function nodeSpot(state, v, kind) {
+  const nodes = (state.nodes || []).filter((n) => n.alive && n.kind === kind);
+  if (!nodes.length) return null;
+  const n = nodes[v.id % nodes.length];
+  return { gx: n.gx + 0.42, gz: n.gz + 0.2 };
 }
 
 function goalFor(state, v, phase) {
+  if (phase === 'work' && v.errand === 'well') {
+    const spring = placeOf(state, 'spring');
+    if (spring) return beside(spring, v, 0.4, 0.35);
+  }
+  if (phase === 'work' && v.errand === 'home') {
+    const house = state.buildings.find((b) => b.id === v.homeId && b.type === 'house')
+      || state.buildings.find((b) => b.type === 'house');
+    if (house) return { gx: house.gx + 0.2, gz: house.gz + 0.55 };
+  }
+  if (v.role === 'miller' && phase === 'work') {
+    const mill = placeOf(state, 'mill');
+    const fields = state.buildings.filter((b) => b.type === 'field');
+    const toMill = (v.haul || 0) % 2 === 0;
+    const nearFields = fields.filter((b) => Math.hypot(b.gx - MX, b.gz - MZ) < 14);
+    const fieldPool = nearFields.length ? nearFields : fields;
+    if (!toMill && fieldPool.length) return beside(fieldPool[v.id % fieldPool.length], v, 0.3, 0.3);
+    if (mill) return beside(mill, v, 0.4, 0.45);
+  }
+  if (v.role === 'healer' && phase === 'work') {
+    const houses = state.buildings.filter((b) => b.type === 'house');
+    const house = houses.length ? houses[(v.visitI || 0) % houses.length] : null;
+    if (house) return { gx: house.gx + 0.28, gz: house.gz + 0.62 };
+  }
   if ((v.role === 'shepherd' || v.job === 'shepherd') && phase !== 'mosque') {
     const herd = herdForVillager(state, v);
     const sample = herd === 'cattle' ? 'cow' : herd === 'poultry' ? 'chicken' : herd === 'pack' ? 'donkey' : 'sheep';
@@ -887,8 +943,9 @@ function goalFor(state, v, phase) {
     return { gx: v.streetGx, gz: v.streetGz };
   }
   if (v.role === 'farmer') {
-    const fields = state.buildings.filter((b) => b.type === 'field');
-    const field = fields.length ? fields[v.id % fields.length] : null;
+    const fields = state.buildings.filter((b) => b.type === 'field' && Math.hypot(b.gx - MX, b.gz - MZ) < 14);
+    const pool = fields.length ? fields : state.buildings.filter((b) => b.type === 'field');
+    const field = pool.length ? pool[v.id % pool.length] : null;
     if (field) return { gx: field.gx + 0.35, gz: field.gz + 0.35 };
   }
   if (v.role === 'shepherd') {
@@ -896,16 +953,105 @@ function goalFor(state, v, phase) {
   }
   if (v.role === 'teacher' || v.role === 'child') {
     const school = state.buildings.find((b) => b.type === 'school');
-    if (school) return { gx: school.gx + 0.35, gz: school.gz + 0.45 };
+    if (school) {
+      const slot = v.id % 6;
+      const ang = slot * 1.05;
+      const rad = v.role === 'teacher' ? 0.28 : 0.72;
+      return { gx: school.gx + 0.3 + Math.cos(ang) * rad, gz: school.gz + 0.4 + Math.sin(ang) * rad };
+    }
+  }
+  if (v.role === 'woodcutter' && phase === 'work') {
+    const yard = placeOf(state, 'woodyard');
+    if (yard) return beside(yard, v, 0.35, 0.4);
+    const tree = nodeSpot(state, v, 'tree');
+    if (tree) return tree;
+  }
+  if (v.role === 'stonecutter' && phase === 'work') {
+    const quarry = placeOf(state, 'quarry');
+    if (quarry) return beside(quarry, v, 0.35, 0.4);
+    const rock = nodeSpot(state, v, 'rock');
+    if (rock) return rock;
   }
   const workSpot = {
-    baker: 'tandoor', smith: 'smith', spoon: 'smith', weaver: 'loom', woodcutter: 'woodyard', stonecutter: 'quarry', water: 'spring',
+    baker: 'tandoor', smith: 'smith', spoon: 'smith', weaver: 'loom', water: 'spring',
   }[v.role];
   if (workSpot) {
     const place = state.buildings.find((b) => b.type === workSpot);
-    if (place) return { gx: place.gx + 0.35, gz: place.gz + 0.4 };
+    if (place) return beside(place, v, 0.35, 0.4);
   }
   return { gx: v.streetGx, gz: v.streetGz };
+}
+
+/** Work, then a short trip to the well or home, then back. Shepherd, miller, and doctor keep their own round. */
+function tickChore(state, v, dt) {
+  const phase = phaseFor(state, v);
+  if (phase !== 'work' || v.role === 'child' || v.role === 'mullah') {
+    if (phase !== 'work') v.errand = '';
+    return;
+  }
+  if (v.errandLeft == null) v.errandLeft = 5 + (v.id % 3);
+  v.errandLeft -= dt;
+  if (v.errandLeft > 0) return;
+  v.choreN = (v.choreN || 0) + 1;
+  if (v.role === 'healer') {
+    v.visitI = (v.visitI || 0) + 1;
+    v.errand = '';
+    v.errandLeft = 7 + (v.id % 4);
+    return;
+  }
+  if (v.role === 'miller') {
+    v.haul = (v.haul || 0) + 1;
+    v.errand = '';
+    v.errandLeft = 8 + (v.id % 4);
+    return;
+  }
+  if (v.role === 'shepherd') {
+    v.flockI = (v.flockI || 0) + 1;
+    v.errand = v.choreN % 3 === 0 ? 'well' : '';
+    v.errandLeft = v.errand ? 10 : 6;
+    return;
+  }
+  if (v.errand === 'well' || v.errand === 'home') {
+    v.errand = '';
+    v.errandLeft = 11 + (v.id % 5);
+  } else {
+    v.errand = (v.id + v.choreN) % 2 === 0 ? 'well' : 'home';
+    v.errandLeft = 9 + (v.id % 3);
+  }
+}
+
+const CHORE = {
+  farmer: ['hoe', 'sickle'],
+  baker: ['bake', ''],
+  smith: ['hammer', 'hammer'],
+  spoon: ['hammer', 'hammer'],
+  weaver: ['weave', 'shuttle'],
+  woodcutter: ['chop', 'axe'],
+  stonecutter: ['hammer', 'hammer'],
+  teacher: ['teach', ''],
+  child: ['listen', ''],
+  water: ['draw', ''],
+  healer: ['tend', ''],
+  mullah: ['teach', ''],
+};
+
+function paintChore(v, arrived) {
+  v.pace = 0;
+  if (v.role === 'shepherd') {
+    v.prop = 'staff';
+    v.act = '';
+    if (v.mode === 'work' && !v.errand) v.pace = 0.32;
+    return;
+  }
+  if (v.role === 'miller') {
+    v.prop = 'sack';
+    v.act = arrived && v.mode === 'work' && !v.errand ? 'haul' : '';
+    return;
+  }
+  const atWork = arrived && v.mode === 'work' && v.errand !== 'well' && v.errand !== 'home';
+  const pose = atWork ? CHORE[v.role] : null;
+  v.act = pose ? pose[0] : '';
+  v.prop = pose ? pose[1] : '';
 }
 
 function phaseFor(state, v) {
@@ -923,7 +1069,7 @@ function assignGoal(state, v) {
   const goal = goalFor(state, v, phase);
   v.goalGx = goal.gx;
   v.goalGz = goal.gz;
-  const sig = `${phase}:${Math.round(goal.gx * 2)}:${Math.round(goal.gz * 2)}`;
+  const sig = `${phase}:${v.errand || ''}:${v.haul || 0}:${v.visitI || 0}:${Math.round(goal.gx * 2)}:${Math.round(goal.gz * 2)}`;
   if (sig !== v.pathSig) {
     const route = astarRoute(v.gx, v.gz, goal.gx, goal.gz);
     v.path = route && route.length ? route : [{ gx: goal.gx, gz: goal.gz }];
@@ -1004,7 +1150,9 @@ export function stepNpcs(state, dt, opts = {}) {
         const dz = v.tz - v.gz;
         if (Math.hypot(v.gx - slot.gx, v.gz - slot.gz) < 0.12) {
           v.ry = QIBLA_YAW;
-          v.prayer = 'qiyam';
+          v.prayer = v.role === 'mullah' ? 'call' : 'qiyam';
+          v.act = '';
+          v.prop = '';
           v.tx = slot.gx;
           v.tz = slot.gz;
         } else if (Math.hypot(dx, dz) > 0.05) {
@@ -1015,37 +1163,52 @@ export function stepNpcs(state, dt, opts = {}) {
       return;
     }
     v.prayer = '';
+    tickChore(state, v, dt);
     assignGoal(state, v);
     if (v.sayLeft > 0) v.sayLeft = Math.max(0, v.sayLeft - dt);
+    if (v.greetCool > 0) v.greetCool = Math.max(0, v.greetCool - dt);
     const dist = player ? Math.hypot(v.gx - player.gx, v.gz - player.gz) : 99;
     const questLine = v.line && !String(v.line).startsWith('greet') && v.sayLeft > 0;
     if ((state.rep || 0) < -15 && player && dist < 1.8) {
       v.line = v.role === 'mullah' ? 'advise' : ['scold0', 'scold1', 'scold2'][v.id % 3];
       v.sayLeft = Math.max(v.sayLeft, 1.2);
-      v.ry = Math.atan2(v.gx - player.gx, v.gz - player.gz);
+      v.ry = Math.atan2(player.gx - v.gx, player.gz - v.gz);
       v.greeting = false;
       v.tx = v.gx;
       v.tz = v.gz;
       return;
     }
-    if (!questLine && dist < 1.65) {
+    let waved = false;
+    if (!questLine && dist < 1.65 && !(v.greetCool > 0)) {
       v.greeting = true;
       v.line = `greet${v.id % 4}`;
       v.ry = Math.atan2(player.gx - v.gx, player.gz - v.gz);
-      v.sayLeft = Math.max(v.sayLeft, 0.35);
-      v.tx = v.gx;
-      v.tz = v.gz;
-      return;
+      v.sayLeft = 1.1;
+      v.greetCool = 8;
+      waved = true;
     }
-    v.greeting = false;
-    if (v.line && String(v.line).startsWith('greet')) v.line = '';
-    else if (v.sayLeft <= 0 && v.line && !String(v.line).startsWith('greet')) v.line = '';
+    if (!waved && v.sayLeft <= 0) v.greeting = false;
+    if (!waved && v.line && String(v.line).startsWith('greet')) v.line = '';
+    else if (!waved && v.sayLeft <= 0 && v.line && !String(v.line).startsWith('greet')) v.line = '';
     if (v.stumble > 0) v.stumble = Math.max(0, v.stumble - dt);
     followPath(v);
+    if (v.role === 'shepherd' && v.mode === 'work' && v.errand !== 'well' && v.errand !== 'home') {
+      const flock = state.animals.filter((a) => a.kind === 'sheep');
+      if (flock.length) {
+        const sheep = flock[(v.flockI || 0) % flock.length];
+        const spot = { gx: sheep.gx - 0.2, gz: sheep.gz + 0.55 };
+        v.tx = spot.gx;
+        v.tz = spot.gz;
+        v.goalGx = spot.gx;
+        v.goalGz = spot.gz;
+      }
+    }
     const dx = v.tx - v.gx;
     const dz = v.tz - v.gz;
     v.hidden = false;
     if (Math.hypot(dx, dz) > 0.05) v.ry = Math.atan2(dx, dz);
+    const arrived = Math.hypot(v.gx - v.goalGx, v.gz - v.goalGz) < 0.48;
+    paintChore(v, arrived);
   });
 }
 
@@ -1828,10 +1991,10 @@ export function integrate(state, dt, opts = {}) {
       a.gz = a.tz;
       return;
     }
-    let cap = speed;
+    let cap = a.pace > 0 ? a.pace : speed;
     if (a.goalGx != null) {
       const end = Math.hypot(a.gx - a.goalGx, a.gz - a.goalGz);
-      if (end < 1.4) cap = arriveSpeed(end, speed, 0.85, 0.05);
+      if (end < 1.4) cap = arriveSpeed(end, cap, 0.85, 0.05);
     }
     const s = Math.min(dist, cap * dt);
     a.gx += (dx / dist) * s;
@@ -1897,6 +2060,20 @@ export function createState() {
     if (gx < 0 || gz < 0 || gx >= GRID_W || gz >= GRID_D) return;
     addBuilding(state, type, gx, gz, opt);
   };
+  const stampNear = (type, gx, gz, opt = {}) => {
+    const before = state.buildings.length;
+    stamp(type, gx, gz, opt);
+    if (state.buildings.length > before) return;
+    for (let r = 1; r <= 5; r += 1) {
+      for (let dz = -r; dz <= r; dz += 1) {
+        for (let dx = -r; dx <= r; dx += 1) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+          stamp(type, gx + dx, gz + dz, opt);
+          if (state.buildings.length > before) return;
+        }
+      }
+    }
+  };
   stamp('mosque', MX, MZ, { level: 1 });
   stamp('spring', MX - 4, MZ + 3, { level: 1 });
   stamp('house', 18, 28, { tag: 'mullah', style: 0 });
@@ -1932,11 +2109,11 @@ export function createState() {
     stamp('field', gx, gz, { stage: 0, growth: 0 });
   });
   [[46, 24], [48, 26], [46, 32], [48, 34], [44, 18], [40, 12]].forEach(([gx, gz]) => stamp('vineyard', gx, gz));
-  stamp('tandoor', MX + 3, MZ + 2);
-  stamp('mill', MX + 4, MZ + 4);
-  stamp('smith', MX + 6, MZ + 2);
-  stamp('loom', MX + 4, MZ - 3);
-  stamp('school', MX - 2, MZ + 2);
+  stampNear('tandoor', MX + 3, MZ + 2);
+  stampNear('mill', MX + 4, MZ + 4);
+  stampNear('smith', MX + 6, MZ + 2);
+  stampNear('loom', MX + 4, MZ - 3);
+  stampNear('school', MX - 2, MZ + 2);
   state.buildings.filter((b) => b.type === 'house' && !b.tag && b.id % 5 === 0).slice(0, 3).forEach((b) => { b.damage = 1; });
   const springB = state.buildings.find((b) => b.type === 'spring');
   if (springB) springB.damage = 1;

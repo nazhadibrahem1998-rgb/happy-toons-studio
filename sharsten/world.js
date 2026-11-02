@@ -4,7 +4,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import {
-  CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, SEASONS,
+  CELL, GRID_D, GRID_W, LAYOUT, PENTAGON, PLAYER_GAIT, SEASONS,
   cellToWorld, insideVillage, isRoad, metersToUnits, modelYaw, roadKind,
 } from './sim.js';
 import { createVillagerRig, poseVillager } from './villagers.js';
@@ -874,23 +874,20 @@ export function createView(canvas) {
         p.z - ahead.z * (ride ? ride.back : 0),
       );
       rig.root.rotation.y = modelYaw(faceYaw);
-      const moving = !ride && speed > 0.25;
+      const moving = !ride && speed > 0.22;
       let action = 'idle';
+      const act = v.act || '';
       if (ride) action = 'sit';
       else if (v.prayer) action = v.prayer;
-      else if (v.greeting) action = 'wave';
+      else if (v.greeting && !moving) action = 'wave';
       else if (v.angry) action = 'quarrel';
-      else if ((state.swing > 0 && v.player) || (!moving && v.role === 'woodcutter')) action = 'chop';
-      else if (!moving && (v.role === 'farmer' || v.job === 'farmer')) action = 'hoe';
-      else if (!moving && (v.role === 'baker' || v.job === 'baker')) action = 'bake';
+      else if (state.swing > 0 && v.player) action = 'chop';
       else if (moving && speed > 2.6) action = 'run';
       else if (moving) action = 'walk';
+      else if (act) action = act;
       else if (v.line && !String(v.line).startsWith('greet')) action = 'talk';
-      let tool = '';
-      if (v.role === 'shepherd' || v.job === 'shepherd') tool = 'staff';
-      else if (action === 'chop') tool = 'axe';
-      else if (action === 'hoe') tool = 'hoe';
-      else if (v.role === 'woodcutter' && moving) tool = 'sack';
+      let tool = v.player ? '' : (v.prop || '');
+      if (v.player && action === 'chop') tool = '';
       const sword = (state.tools || {}).sword && v.player ? (state.swordOut ? 'hand' : 'belt') : '';
       poseVillager(rig, {
         time,
@@ -898,6 +895,7 @@ export function createView(canvas) {
         action,
         tool,
         sword,
+        gait: v.player ? PLAYER_GAIT : 1,
         swing: state.swordSwing > 0 && v.player,
         blocking: state.block > 0 && v.player,
         happy: (v.happiness || 0) > 70,
