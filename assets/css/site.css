@@ -199,3 +199,8 @@ a.soc-card p{color:var(--muted)}a.soc-card p b{color:var(--ink)}
 .online-now[hidden]{display:none}
 .site-foot .online-now{margin-bottom:10px}
 .hero .online-now,.page-hero .online-now{margin:0 0 14px 8px}
+/* ToonyTaps beta card: full home screen, not a 16/9 crop */
+.game-art.tt-shot{aspect-ratio:auto;width:min(280px,100%);margin:0 auto 18px;background:#8dd9ff}
+.game-art.tt-shot img{width:100%;height:auto;object-fit:contain}
+.beta-steps{margin:14px 0 0;padding-left:1.3rem;display:grid;gap:8px;color:#423b6b;font-weight:700}
+.beta-steps a{color:#3247b8;font-weight:800;overflow-wrap:break-word}
