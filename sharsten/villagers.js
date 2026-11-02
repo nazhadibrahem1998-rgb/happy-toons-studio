@@ -142,8 +142,21 @@ export function createVillagerRig(kind, salt = 0) {
 
   const staff = piece(elbows[1], box(0.04, 0.9, 0.04), mat(0x6b4226, 0.8), 0.08, -0.2, 0.04);
   const axe = piece(elbows[1], box(0.05, 0.46, 0.05), mat(0x8a5a32, 0.75), 0, -0.16, 0.02);
+  piece(axe, box(0.16, 0.06, 0.04), mat(0x8a8e86, 0.48), 0.07, -0.16, 0);
   const hoe = piece(elbows[1], box(0.05, 0.5, 0.05), mat(0x6b4226, 0.8), 0, -0.12, 0);
   const sack = piece(elbows[0], box(0.16, 0.14, 0.14), mat(0xc4a574, 0.85), 0, -0.2, 0.06);
+  const hammer = new THREE.Group();
+  piece(hammer, box(0.04, 0.32, 0.04), mat(0x6b4226, 0.8), 0, -0.1, 0);
+  piece(hammer, box(0.18, 0.07, 0.07), mat(0x6a6e74, 0.5), 0, -0.26, 0);
+  hammer.position.set(0.02, -0.06, 0.04);
+  elbows[1].add(hammer);
+  const sickle = new THREE.Group();
+  piece(sickle, box(0.035, 0.34, 0.035), mat(0x6b4226, 0.8), 0, -0.12, 0);
+  const blade = piece(sickle, box(0.14, 0.04, 0.02), mat(0x7a8276, 0.45), 0.05, -0.28, 0);
+  blade.rotation.z = 0.9;
+  sickle.position.set(0.02, -0.04, 0.05);
+  elbows[1].add(sickle);
+  const shuttle = piece(elbows[1], box(0.18, 0.04, 0.05), mat(0xd2b48a, 0.8), 0, -0.24, 0.04);
   const sword = new THREE.Group();
   piece(sword, box(0.04, 0.16, 0.04), mat(0x6b4226, 0.7), 0, 0.05, 0, false);
   piece(sword, box(0.12, 0.03, 0.04), mat(0xc4a574, 0.5), 0, 0.14, 0, false);
@@ -155,12 +168,15 @@ export function createVillagerRig(kind, salt = 0) {
   axe.visible = false;
   hoe.visible = false;
   sack.visible = false;
+  hammer.visible = false;
+  sickle.visible = false;
+  shuttle.visible = false;
   sword.visible = false;
   sheath.visible = false;
 
   return {
     root, kind, body, hips, shins, shoulders, elbows, head, torso,
-    staff, axe, hoe, sack, sword, sheath, face: { lids, brows, mouth }, lock: [null, null],
+    staff, axe, hoe, sack, hammer, sickle, shuttle, sword, sheath, face: { lids, brows, mouth }, lock: [null, null],
   };
 }
 
@@ -253,14 +269,55 @@ function sample(action, o) {
     base.hipR = -s * a;
     base.shinL = Math.max(0, -s) * 0.85;
     base.shinR = Math.max(0, s) * 0.85;
-  } else if (action === 'chop' || action === 'hoe') {
-    const s = Math.sin(t * 5.5 + seed);
-    base.armR = -1.15 + s * 0.85;
-    base.torso = -0.2 + s * 0.25;
-  } else if (action === 'bake') {
-    const s = Math.sin(t * 4 + seed);
-    base.armL = -0.85 + s * 0.25;
-    base.armR = -0.85 - s * 0.25;
+  } else if (action === 'chop' || action === 'hoe' || action === 'hammer') {
+    const speed = action === 'hammer' ? 7.5 : action === 'hoe' ? 3.6 : 5.2;
+    const s = Math.sin(t * speed + seed);
+    base.armR = -1.25 + s * (action === 'hammer' ? 1.15 : 0.9);
+    base.elbR = action === 'hammer' ? -0.35 : -0.55;
+    base.torso = -0.25 + s * 0.32;
+    base.hipL = s * 0.12;
+  } else if (action === 'bake' || action === 'draw') {
+    const s = Math.sin(t * (action === 'draw' ? 2.4 : 3.4) + seed);
+    base.torso = action === 'draw' ? -0.7 : -0.4 + s * 0.18;
+    base.armL = -0.9 + s * 0.2;
+    base.armR = -0.85 - s * 0.28;
+    base.elbL = -1.15;
+    base.elbR = -1.05;
+  } else if (action === 'weave') {
+    const s = Math.sin(t * 3.1 + seed);
+    base.armL = -0.95;
+    base.armR = -0.85 + s * 0.55;
+    base.elbL = -1.25;
+    base.elbR = -0.7;
+    base.torsoY = s * 0.16;
+  } else if (action === 'teach') {
+    const s = Math.sin(t * 2.3 + seed);
+    base.armR = -1.45 + s * 0.55;
+    base.armL = -0.35;
+    base.elbR = -0.45;
+    base.headY = s * 0.28;
+  } else if (action === 'call') {
+    const s = Math.sin(t * 1.6 + seed);
+    base.armL = -2.15;
+    base.armR = -2.15;
+    base.elbL = -0.35;
+    base.elbR = -0.35;
+    base.head = -0.12 + s * 0.06;
+  } else if (action === 'tend') {
+    const s = Math.sin(t * 2.1 + seed);
+    base.torso = -0.4;
+    base.armR = -0.85 + s * 0.25;
+    base.elbR = -1.05;
+    base.head = 0.18;
+  } else if (action === 'haul') {
+    const s = Math.sin(t * 2.2 + seed);
+    base.torso = -0.5 + s * 0.16;
+    base.armL = -0.85;
+    base.elbL = -1.2;
+    base.armR = -0.45 + s * 0.35;
+  } else if (action === 'listen') {
+    base.headY = Math.sin(t * 1.1 + seed) * 0.22;
+    base.head = 0.08;
   } else if (action === 'talk') {
     base.armR = -0.7 + Math.sin(t * 3 + seed) * 0.25;
     base.headY = Math.sin(t * 1.4 + seed) * 0.2;
@@ -271,6 +328,10 @@ function sample(action, o) {
   if (o.tool === 'staff' && (action === 'walk' || action === 'idle' || action === 'run')) {
     base.armR = -0.35;
     base.elbR = -0.15;
+  }
+  if (o.tool === 'sack' && (action === 'walk' || action === 'run' || action === 'idle' || action === 'haul')) {
+    base.armL = -0.8;
+    base.elbL = -1.15;
   }
   return base;
 }
@@ -296,7 +357,8 @@ export function poseVillager(rig, o) {
   const target = sample(action, o);
   if (!rig._pose) rig._pose = { ...target };
   const gait = action === 'walk' || action === 'run';
-  const k = gait ? 0.62 : 0.18;
+  const working = action === 'hammer' || action === 'chop' || action === 'hoe' || action === 'bake' || action === 'weave' || action === 'call' || action === 'haul';
+  const k = gait ? 0.62 : working ? 0.55 : 0.22;
   KEYS.forEach((key) => {
     const next = target[key] || 0;
     rig._pose[key] = (rig._pose[key] || 0) + (next - (rig._pose[key] || 0)) * k;
@@ -308,6 +370,9 @@ export function poseVillager(rig, o) {
   rig.axe.visible = o.tool === 'axe';
   rig.hoe.visible = o.tool === 'hoe';
   rig.sack.visible = o.tool === 'sack';
+  if (rig.hammer) rig.hammer.visible = o.tool === 'hammer';
+  if (rig.sickle) rig.sickle.visible = o.tool === 'sickle';
+  if (rig.shuttle) rig.shuttle.visible = o.tool === 'shuttle';
   const drawn = o.sword === 'hand';
   rig.sword.visible = drawn;
   rig.sheath.visible = o.sword === 'belt';
@@ -326,7 +391,7 @@ export function poseVillager(rig, o) {
     rig.face.lids.forEach((lid) => { lid.scale.y = blink; });
     const angry = action === 'quarrel';
     rig.face.brows.forEach((brow, i) => { brow.rotation.z = angry ? (i ? -0.5 : 0.5) : 0; });
-    const talking = action === 'talk' || action === 'wave';
+    const talking = action === 'talk' || action === 'wave' || action === 'call' || action === 'teach';
     rig.face.mouth.scale.y = talking ? 0.6 + Math.abs(Math.sin((o.time || 0) * 9)) * 1.8 : 1;
     rig.face.mouth.scale.x = o.happy && !angry ? 1.35 : 1;
     rig.face.mouth.position.y = o.happy && !angry ? -0.02 : -0.03;

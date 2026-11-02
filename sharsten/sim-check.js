@@ -244,6 +244,28 @@ integrate(mover, 1, { focus: { gx: farmer.gx, gz: farmer.gz, r: 6 } });
 const shifted = Math.hypot(farmer.gx - before.gx, farmer.gz - before.gz);
 if (farmer.path.length > 1) assert(shifted > 0.05, 'walks the lane');
 
+const chores = createState();
+setHour(chores, 9);
+assert(chores.villagers.some((v) => v.role === 'miller'), 'miller works');
+assert(chores.villagers.some((v) => v.role === 'healer'), 'doctor works');
+const smith = chores.villagers.find((v) => v.role === 'smith');
+const baker = chores.villagers.find((v) => v.role === 'baker');
+const herderSlow = chores.villagers.find((v) => v.role === 'shepherd');
+const doctor = chores.villagers.find((v) => v.role === 'healer');
+const doctorAt = { gx: doctor.gx, gz: doctor.gz };
+for (let i = 0; i < 6; i += 1) {
+  stepNpcs(chores, 0.4, { low: false, focus: { gx: smith.gx, gz: smith.gz, r: 40 } });
+  integrate(chores, 0.4, { focus: { gx: smith.gx, gz: smith.gz, r: 40 } });
+}
+assert(smith.act === 'hammer' && smith.prop === 'hammer', `smith ${smith.act}`);
+assert(baker.act === 'bake', `baker ${baker.act}`);
+assert(herderSlow.pace > 0 && herderSlow.pace < 0.5, 'shepherd is slow');
+for (let i = 0; i < 48; i += 1) {
+  stepNpcs(chores, 0.5, { low: false, focus: { gx: doctor.gx, gz: doctor.gz, r: 50 } });
+  integrate(chores, 0.5, { focus: { gx: doctor.gx, gz: doctor.gz, r: 50 } });
+}
+assert(Math.hypot(doctor.gx - doctorAt.gx, doctor.gz - doctorAt.gz) > 0.4, 'doctor walks to another house');
+
 const traffic = createState();
 assert(traffic.vehicles.length === 6, `fleet ${traffic.vehicles.length}`);
 assert(traffic.vehicles.every((v) => v.kind === 'cart'), 'wooden carts only');
