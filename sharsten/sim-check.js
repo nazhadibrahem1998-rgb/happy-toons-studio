@@ -615,5 +615,13 @@ assert(spoons && spoons.role === 'spoon', 'spoon maker');
 assert(arriveSpeed(0.02, 1, 3, 0.05) === 0, 'arrive stops inside tolerance');
 assert(arriveSpeed(2, 0.7, 0.5, 0.05) === 0.7, 'arrive does not exceed the walk');
 assert(arriveSpeed(0.3, 0.7, 0.85, 0.05) < 0.5, 'arrive slows near a goal');
+const homes = new Set(s.villagers.filter((v) => !v.player).map((v) => v.homeId));
+assert(homes.size === s.villagers.filter((v) => !v.player).length, 'each villager has a house');
+assert(s.buildings.filter((b) => b.type === 'stall').length >= 5, 'bazaar stalls');
+const spoonSeller = s.villagers.find((v) => v.shop === 'spoon');
+assert(spoonSeller && spoonSeller.nameCkb === 'حەمەی کەوچکان', 'spoon stall');
+setHour(s, 22);
+const farmerHome = s.villagers.find((v) => v.nameCkb === 'خولە ڕوت');
+assert(farmerHome && farmerHome.mode === 'home', 'farmers go home at night');
 
 console.log('sim-check ok');

@@ -473,6 +473,10 @@ function doAction() {
     const d = Math.hypot(b.gx - p.gx, b.gz - p.gz);
     if (d < bestD) { best = b; bestD = d; }
   });
+  if (npc && npc.shop && (!best || npcD <= bestD)) {
+    openTrade(npc.id);
+    return;
+  }
   if (npc && (!best || npcD <= bestD)) {
     openTalk(npc);
     return;
@@ -1686,6 +1690,7 @@ window.__SV = {
       focus: { gx: who.gx, gz: who.gz, r: 99 },
     });
     paint();
+    updateSpeech();
   },
   acceptQuest(id) {
     const result = acceptQuest(state, id);
