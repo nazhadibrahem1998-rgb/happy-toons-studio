@@ -24,12 +24,138 @@ function tube(r, h) {
   if (!geos.has(key)) geos.set(key, new THREE.CylinderGeometry(r, r * 0.92, h, 8));
   return geos.get(key);
 }
-function mat(hex, rough = 0.72) {
-  const key = `${hex}:${rough}`;
+function cone(top, bottom, h) {
+  const key = `k${top}x${bottom}x${h}`;
+  if (!geos.has(key)) geos.set(key, new THREE.CylinderGeometry(top, bottom, h, 7));
+  return geos.get(key);
+}
+const patterns = new Map();
+function patternMap(kind) {
+  if (!kind || kind === 'plain') return null;
+  if (patterns.has(kind)) return patterns.get(kind);
+  const c = document.createElement('canvas');
+  c.width = 32;
+  c.height = 32;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f3ecdf';
+  g.fillRect(0, 0, 32, 32);
+  if (kind === 'stripe') {
+    g.fillStyle = '#6e3030';
+    for (let y = 0; y < 32; y += 8) g.fillRect(0, y, 32, 3);
+  } else if (kind === 'coin') {
+    g.clearRect(0, 0, 32, 32);
+    g.fillStyle = '#e2c56a';
+    for (let i = 0; i < 5; i += 1) {
+      g.beginPath();
+      g.arc(4 + i * 6, 16, 2.4, 0, Math.PI * 2);
+      g.fill();
+    }
+  } else {
+    g.fillStyle = '#2f3d32';
+    for (let y = 0; y < 32; y += 8) {
+      for (let x = 0; x < 32; x += 8) {
+        if (((x + y) / 8) % 2 === 0) g.fillRect(x, y, 8, 8);
+      }
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.magFilter = THREE.LinearFilter;
+  if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+  patterns.set(kind, tex);
+  return tex;
+}
+function mat(hex, rough = 0.72, map = null, metal = 0.02) {
+  const key = `${hex}:${rough}:${metal}:${map ? map.uuid : ''}`;
   if (!mats.has(key)) {
-    mats.set(key, new THREE.MeshStandardMaterial({ color: hex, roughness: rough, metalness: 0.02 }));
+    mats.set(key, new THREE.MeshStandardMaterial({
+      color: hex, roughness: rough, metalness: metal, map,
+    }));
   }
   return mats.get(key);
+}
+const MEN = [
+  { cloth: 0x6b5344, shirt: 0xe6d7c3, sash: 0x7a3030, wrap: 0xcbb892, pattern: 'plain' },
+  { cloth: 0x5a6168, shirt: 0xd9d2c6, sash: 0x3e4a38, wrap: 0x8d8880, pattern: 'stripe' },
+  { cloth: 0x24344c, shirt: 0xf0e6d4, sash: 0xc4a06a, wrap: 0x24344c, pattern: 'plain' },
+  { cloth: 0x4a3c32, shirt: 0xf3eee4, sash: 0x1f4d3c, wrap: 0xd4c4a0, pattern: 'check' },
+];
+const WOMEN = [
+  { dress: 0x8e3d4a, layer: 0xc46a58, kawa: 0x4a2030, scarf: 0xf6f1e8, coins: true },
+  { dress: 0x1f5a48, layer: 0x3d8a6a, kawa: 0x5c2840, scarf: 0xf4efe6, coins: false },
+  { dress: 0xb86a32, layer: 0xe0a060, kawa: 0x3a2848, scarf: 0x2a3a52, coins: true },
+  { dress: 0x3a4a68, layer: 0x7a88a8, kawa: 0x6b3038, scarf: 0xf7f3ea, coins: false },
+];
+const LOOKS = {
+  'خولە درێژ': {
+    proportions: [0.68, 1.62, 0.68],
+    fit: { cloth: 0x6b452c, jacket: 0x6b452c, shirt: 0xe7d5bc, sash: 0x8a5a32, wrap: 0x6b452c, baggy: true, turban: true, beard: false, skirt: false, robe: false, simple: false, cap: false },
+  },
+  'خولە پیزە': {
+    proportions: [1.48, 0.7, 1.38],
+    fit: { cloth: 0x5a5048, jacket: 0x5a5048, shirt: 0xf3eadc, sash: 0xc43838, wrap: 0x5a5048, baggy: true, turban: true, beard: false, sashWide: true },
+  },
+  'خولە ڕوت': {
+    fit: { cloth: 0x6a5344, jacket: 0x6a5344, shirt: 0xe6d7c3, sash: 0x7a4030, wrap: 0x4a3428, baggy: true, turban: false, cap: true, bald: true, beard: false },
+  },
+  'خولە دۆم': {
+    drum: true,
+    fit: { cloth: 0xc45a32, jacket: 0x2f6a48, shirt: 0xf0d060, sash: 0x2a3a78, wrap: 0xe07a32, wrapMap: patternMap('stripe'), baggy: true, turban: true, beard: false },
+  },
+  'حەمەی کەوچکان': {
+    spoons: true,
+    fit: { cloth: 0x6b5344, jacket: 0x6b5344, shirt: 0xe6d4bc, sash: 0x6b3030, wrap: 0xc4a574, baggy: true, turban: true, beard: false },
+  },
+  'مام ڕەسو': {
+    cane: true,
+    proportions: [0.96, 0.94, 0.96],
+    skin: 0xd2b49a,
+    fit: { cloth: 0x4a4038, jacket: 0x4a4038, shirt: 0xe8e0d4, sash: 0x6b3030, wrap: 0xd8d0c4, baggy: true, turban: true, beard: true, beardGrey: true },
+  },
+  'حەسەنە نۆ نۆ': {
+    fit: { cloth: 0x3e463c, jacket: 0x3e463c, shirt: 0xf4efe6, sash: 0x6b5344, wrap: 0xb7b1a4, baggy: true, turban: true, beard: true, beardShort: true },
+  },
+  'ئامە دەم شڕ': {
+    as: 'woman',
+    fit: { cloth: 0xb4232a, jacket: 0x6b1830, shirt: 0xe07a3a, sash: 0x6b1830, wrap: 0xf2c14a, wrapMap: patternMap('check'), skirt: true, scarf: true, velvet: true, coins: false, turban: false, baggy: false, robe: false, beard: false },
+  },
+  'فاتە چاو پیس': {
+    as: 'woman',
+    proportions: [0.98, 0.9, 0.98],
+    skin: 0xd2b49a,
+    fit: { cloth: 0x2a3a62, jacket: 0x1c2844, shirt: 0x3a4a78, sash: 0x1c2844, wrap: 0x16120e, skirt: true, scarf: true, velvet: true, coins: true, turban: false, beard: false },
+  },
+  'کاکە حەمە': {
+    cloak: true,
+    crook: true,
+    fit: { cloth: 0x5a4636, jacket: 0x6a5644, shirt: 0xe6d4bc, sash: 0x3a3228, wrap: 0x5a4636, baggy: true, turban: true, beard: true, beardShort: true },
+  },
+  'مەلا حوسێن': {
+    as: 'mullah',
+    fit: { cloth: 0x241c18, jacket: 0x1a1614, shirt: 0xf7f4ee, sash: 0x6b2a2a, wrap: 0xf7f7f4, robe: true, turban: true, beard: true, beardWhite: true, skirt: false, baggy: false },
+  },
+};
+
+function outfitFor(kind, salt) {
+  if (kind === 'mullah') {
+    return { cloth: 0x2a221c, jacket: 0x241c18, shirt: 0xf7f4ee, sash: 0x6b2a2a, wrap: 0xf7f4ee, robe: true, turban: true, beard: true };
+  }
+  if (kind === 'woman') {
+    const row = WOMEN[Math.abs(salt) % WOMEN.length];
+    return {
+      cloth: row.dress, jacket: row.kawa, shirt: row.layer, sash: row.kawa, wrap: row.scarf,
+      skirt: true, scarf: true, coins: row.coins, velvet: true,
+    };
+  }
+  if (kind === 'child') {
+    return { cloth: 0xc4a574, jacket: 0xd8c4a4, shirt: 0xf4efe6, sash: 0x8d3a32, wrap: 0xf6f1e8, simple: true, cap: true };
+  }
+  const row = MEN[Math.abs(salt) % MEN.length];
+  return {
+    cloth: row.cloth, jacket: row.cloth, shirt: row.shirt, sash: row.sash, wrap: row.wrap,
+    wrapMap: patternMap(row.pattern), baggy: true, turban: true, beard: salt % 3 !== 1,
+  };
 }
 function piece(parent, geo, material, x, y, z, shadow = true) {
   const m = new THREE.Mesh(geo, material);
@@ -40,53 +166,59 @@ function piece(parent, geo, material, x, y, z, shadow = true) {
   return m;
 }
 
-const SASHES = [0x8b1e2d, 0x1f6b4a, 0xc47a3a, 0x2f4f8a, 0x6b3a8a];
-const DRESSES = [0xc44848, 0xd45a78, 0x3d8f8a, 0xc47a3a, 0x2f6a8a];
-const KEYS = ['drop', 'torso', 'torsoY', 'hipL', 'hipR', 'shinL', 'shinR', 'armL', 'armR', 'elbL', 'elbR', 'head', 'headY'];
+const KEYS = ['drop', 'torso', 'torsoY', 'hipL', 'hipR', 'shinL', 'shinR', 'armL', 'armR', 'elbL', 'elbR', 'head', 'headY', 'sway', 'hipYaw', 'breath'];
 
-export function createVillagerRig(kind, salt = 0) {
+export function createVillagerRig(kind, salt = 0, name = '') {
+  const look = LOOKS[name] || null;
+  const visual = (look && look.as) || kind;
   const root = new THREE.Group();
   root.scale.setScalar(kind === 'child' ? 0.5 : 0.68);
   const body = new THREE.Group();
   root.add(body);
-  const skin = mat(0x8c5a42, 0.62);
+  const fit = Object.assign({}, outfitFor(visual, salt), (look && look.fit) || {});
+  const skin = mat((look && look.skin) || 0xc49274, 0.58);
   const shoe = mat(0x1a120e, 0.7);
-  const cloth = mat(kind === 'mullah' ? 0xf4efe4 : kind === 'woman' ? DRESSES[salt % DRESSES.length] : 0x4a4034, 0.78);
-  const shirt = mat(kind === 'mullah' ? 0xf7f1e4 : kind === 'woman' ? DRESSES[salt % DRESSES.length] : 0xc2a078, 0.74);
-  const vest = mat(kind === 'woman' ? 0x6b3038 : 0x3a2a22, 0.8);
-  const sash = mat(kind === 'mullah' ? 0x6b2a2a : SASHES[salt % SASHES.length], 0.7);
-  const wrap = mat(kind === 'mullah' ? 0xf7f4ee : kind === 'woman' ? 0xf4efe6 : 0xd8c4a4, 0.8);
-  const robe = mat(0x241c18, 0.82);
+  const cloth = mat(fit.cloth, 0.82);
+  const shirt = mat(fit.shirt, 0.74);
+  const jacket = mat(fit.jacket, fit.velvet ? 0.5 : 0.78);
+  const sashMat = mat(fit.sash, 0.68);
+  const wrap = mat(fit.wrap, 0.78, fit.wrapMap || null);
+  const gold = mat(0xe2c56a, 0.38, patternMap('coin'), 0.45);
 
   const hips = [new THREE.Group(), new THREE.Group()];
   const shins = [new THREE.Group(), new THREE.Group()];
+  const thighGeo = fit.skirt ? cone(0.24, 0.12, 0.42) : fit.baggy ? cone(0.28, 0.08, 0.42) : tube(0.09, 0.4);
+  const shinGeo = fit.skirt ? cone(0.12, 0.055, 0.34) : fit.baggy ? tube(0.055, 0.32) : tube(0.065, 0.34);
   [-0.15, 0.15].forEach((x, i) => {
     hips[i].position.set(x, 0.95, 0);
     body.add(hips[i]);
-    piece(hips[i], tube(0.12, 0.4), cloth, 0, -0.2, 0);
+    piece(hips[i], thighGeo, cloth, 0, -0.2, 0);
     shins[i].position.set(0, -0.4, 0);
     hips[i].add(shins[i]);
-    piece(shins[i], tube(0.07, 0.34), cloth, 0, -0.16, 0.01);
+    piece(shins[i], shinGeo, cloth, 0, -0.16, 0.01);
     piece(shins[i], box(0.16, 0.08, 0.28), shoe, 0, -0.36, -0.04);
   });
 
   const torso = new THREE.Group();
   torso.position.y = 1.02;
   body.add(torso);
-  piece(torso, box(0.36, 0.2, 0.22), cloth, 0, -0.02, 0);
-  piece(torso, box(0.4, 0.44, 0.24), shirt, 0, 0.26, 0);
-  if (kind === 'mullah') {
-    piece(torso, box(0.52, 0.78, 0.32), robe, 0, 0.12, 0.02);
-    piece(torso, box(0.28, 0.36, 0.08), shirt, 0, 0.28, -0.14);
-  } else if (kind === 'woman') {
-    piece(torso, box(0.5, 0.82, 0.3), shirt, 0, 0.02, 0);
-    piece(torso, box(0.34, 0.16, 0.08), vest, 0, 0.34, -0.12);
+  if (fit.robe) {
+    piece(torso, box(0.56, 1.05, 0.36), jacket, 0, 0.02, 0.02);
+    piece(torso, box(0.22, 0.28, 0.06), shirt, 0, 0.34, -0.16);
+  } else if (fit.skirt) {
+    piece(torso, box(0.5, 0.78, 0.32), cloth, 0, 0.02, 0);
+    piece(torso, box(0.42, 0.36, 0.12), shirt, 0, 0.22, -0.08);
+    piece(torso, box(0.48, 0.32, 0.14), jacket, 0, 0.32, -0.04);
+  } else if (fit.simple) {
+    piece(torso, box(0.38, 0.42, 0.24), jacket, 0, 0.18, 0);
+    piece(torso, box(0.16, 0.16, 0.04), shirt, 0, 0.28, -0.12);
   } else {
-    piece(torso, box(0.44, 0.34, 0.12), vest, 0, 0.3, -0.1);
-    piece(torso, box(0.4, 0.28, 0.06), vest, 0, 0.28, 0.12);
+    piece(torso, box(0.44, 0.5, 0.26), jacket, 0, 0.2, 0);
+    piece(torso, box(0.16, 0.2, 0.04), shirt, 0, 0.3, -0.13);
   }
-  const sashMesh = piece(torso, box(0.48, 0.08, 0.28), sash, 0, 0.02, 0);
-  sashMesh.rotation.z = kind === 'woman' ? -0.12 : 0.18;
+  const sashH = fit.sashWide ? 0.22 : (fit.robe ? 0.08 : 0.13);
+  const sashMesh = piece(torso, box(fit.simple ? 0.4 : 0.54, sashH, 0.34), sashMat, 0, fit.skirt ? 0.16 : 0.02, 0);
+  sashMesh.rotation.z = fit.skirt ? -0.08 : 0.04;
 
   const head = new THREE.Group();
   head.position.set(0, 0.58, 0);
@@ -109,18 +241,55 @@ export function createVillagerRig(kind, salt = 0) {
   });
   piece(head, box(0.045, 0.06, 0.05), mat(0xe0b090, 0.55), 0, 0.03, -0.16, false);
   const mouth = piece(head, box(0.08, 0.02, 0.02), mat(0x8a3a3a, 0.5), 0, -0.03, -0.16, false);
-  if (kind === 'mullah') {
-    piece(head, ball(0.175), wrap, 0, 0.12, 0.01);
-    piece(head, box(0.08, 0.34, 0.05), wrap, 0.1, -0.08, 0.08);
-    piece(head, box(0.14, 0.1, 0.06), mat(0xd8d8d8, 0.85), 0, -0.02, -0.12);
-  } else if (kind === 'woman') {
-    piece(head, ball(0.185), wrap, 0, 0.08, 0);
-    piece(head, box(0.1, 0.46, 0.04), wrap, 0, -0.18, 0.06);
-  } else {
-    piece(head, ball(0.175), wrap, 0, 0.12, 0.01);
-    piece(head, box(0.08, 0.38, 0.05), wrap, 0.12, -0.1, 0.08);
-    if (salt % 3 !== 1) piece(head, box(0.1, 0.08, 0.04), mat(0x4a3428, 0.8), 0, -0.02, -0.15, false);
-    if (salt % 2 === 0) piece(head, box(0.09, 0.03, 0.03), mat(0x3a2a22, 0.8), 0, -0.015, -0.17, false);
+  if (fit.bald) {
+    piece(head, box(0.14, 0.045, 0.14), wrap, 0, 0.2, 0.01);
+  } else if (fit.robe || fit.turban) {
+    piece(head, box(0.32, 0.07, 0.26), wrap, 0, 0.16, 0);
+    piece(head, box(0.18, 0.07, 0.16), wrap, 0, 0.22, 0);
+    piece(head, box(0.05, fit.robe ? 0.26 : 0.4, 0.045), wrap, 0.18, -0.02, 0.1);
+  } else if (fit.scarf) {
+    piece(head, ball(0.19), wrap, 0, 0.09, 0);
+    piece(head, box(0.14, 0.52, 0.05), wrap, 0.02, -0.16, 0.07);
+    if (fit.coins) piece(head, box(0.2, 0.045, 0.02), gold, 0, 0.12, -0.17, false);
+  } else if (fit.cap) {
+    piece(head, ball(0.16), wrap, 0, 0.16, 0);
+  }
+  if (fit.beard) {
+    const beardMat = mat(fit.beardWhite ? 0xf7f4ee : fit.beardGrey ? 0xc8c2b8 : 0x4a3428, 0.8);
+    const beardH = fit.beardShort ? 0.045 : fit.beardWhite ? 0.12 : 0.08;
+    piece(head, box(0.1, beardH, 0.04), beardMat, 0, -0.02 - beardH * 0.15, -0.15, false);
+    if (!fit.beardShort) piece(head, box(0.09, 0.03, 0.03), beardMat, 0, -0.015, -0.17, false);
+  }
+  if (look && look.cloak) {
+    const felt = mat(0x6a5a48, 0.92);
+    piece(torso, box(0.66, 0.72, 0.16), felt, 0, 0.2, 0.12);
+    piece(torso, box(0.14, 0.58, 0.3), felt, -0.3, 0.16, 0);
+    piece(torso, box(0.14, 0.58, 0.3), felt, 0.3, 0.16, 0);
+  }
+  if (look && look.drum) {
+    const drum = new THREE.Group();
+    drum.position.set(-0.32, -0.02, 0.1);
+    drum.rotation.z = Math.PI / 2;
+    piece(drum, tube(0.11, 0.24), mat(0xc45a32, 0.6), 0, 0, 0, false);
+    piece(drum, box(0.02, 0.2, 0.2), mat(0xf4efe4, 0.45), 0, 0.12, 0, false);
+    piece(drum, box(0.02, 0.2, 0.2), mat(0xf4efe4, 0.45), 0, -0.12, 0, false);
+    torso.add(drum);
+  }
+  if (look && look.spoons) {
+    const spoonWood = mat(0xc4a574, 0.7);
+    [-0.14, 0, 0.14].forEach((x) => {
+      piece(torso, box(0.025, 0.16, 0.02), spoonWood, x, -0.16, -0.18, false);
+      piece(torso, ball(0.04), spoonWood, x, -0.24, -0.18, false);
+    });
+  }
+  if (look && look.cane) {
+    piece(torso, box(0.035, 0.95, 0.035), mat(0x6b4226, 0.75), 0.34, -0.28, 0.08, false);
+  }
+  if (look && look.crook) {
+    const crookWood = mat(0x5a3a22, 0.75);
+    piece(torso, box(0.035, 1.05, 0.035), crookWood, 0.36, -0.12, 0.1, false);
+    const hook = piece(torso, box(0.14, 0.035, 0.035), crookWood, 0.42, 0.4, 0.1, false);
+    hook.rotation.z = 0.7;
   }
 
   const shoulders = [new THREE.Group(), new THREE.Group()];
@@ -175,7 +344,7 @@ export function createVillagerRig(kind, salt = 0) {
   sheath.visible = false;
 
   return {
-    root, kind, body, hips, shins, shoulders, elbows, head, torso,
+    root, kind, lookName: name, proportions: (look && look.proportions) || null, body, hips, shins, shoulders, elbows, head, torso,
     staff, axe, hoe, sack, hammer, sickle, shuttle, sword, sheath, face: { lids, brows, mouth }, lock: [null, null],
   };
 }
@@ -210,9 +379,8 @@ function rootDelta(rig) {
 
 function plantFeet(rig, o) {
   const delta = rootDelta(rig);
-  const stride = o.action === 'run' ? 0.3 : 0.22;
-  const freq = (o.action === 'run' ? 10 : 7.2) * (o.gait || 1);
-  const phase = (o.time || 0) * freq + (o.seed || 0);
+  const stride = o.action === 'run' ? 0.36 : 0.5;
+  const phase = ((o.travel || 0) / stride) * Math.PI + (o.seed || 0);
   [-0.15, 0.15].forEach((sx, i) => {
     const s = Math.sin(phase + i * Math.PI);
     if (s > 0) {
@@ -252,23 +420,37 @@ function sample(action, o) {
   const t = o.time || 0;
   const seed = o.seed || 0;
   const base = { ...(STILL[action] || STILL.idle) };
+  const turn = Math.max(-0.55, Math.min(0.55, o.turn || 0));
   if (action === 'idle') {
-    base.drop = Math.sin(t * 1.6 + seed) * 0.015;
-    base.head = Math.sin(t * 0.7 + seed) * 0.04;
+    const breath = Math.sin(t * 1.45 + seed);
+    base.drop = breath * 0.012;
+    base.breath = breath * 0.025;
+    base.head = Math.sin(t * 1.45 + seed + 0.4) * 0.035;
+    base.torsoY = Math.sin(t * 0.55 + seed) * 0.05 + turn * 0.7;
+    base.sway = Math.sin(t * 0.55 + seed) * 0.02;
+    base.hipYaw = -base.torsoY * 0.6;
+    base.armL = 0.14 + Math.sin(t * 0.7 + seed) * 0.04;
+    base.armR = 0.14 - Math.sin(t * 0.7 + seed) * 0.04;
   } else if (action === 'walk' || action === 'run') {
-    const f = (action === 'run' ? 10.5 : 7.2) * (o.gait || 1);
-    const a = action === 'run' ? 0.9 : 0.65;
-    const s = Math.sin(t * f + seed);
-    base.drop = Math.abs(Math.cos(t * f + seed)) * (action === 'run' ? 0.05 : 0.035);
-    base.torso = action === 'run' ? 0.12 : 0.06;
-    base.armL = -s * 0.75;
-    base.armR = s * 0.75;
-    base.elbL = -0.35;
-    base.elbR = -0.35;
-    base.hipL = s * a;
-    base.hipR = -s * a;
-    base.shinL = Math.max(0, -s) * 0.85;
-    base.shinR = Math.max(0, s) * 0.85;
+    const stride = action === 'run' ? 0.36 : 0.5;
+    const phase = ((o.travel || 0) / stride) * Math.PI + seed;
+    const s = Math.sin(phase);
+    const bob = Math.abs(Math.cos(phase));
+    base.drop = bob * (action === 'run' ? 0.045 : 0.03);
+    base.breath = bob * 0.015;
+    base.torso = action === 'run' ? 0.14 : 0.07;
+    base.torsoY = -s * 0.2 + turn * 0.85;
+    base.hipYaw = s * 0.18;
+    base.sway = s * 0.035;
+    base.head = bob * 0.05;
+    base.armL = -s * (action === 'run' ? 0.85 : 0.62);
+    base.armR = s * (action === 'run' ? 0.85 : 0.62);
+    base.elbL = -0.4 - Math.max(0, s) * 0.25;
+    base.elbR = -0.4 - Math.max(0, -s) * 0.25;
+    base.hipL = s * (action === 'run' ? 0.85 : 0.6);
+    base.hipR = -s * (action === 'run' ? 0.85 : 0.6);
+    base.shinL = Math.max(0, -s) * 0.7;
+    base.shinR = Math.max(0, s) * 0.7;
   } else if (action === 'chop' || action === 'hoe' || action === 'hammer') {
     const speed = action === 'hammer' ? 7.5 : action === 'hoe' ? 3.6 : 5.2;
     const s = Math.sin(t * speed + seed);
@@ -338,6 +520,9 @@ function sample(action, o) {
 
 function applyPose(rig, p) {
   rig.body.position.y = p.drop || 0;
+  rig.body.position.x = p.sway || 0;
+  rig.body.rotation.y = p.hipYaw || 0;
+  rig.torso.scale.y = 1 + (p.breath || 0);
   rig.torso.rotation.x = p.torso || 0;
   rig.torso.rotation.y = p.torsoY || 0;
   rig.hips[0].rotation.x = p.hipL || 0;
@@ -356,12 +541,21 @@ export function poseVillager(rig, o) {
   const action = o.action || 'idle';
   const target = sample(action, o);
   if (!rig._pose) rig._pose = { ...target };
+  if (rig._act !== action) {
+    rig._from = { ...rig._pose };
+    rig._act = action;
+    rig._blend = 0;
+  }
+  const dt = Math.min(0.05, Math.max(0.001, o.dt || 0.016));
+  rig._blend = Math.min(1, (rig._blend || 0) + dt * 3.4);
+  const u = rig._blend * rig._blend * (3 - 2 * rig._blend);
   const gait = action === 'walk' || action === 'run';
-  const working = action === 'hammer' || action === 'chop' || action === 'hoe' || action === 'bake' || action === 'weave' || action === 'call' || action === 'haul';
-  const k = gait ? 0.62 : working ? 0.55 : 0.22;
+  const follow = gait ? 0.72 : 0.45;
   KEYS.forEach((key) => {
-    const next = target[key] || 0;
-    rig._pose[key] = (rig._pose[key] || 0) + (next - (rig._pose[key] || 0)) * k;
+    const from = (rig._from && rig._from[key]) || 0;
+    const to = target[key] || 0;
+    const mixed = from + (to - from) * u;
+    rig._pose[key] = (rig._pose[key] || 0) + (mixed - (rig._pose[key] || 0)) * follow;
   });
   applyPose(rig, rig._pose);
   if (gait) plantFeet(rig, o);
