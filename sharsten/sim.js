@@ -596,6 +596,7 @@ function addBuilding(state, type, gx, gz, opt = {}) {
     anim: opt.anim || 0,
     tag: opt.tag || '',
     damage: opt.damage || 0,
+    shop: opt.shop || '',
   };
   state.buildings.push(b);
   return b;
@@ -897,6 +898,10 @@ function goalFor(state, v, phase) {
     const spring = placeOf(state, 'spring');
     if (spring) return beside(spring, v, 0.4, 0.35);
   }
+  if (phase === 'work' && v.shop) {
+    const stall = state.buildings.find((b) => b.id === v.stallId && b.type === 'stall');
+    if (stall) return { gx: stall.gx, gz: stall.gz - 0.42 };
+  }
   if (phase === 'work' && v.errand === 'home') {
     const house = state.buildings.find((b) => b.id === v.homeId && b.type === 'house')
       || state.buildings.find((b) => b.type === 'house');
@@ -1187,9 +1192,11 @@ export function stepNpcs(state, dt, opts = {}) {
       v.greetCool = 8;
       waved = true;
     }
-    if (!waved && v.sayLeft <= 0) v.greeting = false;
-    if (!waved && v.line && String(v.line).startsWith('greet')) v.line = '';
-    else if (!waved && v.sayLeft <= 0 && v.line && !String(v.line).startsWith('greet')) v.line = '';
+    if (!waved && v.sayLeft <= 0) {
+      v.greeting = false;
+      if (v.line && String(v.line).startsWith('greet')) v.line = '';
+      else if (v.line && !String(v.line).startsWith('greet')) v.line = '';
+    }
     if (v.stumble > 0) v.stumble = Math.max(0, v.stumble - dt);
     followPath(v);
     if (v.role === 'shepherd' && v.mode === 'work' && v.errand !== 'well' && v.errand !== 'home') {
@@ -2020,6 +2027,47 @@ export function integrate(state, dt, opts = {}) {
   });
 }
 
+function giveHomes(state) {
+  const taken = new Set(state.villagers.map((v) => v.homeId).filter(Boolean));
+  const fresh = () => state.buildings.find((b) => b.type === 'house' && !taken.has(b.id) && !b.tag);
+  state.villagers.forEach((v) => {
+    if (v.player || v.homeId) return;
+    let house = fresh();
+    if (!house) {
+      for (let r = 3; r <= 14 && !house; r += 1) {
+        for (let a = 0; a < 16 && !house; a += 1) {
+          const gx = Math.round(MX + Math.cos(a + v.id) * r);
+          const gz = Math.round(MZ + Math.sin(a * 1.7 + v.id) * r);
+          if (isRoad(gx, gz) || occupied(state, gx, gz) || !besideRoad(gx, gz)) continue;
+          if (!playable(gx, gz)) continue;
+          addBuilding(state, 'house', gx, gz, { style: v.id % 5 });
+          house = state.buildings[state.buildings.length - 1];
+        }
+      }
+    }
+    if (!house) return;
+    taken.add(house.id);
+    house.ownerId = v.id;
+    v.homeId = house.id;
+  });
+}
+
+function assignShops(state) {
+  const want = {
+    spice: (v) => v.nameCkb === 'پورە شرین',
+    smith: (v) => v.role === 'smith' && !v.shop,
+    cloth: (v) => v.role === 'weaver' && !v.shop,
+    bakery: (v) => v.nameCkb === 'حاجی وەسمان',
+    spoon: (v) => v.nameCkb === 'حەمەی کەوچکان',
+  };
+  state.buildings.filter((b) => b.type === 'stall').forEach((stall) => {
+    const keeper = state.villagers.find((v) => !v.player && !v.shop && want[stall.shop] && want[stall.shop](v));
+    if (!keeper) return;
+    keeper.shop = stall.shop;
+    keeper.stallId = stall.id;
+  });
+}
+
 export function createState() {
   const state = {
     hour: 8,
@@ -2123,6 +2171,10 @@ export function createState() {
   [[34, 8], [36, 10], [38, 8], [34, 12]].forEach(([gx, gz], i) => {
     stamp(i % 2 ? 'orchard_walnut' : 'orchard_pom', gx, gz);
   });
+  const stalls = [
+    ['spice', 24, 29], ['smith', 26, 29], ['cloth', 28, 29], ['bakery', 30, 29], ['spoon', 32, 29],
+  ];
+  stalls.forEach(([shop, gx, gz]) => stampNear('stall', gx, gz, { shop, style: shop.length % 3 }));
   spawnVillager(state, true);
   while (state.villagers.length < 1 + NPC_COUNT && state.villagers.length < capacity(state)) spawnVillager(state);
   bindQuests(state);
@@ -2137,6 +2189,8 @@ export function createState() {
   player.tz = doorZ;
   player.ry = Math.atan2(MX - doorX, MZ - doorZ);
   if (own) player.homeId = own.id;
+  giveHomes(state);
+  assignShops(state);
   const mullah = state.villagers.find((v) => !v.player && v.role === 'faithful');
   if (mullah) {
     mullah.role = 'mullah';
@@ -2680,13 +2734,14 @@ export function dismissConfront(state) {
 const TRADE = {
   farmer: ['grain', 'barley'], baker: ['food', 'flour'], miller: ['flour', 'grain'], shepherd: ['wool', 'milk'], smith: ['tools'],
   weaver: ['cloth'], woodcutter: ['wood'], stonecutter: ['stone'], mullah: ['food'],
+  spice: ['food', 'grain'], cloth: ['cloth', 'wool'], bakery: ['food', 'flour'], spoon: ['wood', 'food'],
 };
 const BASE = { grain: 3, barley: 3, flour: 5, food: 8, wool: 5, milk: 4, tools: 8, cloth: 6, wood: 2, stone: 2, eggs: 3 };
 
 export function tradeList(state, id) {
   const v = state.villagers.find((item) => item.id === id);
   if (!v) return [];
-  const keys = TRADE[v.role] || ['food'];
+  const keys = TRADE[v.shop] || TRADE[v.role] || ['food'];
   const rep = state.rep || 0;
   const mul = rep >= 40 ? 0.8 : rep < 0 ? 1.3 : 1;
   return keys.map((key) => ({ key, buy: Math.max(1, Math.round((BASE[key] || 3) * mul)), sell: Math.max(1, Math.round((BASE[key] || 3) * 0.6 * (rep >= 40 ? 1.25 : 1))) }));

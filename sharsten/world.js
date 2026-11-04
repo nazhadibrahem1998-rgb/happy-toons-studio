@@ -314,7 +314,7 @@ export function createView(canvas) {
   const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), mat(0xffffff, { map: grassTexture() }), GROUND_CAP);
   scene.add(ground);
 
-  const walls = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: mudTexture() }), 140);
+  const walls = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: mudTexture() }), 260);
   const roofs = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: roofTexture() }), 80);
   const beams = pool(new THREE.BoxGeometry(1.5, 0.08, 0.1), mat(0x5a3a22), 48);
   scene.add(walls, roofs, beams);
@@ -740,10 +740,29 @@ export function createView(canvas) {
     let boxN = 0;
     const wheatColor = painted === 0 ? 0x7ed45a : painted === 1 ? 0xe2c15a : painted === 2 ? 0xc48a3a : 0xd5e4c8;
     state.buildings.forEach((b) => {
-      if (b.type === 'mosque' || b.type === 'spring' || b.type === 'house') return;
+      if (b.type === 'mosque' || b.type === 'spring') return;
       const p = cellToWorld(b.gx, b.gz);
       const dist = Math.hypot(p.x - cull.x, p.z - cull.z);
       if (dist > cull.radius) { stats.skipped += 1; return; }
+      if (b.type === 'house') {
+        if (b.style % 3 === 0 && postN < 76) {
+          put(posts, postN, p.x + 0.72, 0.16, p.z + 0.55, 0.55, 0.4, 0.45, 0, 0xc4a574);
+          postN += 1;
+        }
+        return;
+      }
+      if (b.type === 'stall' && postN < 74 && boxN < 36) {
+        const cloth = { spice: 0xc45a3a, smith: 0x5c5854, cloth: 0x3d6a8a, bakery: 0xe6c56a, spoon: 0xc4a574 }[b.shop] || 0xd8c4a4;
+        put(posts, postN, p.x - 0.42, 0.38, p.z - 0.28, 1, 1.1, 1, 0, 0x6b4226);
+        postN += 1;
+        put(posts, postN, p.x + 0.42, 0.38, p.z - 0.28, 1, 1.1, 1, 0, 0x6b4226);
+        postN += 1;
+        put(boxes, boxN, p.x, 0.78, p.z - 0.12, 1.15, 0.06, 0.72, 0, cloth);
+        boxN += 1;
+        put(boxes, boxN, p.x - 0.22, 0.2, p.z + 0.22, 0.32, 0.24, 0.28, 0, 0x8d5a32);
+        boxN += 1;
+        return;
+      }
       stats.rendered += 1;
       const stalks = dist > metersToUnits(16) ? 2 : (low ? 3 : 6);
       if (b.type === 'field') {
@@ -1021,7 +1040,8 @@ export function createView(canvas) {
     document.documentElement.style.setProperty('--vv-h', `${h}px`);
     document.documentElement.style.setProperty('--vv-w', `${w}px`);
     const dpr = window.devicePixelRatio || 1;
-    const cap = quality === 'low' ? 1 : quality === 'high' ? 2 : 1.5;
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    const cap = quality === 'low' ? 1 : quality === 'high' ? (coarse ? 1.75 : 2) : (coarse ? 1.5 : 1.75);
     renderer.setPixelRatio(Math.min(dpr, cap));
     renderer.setSize(Math.max(160, Math.round(w)), Math.max(120, Math.round(h)), false);
     camera.aspect = w / Math.max(1, h);
