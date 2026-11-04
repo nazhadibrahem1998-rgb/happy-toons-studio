@@ -1,0 +1,33 @@
+{
+  "items": [
+    {"id": "wood", "name": "Wood", "desc": "Fallen branches, dry enough to work.", "cat": "mat"},
+    {"id": "stone", "name": "Stone", "desc": "River stone and quarry chips.", "cat": "mat"},
+    {"id": "clay", "name": "Clay", "desc": "Cool clay from the bank.", "cat": "mat"},
+    {"id": "fibre", "name": "Fibre", "desc": "Reed and herb fibre, stripped and drying.", "cat": "mat"},
+    {"id": "hide", "name": "Hide", "desc": "Shed hide from the racks. Nothing was killed for it.", "cat": "mat"},
+    {"id": "iron_ore", "name": "Iron ore", "desc": "Dark ore. The dream will not yield it yet.", "cat": "mat", "locked": true},
+    {"id": "bread", "name": "Loaf", "desc": "A round loaf from the tandoor.", "cat": "food"},
+    {"id": "mallet", "name": "Wooden mallet", "desc": "A first tool. Heavy and honest.", "cat": "tool"},
+    {"id": "stone_knife", "name": "Stone knife", "desc": "A flint edge bound with fibre.", "cat": "tool"},
+    {"id": "hook", "name": "Gathering hook", "desc": "A curved stick for reeds and branches.", "cat": "tool"},
+    {"id": "axe", "name": "Hand axe", "desc": "For branches, not for people.", "cat": "tool"},
+    {"id": "pick", "name": "Stone pick", "desc": "A stone point on a short haft.", "cat": "tool"},
+    {"id": "spoon", "name": "Wooden spoon", "desc": "Carved smooth, the way Hama makes them.", "cat": "goods", "placeable": true},
+    {"id": "spoon_mould", "name": "Spoon mould", "desc": "A wooden mould so the spoons come out kin to each other.", "cat": "goods", "placeable": true},
+    {"id": "clay_cup", "name": "Clay cup", "desc": "Unfired, still cool in the hand.", "cat": "goods", "placeable": true},
+    {"id": "clay_bowl", "name": "Clay bowl", "desc": "A wide bowl for the shelf.", "cat": "goods", "placeable": true},
+    {"id": "water_jar", "name": "Water jar", "desc": "A jar with a fibre neck.", "cat": "goods", "placeable": true},
+    {"id": "stool", "name": "Wooden stool", "desc": "Three legs and a round seat.", "cat": "place", "placeable": true},
+    {"id": "lamp", "name": "Stone lamp", "desc": "A hollow stone with a fibre wick.", "cat": "place", "placeable": true},
+    {"id": "braid", "name": "Spirit braid", "desc": "Four strands, for the spring.", "cat": "goods", "placeable": true},
+    {"id": "satchel", "name": "Hide satchel", "desc": "A small satchel of shed hide and reed fibre.", "cat": "tool"},
+    {"id": "millstone", "name": "Hand millstone", "desc": "A round stone that remembers grain.", "cat": "place", "placeable": true},
+    {"id": "old_basket", "name": "Old basket", "desc": "A worn reed basket from a doorway.", "cat": "found"},
+    {"id": "broken_pot", "name": "Broken pot", "desc": "Sherds of a household pot. Still good clay.", "cat": "found"},
+    {"id": "worn_rug", "name": "Worn rug", "desc": "A rug whose colours have dreamed themselves thin.", "cat": "found"},
+    {"id": "cracked_jug", "name": "Cracked jug", "desc": "A water jug with a patient crack.", "cat": "found"},
+    {"id": "windmill", "name": "Windmill", "desc": "An invention for a later waking. The sails are not in this dream.", "cat": "invention", "locked": true},
+    {"id": "water_wheel", "name": "Water wheel", "desc": "An invention for a later waking. The wheel is only a foundation.", "cat": "invention", "locked": true},
+    {"id": "rocket", "name": "Black-powder rocket", "desc": "An old sealed recipe. It stays shut until a later part.", "cat": "invention", "locked": true}
+  ]
+}

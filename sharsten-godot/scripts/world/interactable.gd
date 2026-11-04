@@ -1,0 +1,145 @@
+extends Node3D
+
+var kind := ""
+var id := ""
+var item := ""
+var amount := 1
+var herb := false
+var locked := false
+var flag := ""
+var station := ""
+var used := false
+var refill := 0.0
+
+func configure(defn: Dictionary) -> void:
+	kind = str(defn.get("kind", ""))
+	id = str(defn.get("id", ""))
+	item = str(defn.get("item", ""))
+	amount = int(defn.get("amount", 1))
+	herb = bool(defn.get("herb", false))
+	locked = bool(defn.get("locked", false))
+	flag = str(defn.get("flag", ""))
+	station = str(defn.get("station", defn.get("kind", "")))
+	var at = defn.get("at", [0, 0])
+	if typeof(at) == TYPE_DICTIONARY:
+		position = Vector3(float(at.get("x", 0)), 0, float(at.get("z", 0)))
+	else:
+		position = Vector3(float(at[0]), 0, float(at[1]))
+	name = id
+	add_to_group("interact")
+	_visual()
+	_meta()
+
+func _meta() -> void:
+	set_meta("id", id)
+	set_meta("kind", kind if kind != "found" else "resource")
+	if kind == "station":
+		set_meta("kind", "station")
+		set_meta("station", station)
+		set_meta("verb", "Use the workbench" if station != "trade" else "Trade")
+	elif kind == "note":
+		set_meta("kind", "note")
+		set_meta("verb", "Read")
+	elif kind == "rune":
+		set_meta("kind", "rune")
+		set_meta("verb", "Touch the rune")
+	elif kind == "altar":
+		set_meta("kind", "altar")
+		set_meta("verb", "Approach the offering")
+	elif kind == "ore" or locked:
+		set_meta("kind", "resource")
+		set_meta("verb", "Look at the ore")
+	else:
+		set_meta("kind", "resource")
+		set_meta("verb", "Gather " + ContentDB.item_name(item))
+
+func _visual() -> void:
+	match kind:
+		"wood":
+			MeshLib.part(self, MeshLib.cyl(0.12, 0.7), MeshLib.mat("6b4226"), Vector3(0, 0.35, 0))
+			MeshLib.part(self, MeshLib.sphere(0.28), MeshLib.mat("2f7a32"), Vector3(0, 0.85, 0))
+		"stone":
+			MeshLib.part(self, MeshLib.sphere(0.28), MeshLib.ground_mat("9a9088", "rock", 0.8), Vector3(0, 0.2, 0))
+		"clay":
+			MeshLib.part(self, MeshLib.box(0.7, 0.18, 0.7), MeshLib.mat("a67c52"), Vector3(0, 0.1, 0))
+		"fibre", "herb":
+			MeshLib.part(self, MeshLib.box(0.4, 0.5, 0.4), MeshLib.mat("3f8a40" if kind == "herb" else "c2a06a"), Vector3(0, 0.28, 0))
+		"hide":
+			MeshLib.part(self, MeshLib.box(0.5, 0.7, 0.06), MeshLib.mat("8a623c"), Vector3(0, 0.6, 0))
+		"found":
+			MeshLib.part(self, MeshLib.box(0.35, 0.18, 0.35), MeshLib.mat("a08060"), Vector3(0, 0.12, 0))
+		"ore":
+			MeshLib.part(self, MeshLib.sphere(0.32), MeshLib.mat("2a2c30", 0.5, 0.4), Vector3(0, 0.22, 0))
+		"rune":
+			MeshLib.part(self, MeshLib.box(0.45, 0.7, 0.2), MeshLib.mat("d9d3c8"), Vector3(0, 0.4, 0))
+			var glow := MeshLib.part(self, MeshLib.box(0.16, 0.16, 0.04), MeshLib.mat("f0e2a0"), Vector3(0, 0.5, -0.12))
+			var gm := glow.material_override as StandardMaterial3D
+			gm.emission_enabled = true
+			gm.emission = Color("f0e2a0")
+			gm.emission_energy_multiplier = 0.6
+		"note":
+			MeshLib.part(self, MeshLib.box(0.22, 0.02, 0.16), MeshLib.mat("f3e6c8"), Vector3(0, 0.4, 0))
+			MeshLib.part(self, MeshLib.box(0.06, 0.5, 0.06), MeshLib.mat("6b4226"), Vector3(0, 0.25, 0))
+		"station":
+			_station_mesh()
+		"altar":
+			MeshLib.part(self, MeshLib.box(1.4, 0.4, 0.8), MeshLib.mat("e8e4dc"), Vector3(0, 0.3, 0))
+			MeshLib.part(self, MeshLib.sphere(0.1), MeshLib.mat("8b1e2d"), Vector3(-0.3, 0.58, 0))
+			MeshLib.part(self, MeshLib.sphere(0.1), MeshLib.mat("f4f1ea"), Vector3(0.3, 0.58, 0))
+		_:
+			MeshLib.part(self, MeshLib.box(0.3, 0.3, 0.3), MeshLib.mat("888888"), Vector3(0, 0.2, 0))
+
+func _station_mesh() -> void:
+	var wood := MeshLib.mat("6b4226")
+	match station:
+		"stump":
+			MeshLib.part(self, MeshLib.cyl(0.35, 0.5), wood, Vector3(0, 0.28, 0))
+		"carpenter":
+			MeshLib.part(self, MeshLib.box(1.2, 0.7, 0.6), wood, Vector3(0, 0.4, 0))
+		"clay":
+			MeshLib.part(self, MeshLib.cyl(0.4, 0.35), MeshLib.mat("a67c52"), Vector3(0, 0.3, 0))
+		"stone":
+			MeshLib.part(self, MeshLib.box(1.1, 0.5, 0.7), MeshLib.mat("9a9088"), Vector3(0, 0.3, 0))
+		"trade":
+			MeshLib.part(self, MeshLib.box(1.4, 0.05, 1.0), MeshLib.mat("8b1e2d"), Vector3(0, 0.05, 0))
+			MeshLib.part(self, MeshLib.sphere(0.12), MeshLib.mat("e4c48a"), Vector3(0.2, 0.16, 0))
+		_:
+			MeshLib.part(self, MeshLib.box(0.6, 0.6, 0.6), wood, Vector3(0, 0.3, 0))
+
+func _process(delta: float) -> void:
+	if not used:
+		return
+	refill -= delta
+	if refill <= 0.0:
+		used = false
+		visible = true
+
+func use(_player: Node) -> void:
+	if kind == "station":
+		get_tree().call_group("ui", "open_station", station)
+		return
+	if kind == "altar":
+		get_tree().call_group("ui", "open_choice")
+		return
+	if kind == "note":
+		var note := GameState.read_note(id)
+		if not note.is_empty():
+			get_tree().call_group("ui", "show_note", note)
+		return
+	if kind == "rune":
+		if bool(GameState.data["flags"].get(flag, false)):
+			GameState.say_thought("This rune is already awake.")
+			return
+		GameState.touch_rune(flag)
+		GameState.say_thought("The rune is warm, like a stone that remembers a hand.")
+		return
+	if locked or kind == "ore":
+		GameState.say_thought("The ore is only a shadow. It will not come loose in a dream.")
+		return
+	if used:
+		return
+	var got := GameState.gather(item, amount, herb)
+	GameState.say_thought("I take %s. (%d)" % [ContentDB.item_name(item), got])
+	used = true
+	visible = false
+	refill = 75.0

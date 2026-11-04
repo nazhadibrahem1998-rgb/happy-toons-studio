@@ -1,0 +1,7 @@
+{
+  "trades": [
+    {"id": "loaf", "give": {"wood": 2}, "get": {"bread": 1}},
+    {"id": "clay_swap", "give": {"fibre": 2}, "get": {"clay": 1}},
+    {"id": "stone_swap", "give": {"wood": 3}, "get": {"stone": 1}}
+  ]
+}

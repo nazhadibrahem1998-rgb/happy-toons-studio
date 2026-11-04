@@ -1,0 +1,91 @@
+{
+  "quests": [
+    {
+      "id": "first_steps",
+      "title": "A mallet for the hand",
+      "summary": "A thought on waking. Gather wood and shape a mallet at the stump.",
+      "source": "thought",
+      "autostart": true,
+      "required": true,
+      "objectives": [
+        {"id": "wood", "type": "gather", "item": "wood", "count": 4, "text": "Gather wood"},
+        {"id": "mallet", "type": "craft", "item": "mallet", "count": 1, "text": "Craft a wooden mallet at the stump"}
+      ]
+    },
+    {
+      "id": "spoon_mould",
+      "title": "A mould for Hama",
+      "summary": "Overheard at the spoon stall. Hama-y Kawchkan needs a new spoon mould on his bench.",
+      "source": "overheard",
+      "required": true,
+      "objectives": [
+        {"id": "craft", "type": "craft", "item": "spoon_mould", "count": 1, "text": "Craft a spoon mould at the carpenter's frame"},
+        {"id": "place", "type": "place", "item": "spoon_mould", "spot": "spoon_bench", "radius": 4.0, "count": 1, "text": "Leave the mould on Hama's bench"}
+      ]
+    },
+    {
+      "id": "clay_cups",
+      "title": "Two cups for the shelf",
+      "summary": "A paper on the mosque step. The tandoor clay wants two cups.",
+      "source": "note",
+      "required": true,
+      "objectives": [
+        {"id": "craft", "type": "craft", "item": "clay_cup", "count": 2, "text": "Shape two clay cups at the wheel"},
+        {"id": "place", "type": "place", "item": "clay_cup", "spot": "cup_spot", "radius": 4.0, "count": 2, "text": "Set both cups by the tandoor"}
+      ]
+    },
+    {
+      "id": "spirit_braid",
+      "title": "A braid for the spring",
+      "summary": "Overheard by the water. The spring wants a four-strand braid.",
+      "source": "overheard",
+      "required": true,
+      "objectives": [
+        {"id": "craft", "type": "craft", "item": "braid", "count": 1, "text": "Braid four strands of fibre at the stump"},
+        {"id": "place", "type": "place", "item": "braid", "spot": "braid_spot", "radius": 4.0, "count": 1, "text": "Hang the braid by the spring"}
+      ]
+    },
+    {
+      "id": "rune_stones",
+      "title": "Three wandering runes",
+      "summary": "Overheard in the courtyard. Three rune stones have left the circle.",
+      "source": "overheard",
+      "required": true,
+      "objectives": [
+        {"id": "r1", "type": "flag", "flag": "rune_1", "count": 1, "text": "Touch the rune on the north ridge"},
+        {"id": "r2", "type": "flag", "flag": "rune_2", "count": 1, "text": "Touch the rune on the east rock"},
+        {"id": "r3", "type": "flag", "flag": "rune_3", "count": 1, "text": "Touch the rune on the south lane"}
+      ]
+    },
+    {
+      "id": "take_apart",
+      "title": "Worn things",
+      "summary": "A note by the lane. Take a worn rug apart at a workbench.",
+      "source": "note",
+      "required": true,
+      "objectives": [
+        {"id": "rug", "type": "salvage", "item": "worn_rug", "count": 1, "text": "Take a worn rug apart at a workbench"}
+      ]
+    },
+    {
+      "id": "pasture_fence",
+      "title": "A short fence",
+      "summary": "A note by the pasture. Raise one wattle fence where the sheep drift.",
+      "source": "note",
+      "required": true,
+      "objectives": [
+        {"id": "fence", "type": "build", "item": "fence", "spot": "fence_spot", "radius": 10.0, "count": 1, "text": "Raise a wattle fence by the pasture"}
+      ]
+    },
+    {
+      "id": "satchel",
+      "title": "A satchel for rubbings",
+      "summary": "Overheard at the hide racks. A satchel would keep a rune rubbing dry. Not required to leave the dream.",
+      "source": "overheard",
+      "required": false,
+      "objectives": [
+        {"id": "craft", "type": "craft", "item": "satchel", "count": 1, "text": "Craft a hide satchel at the stump"}
+      ]
+    }
+  ]
+}

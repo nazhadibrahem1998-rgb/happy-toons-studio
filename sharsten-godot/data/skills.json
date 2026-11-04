@@ -1,0 +1,88 @@
+{
+  "skills": [
+    {
+      "id": "woodcraft",
+      "name": "Woodcraft",
+      "blurb": "The hands learn the grain.",
+      "ranks": [
+        {
+          "id": "kindling",
+          "name": "Kindling",
+          "text": "Fallen wood comes away a little more generously.",
+          "need": {"gather:wood": 6},
+          "bonus": {"gather_bonus:wood": 1}
+        },
+        {
+          "id": "joiner",
+          "name": "Joiner",
+          "text": "A wooden piece asks for one less branch.",
+          "need": {"craft:wood_items": 3},
+          "bonus": {"cost_save:wood": 1}
+        }
+      ]
+    },
+    {
+      "id": "stonework",
+      "name": "Stonework",
+      "blurb": "Stone keeps the shape you ask of it.",
+      "ranks": [
+        {
+          "id": "chip",
+          "name": "Chip",
+          "text": "A pile of stone gives one chip more.",
+          "need": {"gather:stone": 6},
+          "bonus": {"gather_bonus:stone": 1}
+        },
+        {
+          "id": "setter",
+          "name": "Setter",
+          "text": "Stone recipes ask for one stone less.",
+          "need": {"craft:pick": 1},
+          "bonus": {"cost_save:stone": 1}
+        }
+      ]
+    },
+    {
+      "id": "trading",
+      "name": "Trading",
+      "blurb": "The cloth understands a fair pile.",
+      "ranks": [
+        {
+          "id": "nod",
+          "name": "The nod",
+          "text": "The asking pile is one item lighter.",
+          "need": {"trade:count": 1},
+          "bonus": {"trade_save": 1}
+        },
+        {
+          "id": "extra_loaf",
+          "name": "The extra loaf",
+          "text": "A finished trade sets one extra piece on the cloth.",
+          "need": {"trade:count": 3},
+          "bonus": {"trade_extra": 1}
+        }
+      ]
+    },
+    {
+      "id": "herbal_lore",
+      "name": "Herbal Lore",
+      "blurb": "The spring marks the useful stems.",
+      "ranks": [
+        {
+          "id": "stem",
+          "name": "Stem",
+          "text": "Herbs give a little more fibre.",
+          "need": {"gather:herb": 4},
+          "bonus": {"gather_bonus:fibre": 1}
+        },
+        {
+          "id": "braid_memory",
+          "name": "Braid memory",
+          "text": "After the spirit braid, herbs give still more.",
+          "need": {"place:braid": 1},
+          "bonus": {"gather_bonus:fibre": 1}
+        }
+      ]
+    }
+  ]
+}
