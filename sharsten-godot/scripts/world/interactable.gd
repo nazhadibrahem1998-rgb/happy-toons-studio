@@ -46,6 +46,12 @@ func _meta() -> void:
 	elif kind == "altar":
 		set_meta("kind", "altar")
 		set_meta("verb", "Approach the offering")
+	elif kind == "board":
+		set_meta("kind", "board")
+		set_meta("verb", "Read the board")
+	elif kind == "relic":
+		set_meta("kind", "relic")
+		set_meta("verb", "Study the relic")
 	elif kind == "ore" or locked:
 		set_meta("kind", "resource")
 		set_meta("verb", "Look at the ore")
@@ -86,6 +92,12 @@ func _visual() -> void:
 			MeshLib.part(self, MeshLib.box(1.4, 0.4, 0.8), MeshLib.mat("e8e4dc"), Vector3(0, 0.3, 0))
 			MeshLib.part(self, MeshLib.sphere(0.1), MeshLib.mat("8b1e2d"), Vector3(-0.3, 0.58, 0))
 			MeshLib.part(self, MeshLib.sphere(0.1), MeshLib.mat("f4f1ea"), Vector3(0.3, 0.58, 0))
+		"board":
+			MeshLib.part(self, MeshLib.box(0.12, 1.5, 0.12), MeshLib.mat("6b4226"), Vector3(0, 0.75, 0))
+			MeshLib.part(self, MeshLib.box(0.9, 0.7, 0.06), MeshLib.mat("e7d3a8"), Vector3(0, 1.15, 0))
+		"relic":
+			MeshLib.part(self, MeshLib.box(0.9, 2.2, 0.9), MeshLib.mat("5a4038", 0.6, 0.4), Vector3(0, 1.1, 0))
+			MeshLib.part(self, MeshLib.box(2.2, 0.12, 0.12), MeshLib.mat("6a3a2a", 0.5, 0.45), Vector3(0, 2.0, 0))
 		_:
 			MeshLib.part(self, MeshLib.box(0.3, 0.3, 0.3), MeshLib.mat("888888"), Vector3(0, 0.2, 0))
 
@@ -120,6 +132,13 @@ func use(_player: Node) -> void:
 		return
 	if kind == "altar":
 		get_tree().call_group("ui", "open_choice")
+		return
+	if kind == "board":
+		get_tree().call_group("ui", "open_diary", "quests")
+		GameState.say_thought("The board keeps the lane's unfinished work. Nobody is waiting to explain it.")
+		return
+	if kind == "relic":
+		GameState.study_relic()
 		return
 	if kind == "note":
 		var note := GameState.read_note(id)

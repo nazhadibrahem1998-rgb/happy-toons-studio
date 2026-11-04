@@ -94,7 +94,9 @@ Presets are in `scripts/sim/graphics_rules.gd`.
 - Medium — default for a mid-range card such as a GTX 1060 or RX 580. Shadows at 2048, view about 85 m, no SDFGI, no SSAO, no SSR, no volumetric fog. This is the 60 fps target at 1080p.
 - High and Ultra — gaming PCs. SDFGI, SSAO, SSR, volumetric fog, denser foliage, longer view, larger shadow maps. Those features turn themselves off if the renderer is not Forward+. The web preview uses the Compatibility renderer, so it keeps the foliage distances and drops the GI.
 
-The first launch picks a preset from the GPU name (and VRAM if a future caller passes it). An unknown name falls back to Medium. The player can change it, plus resolution scale, FSR 2 when the scale is below 100%, VSync, and a frame cap.
+The first launch picks a preset from the GPU name. An unknown name falls back to Medium. `AMD Radeon(TM) Graphics` and other integrated names start on Low, or Medium if a larger VRAM figure is passed in. High and Ultra stay for gaming GPUs. Resolution scale can use FSR 1 or FSR 2 when it is below 100%.
+
+The dream is the gentle old village. The red seed wakes the real Sharsten: worn ground, rusted relic frames, and the same people in the same clothes. No real nation is named. Windmill, water wheel, and the rocket stay sealed; studying a relic writes the blueprint into Engineering.
 
 Trees and grass use distance fades. Medium keeps the near detail band short so a 1060-class machine is not asked to shade the whole valley.
 

@@ -314,6 +314,8 @@ func _fill_page(body: VBoxContainer) -> void:
 				body.add_child(Desk.label("%s" % row.get("name", ""), 16))
 				body.add_child(Desk.label(str(row.get("text", "")), 15))
 		"skills":
+			body.add_child(Desk.label("Level %d    experience %d" % [int(GameState.data.get("level", 1)), int(GameState.data.get("xp", 0))], 18))
+			body.add_child(Desk.label("Ranks come from doing the work. They are not a list of special names.", 15))
 			for defn in ContentDB.skills:
 				var r := SkillRules.rank_of(defn, GameState.data["counters"])
 				body.add_child(Desk.label("%s    rank %d" % [defn.get("name", ""), r], 22))
@@ -575,7 +577,7 @@ func _close_settings() -> void:
 func _show_credits() -> void:
 	_clear_panels()
 	screen = "pause"
-	var p := Desk.panel(Vector2(720, 560))
+	var p := Desk.panel(Vector2(760, 640))
 	Desk.center(p)
 	p.name = "CreditsCard"
 	add_child(p)
@@ -585,7 +587,9 @@ func _show_credits() -> void:
 	var rt := RichTextLabel.new()
 	rt.bbcode_enabled = false
 	rt.text = Desk.credits_text()
-	rt.custom_minimum_size = Vector2(660, 400)
+	rt.custom_minimum_size = Vector2(680, 420)
+	rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rt.clip_contents = true
 	rt.scroll_active = true
 	rt.add_theme_color_override("default_color", Color("f3e6c8"))
 	rt.add_theme_font_size_override("normal_font_size", 16)

@@ -81,6 +81,11 @@ func _units() -> void:
 	_check(GraphicsRules.preset_for_adapter("NVIDIA GeForce RTX 3060", 8192) == "high", "3060 is high")
 	_check(GraphicsRules.preset_for_adapter("llvmpipe (LLVM 20.1.2, 256 bits)", 0) == "low", "software gpu is low")
 	_check(GraphicsRules.preset_for_adapter("", 0) == "medium", "unknown gpu falls back to medium")
+	_check(GraphicsRules.preset_for_adapter("AMD Radeon(TM) Graphics", 0) == "low", "integrated Radeon APU starts on low")
+	_check(GraphicsRules.preset_for_adapter("AMD Radeon(TM) Graphics", 8192) == "medium", "a stronger APU can step to medium")
+	_check(GraphicsRules.scaling_mode("fsr1", 0.75) == "fsr1", "FSR 1 when scaled")
+	_check(GraphicsRules.scaling_mode("fsr2", 0.75) == "fsr2", "FSR 2 when scaled")
+	_check(GraphicsRules.scaling_mode("off", 0.5) == "bilinear", "scale without upscaler stays bilinear")
 	var med: Dictionary = GraphicsRules.flags("medium")
 	var high: Dictionary = GraphicsRules.flags("high")
 	var ultra: Dictionary = GraphicsRules.flags("ultra")
@@ -127,6 +132,10 @@ func _craft_flow() -> void:
 	var fence: Dictionary = GameState.raise_piece("fence", Vector3(57.4, 0, 34.2), 0.2)
 	_check(bool(fence.get("ok", false)), "raise a fence, %s" % fence)
 	_check(str(GameState.data["quests"]["first_steps"].get("status", "")) == "done", "tutorial quest completes")
+	_check(int(GameState.data.get("xp", 0)) > 0, "crafting grants experience")
+	GameState.study_relic()
+	_check(bool(GameState.data["flags"].get("studied_relic", false)), "a relic leaves a blueprint")
+	_check(GameState.skill_rank("engineering") >= 1, "engineering ranks from study")
 
 func _skills() -> void:
 	GameState.data["counters"]["gather:wood"] = 6

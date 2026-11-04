@@ -11,7 +11,7 @@ static func flags(preset: String) -> Dictionary:
 				"shadows": false, "shadow_size": 1024, "shadow_distance": 18.0, "shadow_splits": 1,
 				"msaa": 0, "sdfgi": false, "ssao": false, "ssr": false, "ssr_steps": 0,
 				"volumetric_fog": false, "vol_density": 0.0, "glow": false,
-				"fog_density": 0.02, "view": 48.0, "trees": 40, "grass": 0,
+				"fog_density": 0.008, "view": 42.0, "trees": 28, "grass": 0,
 				"lod_full": 16.0, "grass_range": 0.0, "lamps": 0, "foliage_shadows": false,
 				"sdfgi_cell": 1.5, "sdfgi_cascades": 4,
 			}
@@ -39,9 +39,9 @@ static func flags(preset: String) -> Dictionary:
 			return {
 				"id": "medium",
 				"shadows": true, "shadow_size": 2048, "shadow_distance": 36.0, "shadow_splits": 1,
-				"msaa": 2, "sdfgi": false, "ssao": false, "ssr": false, "ssr_steps": 0,
+				"msaa": 0, "sdfgi": false, "ssao": false, "ssr": false, "ssr_steps": 0,
 				"volumetric_fog": false, "vol_density": 0.0, "glow": false,
-				"fog_density": 0.012, "view": 85.0, "trees": 90, "grass": 180,
+				"fog_density": 0.006, "view": 70.0, "trees": 56, "grass": 70,
 				"lod_full": 24.0, "grass_range": 28.0, "lamps": 0, "foliage_shadows": false,
 				"sdfgi_cell": 1.5, "sdfgi_cascades": 4,
 			}
@@ -73,7 +73,13 @@ static func preset_for_adapter(adapter_name: String, vram_mb: int) -> String:
 	for s in medium_bits:
 		if n.find(s) >= 0:
 			return "medium"
-	var low_bits := ["intel hd", "uhd graphics", "intel(r) uhd", "iris", "vega 3", "vega 8", "radeon(tm) graphics", "hd graphics"]
+	# Integrated APUs, including "AMD Radeon(TM) Graphics". Low keeps them smooth.
+	# A larger reported VRAM can step up to Medium, never to High.
+	if n.find("radeon(tm) graphics") >= 0 or n.find("radeon graphics") >= 0:
+		if vram_mb >= 6144:
+			return "medium"
+		return "low"
+	var low_bits := ["intel hd", "uhd graphics", "intel(r) uhd", "iris", "vega 3", "vega 8", "hd graphics"]
 	for s in low_bits:
 		if n.find(s) >= 0:
 			return "low"
@@ -94,7 +100,16 @@ static func preset_for_adapter(adapter_name: String, vram_mb: int) -> String:
 static func clamp_scale(scale: float) -> float:
 	return clampf(scale, 0.5, 1.0)
 
-static func scaling_mode(fsr: bool, scale: float) -> String:
-	if fsr and scale < 0.999:
+static func scaling_mode(fsr_mode, scale: float) -> String:
+	var mode := "off"
+	if typeof(fsr_mode) == TYPE_BOOL:
+		mode = "fsr2" if fsr_mode else "off"
+	else:
+		mode = str(fsr_mode)
+	if scale >= 0.999 or mode == "off" or mode == "false":
+		return "bilinear"
+	if mode == "fsr1" or mode == "1":
+		return "fsr1"
+	if mode == "fsr2" or mode == "2" or mode == "true":
 		return "fsr2"
 	return "bilinear"

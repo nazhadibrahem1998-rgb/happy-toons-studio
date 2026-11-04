@@ -148,6 +148,8 @@ func try_craft(recipe_id: String) -> Dictionary:
 	data["counters"]["craft:" + out] = int(data["counters"].get("craft:" + out, 0)) + count
 	if bool(recipe.get("woodwork", false)):
 		data["counters"]["craft:wood_items"] = int(data["counters"].get("craft:wood_items", 0)) + count
+	data["counters"]["craft:count"] = int(data["counters"].get("craft:count", 0)) + count
+	grant_xp(8)
 	_after_rules()
 	return {"ok": true, "cost": cost}
 
@@ -213,6 +215,8 @@ func raise_piece(piece_id: String, pos: Vector3, yaw: float) -> Dictionary:
 		return {"ok": false, "reason": "need", "cost": cost}
 	CraftRulesS.pay(data["inventory"], cost)
 	_add_placed(piece_id, snapped, yaw, "build")
+	data["counters"]["build:count"] = int(data["counters"].get("build:count", 0)) + 1
+	grant_xp(12)
 	_after_rules()
 	return {"ok": true, "pos": snapped, "yaw": yaw, "cost": cost}
 
@@ -312,6 +316,23 @@ func _check_gate() -> void:
 
 func missing_deeds() -> Array:
 	return QuestRulesS.missing_titles(ContentDB.quests, data)
+
+func hour() -> int:
+	return (9 + int(float(data.get("play_time", 0.0)) / 50.0)) % 24
+
+func grant_xp(amount: int) -> void:
+	data["xp"] = int(data.get("xp", 0)) + amount
+	data["level"] = 1 + int(data["xp"]) / 40
+
+func study_relic() -> void:
+	if bool(data["flags"].get("studied_relic", false)):
+		say_thought("The relic has already given up its drawing.")
+		return
+	data["flags"]["studied_relic"] = true
+	data["counters"]["study:relic"] = 1
+	grant_xp(20)
+	say_thought("A blueprint, half remembered: a wheel for the wind, a wheel for the water, and a spark for later. Not in this dream.")
+	_after_rules()
 
 func skill_rank(id: String) -> int:
 	for defn in ContentDB.skills:

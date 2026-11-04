@@ -23,6 +23,9 @@ var l1 := 0.40
 var l2 := 0.38
 var action := "idle"
 var first_person := false
+var _arm_l := 0.42
+var _arm_r := 0.42
+var _elb := -0.85
 
 func setup(spec: Dictionary) -> void:
 	height_mul = float(spec.get("height", 1.0))
@@ -54,16 +57,17 @@ func setup(spec: Dictionary) -> void:
 	torso.position = Vector3(0, 0.02, 0)
 	hips.add_child(torso)
 	if kind == "woman" or (kind == "child" and str(spec.get("child_kind", "")) == "girl"):
-		MeshLib.part(torso, MeshLib.box(0.46, 0.78, 0.30), shirt, Vector3(0, 0.28, 0))
-		MeshLib.part(torso, MeshLib.box(0.50, 0.86, 0.32), dress_c, Vector3(0, 0.10, 0.02))
-		MeshLib.part(torso, MeshLib.box(0.34, 0.16, 0.08), vest_c, Vector3(0, 0.48, -0.14))
+		MeshLib.part(torso, MeshLib.box(0.42, 0.34, 0.26), shirt, Vector3(0, 0.42, 0))
+		MeshLib.part(torso, MeshLib.box(0.55, 0.42, 0.36), dress_c, Vector3(0, 0.18, 0.02))
+		MeshLib.part(torso, MeshLib.box(0.72, 0.38, 0.46), dress_c, Vector3(0, -0.16, 0.03))
+		MeshLib.part(torso, MeshLib.box(0.34, 0.18, 0.1), vest_c, Vector3(0, 0.5, -0.12))
 	elif kind == "mullah":
 		MeshLib.part(torso, MeshLib.box(0.42, 0.46, 0.26), shirt, Vector3(0, 0.32, 0))
-		MeshLib.part(torso, MeshLib.box(0.56, 0.95, 0.36), MeshLib.mat(str(spec.get("robe", "241c18"))), Vector3(0, 0.18, 0.02))
+		MeshLib.part(torso, MeshLib.box(0.62, 1.05, 0.4), MeshLib.mat(str(spec.get("robe", "241c18"))), Vector3(0, 0.12, 0.02))
 	else:
-		MeshLib.part(torso, MeshLib.box(0.40, 0.22, 0.24), cloth, Vector3(0, 0.06, 0))
-		MeshLib.part(torso, MeshLib.box(0.42, 0.40, 0.26), shirt, Vector3(0, 0.32, 0))
-		MeshLib.part(torso, MeshLib.box(0.46, 0.34, 0.12), vest_c, Vector3(0, 0.34, -0.12))
+		MeshLib.part(torso, MeshLib.box(0.48, 0.28, 0.3), cloth, Vector3(0, 0.02, 0))
+		MeshLib.part(torso, MeshLib.box(0.5, 0.46, 0.32), shirt, Vector3(0, 0.32, 0))
+		MeshLib.part(torso, MeshLib.box(0.54, 0.22, 0.16), vest_c, Vector3(0, 0.22, -0.12))
 	var sash := MeshLib.part(torso, MeshLib.box(0.50 if not bool(spec.get("sash_long", false)) else 0.62, 0.08, 0.30), sash_c, Vector3(0, 0.12, 0))
 	sash.rotation.z = 0.18 if kind != "woman" else -0.1
 	if bool(spec.get("broad", false)):
@@ -93,7 +97,7 @@ func _leg(parent: Node3D, x: float, cloth: Material, shoe: Material, kind: Strin
 	parent.add_child(thigh)
 	var show_leg := kind != "woman"
 	if show_leg:
-		MeshLib.part(thigh, MeshLib.cyl(0.09, l1), cloth, Vector3(0, -l1 * 0.5, 0))
+		MeshLib.part(thigh, MeshLib.cyl(0.13, l1), cloth, Vector3(0, -l1 * 0.5, 0))
 	var shin := Node3D.new()
 	shin.name = "Shin"
 	shin.position = Vector3(0, -l1, 0)
@@ -115,8 +119,8 @@ func _arm(parent: Node3D, x: float, shirt: Material, skin: Material) -> Node3D:
 	sh.add_child(el)
 	MeshLib.part(el, MeshLib.cyl(0.04, 0.22), skin, Vector3(0, -0.11, 0))
 	MeshLib.part(el, MeshLib.sphere(0.045), skin, Vector3(0, -0.24, 0))
-	sh.rotation.x = 0.15
-	el.rotation.x = -0.35
+	sh.rotation = Vector3(0.42, 0, 0.18 if x < 0.0 else -0.18)
+	el.rotation.x = -0.85
 	return sh
 
 func _face(spec: Dictionary, skin: Material) -> void:
@@ -231,36 +235,61 @@ func tick(delta: float, speed: float, want_action: String) -> void:
 	if not moving:
 		lean = sin(phase * TAU) * 0.03
 	torso.rotation.x = lean
-	_arms(moving, running)
+	_arms(delta, moving, running)
 	if moving:
 		_feet(stride, lift, running)
 	else:
 		_idle_legs()
 		_work_arms()
 
-func _arms(moving: bool, running: bool) -> void:
+func _arms(delta: float, moving: bool, running: bool) -> void:
 	var swing := 0.0
+	var target_l := 0.42
+	var target_r := 0.42
+	var target_e := -0.85
 	if moving:
-		swing = sin(phase * TAU) * (0.75 if running else 0.48)
-	shoulder_l.rotation.x = 0.15 - swing
-	shoulder_r.rotation.x = 0.15 + swing
-	elbow_l.rotation.x = -0.35
-	elbow_r.rotation.x = -0.35
+		swing = sin(phase * TAU) * (0.62 if running else 0.4)
+		target_l = 0.28 - swing
+		target_r = 0.28 + swing
+		target_e = -0.55 - absf(swing) * 0.45
+	var k := 1.0 - exp(-9.0 * delta)
+	_arm_l = lerpf(_arm_l, target_l, k)
+	_arm_r = lerpf(_arm_r, target_r, k)
+	_elb = lerpf(_elb, target_e, k)
+	shoulder_l.rotation.x = _arm_l
+	shoulder_r.rotation.x = _arm_r
+	elbow_l.rotation.x = _elb
+	elbow_r.rotation.x = _elb
 
 func _work_arms() -> void:
 	var s := sin(phase * TAU * 1.4)
 	match action:
 		"carve", "hammer", "hoe":
-			shoulder_r.rotation.x = -1.1 + s * 0.45
-			elbow_r.rotation.x = -0.4
-			torso.rotation.x = 0.2 + s * 0.08
-		"weave", "bake", "tend":
-			shoulder_l.rotation.x = -0.8
-			shoulder_r.rotation.x = -0.7 + s * 0.35
-			elbow_r.rotation.x = -0.8
+			shoulder_r.rotation.x = -1.05 + s * 0.4
+			elbow_r.rotation.x = -0.55
+			torso.rotation.x = 0.18 + s * 0.06
+		"weave", "bake", "tend", "eat":
+			shoulder_l.rotation.x = -0.75
+			shoulder_r.rotation.x = -0.65 + s * 0.28
+			elbow_l.rotation.x = -1.0
+			elbow_r.rotation.x = -0.9
 		"teach", "talk":
-			shoulder_r.rotation.x = -0.9 + s * 0.25
-			head.rotation.y = s * 0.2
+			shoulder_r.rotation.x = -0.85 + s * 0.22
+			elbow_r.rotation.x = -0.7
+			head.rotation.y = s * 0.18
+		"pray":
+			shoulder_l.rotation.x = -0.35
+			shoulder_r.rotation.x = -0.35
+			elbow_l.rotation.x = -1.35
+			elbow_r.rotation.x = -1.35
+			head.rotation.x = 0.25
+		"sleep":
+			shoulder_l.rotation.x = 0.1
+			shoulder_r.rotation.x = 0.1
+			elbow_l.rotation.x = -0.4
+			elbow_r.rotation.x = -0.4
+			torso.rotation.x = 0.7
+			head.rotation.x = 0.4
 		_:
 			head.rotation.y = sin(phase * TAU) * 0.05
 

@@ -16,7 +16,7 @@ func _ready() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ui.add_child(bg)
 	if AgeGate.read_passed(Settings.age_path()):
-		_title()
+		_opening()
 	else:
 		_age()
 
@@ -62,7 +62,7 @@ func _submit_age() -> void:
 	var result := AgeGate.submit(year, now, Settings.age_path())
 	age_edit.text = ""
 	if result == "ok":
-		_title()
+		_opening()
 	elif result == "young":
 		_young()
 	else:
@@ -96,6 +96,26 @@ func _young() -> void:
 	var quit := Desk.button("Quit")
 	quit.pressed.connect(func(): get_tree().quit())
 	box.add_child(quit)
+
+func _opening() -> void:
+	_clear_menu()
+	var panel := Desk.panel(Vector2(640, 460))
+	Desk.center(panel)
+	root_ui.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	box.add_child(Desk.label("Sharsten", 36, Color("f6edd8")))
+	var rt := RichTextLabel.new()
+	rt.text = Desk.opening_notice()
+	rt.custom_minimum_size = Vector2(580, 280)
+	rt.scroll_active = true
+	rt.add_theme_color_override("default_color", Color("f3e6c8"))
+	rt.add_theme_font_size_override("normal_font_size", 16)
+	box.add_child(rt)
+	var go := Desk.button("Continue")
+	go.pressed.connect(_title)
+	box.add_child(go)
 
 func _title() -> void:
 	_clear_menu()
@@ -131,7 +151,7 @@ func _close_settings() -> void:
 
 func _credits() -> void:
 	_clear_menu()
-	var panel := Desk.panel(Vector2(720, 560))
+	var panel := Desk.panel(Vector2(760, 640))
 	Desk.center(panel)
 	root_ui.add_child(panel)
 	var box := VBoxContainer.new()
@@ -139,7 +159,8 @@ func _credits() -> void:
 	box.add_child(Desk.label("Credits", 28, Color("f6edd8")))
 	var rt := RichTextLabel.new()
 	rt.text = Desk.credits_text()
-	rt.custom_minimum_size = Vector2(660, 380)
+	rt.custom_minimum_size = Vector2(680, 460)
+	rt.clip_contents = true
 	rt.scroll_active = true
 	rt.add_theme_color_override("default_color", Color("f3e6c8"))
 	rt.add_theme_font_size_override("normal_font_size", 16)

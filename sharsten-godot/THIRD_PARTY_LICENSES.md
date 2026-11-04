@@ -33,6 +33,17 @@ The CC0 1.0 legal text is published at https://creativecommons.org/publicdomain/
 
 To the extent possible under law, the persons who associated CC0 with these works have waived all copyright and related rights. The works are provided as-is, without warranty.
 
+## Inspired by
+
+Ideas only. No names, pictures, music, or interface from these works are in the game.
+
+- Fallout and Fallout 4 are trademarks of ZeniMax Media Inc. / Bethesda Softworks.
+- Rust is a trademark of Facepunch Studios Ltd.
+- Valheim is a trademark of Iron Gate Studio.
+- Red Dead Redemption 2 and Grand Theft Auto V are trademarks of Rockstar Games, Inc. / Take-Two Interactive Software, Inc.
+
+Sharsten is not affiliated with, endorsed by, or sponsored by any of them.
+
 ## Not used
 
 No Mixamo clips. No purchased assets. No Kenney or Quaternius packs are bundled in this build. Animation is an original idle, walk, and run blend with planted feet, written in `scripts/world/humanoid.gd`.

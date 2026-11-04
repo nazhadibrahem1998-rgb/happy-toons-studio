@@ -89,12 +89,27 @@ func _capture() -> void:
 			get_tree().call_group("ui", "open_choice")
 			_look(Vector3(70.5, 1.7, 2.0), Vector3(67.2, 0.7, -4.8))
 			await _save("choice.png")
+		5:
+			get_tree().call_group("ui", "_close_craft")
+			if world and world.has_method("apply_wake"):
+				world.apply_wake()
+			GameState.subtitle_until = 0.0
+			GameState.thought = "The dream cracks. I wake in the real Sharsten. The machines are only relics."
+			GameState.thought_until = Time.get_ticks_msec() / 1000.0 + 30.0
+			_look(Vector3(82, 8, 58), Vector3(96, 2.4, 48))
+			await _save("ruins.png")
+		6:
+			get_tree().call_group("ui", "open_diary", "skills")
+			await _save("diary.png")
+		7:
+			get_tree().call_group("ui", "_show_credits")
+			await _save("credits.png")
 		_:
 			get_tree().quit(0)
 			return
 	step += 1
 	busy = false
-	if step > 4:
+	if step > 7:
 		get_tree().quit(0)
 
 func _look(from: Vector3, at: Vector3) -> void:

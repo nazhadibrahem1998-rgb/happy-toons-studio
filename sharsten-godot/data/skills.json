@@ -83,6 +83,42 @@
           "bonus": {"gather_bonus:fibre": 1}
         }
       ]
+    },
+    {
+      "id": "crafting",
+      "name": "Crafting",
+      "blurb": "Making a thing teaches the next thing.",
+      "ranks": [
+        {"id": "hand", "name": "Hand", "text": "The first tools feel familiar.", "need": {"craft:count": 2}, "bonus": {}},
+        {"id": "bench", "name": "Bench", "text": "A full piece no longer surprises the hands.", "need": {"craft:count": 6}, "bonus": {}}
+      ]
+    },
+    {
+      "id": "engineering",
+      "name": "Engineering",
+      "blurb": "Relics are drawings someone forgot to finish.",
+      "ranks": [
+        {"id": "trace", "name": "Trace", "text": "A ruined machine can be read.", "need": {"study:relic": 1}, "bonus": {}},
+        {"id": "frame", "name": "Frame", "text": "Raised work starts to agree with the drawing.", "need": {"build:count": 2}, "bonus": {}}
+      ]
+    },
+    {
+      "id": "survival",
+      "name": "Survival",
+      "blurb": "The lane is long. The body learns it.",
+      "ranks": [
+        {"id": "lane", "name": "Lane", "text": "Walking the valley counts.", "need": {"gather:wood": 4}, "bonus": {}},
+        {"id": "store", "name": "Store", "text": "A loaf and a braid both keep a person going.", "need": {"craft:braid": 1}, "bonus": {}}
+      ]
+    },
+    {
+      "id": "scavenging",
+      "name": "Scavenging",
+      "blurb": "What was left behind still has a use.",
+      "ranks": [
+        {"id": "pile", "name": "Pile", "text": "Fallen wood and stone come away cleaner.", "need": {"gather:stone": 4}, "bonus": {}},
+        {"id": "unmake", "name": "Unmake", "text": "A worn thing becomes material.", "need": {"salvage:worn_rug": 1}, "bonus": {}}
+      ]
     }
   ]
 }

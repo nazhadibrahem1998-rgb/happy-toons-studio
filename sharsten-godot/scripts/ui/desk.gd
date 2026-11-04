@@ -119,11 +119,20 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		scale_name.text = "Resolution scale  %d%%" % int(Settings.scale * 100.0)
 	)
 	box.add_child(scale)
-	box.add_child(_check("FidelityFX super resolution (when scaled down)", Settings.fsr, func(on):
-		Settings.fsr = on
+	box.add_child(label("Upscale  (used when resolution scale is under 100%)", 16, Color("f0e2c4")))
+	var fsr_box := OptionButton.new()
+	fsr_box.custom_minimum_size = Vector2(220, 32)
+	for opt in ["Off", "FSR 1", "FSR 2"]:
+		fsr_box.add_item(opt)
+	fsr_box.selected = ["off", "fsr1", "fsr2"].find(Settings.fsr_mode)
+	if fsr_box.selected < 0:
+		fsr_box.selected = 0
+	fsr_box.item_selected.connect(func(idx):
+		Settings.fsr_mode = ["off", "fsr1", "fsr2"][idx]
 		Settings.save()
 		Settings.apply_runtime()
-	))
+	)
+	box.add_child(fsr_box)
 	box.add_child(_check("VSync", Settings.vsync, func(on):
 		Settings.vsync = on
 		Settings.save()
@@ -224,24 +233,43 @@ static func _binds(host: VBoxContainer) -> void:
 		host.set_meta("wired", true)
 		host.gui_input.connect(func(_e): pass)
 
+static func opening_notice() -> String:
+	return "Made with Godot Engine\n\nGodot Engine is available under the MIT License.\nCopyright (c) 2014-present Godot Engine contributors.\nCopyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.\n\nGround, plaster, wood, rock, and mud textures: Poly Haven, CC0.\nStory, people, clothing, and animation: original to this game."
+
 static func credits_text() -> String:
 	return "\n".join([
-		"Sharsten  —  Part 1, The Dream",
+		"SHARSTEN",
+		"Part 1 — The Dream, and the waking",
 		"",
-		"An original story. Azad-i Asmani, Azad of the Sky, is a fictional inventor.",
-		"No real person, face, company, or nation is shown as an enemy.",
+		"GODOT ENGINE",
+		"Used for: the game itself — window, rendering, physics, and this export.",
+		"Licence: MIT.",
+		"Copyright (c) 2014-present Godot Engine contributors.",
+		"Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.",
+		"https://godotengine.org/license",
 		"",
-		"Villagers wear the old clothes of a Kurdish mountain village:",
-		"shal u shapik, sash, turban or klaw; layered dresses, kawa, headscarf, coin band.",
-		"The mullah wears a white turban. Nicknames are kept kindly.",
-		"",
-		"Godot Engine, MIT License. Copyright (c) 2014-present Godot Engine contributors.",
-		"",
-		"Textures, CC0, Poly Haven:",
+		"POLY HAVEN",
+		"Used for: ground, plaster, wood, rock, and mud colours in the valley.",
 		"aerial_grass_rock, plastered_wall, wood_floor, rock_boulder_dry, brown_mud_dry.",
+		"Licence: CC0 1.0.",
+		"https://polyhaven.com",
 		"",
-		"Footsteps and the spring tone are original sounds made for this game.",
-		"The people, the valley, and the dream were modelled in the project.",
+		"THIS PROJECT",
+		"Used for: the story, Azad-i Asmani, villager rigs and clothing,",
+		"the diary, the paths, the relics, and the original idle, walk, and work motion.",
+		"No Mixamo clips. No assets taken from other games.",
+		"",
+		"INSPIRED BY",
+		"Ideas only. No names, pictures, music, or interface were copied.",
+		"Fallout and Fallout 4 are trademarks of ZeniMax Media / Bethesda Softworks.",
+		"Rust is a trademark of Facepunch Studios.",
+		"Valheim is a trademark of Iron Gate Studio.",
+		"Red Dead Redemption 2 and Grand Theft Auto V are trademarks of Rockstar Games / Take-Two Interactive.",
+		"Sharsten is not affiliated with, endorsed by, or sponsored by any of them.",
+		"",
+		"The dream is an old Kurdish mountain village, handmade and a little magical.",
+		"The waking world is an original ruin after a long war. No real nation is named or blamed.",
+		"Azad-i Asmani is a fictional inventor. No real person is depicted.",
 		"",
 		"This game was made with AI assistance for code, text, and art direction.",
 		"It is original fiction.",

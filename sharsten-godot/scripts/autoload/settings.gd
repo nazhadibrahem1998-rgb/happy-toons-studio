@@ -30,7 +30,7 @@ const ARROWS := {
 var preset := "medium"
 var detected := false
 var scale := 1.0
-var fsr := false
+var fsr_mode := "off"
 var vsync := true
 var fps_cap := 0
 var sensitivity := 1.0
@@ -73,7 +73,12 @@ func _apply_dict(d: Dictionary) -> void:
 	if preset not in GraphicsRules.ORDER:
 		preset = "medium"
 	scale = GraphicsRules.clamp_scale(float(d.get("scale", scale)))
-	fsr = bool(d.get("fsr", fsr))
+	if typeof(d.get("fsr", fsr_mode)) == TYPE_BOOL:
+		fsr_mode = "fsr2" if bool(d.get("fsr", false)) else "off"
+	else:
+		fsr_mode = str(d.get("fsr_mode", d.get("fsr", fsr_mode)))
+	if fsr_mode != "off" and fsr_mode != "fsr1" and fsr_mode != "fsr2":
+		fsr_mode = "off"
 	vsync = bool(d.get("vsync", vsync))
 	fps_cap = int(d.get("fps_cap", fps_cap))
 	sensitivity = clampf(float(d.get("sensitivity", sensitivity)), 0.2, 3.0)
@@ -92,7 +97,7 @@ func to_dict() -> Dictionary:
 		"version": 1,
 		"preset": preset,
 		"scale": scale,
-		"fsr": fsr,
+		"fsr_mode": fsr_mode,
 		"vsync": vsync,
 		"fps_cap": fps_cap,
 		"sensitivity": sensitivity,
@@ -142,10 +147,13 @@ func _apply_window() -> void:
 	if win == null:
 		return
 	win.scaling_3d_scale = scale
-	if GraphicsRules.scaling_mode(fsr, scale) == "fsr2":
-		win.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
-	else:
-		win.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	match GraphicsRules.scaling_mode(fsr_mode, scale):
+		"fsr1":
+			win.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
+		"fsr2":
+			win.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
+		_:
+			win.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 	match int(current_flags().get("msaa", 0)):
 		4:
 			win.msaa_3d = Viewport.MSAA_4X

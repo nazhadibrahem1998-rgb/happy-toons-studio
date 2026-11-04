@@ -31,6 +31,8 @@ static func blank(start: Dictionary) -> Dictionary:
 		"dream_loops": 0,
 		"gate_open": false,
 		"play_time": 0.0,
+		"xp": 0,
+		"level": 1,
 	}
 
 static func migrate(data: Dictionary, start: Dictionary) -> Dictionary:

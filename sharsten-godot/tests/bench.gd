@@ -12,7 +12,7 @@ func _ready() -> void:
 	Settings.vsync = false
 	Settings.fps_cap = 0
 	Settings.scale = 1.0
-	Settings.fsr = false
+	Settings.fsr_mode = "off"
 	Settings.apply_runtime()
 	get_window().size = Vector2i(1920, 1080)
 	GameState.ignore_station = true

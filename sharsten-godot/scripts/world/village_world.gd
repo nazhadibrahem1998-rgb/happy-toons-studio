@@ -31,6 +31,9 @@ func _ready() -> void:
 	_nature()
 	_echoes()
 	_final_area()
+	_life()
+	_ruins()
+	_growth()
 	placed_root = Node3D.new()
 	placed_root.name = "Placed"
 	add_child(placed_root)
@@ -87,6 +90,7 @@ func _environment() -> void:
 	moon2.material_override = mm
 	moon2.position = Vector3(40, 48, -10)
 	moon2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	moon2.add_to_group("dream_only")
 	add_child(moon2)
 
 func _floor() -> void:
@@ -131,8 +135,8 @@ func _wall(x: float, z: float, w: float, d: float) -> void:
 
 func _roads() -> void:
 	var roads: Dictionary = ContentDB.layout.get("roads", {})
-	MeshLib.paint_tiles(self, roads.get("stone", []), 0.03, Vector3(2.15, 0.04, 2.15), MeshLib.ground_mat("cbb892", "mud", 0.35))
-	MeshLib.paint_tiles(self, roads.get("dirt", []), 0.035, Vector3(1.9, 0.04, 1.9), MeshLib.ground_mat("8a6244", "mud", 0.4))
+	MeshLib.paint_tiles(self, roads.get("stone", []), 0.025, Vector3(2.62, 0.05, 2.62), MeshLib.ground_mat("c4b48a", "mud", 0.22))
+	MeshLib.paint_tiles(self, roads.get("dirt", []), 0.028, Vector3(2.5, 0.05, 2.5), MeshLib.ground_mat("9a7048", "mud", 0.28))
 
 func _houses() -> void:
 	var walls := [Color("d2c2a0"), Color("c4a574"), Color("b08968"), Color("e6d4b4"), Color("a68462")]
@@ -199,6 +203,7 @@ func _landmarks() -> void:
 		wisp.position = pool.position + Vector3(sin(i) * 1.6, 0.8 + i * 0.15, cos(i) * 1.4)
 		wisp.set_meta("base", wisp.position)
 		wisp.add_to_group("wisp")
+		wisp.add_to_group("dream_only")
 		add_child(wisp)
 
 func _stations_nodes() -> void:
@@ -319,6 +324,7 @@ func _echoes() -> void:
 		MeshLib.part(root, MeshLib.sphere(0.45), MeshLib.mat("2f7a32"), Vector3(0.45, 1.5, 0))
 		MeshLib.part(root, MeshLib.cyl(0.08, 0.16), MeshLib.mat("3d5a86"), Vector3(-0.4, 0.12, 0.2))
 		MeshLib.part(root, MeshLib.box(0.7, 0.22, 0.28), MeshLib.mat("c4a574"), Vector3(-0.2, 0.12, -0.45))
+		root.add_to_group("dream_only")
 		add_child(root)
 
 func _final_area() -> void:
@@ -397,9 +403,9 @@ func apply_graphics() -> void:
 	var f: Dictionary = Settings.current_flags()
 	if env == null:
 		return
-	var haze := 1.0 if dream else 0.45
+	var haze := 0.55 if dream else 0.28
 	env.fog_enabled = true
-	env.fog_density = float(f.get("fog_density", 0.012)) * haze
+	env.fog_density = float(f.get("fog_density", 0.008)) * haze
 	env.fog_light_color = Color(0.82, 0.74, 0.78) if dream else Color(0.7, 0.7, 0.68)
 	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
 	env.sdfgi_enabled = bool(f.get("sdfgi", false)) and forward and dream
@@ -452,28 +458,100 @@ func apply_graphics() -> void:
 	for i in lamp_lights.size():
 		(lamp_lights[i] as OmniLight3D).light_energy = 0.8 if i < lamps else 0.0
 
+func _life() -> void:
+	for i in 6:
+		var bird := MeshInstance3D.new()
+		bird.mesh = MeshLib.sphere(0.12)
+		bird.material_override = MeshLib.mat("2a2420")
+		bird.position = Vector3(30.0 + i * 8.0, 8.0, 40.0)
+		bird.set_meta("i", i)
+		bird.add_to_group("bird")
+		add_child(bird)
+	var tandoor: Dictionary = ContentDB.spot("tandoor")
+	for i in 3:
+		var puff := MeshInstance3D.new()
+		puff.mesh = MeshLib.sphere(0.18)
+		var sm := MeshLib.mat("d9d3cc")
+		sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		sm.albedo_color = Color(0.85, 0.82, 0.78, 0.35)
+		puff.material_override = sm
+		puff.position = Vector3(float(tandoor.get("x", 58)), 1.2, float(tandoor.get("z", 77)))
+		puff.set_meta("base", puff.position)
+		puff.add_to_group("smoke")
+		add_child(puff)
+	var board = load("res://scripts/world/interactable.gd").new()
+	var mosque: Dictionary = ContentDB.spot("mosque")
+	board.configure({"kind": "board", "id": "quest_board", "at": [float(mosque.get("x", 43)) + 5.0, float(mosque.get("z", 72)) + 1.5]})
+	add_child(board)
+	var relic = load("res://scripts/world/interactable.gd").new()
+	relic.configure({"kind": "relic", "id": "wind_relic", "at": [96.0, 48.0]})
+	add_child(relic)
+
+func _ruins() -> void:
+	var root := Node3D.new()
+	root.name = "Ruins"
+	root.visible = false
+	root.add_to_group("ruins")
+	var rust := MeshLib.mat("6a3a2a", 0.72, 0.35)
+	var iron := MeshLib.mat("4a4e52", 0.55, 0.45)
+	var ash := MeshLib.mat("5c584e", 0.9)
+	MeshLib.part(root, MeshLib.box(1.2, 6.5, 1.2), rust, Vector3(96, 2.2, 48))
+	MeshLib.part(root, MeshLib.box(3.2, 0.35, 0.35), rust, Vector3(96, 4.6, 48))
+	MeshLib.part(root, MeshLib.box(0.35, 0.35, 2.4), iron, Vector3(97.2, 3.2, 49))
+	MeshLib.part(root, MeshLib.box(2.8, 0.9, 1.4), ash, Vector3(70, 0.4, 60))
+	MeshLib.part(root, MeshLib.box(1.6, 0.4, 0.8), rust, Vector3(88, 0.3, 74))
+	MeshLib.part(root, MeshLib.box(0.8, 2.4, 0.8), iron, Vector3(110, 1.2, 70))
+	MeshLib.part(root, MeshLib.box(4.0, 0.25, 1.2), rust, Vector3(40, 0.2, 100))
+	add_child(root)
+
+func _growth() -> void:
+	var root := Node3D.new()
+	root.name = "Growth"
+	root.visible = false
+	root.add_to_group("growth")
+	var wood := MeshLib.mat("6b4226")
+	var spot: Dictionary = ContentDB.spot("fence_spot")
+	MeshLib.part(root, MeshLib.box(1.5, 1.0, 0.12), wood, Vector3(float(spot.get("x", 57)), 0.5, float(spot.get("z", 33))))
+	var spring: Dictionary = ContentDB.spot("spring")
+	MeshLib.part(root, MeshLib.box(0.1, 0.4, 0.1), MeshLib.mat("c2a06a"), Vector3(float(spring.get("x", 67)) + 1.2, 0.8, float(spring.get("z", 29))))
+	add_child(root)
+
 func apply_wake() -> void:
 	dream = false
-	if moon2:
-		moon2.visible = false
-	for w in get_tree().get_nodes_in_group("wisp"):
-		w.visible = false
+	for node in get_tree().get_nodes_in_group("dream_only"):
+		if node is Node3D:
+			node.visible = false
+	for node in get_tree().get_nodes_in_group("ruins"):
+		if node is Node3D:
+			node.visible = true
 	if env:
 		env.adjustment_enabled = true
-		env.adjustment_saturation = 0.55
-		env.adjustment_contrast = 1.18
-		env.ambient_light_color = Color(0.62, 0.64, 0.66)
+		env.adjustment_saturation = 0.42
+		env.adjustment_contrast = 1.12
+		env.ambient_light_color = Color(0.55, 0.52, 0.48)
 		env.volumetric_fog_enabled = false
 		env.sdfgi_enabled = false
+		env.fog_light_color = Color(0.62, 0.58, 0.52)
 	if sun:
-		sun.light_color = Color(0.82, 0.84, 0.86)
-		sun.light_energy = 1.45
-	for v in get_tree().get_nodes_in_group("villager"):
-		v.visible = false
+		sun.light_color = Color(0.78, 0.74, 0.66)
+		sun.light_energy = 1.15
 	apply_graphics()
 
 func _process(delta: float) -> void:
 	_sync_placed()
+	for node in get_tree().get_nodes_in_group("growth"):
+		if node is Node3D:
+			node.visible = bool(GameState.data.get("gate_open", false)) and dream
+	var clock := Time.get_ticks_msec() / 1000.0
+	for bird in get_tree().get_nodes_in_group("bird"):
+		if bird is Node3D:
+			var i := float(bird.get_meta("i", 0))
+			bird.position = Vector3(40.0 + sin(clock * 0.25 + i) * 28.0, 7.5 + sin(clock + i) * 0.6, 60.0 + cos(clock * 0.2 + i) * 22.0)
+	for puff in get_tree().get_nodes_in_group("smoke"):
+		if puff is Node3D and puff.has_meta("base"):
+			var base: Vector3 = puff.get_meta("base")
+			var n := fmod(clock * 0.35 + base.x, 1.0)
+			puff.position = base + Vector3(sin(clock) * 0.15, n * 2.2, 0)
 	if bool(GameState.data.get("gate_open", false)) and is_instance_valid(gate_block):
 		gate_block.queue_free()
 		gate_block = null
