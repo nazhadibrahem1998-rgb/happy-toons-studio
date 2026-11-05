@@ -418,11 +418,11 @@ func _check_move() -> void:
 	_check(voices == 2, "crackle and tune are both on the fire, saw %d" % voices)
 	var beds = amb.new()
 	add_child(beds)
-	var global_crackle := false
+	var global_names: Array = []
 	for bed in beds.get_children():
-		if bed is AudioStreamPlayer and str(bed.name) == "crackle":
-			global_crackle = true
-	_check(not global_crackle, "the crackle is not a village-wide track")
+		if bed is AudioStreamPlayer:
+			global_names.append(str(bed.name))
+	_check(global_names == ["wind"], "only wind is village-wide, saw %s" % str(global_names))
 	beds.free()
 	hearth.free()
 	var folk_script = load("res://scripts/npc/villager.gd")
