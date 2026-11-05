@@ -2,6 +2,11 @@
   "trades": [
     {"id": "loaf", "give": {"wood": 2}, "get": {"bread": 1}},
     {"id": "clay_swap", "give": {"fibre": 2}, "get": {"clay": 1}},
-    {"id": "stone_swap", "give": {"wood": 3}, "get": {"stone": 1}}
+    {"id": "stone_swap", "give": {"wood": 3}, "get": {"stone": 1}},
+    {"id": "mint_coin", "give": {"wood": 2}, "get": {"coin": 1}},
+    {"id": "pay_bread", "give": {"coin": 1}, "get": {"bread": 1}},
+    {"id": "lend_jug", "give": {"coin": 1}, "get": {}},
+    {"id": "hire_hands", "give": {"coin": 1}, "get": {}},
+    {"id": "gift_loaf", "give": {"coin": 1}, "get": {"bread": 1}}
   ]
 }

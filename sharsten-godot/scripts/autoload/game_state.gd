@@ -11,6 +11,7 @@ const QuestRulesS = preload("res://scripts/sim/quest_rules.gd")
 const SaveFileS = preload("res://scripts/sim/save_file.gd")
 const EndingS = preload("res://scripts/sim/ending.gd")
 const OverhearS = preload("res://scripts/sim/overhear.gd")
+const InfluenceS = preload("res://scripts/sim/influence.gd")
 
 var data := {}
 var near_station := ""
@@ -184,8 +185,80 @@ func try_trade(trade_id: String) -> Dictionary:
 	for k in trade.get("get", {}).keys():
 		CraftRulesS.give(data["inventory"], str(k), int(trade["get"][k]) + extra)
 	data["counters"]["trade:count"] = int(data["counters"].get("trade:count", 0)) + 1
+	for row in InfluenceS.load_rules().get("money", []):
+		if str(row.get("trade", "")) == trade_id:
+			note_money(str(row.get("id", "")))
+			break
 	_after_rules()
 	return {"ok": true, "cost": give}
+
+func purse_act(act_id: String) -> Dictionary:
+	var act: Dictionary = InfluenceS.money_act(InfluenceS.load_rules(), act_id)
+	if act.is_empty():
+		return {"ok": false, "reason": "missing"}
+	var cost := int(act.get("cost", 0))
+	if int(data.get("inventory", {}).get("coin", 0)) < cost:
+		return {"ok": false, "reason": "need"}
+	CraftRulesS.give(data["inventory"], "coin", -cost)
+	return note_money(act_id)
+
+func note_money(act_id: String) -> Dictionary:
+	var rules: Dictionary = InfluenceS.load_rules()
+	var act: Dictionary = InfluenceS.money_act(rules, act_id)
+	if act.is_empty():
+		return {"ok": false, "reason": "missing"}
+	var target := str(act.get("npc", ""))
+	var folk: Dictionary = data.get("folk", {})
+	var base: Dictionary = folk.get(target, {"id": target, "mood": "calm"})
+	folk[target] = InfluenceS.apply_money(base, act_id, 0.0, rules)
+	var origin := _folk_pos(target)
+	var coins := int(data.get("inventory", {}).get("coin", 0))
+	var nudged := false
+	for entry in ContentDB.layout.get("npcs", []):
+		var oid := str(entry.get("id", ""))
+		if oid == "" or oid == target:
+			continue
+		var at: Array = entry.get("work", entry.get("home", [0, 0]))
+		var dist := origin.distance_to(Vector2(float(at[0]), float(at[1])))
+		var row: Dictionary = folk.get(oid, {"id": oid, "mood": "calm"})
+		var next: Dictionary = InfluenceS.wealth_nudge(row, dist, coins, rules)
+		if str(next.get("price", "")) != str(row.get("price", "")):
+			nudged = true
+		folk[oid] = next
+	data["folk"] = folk
+	data["flags"]["money:" + act_id] = true
+	_hear_pair(act.get("lines", []))
+	if nudged:
+		var wealth: Dictionary = rules.get("wealth", {})
+		var key := "lines_rich" if coins >= int(wealth.get("rich_at", 3)) else "lines_poor"
+		_hear_pair(wealth.get(key, []))
+	_after_rules()
+	return {"ok": true}
+
+func _folk_pos(id: String) -> Vector2:
+	for entry in ContentDB.layout.get("npcs", []):
+		if str(entry.get("id", "")) != id:
+			continue
+		var at: Array = entry.get("work", entry.get("home", [0, 0]))
+		return Vector2(float(at[0]), float(at[1]))
+	return Vector2.ZERO
+
+func _hear_pair(lines) -> void:
+	var shown: Array = []
+	for line in lines:
+		var sid := str(line.get("speaker", ""))
+		var text := str(line.get("text", ""))
+		if sid == "" or text == "" or not ContentDB.npcs.has(sid):
+			continue
+		var row := {"id": "money", "speaker": sid, "name": ContentDB.npc_label(sid), "text": text}
+		var heard: Array = data["heard"]
+		heard.append(row)
+		while heard.size() > 200:
+			heard.pop_front()
+		data["heard"] = heard
+		shown.append(row)
+	if shown.size() > 0:
+		show_lines(shown, "")
 
 func place_item(item_id: String, pos: Vector3, yaw: float) -> Dictionary:
 	if int(data["inventory"].get(item_id, 0)) < 1:

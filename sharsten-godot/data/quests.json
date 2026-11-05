@@ -86,6 +86,36 @@
       "objectives": [
         {"id": "craft", "type": "craft", "item": "satchel", "count": 1, "text": "Craft a hide satchel at the stump"}
       ]
+    },
+    {
+      "id": "round_loaf",
+      "title": "The round loaf",
+      "summary": "Overheard at the oven. A boy says a round loaf should cost less. A coin on the cloth settles it.",
+      "source": "overheard",
+      "required": false,
+      "objectives": [
+        {"id": "pay", "type": "flag", "flag": "money:pay_bread", "count": 1, "text": "Pay a village coin for the loaf at the trade cloth"}
+      ]
+    },
+    {
+      "id": "borrowed_jug",
+      "title": "The borrowed jug",
+      "summary": "Overheard by the spring. An aunt will lend the jug if a coin waits for its return.",
+      "source": "overheard",
+      "required": false,
+      "objectives": [
+        {"id": "lend", "type": "flag", "flag": "money:lend_jug", "count": 1, "text": "Leave a village coin so the jug can be lent"}
+      ]
+    },
+    {
+      "id": "extra_hands",
+      "title": "One jar at dawn",
+      "summary": "Overheard near the stump. An elder will hire a boy for one dawn jar. The boy has already counted the steps.",
+      "source": "overheard",
+      "required": false,
+      "objectives": [
+        {"id": "hire", "type": "flag", "flag": "money:hire_hands", "count": 1, "text": "Hire the boy with a village coin at the trade cloth"}
+      ]
     }
   ]
 }

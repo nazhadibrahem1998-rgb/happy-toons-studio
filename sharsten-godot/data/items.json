@@ -1,6 +1,7 @@
 {
   "items": [
     {"id": "wood", "name": "Wood", "desc": "Fallen branches, dry enough to work.", "cat": "mat"},
+    {"id": "coin", "name": "Village coin", "desc": "A small copper disc the lane uses for bread, jugs, and a day's help.", "cat": "goods"},
     {"id": "stone", "name": "Stone", "desc": "River stone and quarry chips.", "cat": "mat"},
     {"id": "clay", "name": "Clay", "desc": "Cool clay from the bank.", "cat": "mat"},
     {"id": "fibre", "name": "Fibre", "desc": "Reed and herb fibre, stripped and drying.", "cat": "mat"},

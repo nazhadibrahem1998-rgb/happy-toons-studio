@@ -65,6 +65,39 @@
         {"speaker": "haji_wasman", "text": "The clay of the tandoor is tired, Ama. I wrote as much and left it on the step."},
         {"speaker": "ama_damshr", "text": "Two cups on the shelf would please it. I will keep the oven warm until they are there."}
       ]
+    },
+    {
+      "id": "round_loaf_talk",
+      "spot": "tandoor",
+      "radius": 8.0,
+      "speakers": ["kura_rasho", "dayka_hapsa"],
+      "starts_quest": "round_loaf",
+      "lines": [
+        {"speaker": "kura_rasho", "text": "A round loaf has no corners, so it should cost half a coin. I worked it out."},
+        {"speaker": "dayka_hapsa", "text": "It costs a coin because it is bread. Carry it, and count the corners on the way home."}
+      ]
+    },
+    {
+      "id": "borrowed_jug_talk",
+      "spot": "spring",
+      "radius": 8.0,
+      "speakers": ["pura_shrin", "dayka_hapsa"],
+      "starts_quest": "borrowed_jug",
+      "lines": [
+        {"speaker": "pura_shrin", "text": "The good jug can go visiting if a coin sits here until it comes back."},
+        {"speaker": "dayka_hapsa", "text": "A quiet bargain. The jug does not need a speech, and neither does the coin."}
+      ]
+    },
+    {
+      "id": "extra_hands_talk",
+      "spot": "stump",
+      "radius": 8.0,
+      "speakers": ["pira_majid", "kura_rasho"],
+      "starts_quest": "extra_hands",
+      "lines": [
+        {"speaker": "pira_majid", "text": "One jar at dawn. That is a job, not a debate."},
+        {"speaker": "kura_rasho", "text": "I stepped the path. It is shorter than he thinks, so the jar could have a friend."}
+      ]
     }
   ]
 }

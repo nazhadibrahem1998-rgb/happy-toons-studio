@@ -88,7 +88,7 @@ func _physics_process(delta: float) -> void:
 	_speed = 0.0
 	if dir.length() > 0.35 and not (night and global_position.distance_to(home) < 1.1) and not meal:
 		dir = dir.normalized()
-		_speed = 0.85
+		_speed = 0.85 * _purse_pace()
 		velocity.x = dir.x * _speed
 		velocity.z = dir.z * _speed
 		rotation.y = lerp_angle(rotation.y, LookMath.face_yaw(dir), 1.0 - exp(-6.0 * delta))
@@ -131,6 +131,16 @@ func _physics_process(delta: float) -> void:
 		act = "pray"
 	if rig:
 		rig.tick(delta, _speed, act)
+
+func _purse_pace() -> float:
+	var folk: Dictionary = GameState.data.get("folk", {})
+	var row: Dictionary = folk.get(npc_id, {})
+	var routine := str(row.get("routine", ""))
+	if routine.find("shorter") >= 0 or routine.find("aside") >= 0:
+		return 0.8
+	if str(row.get("mood", "")) == "busy" or routine.find("dawn") >= 0:
+		return 1.15
+	return 1.0
 
 func choose_social(dist: float, other_is_villager: bool, child: bool, meal: bool) -> String:
 	# Gestures are only between villagers. The player is never a partner.

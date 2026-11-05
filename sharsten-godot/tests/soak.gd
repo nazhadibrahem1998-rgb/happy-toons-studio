@@ -23,7 +23,10 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 	if not warmed:
-		if Time.get_ticks_msec() - started < 20000:
+		var warm_ms := 20000
+		if int(OS.get_environment("SOAK_SECONDS")) > 0 and int(OS.get_environment("SOAK_SECONDS")) < 300:
+			warm_ms = 5000
+		if Time.get_ticks_msec() - started < warm_ms:
 			player.bot_override = true
 			player.bot_wish = Vector2(0, 1)
 			return
@@ -43,7 +46,10 @@ func _process(delta: float) -> void:
 	if samples.size() % 600 == 0:
 		mem.append(int(Performance.get_monitor(Performance.MEMORY_STATIC)))
 	var elapsed := Time.get_ticks_msec() - started
-	if elapsed < 900000:
+	var limit_ms := int(OS.get_environment("SOAK_SECONDS")) * 1000
+	if limit_ms <= 0:
+		limit_ms = 900000
+	if elapsed < limit_ms:
 		return
 	mem.append(int(Performance.get_monitor(Performance.MEMORY_STATIC)))
 	var sum := 0.0

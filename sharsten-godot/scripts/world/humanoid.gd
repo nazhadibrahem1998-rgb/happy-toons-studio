@@ -156,8 +156,8 @@ func _clothes(spec: Dictionary) -> void:
 		_limb("thigh_r", 0.24, 0.14, 0.52, robe, "legs")
 		_limb("thigh_l", 0.2, 0.17, 0.2, robe, "legs")
 		_limb("thigh_r", 0.2, 0.17, 0.2, robe, "legs")
-		_limb("calf_l", 0.15, 0.11, 0.58, robe, "legs")
-		_limb("calf_r", 0.15, 0.11, 0.58, robe, "legs")
+		_limb("calf_l", 0.16, 0.12, 0.72, robe, "legs")
+		_limb("calf_r", 0.16, 0.12, 0.72, robe, "legs")
 		_limb("upperarm_l", 0.1, 0.09, 0.34, robe, "torso")
 		_limb("upperarm_r", 0.1, 0.09, 0.34, robe, "torso")
 		_limb("lowerarm_l", 0.09, 0.12, 0.32, robe, "torso")
@@ -176,8 +176,8 @@ func _clothes(spec: Dictionary) -> void:
 		_limb("thigh_r", 0.22, 0.13, 0.52, dress, "legs")
 		_limb("thigh_l", 0.19, 0.16, 0.18, dress, "legs")
 		_limb("thigh_r", 0.19, 0.16, 0.18, dress, "legs")
-		_limb("calf_l", 0.15, 0.11, 0.58, dress, "legs")
-		_limb("calf_r", 0.15, 0.11, 0.58, dress, "legs")
+		_limb("calf_l", 0.16, 0.12, 0.72, dress, "legs")
+		_limb("calf_r", 0.16, 0.12, 0.72, dress, "legs")
 		_limb("upperarm_l", 0.09, 0.08, 0.34, dress, "torso")
 		_limb("upperarm_r", 0.09, 0.08, 0.34, dress, "torso")
 		_limb("lowerarm_l", 0.08, 0.12, 0.32, dress, "torso")
@@ -198,8 +198,8 @@ func _clothes(spec: Dictionary) -> void:
 		_limb("thigh_r", 0.24, 0.14, 0.52, cloth, "legs")
 		_limb("thigh_l", 0.2, 0.17, 0.2, cloth, "legs")
 		_limb("thigh_r", 0.2, 0.17, 0.2, cloth, "legs")
-		_limb("calf_l", 0.16, 0.12, 0.58, cloth, "legs")
-		_limb("calf_r", 0.16, 0.12, 0.58, cloth, "legs")
+		_limb("calf_l", 0.17, 0.13, 0.72, cloth, "legs")
+		_limb("calf_r", 0.17, 0.13, 0.72, cloth, "legs")
 		_limb("upperarm_l", 0.1, 0.09, 0.34, shirt, "torso")
 		_limb("upperarm_r", 0.1, 0.09, 0.34, shirt, "torso")
 		_limb("lowerarm_l", 0.09, 0.13, 0.32, shirt, "torso")
@@ -254,18 +254,18 @@ func _foot_cover(bone: String, mat: Material) -> void:
 	var up := -down
 	var basis := Basis(side, up, fwd).orthonormalized()
 	var shoe := BoxMesh.new()
-	shoe.size = Vector3(0.11, 0.04, 0.2)
+	shoe.size = Vector3(0.12, 0.06, 0.22)
 	_attach(bone, shoe, mat, Vector3.ZERO, "legs")
 	var shoe_mi := clothing[clothing.size() - 1].get_child(0) as MeshInstance3D
-	shoe_mi.transform = Transform3D(basis, down * 0.05 + fwd * 0.04)
+	shoe_mi.transform = Transform3D(basis, down * 0.08 + fwd * 0.04)
 	var cuff := CylinderMesh.new()
-	cuff.top_radius = 0.07
-	cuff.bottom_radius = 0.09
-	cuff.height = 0.18
+	cuff.top_radius = 0.09
+	cuff.bottom_radius = 0.11
+	cuff.height = 0.28
 	cuff.radial_segments = 10
 	_attach(bone, cuff, mat, Vector3.ZERO, "legs")
 	var cuff_mi := clothing[clothing.size() - 1].get_child(0) as MeshInstance3D
-	cuff_mi.transform = Transform3D(basis, up * 0.04)
+	cuff_mi.transform = Transform3D(basis, down * 0.02)
 
 func _toward_child(bone: String) -> Vector3:
 	if skel == null:
