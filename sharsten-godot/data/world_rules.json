@@ -115,6 +115,13 @@
       {"speaker": "khana_nasre", "text": "We will mend what we have. A dear week is not a disaster."}
     ]
   },
+  "day": [
+    {"from": 0, "to": 5, "phase": "home"},
+    {"from": 5, "to": 8, "phase": "leave"},
+    {"from": 8, "to": 18, "phase": "work"},
+    {"from": 18, "to": 21, "phase": "return"},
+    {"from": 21, "to": 24, "phase": "home"}
+  ],
   "side_quests": [
     {
       "id": "questions_at_supper",

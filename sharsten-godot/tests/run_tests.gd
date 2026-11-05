@@ -141,6 +141,8 @@ func _watch_inside() -> void:
 		if v.get("_speed") != null and float(v._speed) > 0.2 and v.rig and str(v.rig._clip) == "Armature|Sitting_Idle":
 			sit_while_walking += 1
 		if _inside_point(v.global_position):
+			if v.has_method("is_home") and v.is_home():
+				continue
 			inside_hits += 1
 			return
 
@@ -218,6 +220,21 @@ func _check_clothing() -> void:
 		rig.tick(0.05, 1.2, "walk")
 		_check(absf(rig.sole_lift()) <= 0.08, "%s feet stay near the ground, lift %s" % [who, rig.sole_lift()])
 		rig.free()
+	var worker := HumanRig.new()
+	add_child(worker)
+	worker.setup({"kind": "man", "prop": "axe", "costume": true, "headwear": "turban", "cloth": "3a322c", "shirt": "c2a078", "sash": "8b1e2d", "wrap": "d8c4a4"})
+	worker.tick(0.05, 0.0, "chop")
+	_check(worker.tool_attached() and worker.tool.visible, "the axe stays on the hand while he works")
+	var plain := HumanRig.new()
+	add_child(plain)
+	plain.setup({"kind": "man", "costume": false, "cloth": "3a322c", "shirt": "c2a078", "sash": "8b1e2d", "wrap": "d8c4a4"})
+	var costume_pieces := 0
+	for piece in plain.clothing:
+		if str(piece.get_meta("layer", "")) == "costume":
+			costume_pieces += 1
+	_check(plain.has_clothing("torso") and plain.has_clothing("legs") and costume_pieces == 0, "a plain base layer keeps shirt and trousers without the costume")
+	worker.free()
+	plain.free()
 
 func _check_flocks() -> void:
 	var flock = load("res://scripts/world/flock.gd").new()
@@ -354,6 +371,20 @@ func _check_move() -> void:
 	_check(Settings._apply_dict(v4), "version 4 gains crouch")
 	_check(int(Settings.keybinds.get("crouch", 0)) == KEY_C, "crouch defaults to C")
 	_check(int(Settings.keybinds.get("sprint", 0)) == KEY_SHIFT and int(Settings.keybinds.get("free_look", 0)) == KEY_CTRL, "crouch migration keeps Shift and Ctrl")
+	var keys := {"sprint": int(KEY_SHIFT), "free_look": int(KEY_CTRL), "crouch": int(KEY_C), "move_forward": int(KEY_W)}
+	var v5 := {"version": 5, "invert_y": true, "preset": "low", "keys": keys}
+	_check(Settings._apply_dict(v5), "version 5 migrates the look")
+	_check(Settings.invert_y == false, "an old settings file looks up when the mouse goes up")
+	var v6 := {"version": 6, "invert_y": true, "preset": "low", "keys": keys}
+	Settings._apply_dict(v6)
+	_check(Settings.invert_y == true, "Invert Y still works after the migration")
+	var steer := LookMath.apply_mouse(0.2, 0.0, 0.0, -8.0, 0.02, false)
+	var orbit := LookMath.apply_mouse(0.2, 0.0, 0.0, -8.0, 0.02, false)
+	_check(steer.y > 0.0 and orbit.y > 0.0, "mouse up looks up while steering and while holding Ctrl")
+	var look := Basis.from_euler(Vector3(steer.y, steer.x, 0.0)) * Vector3(0, 0, -1)
+	_check(look.y > 0.0, "the camera rises when the mouse goes up")
+	var flipped := LookMath.apply_mouse(0.0, 0.0, 0.0, -8.0, 0.02, true)
+	_check(flipped.y < 0.0, "Invert Y looks down when the mouse goes up")
 
 func _check_village() -> void:
 	var low: Dictionary = GraphicsRules.flags("low")
@@ -380,6 +411,44 @@ func _check_village() -> void:
 	for name in ["UAL1_Standard.fbx", "wall-block.fbx", "CommonTree_1.fbx", "rock_face.jpg", "colormap.png", "CC0"]:
 		_check(credits.find(name) >= 0, "credits list %s" % name)
 	_check(int(low.get("trees", 99)) <= 40 and int(low.get("grass", 99)) <= 64, "low texture and instance budget stays small")
+	var world_script = load("res://scripts/world/village_world.gd")
+	_check(world_script.HOUSE_SCALE >= 1.3 and world_script.HOUSE_SCALE <= 1.5, "houses are a bit bigger")
+	var grown = world_script.make_house(1)
+	add_child(grown)
+	var door = grown.get_node("HouseDoor")
+	var leaf = door.find_child("DoorLeaf", true, false)
+	var door_h := float(leaf.mesh.get_aabb().size.y) * float(world_script.HOUSE_SCALE)
+	_check(door_h >= 2.0 and door_h <= 3.2, "the door is about Azad's height, %s m" % door_h)
+	var grown_bottom := 99.0
+	for mi in grown.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		grown_bottom = minf(grown_bottom, (mi.transform * mi.mesh.get_aabb()).position.y)
+	_check(grown_bottom <= 0.02, "a bigger house still meets the ground")
+	_check(door.find_children("*", "CollisionShape3D", true, false).size() >= 1, "the door has a collider")
+	door.use(null)
+	_check(door.open, "E opens the door")
+	door.advance(0.4)
+	_check(door.angle_deg() > 70.0, "the door swings open")
+	door.use(null)
+	door.advance(0.4)
+	_check(not door.open and door.angle_deg() < 5.0, "E closes the door")
+	grown.free()
+	var villager_script = load("res://scripts/npc/villager.gd")
+	_check(villager_script.phase_for(3) == "home", "night sends people home")
+	_check(villager_script.phase_for(6) == "leave", "morning they leave")
+	_check(villager_script.phase_for(11) == "work", "daytime they work")
+	_check(villager_script.phase_for(19) == "return", "evening they come back")
+	var home := Vector2(0, 0)
+	var job := Vector2(12, 0)
+	var blocks := [[Vector2(4, -6), Vector2(8, 6)]]
+	var doors := [Vector2(6, 0)]
+	var fence := Rect2(-1, -1.2, 16, 2.4)
+	var paths = load("res://scripts/sim/village_paths.gd")
+	_check(paths.reaches(home, job, blocks, doors, 1.6, fence), "a path reaches from home through the door to work")
+	_check(not paths.reaches(home, job, blocks, [], 1.6, fence), "without the door the house blocks the path")
+	var spread: Array = world_script.spread_points([Vector2(20, 20), Vector2(22, 20)], 6.0)
+	_check(spread[0].distance_to(spread[1]) >= 5.9, "houses are pushed apart so they do not overlap")
 
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()

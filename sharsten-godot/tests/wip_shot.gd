@@ -49,42 +49,60 @@ func _process(_delta: float) -> void:
 
 func _shoot(player: Node3D) -> void:
 	var cam := Camera3D.new()
-	cam.fov = 46
+	cam.fov = 50
 	add_child(cam)
 	cam.current = true
-	var feet := player.global_position + Vector3(0, 0.15, 0)
-	var views := [
-		["v11-01-low-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
-		["v11-02-low-house.png", feet + Vector3(-6.2, 2.6, 7.4), feet + Vector3(1.4, 1.15, -1.6)],
-	]
-	for view in views:
-		cam.look_at_from_position(view[1], view[2], Vector3.UP)
+	player.global_position = Vector3(90, 0.4, 140)
+	var door = get_tree().get_first_node_in_group("house_door")
+	var out := Vector3(0, 0, 1)
+	if door:
+		out = -door.global_transform.basis.z
+		var gap: Vector3 = door.global_position + door.global_transform.basis.x * 0.85
+		player.global_position = gap + out * 2.1
+		player.global_position.y = 0.05
+		for _i in 4:
+			await RenderingServer.frame_post_draw
+		cam.look_at_from_position(gap + out * 3.4 + Vector3(0, 1.55, 0), gap + Vector3(0, 1.15, 0), Vector3.UP)
 		await RenderingServer.frame_post_draw
 		await RenderingServer.frame_post_draw
-		_save_shot(str(view[0]))
-	cam.look_at_from_position(Vector3(14.0, 1.65, 51.4), Vector3(16.4, 1.45, 48.6), Vector3.UP)
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	_save_shot("v11-04-low-npc.png")
-	Settings.preset = "high"
-	Settings.fog_mode = "preset"
-	Settings.apply_runtime()
-	var world := get_tree().root.find_child("VillageWorld", true, false)
-	if world == null:
-		for child in get_children():
-			if child.has_method("apply_graphics"):
-				world = child
+		_save_shot("v12-01-door.png")
+		door.set_open(true, "shot")
+		door.advance(0.45)
+		for _i in 8:
+			await RenderingServer.frame_post_draw
+		cam.look_at_from_position(gap + out * 2.6 + Vector3(0, 1.45, 0), gap - out * 2.3 + Vector3(0, 0.75, 0), Vector3.UP)
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		_save_shot("v12-02-interior.png")
+	var worker = null
+	for v in get_tree().get_nodes_in_group("villager"):
+		if v.rig and v.rig.tool:
+			worker = v
+			break
+	if worker == null:
+		for v in get_tree().get_nodes_in_group("villager"):
+			if v.rig:
+				worker = v
 				break
-	if world != null and world.has_method("apply_graphics"):
-		world.apply_graphics()
-	cam.look_at_from_position(feet + Vector3(-8.0, 4.4, 10.0), feet + Vector3(4, 1.2, -12), Vector3.UP)
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	_save_shot("v11-03-high-lane.png")
-	cam.look_at_from_position(Vector3(30, 12, 20), Vector3(20, 18, -120), Vector3.UP)
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	_save_shot("v11-05-high-mountains.png")
+	if worker:
+		worker.set_physics_process(false)
+		worker.global_position = worker.work_at + Vector3(1.2, 0, 1.2)
+		worker.rotation.y = -0.8
+		worker.rig.tick(0.1, 0.0, "chop")
+		cam.look_at_from_position(worker.global_position + Vector3(1.7, 1.25, 1.5), worker.global_position + Vector3(0, 1.0, 0), Vector3.UP)
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		_save_shot("v12-03-npc-work.png")
+		if door:
+			var gap2: Vector3 = door.global_position + door.global_transform.basis.x * 0.85
+			worker.global_position = gap2 + out * 1.35
+			worker.global_position.y = 0.05
+			worker.look_at(gap2, Vector3.UP)
+			worker.rig.tick(0.1, 0.6, "walk")
+			cam.look_at_from_position(gap2 + out * 3.2 + Vector3(1.1, 1.45, 0), gap2 + Vector3(0, 1.05, 0), Vector3.UP)
+			await RenderingServer.frame_post_draw
+			await RenderingServer.frame_post_draw
+			_save_shot("v12-04-npc-entering.png")
 	get_tree().quit(0)
 
 func _save_shot(file_name: String) -> void:

@@ -45,7 +45,7 @@ const ARROWS := {
 	"move_left": KEY_LEFT,
 	"move_right": KEY_RIGHT,
 }
-const SETTINGS_VERSION := 5
+const SETTINGS_VERSION := 6
 
 var preset := "medium"
 var detected := false
@@ -124,6 +124,8 @@ func _apply_dict(d: Dictionary) -> bool:
 	fps_cap = int(d.get("fps_cap", fps_cap))
 	sensitivity = clampf(float(d.get("sensitivity", sensitivity)), 0.2, 3.0)
 	invert_y = bool(d.get("invert_y", invert_y))
+	# Version 5 and older are forced back to mouse-up = look-up once.
+	# A later toggle of Invert Y is kept.
 	volume = clampf(float(d.get("volume", volume)), 0.0, 1.0)
 	subtitle = str(d.get("subtitle", subtitle))
 	fullscreen = bool(d.get("fullscreen", fullscreen))
@@ -140,6 +142,9 @@ func _apply_dict(d: Dictionary) -> bool:
 	var keys = d.get("keys", {})
 	var file_version := int(d.get("version", 0))
 	var migrated := file_version < SETTINGS_VERSION
+	if file_version < 6:
+		invert_y = false
+		migrated = true
 	if typeof(keys) == TYPE_DICTIONARY:
 		for action in ACTIONS.keys():
 			if keys.has(action):

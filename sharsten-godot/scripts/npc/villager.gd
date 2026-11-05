@@ -6,6 +6,8 @@ var route_i := 0
 var walking := false
 var work := "idle"
 var home := Vector3.ZERO
+var work_at := Vector3.ZERO
+var inside := Vector3.ZERO
 var rig: HumanRig
 var agent: NavigationAgent3D
 var _speed := 0.0
@@ -25,9 +27,12 @@ func setup(spec: Dictionary, entry: Dictionary, loop: Array) -> void:
 	shape.position = Vector3(0, 0.75, 0)
 	add_child(shape)
 	var at: Array = entry.get("work", [0, 0])
-	position = Vector3(float(at[0]), 0.05, float(at[1]))
+	work_at = Vector3(float(at[0]), 0.05, float(at[1]))
+	position = work_at
 	var hm: Array = entry.get("home", at)
 	home = Vector3(float(hm[0]), 0.0, float(hm[1]))
+	var inn: Array = entry.get("inside", [home.x, home.z])
+	inside = Vector3(float(inn[0]), 0.05, float(inn[1]))
 	rotation.y = float(entry.get("yaw", 0.0))
 	walking = bool(entry.get("walk", false))
 	work = str(spec.get("work", "idle"))
@@ -53,20 +58,52 @@ func _set_target() -> void:
 		return
 	agent.target_position = _goal()
 
+static var _day: Array = []
+
+static func phase_for(hour: int) -> String:
+	if _day.is_empty():
+		var parsed = JSON.parse_string(FileAccess.get_file_as_string("res://data/world_rules.json"))
+		if typeof(parsed) == TYPE_DICTIONARY:
+			_day = parsed.get("day", [])
+		if _day.is_empty():
+			_day = [
+				{"from": 0, "to": 5, "phase": "home"},
+				{"from": 5, "to": 8, "phase": "leave"},
+				{"from": 8, "to": 18, "phase": "work"},
+				{"from": 18, "to": 21, "phase": "return"},
+				{"from": 21, "to": 24, "phase": "home"},
+			]
+	var h := posmod(hour, 24)
+	for row in _day:
+		if h >= int(row.get("from", 0)) and h < int(row.get("to", 24)):
+			return str(row.get("phase", "work"))
+	return "work"
+
 func _goal() -> Vector3:
-	var hour := GameState.hour()
-	if hour >= 21 or hour < 5:
+	var phase := phase_for(GameState.hour())
+	if phase == "home":
+		if global_position.distance_to(home) < 1.6 or global_position.distance_to(inside) < 2.2:
+			return inside
 		return home
-	if walking and route.size() > 0:
+	if phase == "leave":
+		if global_position.distance_to(inside) < 1.4:
+			return home
+		return work_at
+	if phase == "return":
+		return home
+	if walking and route.size() > 0 and phase == "work":
 		var pt: Array = route[route_i]
 		return Vector3(float(pt[0]), 0.0, float(pt[1]))
-	var at := global_position
-	return Vector3(at.x, 0.0, at.z)
+	if phase == "work":
+		return work_at
+	return work_at
 
 func _physics_process(delta: float) -> void:
 	var hour := GameState.hour()
-	var night := hour >= 21 or hour < 5
+	var phase := phase_for(hour)
+	var night := phase == "home"
 	var meal := hour == 8 or hour == 18
+	_touch_door(phase)
 	var next := global_position
 	if OS.has_feature("headless"):
 		next = _goal()
@@ -86,7 +123,8 @@ func _physics_process(delta: float) -> void:
 	var dir := next - global_position
 	dir.y = 0.0
 	_speed = 0.0
-	if dir.length() > 0.35 and not (night and global_position.distance_to(home) < 1.1) and not meal:
+	var arrived_home := night and global_position.distance_to(inside) < 0.8
+	if dir.length() > 0.35 and not arrived_home and not meal:
 		dir = dir.normalized()
 		_speed = 0.85 * _purse_pace()
 		velocity.x = dir.x * _speed
@@ -127,10 +165,49 @@ func _physics_process(delta: float) -> void:
 		act = "sit"
 	elif night:
 		act = "idle"
+	elif phase == "work" and _speed < 0.2:
+		act = _work_act()
 	elif hour == 12 and (npc_id == "mullah_husen" or work == "teach"):
 		act = "pray"
-	if rig:
+	if rig and _should_animate():
 		rig.tick(delta, _speed, act)
+
+func _work_act() -> String:
+	if work in ["hoe", "hammer", "carve"]:
+		return "chop"
+	if work in ["weave", "bake", "tend"]:
+		return "kneel"
+	if work == "talk":
+		return "chop" if str(name).find("direzh") >= 0 else "talk"
+	return work
+
+func _should_animate() -> bool:
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null or not player is Node3D:
+		return true
+	if global_position.distance_squared_to((player as Node3D).global_position) < 900.0:
+		return true
+	return Engine.get_physics_frames() % 10 == 0
+
+func _touch_door(phase: String) -> void:
+	var door := _my_door()
+	if door == null or not door.has_method("set_open"):
+		return
+	var dist := global_position.distance_to(door.global_position)
+	var crossing := phase == "home" or phase == "leave" or phase == "return"
+	if crossing and dist < 2.2:
+		door.set_open(true, npc_id)
+	elif dist > 3.4 and str(door.opened_by) == npc_id:
+		door.set_open(false, npc_id)
+
+func _my_door() -> Node:
+	for door in get_tree().get_nodes_in_group("house_door"):
+		if str(door.get_meta("resident", "")) == npc_id:
+			return door
+	return null
+
+func is_home() -> bool:
+	return phase_for(GameState.hour()) == "home" and _in_own_house()
 
 func _purse_pace() -> float:
 	var folk: Dictionary = GameState.data.get("folk", {})
@@ -167,7 +244,20 @@ func _solid_nodes() -> Array:
 	return nodes
 
 func _inside_house() -> bool:
+	if _in_own_house() and phase_for(GameState.hour()) == "home":
+		return false
 	return _inside_group("house_block") or _inside_group("furniture")
+
+func _in_own_house() -> bool:
+	var p := Vector2(global_position.x, global_position.z)
+	for h in get_tree().get_nodes_in_group("house_block"):
+		if str(h.get_meta("resident", "")) != npc_id or not h.has_meta("min_xz"):
+			continue
+		var mn: Vector2 = h.get_meta("min_xz")
+		var mx: Vector2 = h.get_meta("max_xz")
+		if p.x > mn.x and p.x < mx.x and p.y > mn.y and p.y < mx.y:
+			return true
+	return false
 
 func _inside_group(group: String) -> bool:
 	var p := Vector2(global_position.x, global_position.z)

@@ -34,6 +34,8 @@ Kurdish clothing, hair caps, sashes, turbans, and headscarves parented to that s
 
 The dream sky is an original procedural golden-hour sky. A midday Poly Haven HDRI was not used, because it would wash out that light.
 
+Wooden house doors, the short creak, interior mats, hearths, shelves, jars, and low tables are original geometry. The creak is synthesized in `scripts/world/house_door.gd`. It is not a downloaded sample.
+
 ## This project
 
 Doorway rugs, wall hangings, cloth weaves, the black-grey-cream jamane, and the noise ridges are original. Roads are packed earth and cobble. No kilim is used as a road.

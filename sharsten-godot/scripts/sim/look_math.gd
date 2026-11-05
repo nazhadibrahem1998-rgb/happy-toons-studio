@@ -3,6 +3,7 @@ class_name LookMath
 
 ## Positive pitch looks up (Godot camera -Z rises when rotation.x increases).
 ## Mouse up is a negative relative.y. Non-inverted: that increases pitch.
+## Steering and Ctrl orbit both call apply_mouse, so neither path flips vertical look.
 
 const PITCH_MIN := -1.0471975512
 const PITCH_MAX := 0.78539816339

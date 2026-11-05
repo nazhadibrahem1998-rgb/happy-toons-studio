@@ -175,20 +175,72 @@ func _roads() -> void:
 	MeshLib.paint_tiles(self, dirt, 0.02, Vector3(2.15, 0.016, 2.15), MeshLib.path_mat("8d6844"))
 	MeshLib.paint_tiles(self, cobble, 0.028, Vector3(2.05, 0.018, 2.05), MeshLib.path_mat("b7a48a"))
 
+const HOUSE_SCALE := 1.35
+const HOUSE_HALF := 2.15 * HOUSE_SCALE
+
+var _door_for := {}
+
 func _houses() -> void:
-	for h in ContentDB.layout.get("houses", []):
+	var raw: Array = ContentDB.layout.get("houses", [])
+	var pts: Array = []
+	for h in raw:
 		var at: Array = h.get("at", [0, 0])
+		pts.append(Vector2(float(at[0]), float(at[1])))
+	var spread: Array = spread_points(pts, HOUSE_HALF * 2.0 + 0.7)
+	for i in raw.size():
+		var h: Dictionary = raw[i]
+		var p: Vector2 = spread[i]
 		var style := int(h.get("style", 0))
 		var node := make_house(style)
-		node.position = Vector3(float(at[0]), 0, float(at[1]))
+		node.position = Vector3(p.x, 0, p.y)
 		add_child(node)
-		node.look_at(_lane_point(float(at[0]), float(at[1])), Vector3.UP)
+		node.look_at(_lane_point(p.x, p.y), Vector3.UP)
 		var block := node.get_node_or_null("HouseBlock")
+		var resident := str(h.get("resident", ""))
 		if block:
-			var hx := float(at[0])
-			var hz := float(at[1])
-			block.set_meta("min_xz", Vector2(hx - 2.15, hz - 2.15))
-			block.set_meta("max_xz", Vector2(hx + 2.15, hz + 2.15))
+			block.set_meta("min_xz", Vector2(p.x - HOUSE_HALF, p.y - HOUSE_HALF))
+			block.set_meta("max_xz", Vector2(p.x + HOUSE_HALF, p.y + HOUSE_HALF))
+			block.set_meta("resident", resident)
+		var hinge := node.get_node_or_null("HouseDoor")
+		if hinge and block:
+			var outward := -node.global_transform.basis.z
+			var door_out: Vector3 = hinge.global_position + outward * 1.7
+			var door_in: Vector3 = hinge.global_position - outward * 1.35
+			block.set_meta("door", door_out)
+			block.set_meta("inside", door_in)
+			hinge.set_meta("id", "door_%s" % resident)
+			hinge.set_meta("resident", resident)
+			_door_for[resident] = hinge
+
+static func spread_points(points: Array, min_gap: float) -> Array:
+	var pts: Array = []
+	for p in points:
+		pts.append(Vector2(p))
+	for _step in 28:
+		var moved := false
+		for i in pts.size():
+			for j in range(i + 1, pts.size()):
+				var a: Vector2 = pts[i]
+				var b: Vector2 = pts[j]
+				var delta := b - a
+				var dist := delta.length()
+				if dist >= min_gap:
+					continue
+				var push := Vector2(min_gap, 0.0) if dist < 0.01 else delta / dist * (min_gap - dist) * 0.5
+				pts[i] = a - push
+				pts[j] = b + push
+				moved = true
+		if not moved:
+			break
+	var bounds: Dictionary = ContentDB.layout.get("bounds", {}) if ContentDB else {}
+	var min_x := float(bounds.get("min_x", -4)) + 4.0
+	var max_x := float(bounds.get("max_x", 148)) - 4.0
+	var min_z := float(bounds.get("min_z", -16)) + 4.0
+	var max_z := float(bounds.get("max_z", 184)) - 4.0
+	for i in pts.size():
+		var p: Vector2 = pts[i]
+		pts[i] = Vector2(clampf(p.x, min_x, max_x), clampf(p.y, min_z, max_z))
+	return pts
 
 static func make_house(style: int) -> Node3D:
 	var node := Node3D.new()
@@ -257,12 +309,11 @@ static func make_house(style: int) -> Node3D:
 	body.add_to_group("house_block")
 	body.set_meta("min_xz", Vector2(-2.15, -2.15))
 	body.set_meta("max_xz", Vector2(2.15, 2.15))
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(2.9, 3.2, 2.9)
-	shape.shape = box
-	shape.position = Vector3(0, 1.05, 0)
-	body.add_child(shape)
+	_wall_shape(body, Vector3(3.0, 2.5, 0.28), Vector3(0, 1.25, 1.28))
+	_wall_shape(body, Vector3(0.28, 2.5, 2.5), Vector3(-1.42, 1.25, 0.05))
+	_wall_shape(body, Vector3(0.28, 2.5, 2.5), Vector3(1.42, 1.25, 0.05))
+	_wall_shape(body, Vector3(0.85, 2.5, 0.28), Vector3(-1.05, 1.25, -1.28))
+	_wall_shape(body, Vector3(0.85, 2.5, 0.28), Vector3(1.1, 1.25, -1.28))
 	node.add_child(body)
 	# Walls are separate stone courses with a door gap, a lower side room, and a courtyard.
 	_kit(node, "wall-block.fbx", Vector3(-0.95, 0.2, -1.22), Vector3(1.2, 1.9, 0.42), "stone")
@@ -270,7 +321,12 @@ static func make_house(style: int) -> Node3D:
 	_kit(node, "wall-block.fbx", Vector3(0.05, 0.2, 1.22), Vector3(2.55, 1.85, 0.4), "stone")
 	_kit(node, "wall-block.fbx", Vector3(-1.38, 0.2, 0.05), Vector3(0.4, 1.9, 2.15), "stone")
 	_kit(node, "wall-block.fbx", Vector3(1.38, 0.2, 0.45), Vector3(0.4, 1.55, 1.35), "stone")
-	_kit(node, "wall-door.fbx", Vector3(0.05, 0.15, -1.28), Vector3(0.95, 1.7, 0.42), "wood")
+	var hinge = load("res://scripts/world/house_door.gd").new()
+	hinge.name = "HouseDoor"
+	hinge.position = Vector3(-0.48, 0.0, -1.32)
+	hinge.build()
+	node.add_child(hinge)
+	_interior(node)
 	_kit(node, "wall-window-round.fbx", Vector3(1.05, 0.85, -1.28), Vector3(0.55, 0.7, 0.32), "wood")
 	_kit(node, "roof-flat.fbx", Vector3(0.05, 2.15, 0.0), Vector3(3.35, 0.9, 3.15), "earth")
 	_kit(node, "planks.fbx", Vector3(0.05, 2.28, -1.55), Vector3(3.55, 0.4, 0.42), "wood")
@@ -282,7 +338,48 @@ static func make_house(style: int) -> Node3D:
 		_kit(node, "chimney.fbx", Vector3(0.85, 2.25, 0.4), Vector3(0.55, 0.75, 0.55), "stone")
 	_kit(node, "rock-wide.fbx", Vector3(-1.85, 0, -0.2), Vector3(1.05, 0.5, 0.85), "stone")
 	_kit(node, "wall-block.fbx", Vector3(-1.15, 0.1, -2.45), Vector3(2.3, 0.75, 0.26), "stone")
+	node.scale = Vector3(HOUSE_SCALE, HOUSE_SCALE, HOUSE_SCALE)
 	return node
+
+static func _wall_shape(body: StaticBody3D, size: Vector3, pos: Vector3) -> void:
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = pos
+	body.add_child(shape)
+
+static func _interior(node: Node3D) -> void:
+	var root := Node3D.new()
+	root.name = "Interior"
+	node.add_child(root)
+	var far := 8.0
+	_prop(root, MeshLib.box(1.3, 0.04, 0.8), "8a5a3a", Vector3(-0.15, 0.04, 0.35), far)
+	_prop(root, MeshLib.cyl(0.28, 0.32), "5a4034", Vector3(-0.75, 0.16, 0.55), far)
+	_prop(root, MeshLib.box(0.9, 0.45, 0.18), "6b4226", Vector3(0.85, 0.7, 0.85), far)
+	_prop(root, MeshLib.cyl(0.11, 0.28), "a89880", Vector3(0.55, 0.16, 0.45), far)
+	_prop(root, MeshLib.box(0.7, 0.28, 0.42), "7a4a28", Vector3(0.15, 0.16, -0.15), far)
+	var lamp := OmniLight3D.new()
+	lamp.position = Vector3(0.0, 1.7, 0.2)
+	lamp.light_color = Color(1.0, 0.72, 0.42)
+	lamp.light_energy = 0.0
+	lamp.omni_range = 4.5
+	lamp.shadow_enabled = false
+	root.add_child(lamp)
+	var door := node.get_node_or_null("HouseDoor")
+	if door:
+		door.light = lamp
+
+static func _prop(parent: Node3D, mesh: Mesh, color: String, pos: Vector3, reach: float) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = pos
+	mi.material_override = MeshLib.mat(color, 0.9)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = reach
+	mi.visibility_range_end_margin = 1.5
+	mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	parent.add_child(mi)
 
 static func _kit(parent: Node3D, file: String, pos: Vector3, scl: Vector3, which: String = "stone") -> void:
 	var packed = load("res://assets/buildings/kenney/" + file)
@@ -446,7 +543,7 @@ func _bake_nav() -> void:
 	var max_x := float(b.get("max_x", 148)) - 1.0
 	var min_z := float(b.get("min_z", -16)) + 1.0
 	var max_z := float(b.get("max_z", 184)) - 1.0
-	var step := 8.0
+	var step := 3.0
 	var verts := PackedVector3Array()
 	var polys: Array = []
 	var x := min_x
@@ -471,7 +568,12 @@ func _bake_nav() -> void:
 		add_child(region)
 
 func _nav_blocked(x: float, z: float, pad: float) -> bool:
+	var p := Vector2(x, z)
 	for h in get_tree().get_nodes_in_group("house_block"):
+		if h.has_meta("door"):
+			var door: Vector3 = h.get_meta("door")
+			if p.distance_to(Vector2(door.x, door.z)) < 1.8:
+				continue
 		var mn: Vector2 = h.get_meta("min_xz")
 		var mx: Vector2 = h.get_meta("max_xz")
 		if x > mn.x - pad and x < mx.x + pad and z > mn.y - pad and z < mx.y + pad:
@@ -491,7 +593,18 @@ func _people() -> void:
 		spawned_people += 1
 		var v = load("res://scripts/npc/villager.gd").new()
 		add_child(v)
-		v.setup(ContentDB.npc(id), by_id.get(id, {}), loop)
+		var entry: Dictionary = by_id.get(id, {}).duplicate()
+		var door = _door_for.get(id, null)
+		if door and door.get_parent():
+			var block = door.get_parent().get_node_or_null("HouseBlock")
+			if block and block.has_meta("door"):
+				var out: Vector3 = block.get_meta("door")
+				var inside: Vector3 = block.get_meta("inside")
+				entry["home"] = [out.x, out.z]
+				entry["inside"] = [inside.x, inside.z]
+		v.setup(ContentDB.npc(id), entry, loop)
+		if not OS.has_feature("headless"):
+			_work_mark(v)
 	for i in 4:
 		var sheep := MeshInstance3D.new()
 		sheep.mesh = MeshLib.box(0.55, 0.4, 0.85)
@@ -499,6 +612,17 @@ func _people() -> void:
 		sheep.position = Vector3(52 + i * 1.1, 0.2, 30 + (i % 2))
 		sheep.add_to_group("ground_prop")
 		add_child(sheep)
+
+func _work_mark(v: Node) -> void:
+	var at: Vector3 = v.work_at
+	var mi := MeshInstance3D.new()
+	mi.mesh = MeshLib.box(0.55, 0.22, 0.38)
+	mi.position = at + Vector3(0.7, 0.11, 0.2)
+	mi.material_override = MeshLib.mat("6b4226", 0.9)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = 28.0
+	mi.add_to_group("ground_prop")
+	add_child(mi)
 
 func _nature() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -516,6 +640,15 @@ func _nature() -> void:
 			if Vector2(x, z).distance_to(Vector2(float(at[0]), float(at[1]))) < 3.2:
 				ok = false
 				break
+		if ok:
+			for block in get_tree().get_nodes_in_group("house_block"):
+				if not block.has_meta("min_xz"):
+					continue
+				var mn: Vector2 = block.get_meta("min_xz")
+				var mx: Vector2 = block.get_meta("max_xz")
+				if x > mn.x - 1.2 and x < mx.x + 1.2 and z > mn.y - 1.2 and z < mx.y + 1.2:
+					ok = false
+					break
 		if ok:
 			positions.append(Vector3(x, 0, z))
 	var oaks: Array = []
