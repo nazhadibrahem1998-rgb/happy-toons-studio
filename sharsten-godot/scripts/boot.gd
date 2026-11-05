@@ -21,8 +21,16 @@ func _ready() -> void:
 		_age()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if Settings.rebind_action != "" and event is InputEventKey and event.pressed and not event.echo:
+	if Settings.rebind_action == "":
+		return
+	var rebound := false
+	if event is InputEventKey and event.pressed and not event.echo and Settings.ACTIONS.has(Settings.rebind_action):
 		Settings.try_rebind(Settings.rebind_action, (event as InputEventKey).physical_keycode)
+		rebound = true
+	elif event is InputEventMouseButton and event.pressed and Settings.MOUSE_ACTIONS.has(Settings.rebind_action):
+		Settings.try_rebind_mouse(Settings.rebind_action, (event as InputEventMouseButton).button_index)
+		rebound = true
+	if rebound:
 		Settings.rebind_action = ""
 		if root_ui.get_node_or_null("SettingsRoot"):
 			Desk.build_settings(root_ui, _close_settings)

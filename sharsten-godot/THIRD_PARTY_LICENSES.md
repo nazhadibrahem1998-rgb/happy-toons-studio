@@ -29,6 +29,12 @@ Diffuse textures in `assets/textures/polyhaven/`, used on the ground, plaster wa
 - rock_boulder_dry — https://polyhaven.com/a/rock_boulder_dry — file `rock.jpg`
 - brown_mud_dry — https://polyhaven.com/a/brown_mud_dry — file `mud.jpg`
 
+## Quaternius — Universal Animation Library (CC0)
+
+The villager and player bodies, and the idle, walk, talk, and sit clips, come from `assets/characters/quaternius/UAL1_Standard.fbx`.
+
+Quaternius released the Universal Animation Library as CC0 1.0. The file in this project was taken from the public mirror https://github.com/IAFahim/quaternius.universalAnimationLibrary.standard (the original pack is also published by Quaternius). No attribution is required by the licence. It is credited anyway. Kurdish clothing worn on top of the rig is original to Sharsten. Sheep, goats, chickens, dogs, cats, birds, donkeys, and horses are original low-poly silhouettes. The Quaternius animal pack could not be downloaded in this environment, so it is not included.
+
 The CC0 1.0 legal text is published at https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
 To the extent possible under law, the persons who associated CC0 with these works have waived all copyright and related rights. The works are provided as-is, without warranty.

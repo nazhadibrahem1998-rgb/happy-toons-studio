@@ -11,8 +11,8 @@ static func flags(preset: String) -> Dictionary:
 				"shadows": false, "shadow_size": 1024, "shadow_distance": 18.0, "shadow_splits": 1,
 				"msaa": 0, "sdfgi": false, "ssao": false, "ssr": false, "ssr_steps": 0,
 				"volumetric_fog": false, "vol_density": 0.0, "glow": false,
-				"fog_density": 0.008, "view": 42.0, "trees": 28, "grass": 0,
-				"lod_full": 16.0, "grass_range": 0.0, "lamps": 0, "foliage_shadows": false,
+				"fog_density": 0.0016, "view": 42.0, "trees": 28, "grass": 0,
+				"lod_full": 16.0, "grass_range": 0.0, "lamps": 0, "foliage_shadows": false, "animals": 12,
 				"sdfgi_cell": 1.5, "sdfgi_cascades": 4,
 			}
 		"high":
@@ -20,9 +20,9 @@ static func flags(preset: String) -> Dictionary:
 				"id": "high",
 				"shadows": true, "shadow_size": 4096, "shadow_distance": 64.0, "shadow_splits": 2,
 				"msaa": 4, "sdfgi": true, "ssao": true, "ssr": true, "ssr_steps": 32,
-				"volumetric_fog": true, "vol_density": 0.008, "glow": true,
-				"fog_density": 0.007, "view": 130.0, "trees": 160, "grass": 360,
-				"lod_full": 34.0, "grass_range": 46.0, "lamps": 4, "foliage_shadows": true,
+				"volumetric_fog": true, "vol_density": 0.0015, "glow": true,
+				"fog_density": 0.0018, "view": 130.0, "trees": 160, "grass": 360,
+				"lod_full": 34.0, "grass_range": 46.0, "lamps": 4, "foliage_shadows": true, "animals": 48,
 				"sdfgi_cell": 1.1, "sdfgi_cascades": 4,
 			}
 		"ultra":
@@ -30,19 +30,19 @@ static func flags(preset: String) -> Dictionary:
 				"id": "ultra",
 				"shadows": true, "shadow_size": 8192, "shadow_distance": 100.0, "shadow_splits": 4,
 				"msaa": 4, "sdfgi": true, "ssao": true, "ssr": true, "ssr_steps": 64,
-				"volumetric_fog": true, "vol_density": 0.01, "glow": true,
-				"fog_density": 0.005, "view": 190.0, "trees": 240, "grass": 640,
-				"lod_full": 48.0, "grass_range": 64.0, "lamps": 8, "foliage_shadows": true,
+				"volumetric_fog": true, "vol_density": 0.002, "glow": true,
+				"fog_density": 0.0014, "view": 190.0, "trees": 240, "grass": 640,
+				"lod_full": 48.0, "grass_range": 64.0, "lamps": 8, "foliage_shadows": true, "animals": 72,
 				"sdfgi_cell": 0.65, "sdfgi_cascades": 4,
 			}
 		_:
 			return {
 				"id": "medium",
-				"shadows": true, "shadow_size": 2048, "shadow_distance": 36.0, "shadow_splits": 1,
+				"shadows": true, "shadow_size": 2048, "shadow_distance": 36.0, "shadow_splits": 2,
 				"msaa": 0, "sdfgi": false, "ssao": false, "ssr": false, "ssr_steps": 0,
 				"volumetric_fog": false, "vol_density": 0.0, "glow": false,
-				"fog_density": 0.006, "view": 70.0, "trees": 56, "grass": 70,
-				"lod_full": 24.0, "grass_range": 28.0, "lamps": 0, "foliage_shadows": false,
+				"fog_density": 0.0014, "view": 70.0, "trees": 56, "grass": 70,
+				"lod_full": 24.0, "grass_range": 28.0, "lamps": 0, "foliage_shadows": false, "animals": 28,
 				"sdfgi_cell": 1.5, "sdfgi_cascades": 4,
 			}
 

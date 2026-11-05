@@ -19,6 +19,23 @@ const ACTIONS := {
 	"page_overheard": KEY_O,
 	"page_map": KEY_M,
 	"page_skills": KEY_K,
+	"slot_1": KEY_1,
+	"slot_2": KEY_2,
+	"slot_3": KEY_3,
+	"slot_4": KEY_4,
+	"slot_5": KEY_5,
+	"slot_6": KEY_6,
+	"slot_7": KEY_7,
+	"slot_8": KEY_8,
+	"zoom_in": KEY_EQUAL,
+	"zoom_out": KEY_MINUS,
+}
+const MOUSE_ACTIONS := {
+	"attack": MOUSE_BUTTON_LEFT,
+	"aim": MOUSE_BUTTON_RIGHT,
+	"focus": MOUSE_BUTTON_MIDDLE,
+	"hotbar_prev": MOUSE_BUTTON_WHEEL_UP,
+	"hotbar_next": MOUSE_BUTTON_WHEEL_DOWN,
 }
 const ARROWS := {
 	"move_forward": KEY_UP,
@@ -38,7 +55,18 @@ var invert_y := false
 var volume := 0.8
 var subtitle := "medium"
 var fullscreen := false
+var resolution := "1920x1080"
+var shadows_mode := "preset"
+var aa_mode := "preset"
+var fog_mode := "preset"
+var view_mul := 1.0
+var ambience := 0.8
+var sfx := 0.8
+var language := "en"
+var show_hints := true
+var rain := true
 var keybinds := {}
+var mouse_binds := {}
 var rebind_action := ""
 var path_override := ""
 var age_override := ""
@@ -46,6 +74,8 @@ var age_override := ""
 func _ready() -> void:
 	for action in ACTIONS.keys():
 		keybinds[action] = int(ACTIONS[action])
+	for action in MOUSE_ACTIONS.keys():
+		mouse_binds[action] = int(MOUSE_ACTIONS[action])
 	if FileAccess.file_exists(_path()):
 		var parsed = JSON.parse_string(FileAccess.get_file_as_string(_path()))
 		if typeof(parsed) == TYPE_DICTIONARY:
@@ -86,15 +116,30 @@ func _apply_dict(d: Dictionary) -> void:
 	volume = clampf(float(d.get("volume", volume)), 0.0, 1.0)
 	subtitle = str(d.get("subtitle", subtitle))
 	fullscreen = bool(d.get("fullscreen", fullscreen))
+	resolution = str(d.get("resolution", resolution))
+	shadows_mode = _choice(str(d.get("shadows_mode", shadows_mode)), ["preset", "on", "off"])
+	aa_mode = _choice(str(d.get("aa_mode", aa_mode)), ["preset", "off", "2x", "4x"])
+	fog_mode = _choice(str(d.get("fog_mode", fog_mode)), ["preset", "off", "light", "dream"])
+	view_mul = clampf(float(d.get("view_mul", view_mul)), 0.55, 1.4)
+	ambience = clampf(float(d.get("ambience", ambience)), 0.0, 1.0)
+	sfx = clampf(float(d.get("sfx", sfx)), 0.0, 1.0)
+	language = "en" if str(d.get("language", "en")) != "ku" else "ku"
+	show_hints = bool(d.get("show_hints", show_hints))
+	rain = bool(d.get("rain", rain))
 	var keys = d.get("keys", {})
 	if typeof(keys) == TYPE_DICTIONARY:
 		for action in ACTIONS.keys():
 			if keys.has(action):
 				keybinds[action] = int(keys[action])
+	var mice = d.get("mouse", {})
+	if typeof(mice) == TYPE_DICTIONARY:
+		for action in MOUSE_ACTIONS.keys():
+			if mice.has(action):
+				mouse_binds[action] = int(mice[action])
 
 func to_dict() -> Dictionary:
 	return {
-		"version": 1,
+		"version": 2,
 		"preset": preset,
 		"scale": scale,
 		"fsr_mode": fsr_mode,
@@ -105,8 +150,22 @@ func to_dict() -> Dictionary:
 		"volume": volume,
 		"subtitle": subtitle,
 		"fullscreen": fullscreen,
+		"resolution": resolution,
+		"shadows_mode": shadows_mode,
+		"aa_mode": aa_mode,
+		"fog_mode": fog_mode,
+		"view_mul": view_mul,
+		"ambience": ambience,
+		"sfx": sfx,
+		"language": language,
+		"show_hints": show_hints,
+		"rain": rain,
 		"keys": keybinds.duplicate(),
+		"mouse": mouse_binds.duplicate(),
 	}
+
+func _choice(value: String, allowed: Array) -> String:
+	return value if allowed.has(value) else str(allowed[0])
 
 func save() -> void:
 	SaveFile.write_atomic(_path(), to_dict())
@@ -154,18 +213,32 @@ func _apply_window() -> void:
 			win.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
 		_:
 			win.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-	match int(current_flags().get("msaa", 0)):
+	var msaa := int(current_flags().get("msaa", 0))
+	if aa_mode == "off":
+		msaa = 0
+	elif aa_mode == "2x":
+		msaa = 2
+	elif aa_mode == "4x":
+		msaa = 4
+	match msaa:
 		4:
 			win.msaa_3d = Viewport.MSAA_4X
 		2:
 			win.msaa_3d = Viewport.MSAA_2X
 		_:
 			win.msaa_3d = Viewport.MSAA_DISABLED
+	if DisplayServer.get_name() == "headless":
+		return
 	if fullscreen:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	else:
 		if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		var parts := resolution.split("x")
+		if parts.size() == 2:
+			var sz := Vector2i(int(parts[0]), int(parts[1]))
+			if sz.x >= 1280 and sz.y >= 720:
+				DisplayServer.window_set_size(sz)
 
 func _install_actions() -> void:
 	for action in ACTIONS.keys():
@@ -179,6 +252,13 @@ func _install_actions() -> void:
 			var arrow := InputEventKey.new()
 			arrow.physical_keycode = int(ARROWS[action]) as Key
 			InputMap.action_add_event(action, arrow)
+	for action in MOUSE_ACTIONS.keys():
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		InputMap.action_erase_events(action)
+		var mb := InputEventMouseButton.new()
+		mb.button_index = int(mouse_binds.get(action, MOUSE_ACTIONS[action]))
+		InputMap.action_add_event(action, mb)
 
 func try_rebind(action: String, code: Key) -> String:
 	if not ACTIONS.has(action):
@@ -192,8 +272,37 @@ func try_rebind(action: String, code: Key) -> String:
 	keys_changed.emit()
 	return "ok"
 
+func try_rebind_mouse(action: String, button: int) -> String:
+	if not MOUSE_ACTIONS.has(action):
+		return "unknown"
+	for other in mouse_binds.keys():
+		if other != action and int(mouse_binds[other]) == button:
+			return "used"
+	mouse_binds[action] = button
+	_install_actions()
+	save()
+	keys_changed.emit()
+	return "ok"
+
 func key_label(action: String) -> String:
+	if MOUSE_ACTIONS.has(action):
+		return mouse_label(int(mouse_binds.get(action, 0)))
 	return OS.get_keycode_string(int(keybinds.get(action, 0)))
+
+func mouse_label(button: int) -> String:
+	match button:
+		MOUSE_BUTTON_LEFT:
+			return "Left click"
+		MOUSE_BUTTON_RIGHT:
+			return "Right click"
+		MOUSE_BUTTON_MIDDLE:
+			return "Middle click"
+		MOUSE_BUTTON_WHEEL_UP:
+			return "Wheel up"
+		MOUSE_BUTTON_WHEEL_DOWN:
+			return "Wheel down"
+		_:
+			return "Mouse %d" % button
 
 func subtitle_px() -> int:
 	match subtitle:

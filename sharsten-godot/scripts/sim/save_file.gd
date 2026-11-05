@@ -1,7 +1,7 @@
 extends RefCounted
 class_name SaveFile
 
-const VERSION := 1
+const VERSION := 2
 
 static func empty_player(start: Dictionary) -> Dictionary:
 	return {
@@ -33,6 +33,7 @@ static func blank(start: Dictionary) -> Dictionary:
 		"play_time": 0.0,
 		"xp": 0,
 		"level": 1,
+		"relic_notes": [],
 	}
 
 static func migrate(data: Dictionary, start: Dictionary) -> Dictionary:
@@ -44,6 +45,10 @@ static func migrate(data: Dictionary, start: Dictionary) -> Dictionary:
 			if not d.has("inventory") or (d["inventory"] as Dictionary).is_empty():
 				d["inventory"] = d["bag"]
 		d.erase("bag")
+	if v < 2:
+		if not d.has("relic_notes") or typeof(d.get("relic_notes")) != TYPE_ARRAY:
+			d["relic_notes"] = []
+		d["version"] = 2
 	var base := blank(start)
 	for k in base.keys():
 		if not d.has(k):

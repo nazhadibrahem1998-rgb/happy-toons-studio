@@ -19,9 +19,14 @@ var prompt_kind := ""
 var prompt_id := ""
 var build_mode := false
 var camera_locked := false
+var force_action := ""
 var build_id := "fence"
 var build_yaw := 0.0
+var hot_i := 0
+var aiming := false
 var _stuck := 0.0
+var _swing := 0.0
+const HOTBAR := ["hands", "fence", "wall", "oven", "loom", "stool", "diary", "craft"]
 
 func _ready() -> void:
 	add_to_group("player")
@@ -76,15 +81,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		var r := LookMath.apply_mouse(yaw, pitch, rel.x, rel.y, Settings.look_sens(), Settings.invert_y)
 		yaw = r.x
 		pitch = r.y
-	if event is InputEventMouseButton and event.pressed:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT:
-			if build_mode:
-				_try_place()
-			elif Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-				_interact()
-		elif mb.button_index == MOUSE_BUTTON_RIGHT and build_mode:
-			set_build(false)
+	if event.is_action_pressed("zoom_in"):
+		_zoom(-1)
+	elif event.is_action_pressed("zoom_out"):
+		_zoom(1)
+	for slot in range(1, 9):
+		if event.is_action_pressed("slot_%d" % slot):
+			_hot(slot - 1)
+	if event.is_action_pressed("hotbar_prev") or event.is_action_pressed("hotbar_next"):
+		if _pointer_over_scroll():
+			return
+		var wheel := event is InputEventMouseButton
+		var modified := wheel and ((event as InputEventMouseButton).ctrl_pressed or (event as InputEventMouseButton).shift_pressed)
+		if modified:
+			_zoom(-1 if event.is_action_pressed("hotbar_prev") else 1)
+		elif event.is_action_pressed("hotbar_prev"):
+			_hot(hot_i - 1)
+		else:
+			_hot(hot_i + 1)
+		return
+	if event.is_action_pressed("attack"):
+		_attack()
+	elif event.is_action_pressed("aim"):
+		_aim_or_use()
+	elif event.is_action_pressed("focus"):
+		_recenter()
 
 func _physics_process(delta: float) -> void:
 	if get_tree().paused:
@@ -130,7 +151,12 @@ func _physics_process(delta: float) -> void:
 	elif not first_person:
 		rig.rotation.y = lerp_angle(rig.rotation.y, yaw, 1.0 - exp(-4.0 * delta))
 	var flat := Vector2(velocity.x, velocity.z).length()
-	rig.tick(delta, flat, "walk" if flat > 0.2 else "idle")
+	if _swing > 0.0:
+		_swing -= delta
+	var act := force_action if force_action != "" else ("walk" if flat > 0.2 else "idle")
+	if _swing > 0.0 and flat < 0.2:
+		act = "carve"
+	rig.tick(delta, flat if force_action == "" else 0.0, act)
 	_camera(delta)
 	_prompt()
 	GameState.poll_overhear(global_position)
@@ -164,6 +190,63 @@ func _camera(delta: float) -> void:
 		camera.global_position = wanted
 	camera.global_transform = Transform3D(basis, camera.global_position)
 	rig.set_first_person(first_person or cam_dist < 0.35)
+
+func _pointer_over_scroll() -> bool:
+	var hovered := get_viewport().gui_get_hovered_control()
+	while hovered:
+		if hovered is ScrollContainer:
+			return true
+		hovered = hovered.get_parent()
+	return false
+
+func _zoom(step: int) -> void:
+	aiming = false
+	cam_target = clampf(cam_target + float(step) * 0.45, 1.5, 8.5)
+
+func _hot(index: int) -> void:
+	hot_i = posmod(index, HOTBAR.size())
+	var id := str(HOTBAR[hot_i])
+	if id == "hands":
+		if build_mode:
+			set_build(false)
+	elif id != "diary" and id != "craft":
+		build_id = id
+
+func _attack() -> void:
+	if build_mode:
+		_try_place()
+		return
+	var id := str(HOTBAR[hot_i])
+	if id == "diary":
+		get_tree().call_group("ui", "open_diary", "quests")
+		return
+	if id == "craft":
+		get_tree().call_group("ui", "open_craft")
+		return
+	if id != "hands" and GameState.near_station != "":
+		set_build(true)
+		return
+	if prompt_kind in ["resource", "found"]:
+		_interact()
+		return
+	_swing = 0.35
+	GameState.say_thought("The swing meets only air.")
+
+func _aim_or_use() -> void:
+	if build_mode:
+		set_build(false)
+		return
+	if prompt_kind in ["station", "note", "altar", "board", "relic", "rune"]:
+		_interact()
+		return
+	aiming = not aiming
+	cam_target = 2.15 if aiming else (0.12 if first_person else 4.4)
+
+func _recenter() -> void:
+	pitch = -0.12
+	aiming = false
+	cam_target = 0.12 if first_person else 4.4
+	cam_dist = cam_target
 
 func _toggle_view() -> void:
 	first_person = not first_person

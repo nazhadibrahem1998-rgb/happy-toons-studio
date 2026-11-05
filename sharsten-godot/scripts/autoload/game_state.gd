@@ -330,6 +330,9 @@ func study_relic() -> void:
 		return
 	data["flags"]["studied_relic"] = true
 	data["counters"]["study:relic"] = 1
+	var notes: Array = data.get("relic_notes", [])
+	notes.append("A wheel for the wind, a wheel for the water, and a spark for later.")
+	data["relic_notes"] = notes
 	grant_xp(20)
 	say_thought("A blueprint, half remembered: a wheel for the wind, a wheel for the water, and a spark for later. Not in this dream.")
 	_after_rules()

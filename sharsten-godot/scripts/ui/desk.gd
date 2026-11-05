@@ -85,30 +85,87 @@ static func slider(value: float, min_v: float, max_v: float) -> HSlider:
 	s.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	return s
 
+static func plain(text: String, size: int = 16, color: Color = Color("f6edd8")) -> Label:
+	var l := label(text, size, color)
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.clip_text = false
+	l.custom_minimum_size = Vector2(180, 32)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return l
+
 static func build_settings(host: Node, on_close: Callable) -> Control:
-	var root := panel(Vector2(640, 700))
-	center(root)
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()
+	dim.color = Color(0.05, 0.03, 0.02, 0.28)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(dim)
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		margin.add_theme_constant_override(side, 24)
+	root.add_child(margin)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	margin.add_child(scroll)
+	var sheet := panel(Vector2(560, 0))
+	sheet.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(sheet)
 	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 8)
-	root.add_child(box)
-	box.add_child(label("Settings", 28, Color("f6edd8")))
-	box.add_child(label("Graphics", 16, Color("f0e2c4")))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	box.add_child(row)
+	sheet.add_child(box)
+	box.add_child(plain("Settings", 28))
+	box.add_child(plain("Graphics", 18, Color("f0e2c4")))
+	var presets := HFlowContainer.new()
+	presets.add_theme_constant_override("h_separation", 8)
+	presets.add_theme_constant_override("v_separation", 8)
+	presets.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(presets)
 	for id in GraphicsRules.ORDER:
-		var b := button(id.capitalize(), 110)
-		if Settings.preset == id:
-			b.text = id.capitalize() + " *"
+		var b := button(id.capitalize() + (" *" if Settings.preset == id else ""), 140)
 		b.pressed.connect(func():
 			Settings.set_preset(id)
 			_refresh_settings(host, on_close)
 		)
-		row.add_child(b)
-	var scale_row := HBoxContainer.new()
-	box.add_child(scale_row)
-	var scale_name := label("Resolution scale  %d%%" % int(Settings.scale * 100.0), 16, Color("f6edd8"))
-	scale_row.add_child(scale_name)
+		presets.add_child(b)
+	box.add_child(_option("Resolution", ["1280x720", "1366x768", "1600x900", "1920x1080", "2560x1440"], Settings.resolution, func(v):
+		Settings.resolution = v
+		Settings.fullscreen = false
+		Settings.save()
+		Settings.apply_runtime()
+	))
+	box.add_child(_option("Shadows", ["preset", "on", "off"], Settings.shadows_mode, func(v):
+		Settings.shadows_mode = v
+		Settings.save()
+		Settings.graphics_changed.emit(Settings.current_flags())
+	))
+	box.add_child(_option("Antialiasing", ["preset", "off", "2x", "4x"], Settings.aa_mode, func(v):
+		Settings.aa_mode = v
+		Settings.save()
+		Settings.apply_runtime()
+	))
+	box.add_child(_option("Fog", ["preset", "off", "light", "dream"], Settings.fog_mode, func(v):
+		Settings.fog_mode = v
+		Settings.save()
+		Settings.graphics_changed.emit(Settings.current_flags())
+	))
+	box.add_child(plain("View distance", 16, Color("f0e2c4")))
+	var view := slider(Settings.view_mul, 0.55, 1.4)
+	view.step = 0.05
+	view.value_changed.connect(func(v):
+		Settings.view_mul = v
+		Settings.save()
+		Settings.graphics_changed.emit(Settings.current_flags())
+	)
+	box.add_child(view)
+	var scale_name := plain("Render scale  %d%%" % int(Settings.scale * 100.0), 16)
+	box.add_child(scale_name)
 	var scale := slider(Settings.scale, 0.5, 1.0)
 	scale.step = 0.05
 	scale.value_changed.connect(func(v):
@@ -116,23 +173,14 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		Settings.save()
 		Settings.apply_runtime()
 		Settings.graphics_changed.emit(Settings.current_flags())
-		scale_name.text = "Resolution scale  %d%%" % int(Settings.scale * 100.0)
+		scale_name.text = "Render scale  %d%%" % int(Settings.scale * 100.0)
 	)
 	box.add_child(scale)
-	box.add_child(label("Upscale  (used when resolution scale is under 100%)", 16, Color("f0e2c4")))
-	var fsr_box := OptionButton.new()
-	fsr_box.custom_minimum_size = Vector2(220, 32)
-	for opt in ["Off", "FSR 1", "FSR 2"]:
-		fsr_box.add_item(opt)
-	fsr_box.selected = ["off", "fsr1", "fsr2"].find(Settings.fsr_mode)
-	if fsr_box.selected < 0:
-		fsr_box.selected = 0
-	fsr_box.item_selected.connect(func(idx):
-		Settings.fsr_mode = ["off", "fsr1", "fsr2"][idx]
+	box.add_child(_option("Upscale under 100%", ["off", "fsr1", "fsr2"], Settings.fsr_mode, func(v):
+		Settings.fsr_mode = v
 		Settings.save()
 		Settings.apply_runtime()
-	)
-	box.add_child(fsr_box)
+	))
 	box.add_child(_check("VSync", Settings.vsync, func(on):
 		Settings.vsync = on
 		Settings.save()
@@ -143,22 +191,12 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		Settings.save()
 		Settings.apply_runtime()
 	))
-	box.add_child(label("Frame cap", 16, Color("f0e2c4")))
-	var caps := OptionButton.new()
-	caps.custom_minimum_size = Vector2(220, 32)
-	var cap_values := [0, 30, 60, 120, 144]
-	for c in cap_values:
-		caps.add_item("Uncapped" if c == 0 else "%d fps" % c)
-	caps.selected = cap_values.find(Settings.fps_cap)
-	if caps.selected < 0:
-		caps.selected = 0
-	caps.item_selected.connect(func(idx):
-		Settings.fps_cap = int(cap_values[idx])
+	box.add_child(_option("Frame cap", ["0", "30", "60", "120", "144"], str(Settings.fps_cap), func(v):
+		Settings.fps_cap = int(v)
 		Settings.save()
 		Settings.apply_runtime()
-	)
-	box.add_child(caps)
-	box.add_child(label("Mouse sensitivity", 16, Color("f0e2c4")))
+	))
+	box.add_child(plain("Mouse sensitivity", 16, Color("f0e2c4")))
 	var sens := slider(Settings.sensitivity, 0.2, 3.0)
 	sens.step = 0.05
 	sens.value_changed.connect(func(v):
@@ -166,11 +204,11 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		Settings.save()
 	)
 	box.add_child(sens)
-	box.add_child(_check("Invert Y  (off is the natural mouse)", Settings.invert_y, func(on):
+	box.add_child(_check("Invert Y", Settings.invert_y, func(on):
 		Settings.invert_y = on
 		Settings.save()
 	))
-	box.add_child(label("Volume", 16, Color("f0e2c4")))
+	box.add_child(plain("Master volume", 16, Color("f0e2c4")))
 	var vol := slider(Settings.volume, 0.0, 1.0)
 	vol.value_changed.connect(func(v):
 		Settings.volume = v
@@ -178,21 +216,52 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		Settings.apply_runtime()
 	)
 	box.add_child(vol)
-	box.add_child(label("Subtitle size", 16, Color("f0e2c4")))
-	var sizes := OptionButton.new()
-	for s in ["small", "medium", "large"]:
-		sizes.add_item(s.capitalize())
-	sizes.selected = ["small", "medium", "large"].find(Settings.subtitle)
-	sizes.item_selected.connect(func(idx):
-		Settings.subtitle = ["small", "medium", "large"][idx]
+	box.add_child(plain("Ambience", 16, Color("f0e2c4")))
+	var amb := slider(Settings.ambience, 0.0, 1.0)
+	amb.value_changed.connect(func(v):
+		Settings.ambience = v
 		Settings.save()
+		Settings.apply_runtime()
 	)
-	box.add_child(sizes)
-	box.add_child(label("Keys  — click a binding, then press a key", 16, Color("f0e2c4")))
-	var bind_host := VBoxContainer.new()
-	box.add_child(bind_host)
-	_binds(bind_host)
-	var back := button("Back", 160)
+	box.add_child(amb)
+	box.add_child(plain("Effects", 16, Color("f0e2c4")))
+	var sfx := slider(Settings.sfx, 0.0, 1.0)
+	sfx.value_changed.connect(func(v):
+		Settings.sfx = v
+		Settings.save()
+		Settings.apply_runtime()
+	)
+	box.add_child(sfx)
+	box.add_child(_option("Subtitle size", ["small", "medium", "large"], Settings.subtitle, func(v):
+		Settings.subtitle = v
+		Settings.save()
+	))
+	box.add_child(_option("Language", ["en", "ku"], Settings.language, func(v):
+		Settings.language = v
+		Settings.save()
+		_refresh_settings(host, on_close)
+	))
+	if Settings.language == "ku":
+		box.add_child(plain("Kurdish script is planned for a later update. This build stays in English.", 15, Color("f0e2c4")))
+	box.add_child(_check("Show key hints", Settings.show_hints, func(on):
+		Settings.show_hints = on
+		Settings.save()
+	))
+	box.add_child(_check("Light rain", Settings.rain, func(on):
+		Settings.rain = on
+		Settings.save()
+	))
+	box.add_child(plain("Keys and mouse  — click a binding, then press a key or mouse button", 16, Color("f0e2c4")))
+	var grid := GridContainer.new()
+	grid.name = "BindGrid"
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 6)
+	box.add_child(grid)
+	_bind_rows(grid, Settings.ACTIONS.keys())
+	_bind_rows(grid, Settings.MOUSE_ACTIONS.keys())
+	var back := button("Back", 180)
 	back.pressed.connect(on_close)
 	box.add_child(back)
 	if host.get_node_or_null("SettingsRoot"):
@@ -200,6 +269,54 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 	root.name = "SettingsRoot"
 	host.add_child(root)
 	return root
+
+static func _option(title: String, values: Array, current: String, cb: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 12)
+	var name := plain(title, 16)
+	name.custom_minimum_size = Vector2(200, 34)
+	row.add_child(name)
+	var box := OptionButton.new()
+	box.custom_minimum_size = Vector2(220, 34)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_font_size_override("font_size", 16)
+	var pick := 0
+	for i in values.size():
+		var shown := str(values[i])
+		if shown == "0":
+			shown = "Uncapped"
+		elif shown in ["30", "60", "120", "144"]:
+			shown = shown + " fps"
+		elif shown == "en":
+			shown = "English"
+		elif shown == "ku":
+			shown = "Kurdish (later)"
+		box.add_item(shown)
+		if str(values[i]) == current:
+			pick = i
+	box.selected = pick
+	box.item_selected.connect(func(idx):
+		cb.call(str(values[idx]))
+	)
+	row.add_child(box)
+	return row
+
+static func _bind_rows(grid: GridContainer, actions: Array) -> void:
+	for action in actions:
+		var title := str(action).replace("_", " ")
+		var name := plain(title.capitalize(), 16)
+		name.custom_minimum_size = Vector2(240, 36)
+		grid.add_child(name)
+		var b := button(Settings.key_label(str(action)), 180)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var id := str(action)
+		b.pressed.connect(func():
+			Settings.rebind_action = id
+			b.text = "Press a key"
+		)
+		grid.add_child(b)
 
 static func _refresh_settings(host: Node, on_close: Callable) -> void:
 	if host.get_node_or_null("SettingsRoot"):
@@ -216,22 +333,6 @@ static func _check(text: String, on: bool, cb: Callable) -> CheckButton:
 	c.add_theme_color_override("font_color", Color("f6edd8"))
 	c.toggled.connect(cb)
 	return c
-
-static func _binds(host: VBoxContainer) -> void:
-	for action in Settings.ACTIONS.keys():
-		var row := HBoxContainer.new()
-		row.add_child(label(action.replace("_", " "), 15, Color("f6edd8")))
-		var b := button(Settings.key_label(action), 120)
-		b.pressed.connect(func():
-			Settings.rebind_action = action
-			b.text = "Press a key"
-		)
-		row.add_child(b)
-		host.add_child(row)
-	host.set_process(true)
-	if not host.has_meta("wired"):
-		host.set_meta("wired", true)
-		host.gui_input.connect(func(_e): pass)
 
 static func opening_notice() -> String:
 	return "Made with Godot Engine\n\nGodot Engine is available under the MIT License.\nCopyright (c) 2014-present Godot Engine contributors.\nCopyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.\n\nGround, plaster, wood, rock, and mud textures: Poly Haven, CC0.\nStory, people, clothing, and animation: original to this game."
@@ -255,8 +356,14 @@ static func credits_text() -> String:
 		"https://polyhaven.com",
 		"",
 		"THIS PROJECT",
-		"Used for: the story, Azad-i Asmani, villager rigs and clothing,",
-		"the diary, the paths, the relics, and the original idle, walk, and work motion.",
+		"QUATERNIUS",
+		"Used for: the humanoid body and the idle, walk, talk, and sit clips.",
+		"Universal Animation Library, CC0 1.0.",
+		"https://quaternius.com",
+		"",
+		"THIS PROJECT",
+		"Used for: the story, Azad-i Asmani, Kurdish clothing on that rig,",
+		"and the original wind, birds, tandoor crackle, clicks, and quiet theme.",
 		"No Mixamo clips. No assets taken from other games.",
 		"",
 		"INSPIRED BY",

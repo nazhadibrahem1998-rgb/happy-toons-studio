@@ -18,6 +18,7 @@ var ghost: Node3D
 var ghost_ok := true
 var dream := true
 var player: CharacterBody3D
+var _sky_mat: ProceduralSkyMaterial
 
 func _ready() -> void:
 	_environment()
@@ -27,17 +28,21 @@ func _ready() -> void:
 	_houses()
 	_landmarks()
 	_stations_nodes()
+	_bake_nav()
 	_people()
-	_nature()
-	_echoes()
-	_final_area()
-	_life()
-	_ruins()
-	_growth()
+	if not OS.has_feature("headless"):
+		_nature()
+		_echoes()
+		_final_area()
+		_life()
+		_ruins()
+		_growth()
 	placed_root = Node3D.new()
 	placed_root.name = "Placed"
 	add_child(placed_root)
 	_sync_placed()
+	var bed = load("res://scripts/world/ambience.gd").new()
+	add_child(bed)
 	player = load("res://scripts/player/player.gd").new()
 	add_child(player)
 	var ui = load("res://scripts/ui/interface.gd").new()
@@ -45,6 +50,11 @@ func _ready() -> void:
 	add_child(ui)
 	if not Settings.graphics_changed.is_connected(_on_graphics):
 		Settings.graphics_changed.connect(_on_graphics)
+	var life = load("res://scripts/world/life_world.gd").new()
+	add_child(life)
+	life.bind(self, sun, env, _sky_mat)
+	if OS.has_feature("headless"):
+		_hide_draw(self)
 	apply_graphics()
 	if str(GameState.data.get("phase", "dream")) == "woke":
 		apply_wake()
@@ -58,6 +68,7 @@ func _environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var mat := ProceduralSkyMaterial.new()
+	_sky_mat = mat
 	mat.sky_top_color = Color(0.45, 0.52, 0.78)
 	mat.sky_horizon_color = Color(0.95, 0.72, 0.58)
 	mat.ground_horizon_color = Color(0.55, 0.48, 0.38)
@@ -70,19 +81,30 @@ func _environment() -> void:
 	env.ambient_light_energy = 0.62
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.82, 0.74, 0.78)
-	env.fog_density = 0.012
-	env.fog_aerial_perspective = 0.35
+	env.fog_light_color = Color(0.78, 0.74, 0.7)
+	env.fog_density = 0.0004
+	env.fog_aerial_perspective = 0.04
+	env.fog_sky_affect = 0.12
 	we.environment = env
 	add_child(we)
 	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-46, 38, 0)
 	sun.light_color = Color(1.0, 0.9, 0.74)
 	sun.light_energy = 1.25
-	sun.shadow_bias = 0.05
-	sun.shadow_normal_bias = 1.2
+	sun.shadow_bias = 0.08
+	sun.shadow_normal_bias = 2.0
+	sun.shadow_blur = 1.1
+	sun.directional_shadow_blend_splits = true
+	sun.directional_shadow_fade_start = 0.65
+	sun.directional_shadow_pancake_size = 40.0
 	sun.light_volumetric_fog_energy = 1.0
 	add_child(sun)
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-18, -140, 0)
+	fill.light_color = Color(0.72, 0.8, 0.92)
+	fill.light_energy = 0.28
+	fill.shadow_enabled = false
+	add_child(fill)
 	moon2 = MeshInstance3D.new()
 	moon2.mesh = MeshLib.sphere(2.4)
 	var mm := MeshLib.mat("f4efe6")
@@ -103,6 +125,15 @@ func _floor() -> void:
 	shape.shape = plane
 	body.add_child(shape)
 	add_child(body)
+	var slab := StaticBody3D.new()
+	slab.collision_layer = 1
+	var slab_shape := CollisionShape3D.new()
+	var slab_box := BoxShape3D.new()
+	slab_box.size = Vector3(220, 1.0, 240)
+	slab_shape.shape = slab_box
+	slab_shape.position = Vector3(70, -0.5, 80)
+	slab.add_child(slab_shape)
+	add_child(slab)
 	var visual := MeshInstance3D.new()
 	visual.mesh = MeshLib.box(220, 0.4, 240)
 	visual.position = Vector3(70, -0.2, 80)
@@ -135,8 +166,8 @@ func _wall(x: float, z: float, w: float, d: float) -> void:
 
 func _roads() -> void:
 	var roads: Dictionary = ContentDB.layout.get("roads", {})
-	MeshLib.paint_tiles(self, roads.get("stone", []), 0.025, Vector3(2.62, 0.05, 2.62), MeshLib.ground_mat("c4b48a", "mud", 0.22))
-	MeshLib.paint_tiles(self, roads.get("dirt", []), 0.028, Vector3(2.5, 0.05, 2.5), MeshLib.ground_mat("9a7048", "mud", 0.28))
+	MeshLib.paint_tiles(self, roads.get("stone", []), 0.004, Vector3(2.32, 0.02, 2.32), MeshLib.path_mat("b89a6a"))
+	MeshLib.paint_tiles(self, roads.get("dirt", []), 0.004, Vector3(2.28, 0.018, 2.28), MeshLib.path_mat("8d6844"))
 
 func _houses() -> void:
 	var walls := [Color("d2c2a0"), Color("c4a574"), Color("b08968"), Color("e6d4b4"), Color("a68462")]
@@ -151,16 +182,23 @@ func _houses() -> void:
 		wall_m.roughness = 0.9
 		wall_m.uv1_scale = Vector3(0.4, 0.4, 0.4)
 		wall_m.uv1_triplanar = true
-		MeshLib.part(node, MeshLib.box(2.6, 2.3, 2.3), wall_m, Vector3(0, 1.15, 0))
+		wall_m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var wall := MeshLib.part(node, MeshLib.box(2.6, 2.3, 2.3), wall_m, Vector3(0, 1.15, 0))
+		wall.add_to_group("house_wall")
 		MeshLib.part(node, MeshLib.box(2.9, 0.28, 2.6), MeshLib.ground_mat("7a3e28", "wood", 0.5), Vector3(0, 2.4, 0))
-		MeshLib.part(node, MeshLib.box(0.55, 0.9, 0.08), MeshLib.mat("4a3428"), Vector3(0, 0.55, -1.16))
+		MeshLib.part(node, MeshLib.box(0.55, 0.9, 0.08), MeshLib.mat("4a3428"), Vector3(0, 0.55, -1.28))
 		var body := StaticBody3D.new()
 		body.collision_layer = 1
+		body.add_to_group("house_block")
+		var hx := float(at[0])
+		var hz := float(at[1])
+		body.set_meta("min_xz", Vector2(hx - 1.45, hz - 1.45))
+		body.set_meta("max_xz", Vector2(hx + 1.45, hz + 1.45))
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
-		box.size = Vector3(2.6, 2.3, 2.3)
+		box.size = Vector3(2.9, 3.2, 2.9)
 		shape.shape = box
-		shape.position = Vector3(0, 1.15, 0)
+		shape.position = Vector3(0, 1.05, 0)
 		body.add_child(shape)
 		node.add_child(body)
 		add_child(node)
@@ -175,11 +213,16 @@ func _landmarks() -> void:
 	MeshLib.part(m, MeshLib.box(1.1, 5.5, 1.1), plaster, Vector3(-3.2, 2.7, -2.4))
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
+	body.add_to_group("house_block")
+	var mx := float(mosque.get("x", 43))
+	var mz := float(mosque.get("z", 72))
+	body.set_meta("min_xz", Vector2(mx - 4.4, mz - 3.7))
+	body.set_meta("max_xz", Vector2(mx + 4.4, mz + 3.7))
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(8, 3.2, 6.5)
+	box.size = Vector3(8.4, 3.4, 7.0)
 	shape.shape = box
-	shape.position = Vector3(0, 1.6, 0)
+	shape.position = Vector3(0, 1.5, 0)
 	body.add_child(shape)
 	m.add_child(body)
 	add_child(m)
@@ -227,12 +270,64 @@ func _stations_nodes() -> void:
 		n.configure(d)
 		add_child(n)
 
+func _bake_nav() -> void:
+	if OS.has_feature("headless") or OS.get_environment("WIP_SHOT") == "1":
+		return
+	var map := get_world_3d().navigation_map
+	NavigationServer3D.map_set_cell_size(map, 1.0)
+	NavigationServer3D.map_set_cell_height(map, 1.0)
+	var region := NavigationRegion3D.new()
+	var mesh := NavigationMesh.new()
+	mesh.cell_size = 1.0
+	mesh.cell_height = 1.0
+	var b: Dictionary = ContentDB.layout.get("bounds", {})
+	var min_x := float(b.get("min_x", -4)) + 1.0
+	var max_x := float(b.get("max_x", 148)) - 1.0
+	var min_z := float(b.get("min_z", -16)) + 1.0
+	var max_z := float(b.get("max_z", 184)) - 1.0
+	var step := 8.0
+	var verts := PackedVector3Array()
+	var polys: Array = []
+	var x := min_x
+	while x < max_x - 0.1:
+		var z := min_z
+		while z < max_z - 0.1:
+			if not _nav_blocked(x + step * 0.5, z + step * 0.5, step * 0.55):
+				var i0 := verts.size()
+				verts.append(Vector3(x, 0.02, z))
+				verts.append(Vector3(minf(x + step, max_x), 0.02, z))
+				verts.append(Vector3(minf(x + step, max_x), 0.02, minf(z + step, max_z)))
+				verts.append(Vector3(x, 0.02, minf(z + step, max_z)))
+				polys.append(PackedInt32Array([i0, i0 + 3, i0 + 2]))
+				polys.append(PackedInt32Array([i0, i0 + 2, i0 + 1]))
+			z += step
+		x += step
+	mesh.vertices = verts
+	for poly in polys:
+		mesh.add_polygon(poly)
+	region.navigation_mesh = mesh
+	if not OS.has_feature("headless"):
+		add_child(region)
+
+func _nav_blocked(x: float, z: float, pad: float) -> bool:
+	for h in get_tree().get_nodes_in_group("house_block"):
+		var mn: Vector2 = h.get_meta("min_xz")
+		var mx: Vector2 = h.get_meta("max_xz")
+		if x > mn.x - pad and x < mx.x + pad and z > mn.y - pad and z < mx.y + pad:
+			return true
+	return false
+
 func _people() -> void:
 	var loop: Array = ContentDB.layout.get("walk_loop", [])
 	var by_id := {}
 	for entry in ContentDB.layout.get("npcs", []):
 		by_id[str(entry.get("id", ""))] = entry
+	var cap := 3 if OS.get_environment("WIP_SHOT") == "1" else ContentDB.npc_order.size()
+	var spawned_people := 0
 	for id in ContentDB.npc_order:
+		if spawned_people >= cap:
+			break
+		spawned_people += 1
 		var v = load("res://scripts/npc/villager.gd").new()
 		v.setup(ContentDB.npc(id), by_id.get(id, {}), loop)
 		add_child(v)
@@ -240,7 +335,8 @@ func _people() -> void:
 		var sheep := MeshInstance3D.new()
 		sheep.mesh = MeshLib.box(0.55, 0.4, 0.85)
 		sheep.material_override = MeshLib.mat("f4f1ea")
-		sheep.position = Vector3(52 + i * 1.1, 0.3, 30 + (i % 2))
+		sheep.position = Vector3(52 + i * 1.1, 0.2, 30 + (i % 2))
+		sheep.add_to_group("ground_prop")
 		add_child(sheep)
 
 func _nature() -> void:
@@ -267,7 +363,7 @@ func _nature() -> void:
 	add_child(tree_far)
 	var grass_pos: Array = []
 	for i in 640:
-		grass_pos.append(Vector3(rng.randf_range(4, 136), 0.15, rng.randf_range(18, 168)))
+		grass_pos.append(Vector3(rng.randf_range(4, 136), 0.14, rng.randf_range(18, 168)))
 	grass_mm = _grass(grass_pos)
 	add_child(grass_mm)
 	for i in 8:
@@ -303,7 +399,7 @@ func _tree_mesh(positions: Array, detailed: bool) -> MultiMeshInstance3D:
 func _grass(positions: Array) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = MeshLib.box(0.18, 0.35, 0.18)
+	mm.mesh = MeshLib.box(0.03, 0.28, 0.16)
 	mm.instance_count = positions.size()
 	for i in positions.size():
 		var p: Vector3 = positions[i]
@@ -322,8 +418,6 @@ func _echoes() -> void:
 		var trunk := MeshLib.part(root, MeshLib.cyl(0.1, 1.6), MeshLib.mat("5a3a28"), Vector3(0.2, 0.8, 0))
 		trunk.rotation.z = 0.25
 		MeshLib.part(root, MeshLib.sphere(0.45), MeshLib.mat("2f7a32"), Vector3(0.45, 1.5, 0))
-		MeshLib.part(root, MeshLib.cyl(0.08, 0.16), MeshLib.mat("3d5a86"), Vector3(-0.4, 0.12, 0.2))
-		MeshLib.part(root, MeshLib.box(0.7, 0.22, 0.28), MeshLib.mat("c4a574"), Vector3(-0.2, 0.12, -0.45))
 		root.add_to_group("dream_only")
 		add_child(root)
 
@@ -403,10 +497,17 @@ func apply_graphics() -> void:
 	var f: Dictionary = Settings.current_flags()
 	if env == null:
 		return
-	var haze := 0.55 if dream else 0.28
+	var haze := 0.22 if dream else 0.12
 	env.fog_enabled = true
-	env.fog_density = float(f.get("fog_density", 0.008)) * haze
-	env.fog_light_color = Color(0.82, 0.74, 0.78) if dream else Color(0.7, 0.7, 0.68)
+	var density := float(f.get("fog_density", 0.0016)) * haze
+	if Settings.fog_mode == "off":
+		density = 0.0
+	elif Settings.fog_mode == "light":
+		density *= 0.35
+	env.fog_density = density
+	env.fog_sky_affect = 0.12
+	env.fog_aerial_perspective = 0.04
+	env.fog_light_color = Color(0.78, 0.74, 0.7) if dream else Color(0.62, 0.6, 0.56)
 	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
 	env.sdfgi_enabled = bool(f.get("sdfgi", false)) and forward and dream
 	env.sdfgi_cascades = int(f.get("sdfgi_cascades", 4))
@@ -427,6 +528,16 @@ func apply_graphics() -> void:
 	env.glow_bloom = 0.12
 	if sun:
 		sun.shadow_enabled = bool(f.get("shadows", false))
+		if Settings.shadows_mode == "off":
+			sun.shadow_enabled = false
+		elif Settings.shadows_mode == "on":
+			sun.shadow_enabled = true
+		sun.shadow_bias = 0.08
+		sun.shadow_normal_bias = 2.0
+		sun.shadow_blur = 1.1
+		sun.directional_shadow_blend_splits = true
+		sun.directional_shadow_fade_start = 0.65
+		sun.directional_shadow_pancake_size = 40.0
 		sun.directional_shadow_max_distance = float(f.get("shadow_distance", 36))
 		var splits := int(f.get("shadow_splits", 1))
 		if splits >= 4:
@@ -437,7 +548,7 @@ func apply_graphics() -> void:
 			sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 		RenderingServer.directional_shadow_atlas_set_size(int(f.get("shadow_size", 2048)), true)
 	var trees := int(f.get("trees", 90))
-	var view := float(f.get("view", 85))
+	var view := float(f.get("view", 85)) * Settings.view_mul
 	if tree_detail and tree_detail.multimesh:
 		tree_detail.multimesh.visible_instance_count = mini(trees, tree_detail.multimesh.instance_count)
 		tree_detail.visibility_range_begin = 0.0
@@ -502,6 +613,19 @@ func _ruins() -> void:
 	MeshLib.part(root, MeshLib.box(1.6, 0.4, 0.8), rust, Vector3(88, 0.3, 74))
 	MeshLib.part(root, MeshLib.box(0.8, 2.4, 0.8), iron, Vector3(110, 1.2, 70))
 	MeshLib.part(root, MeshLib.box(4.0, 0.25, 1.2), rust, Vector3(40, 0.2, 100))
+	# Broken tower: stacked, slipped stones.
+	for i in 5:
+		var slip := Vector3(sin(i * 1.7) * 0.35, 0.55 + i * 0.7, cos(i) * 0.25)
+		MeshLib.part(root, MeshLib.box(1.5 - i * 0.12, 0.62, 1.5 - i * 0.12), ash, Vector3(28, 0, 18) + slip)
+	# Half-buried original hull. Not any real vehicle.
+	MeshLib.part(root, MeshLib.box(3.6, 0.7, 1.5), iron, Vector3(52, 0.15, 108))
+	MeshLib.part(root, MeshLib.cyl(0.38, 0.22), rust, Vector3(50.6, 0.12, 108.5))
+	MeshLib.part(root, MeshLib.cyl(0.38, 0.22), rust, Vector3(53.4, 0.1, 107.6))
+	MeshLib.part(root, MeshLib.box(1.2, 0.35, 1.1), rust, Vector3(52.4, 0.55, 108))
+	# Fallen machine frame.
+	MeshLib.part(root, MeshLib.box(0.18, 2.8, 0.18), iron, Vector3(78, 0.6, 36))
+	MeshLib.part(root, MeshLib.box(2.4, 0.16, 0.16), iron, Vector3(79, 1.7, 36))
+	MeshLib.part(root, MeshLib.box(0.16, 1.4, 0.16), rust, Vector3(80.1, 1.0, 36.4))
 	add_child(root)
 
 func _growth() -> void:
@@ -513,7 +637,7 @@ func _growth() -> void:
 	var spot: Dictionary = ContentDB.spot("fence_spot")
 	MeshLib.part(root, MeshLib.box(1.5, 1.0, 0.12), wood, Vector3(float(spot.get("x", 57)), 0.5, float(spot.get("z", 33))))
 	var spring: Dictionary = ContentDB.spot("spring")
-	MeshLib.part(root, MeshLib.box(0.1, 0.4, 0.1), MeshLib.mat("c2a06a"), Vector3(float(spring.get("x", 67)) + 1.2, 0.8, float(spring.get("z", 29))))
+	MeshLib.part(root, MeshLib.box(0.1, 0.4, 0.1), MeshLib.mat("c2a06a"), Vector3(float(spring.get("x", 67)) + 1.2, 0.2, float(spring.get("z", 29))))
 	add_child(root)
 
 func apply_wake() -> void:
@@ -536,6 +660,12 @@ func apply_wake() -> void:
 		sun.light_color = Color(0.78, 0.74, 0.66)
 		sun.light_energy = 1.15
 	apply_graphics()
+
+func _hide_draw(node: Node) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).visible = false
+	for child in node.get_children():
+		_hide_draw(child)
 
 func _process(delta: float) -> void:
 	_sync_placed()
@@ -578,6 +708,8 @@ func _sync_placed() -> void:
 		var node := Pieces.make(str(p.get("what", "stool")))
 		node.position = Vector3(float(p.get("x", 0)), 0, float(p.get("z", 0)))
 		node.rotation.y = float(p.get("yaw", 0))
+		if str(p.get("what", "")) == "stool":
+			node.add_to_group("seat")
 		if str(p.get("source", "")) == "build":
 			var body := StaticBody3D.new()
 			body.collision_layer = 1

@@ -27,8 +27,23 @@ func configure(defn: Dictionary) -> void:
 		position = Vector3(float(at[0]), 0, float(at[1]))
 	name = id
 	add_to_group("interact")
+	add_to_group("ground_prop")
 	_visual()
+	_seat()
 	_meta()
+
+func _seat() -> void:
+	var bottom := 99.0
+	var meshes: Array = []
+	for c in get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh:
+			meshes.append(c)
+			var aabb: AABB = (c as MeshInstance3D).transform * (c as MeshInstance3D).mesh.get_aabb()
+			bottom = minf(bottom, aabb.position.y)
+	if bottom > 0.02 and bottom < 50.0:
+		var drop := bottom - 0.01
+		for c in meshes:
+			(c as MeshInstance3D).position.y -= drop
 
 func _meta() -> void:
 	set_meta("id", id)
@@ -37,6 +52,8 @@ func _meta() -> void:
 		set_meta("kind", "station")
 		set_meta("station", station)
 		set_meta("verb", "Use the workbench" if station != "trade" else "Trade")
+		if station == "stump":
+			add_to_group("seat")
 	elif kind == "note":
 		set_meta("kind", "note")
 		set_meta("verb", "Read")
@@ -126,6 +143,28 @@ func _process(delta: float) -> void:
 		used = false
 		visible = true
 
+func _puff() -> void:
+	var puff := MeshInstance3D.new()
+	puff.mesh = MeshLib.sphere(0.16)
+	var pm := StandardMaterial3D.new()
+	pm.albedo_color = Color("e7d3a1")
+	pm.roughness = 0.6
+	pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pm.albedo_color = Color(0.95, 0.88, 0.62, 0.85)
+	pm.emission_enabled = true
+	pm.emission = Color("f0d090")
+	pm.emission_energy_multiplier = 0.4
+	puff.material_override = pm
+	puff.position = global_position + Vector3(0, 0.45, 0)
+	var host := get_parent()
+	if host == null:
+		return
+	host.add_child(puff)
+	var tw := puff.create_tween()
+	tw.tween_property(puff, "scale", Vector3(2.4, 2.4, 2.4), 0.32)
+	tw.parallel().tween_property(puff, "position:y", puff.position.y + 0.55, 0.32)
+	tw.finished.connect(puff.queue_free)
+
 func use(_player: Node) -> void:
 	if kind == "station":
 		get_tree().call_group("ui", "open_station", station)
@@ -158,7 +197,11 @@ func use(_player: Node) -> void:
 	if used:
 		return
 	var got := GameState.gather(item, amount, herb)
-	GameState.say_thought("I take %s. (%d)" % [ContentDB.item_name(item), got])
+	var gain := "+%d %s" % [got, ContentDB.item_name(item)]
+	GameState.say_thought("I take %s." % gain)
+	get_tree().call_group("ui", "show_gain", gain)
+	get_tree().call_group("ambience", "play_click")
+	_puff()
 	used = true
 	visible = false
 	refill = 75.0

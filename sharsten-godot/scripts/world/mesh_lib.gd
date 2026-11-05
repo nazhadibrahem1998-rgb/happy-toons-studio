@@ -88,6 +88,33 @@ static func part(parent: Node3D, mesh: Mesh, material: Material, pos: Vector3) -
 	parent.add_child(mi)
 	return mi
 
+static func grain_tex() -> Texture2D:
+	if _tex.has("_grain"):
+		return _tex["_grain"]
+	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
+	for y in 64:
+		for x in 64:
+			var n := sin(x * 0.83 + y * 0.37) * 0.5 + cos(x * 0.21 - y * 0.67) * 0.5
+			var wobble := 0.55 + n * 0.18 + sin(x * y * 0.017) * 0.08
+			img.set_pixel(x, y, Color(wobble, wobble * 0.86, wobble * 0.62))
+	var tex := ImageTexture.create_from_image(img)
+	_tex["_grain"] = tex
+	return tex
+
+static func path_mat(hex: String) -> StandardMaterial3D:
+	var key := "path:" + hex
+	if _mats.has(key):
+		return _mats[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(hex)
+	m.albedo_texture = grain_tex()
+	m.roughness = 0.96
+	m.uv1_scale = Vector3(0.18, 0.18, 0.18)
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	_mats[key] = m
+	return m
+
 static func paint_tiles(parent: Node, points: Array, y: float, size: Vector3, material: Material) -> void:
 	if points.is_empty():
 		return
@@ -97,8 +124,12 @@ static func paint_tiles(parent: Node, points: Array, y: float, size: Vector3, ma
 	mm.instance_count = points.size()
 	for i in points.size():
 		var p = points[i]
-		var xf := Transform3D(Basis().scaled(size), Vector3(float(p[0]), y, float(p[1])))
-		mm.set_instance_transform(i, xf)
+		var px := float(p[0])
+		var pz := float(p[1])
+		var yaw := sin(px * 0.37 + pz * 0.21) * 0.22
+		var swell := 1.0 + absf(sin(px * 0.17 + pz * 0.13)) * 0.04
+		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(size.x * swell, size.y, size.z * swell))
+		mm.set_instance_transform(i, Transform3D(basis, Vector3(px, y, pz)))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
 	inst.material_override = material

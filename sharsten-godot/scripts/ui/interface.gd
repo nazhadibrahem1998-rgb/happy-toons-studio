@@ -27,6 +27,7 @@ var pause_panel: Control
 var build_card: VBoxContainer
 var selected_recipe := ""
 var _sub_sig := ""
+var key_hud: Label
 
 func _ready() -> void:
 	screen = "play"
@@ -74,12 +75,34 @@ func _hud() -> void:
 	build_card.position = Vector2(24, 24)
 	build_card.visible = false
 	add_child(build_card)
+	key_hud = Label.new()
+	key_hud.name = "KeyHints"
+	key_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key_hud.modulate = Color(1, 1, 1, 0.4)
+	key_hud.add_theme_font_size_override("font_size", 15)
+	key_hud.add_theme_color_override("font_color", Color("f4efe4"))
+	key_hud.autowrap_mode = TextServer.AUTOWRAP_OFF
+	add_child(key_hud)
 
 func _process(delta: float) -> void:
+	var cine := bool(GameState.data.get("cinematic", false))
+	if hint_label:
+		hint_label.visible = not cine
+	if key_hud:
+		var vp := get_viewport().get_visible_rect().size
+		key_hud.position = Vector2(16, vp.y - 30)
+		key_hud.visible = Settings.show_hints and screen == "play" and not cine
+		var tool := "hands"
+		var player := get_tree().get_first_node_in_group("player")
+		if player and player.get("HOTBAR") != null:
+			tool = str(player.HOTBAR[player.hot_i])
+		key_hud.text = "1-8 %s    Shift run    %s look    %s diary    %s view    LMB gather    RMB use    Wheel tools    Ctrl+wheel zoom" % [
+			tool, Settings.key_label("interact"), Settings.key_label("diary"), Settings.key_label("view")
+		]
 	var now := Time.get_ticks_msec() / 1000.0
 	if thought_label:
 		var show := GameState.thought != "" and now < GameState.thought_until
-		thought_label.visible = show and screen == "play"
+		thought_label.visible = show and screen == "play" and not cine
 		if show:
 			thought_label.text = "[i]%s[/i]" % GameState.thought
 			thought_label.add_theme_font_size_override("normal_font_size", Settings.subtitle_px())
@@ -168,13 +191,19 @@ func _build_card(show: bool) -> void:
 			build_card.add_child(b2)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if Settings.rebind_action != "" and event is InputEventKey and event.pressed and not event.echo:
-		var code := (event as InputEventKey).physical_keycode
-		Settings.try_rebind(Settings.rebind_action, code)
-		Settings.rebind_action = ""
-		if get_node_or_null("SettingsRoot"):
-			Desk.build_settings(self, _close_settings)
-		get_viewport().set_input_as_handled()
+	if Settings.rebind_action != "":
+		var rebound := false
+		if event is InputEventKey and event.pressed and not event.echo and Settings.ACTIONS.has(Settings.rebind_action):
+			Settings.try_rebind(Settings.rebind_action, (event as InputEventKey).physical_keycode)
+			rebound = true
+		elif event is InputEventMouseButton and event.pressed and Settings.MOUSE_ACTIONS.has(Settings.rebind_action):
+			Settings.try_rebind_mouse(Settings.rebind_action, (event as InputEventMouseButton).button_index)
+			rebound = true
+		if rebound:
+			Settings.rebind_action = ""
+			if get_node_or_null("SettingsRoot"):
+				Desk.build_settings(self, _close_settings)
+			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and (event as InputEventKey).physical_keycode == KEY_ESCAPE):
 		_esc()
@@ -454,6 +483,21 @@ func _close_craft() -> void:
 	_clear_panels()
 	screen = "play"
 	_pause_game(false)
+
+func show_gain(text: String) -> void:
+	var l := Label.new()
+	l.text = text
+	l.position = Vector2(860, 480)
+	l.add_theme_font_size_override("font_size", 28)
+	l.add_theme_color_override("font_color", Color("f6edd8"))
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+	l.add_theme_constant_override("shadow_offset_x", 2)
+	l.add_theme_constant_override("shadow_offset_y", 2)
+	add_child(l)
+	var tw := create_tween()
+	tw.tween_property(l, "position:y", 400.0, 0.9)
+	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.9)
+	tw.finished.connect(l.queue_free)
 
 func show_note(note: Dictionary) -> void:
 	_clear_panels()
