@@ -35,6 +35,13 @@ var _stuck := 0.0
 var _swing := 0.0
 var _planar := 0.0
 const HOTBAR := ["hands", "fence", "wall", "oven", "loom", "stool", "diary", "craft"]
+const SPAWN_Y := 0.35
+
+static func camera_stop(pivot: Vector3, wanted: Vector3, safe: float) -> Vector3:
+	var t := clampf(safe, 0.0, 1.0)
+	if t < 1.0:
+		t = maxf(t - 0.05, 0.0)
+	return pivot.lerp(wanted, t)
 
 func _ready() -> void:
 	add_to_group("player")
@@ -65,7 +72,7 @@ func _ready() -> void:
 	add_child(camera)
 	camera.current = true
 	var p: Dictionary = GameState.data.get("player", {})
-	global_position = Vector3(float(p.get("x", 12)), 0.2, float(p.get("z", 43)))
+	global_position = Vector3(float(p.get("x", 12)), SPAWN_Y, float(p.get("z", 43)))
 	yaw = float(p.get("yaw", 0.4))
 	body_yaw = yaw
 	_locked_yaw = yaw
@@ -79,7 +86,7 @@ func _ready() -> void:
 
 func _on_moved() -> void:
 	var p: Dictionary = GameState.data.get("player", {})
-	global_position = Vector3(float(p.get("x", global_position.x)), 0.2, float(p.get("z", global_position.z)))
+	global_position = Vector3(float(p.get("x", global_position.x)), SPAWN_Y, float(p.get("z", global_position.z)))
 	yaw = float(p.get("yaw", yaw))
 	body_yaw = yaw
 	velocity = Vector3.ZERO
@@ -150,6 +157,8 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		_planar = 0.0
 	if is_on_floor():
+		if global_position.y < 0.0:
+			global_position.y = 0.0
 		last_safe = global_position
 	if wish.length() > 0.2 and get_real_velocity().length() < 0.05 and is_on_floor():
 		_stuck += delta
@@ -268,19 +277,20 @@ func _camera(delta: float) -> void:
 	var pivot := global_position + Vector3(0, eye, 0)
 	var wanted := pivot - look * cam_dist + basis * Vector3(0.28, 0.05, 0)
 	var space := get_world_3d().direct_space_state
-	var query := PhysicsRayQueryParameters3D.create(pivot, wanted, 1)
-	query.exclude = [self]
-	query.collide_with_areas = false
-	var hit := space.intersect_ray(query)
-	if not hit.is_empty():
-		var pulled: Vector3 = hit.position + hit.normal * 0.2
-		var along := pulled - pivot
-		if along.length() < 0.45:
-			along = -look * 0.45
-			pulled = pivot + along
-		camera.global_position = pulled
-	else:
-		camera.global_position = wanted
+	var safe := 1.0
+	if space != null:
+		var sphere := SphereShape3D.new()
+		sphere.radius = 0.22
+		var cast := PhysicsShapeQueryParameters3D.new()
+		cast.shape = sphere
+		cast.transform = Transform3D(Basis.IDENTITY, pivot)
+		cast.motion = wanted - pivot
+		cast.collision_mask = 1
+		cast.exclude = [self]
+		var frac := space.cast_motion(cast)
+		if frac.size() > 0:
+			safe = float(frac[0])
+	camera.global_position = camera_stop(pivot, wanted, safe)
 	camera.global_transform = Transform3D(basis, camera.global_position)
 	rig.set_first_person(first_person or cam_dist < 0.35)
 

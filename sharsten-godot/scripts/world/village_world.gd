@@ -26,6 +26,7 @@ func _ready() -> void:
 	_bounds()
 	_roads()
 	_houses()
+	_bonfire()
 	_landmarks()
 	_stations_nodes()
 	_bake_nav()
@@ -506,6 +507,26 @@ func _landmarks() -> void:
 		wisp.add_to_group("wisp")
 		wisp.add_to_group("dream_only")
 		add_child(wisp)
+
+func _bonfire() -> void:
+	var at := Vector3(40.0, 0.0, 62.0)
+	for _try in 6:
+		var blocked := false
+		for block in get_tree().get_nodes_in_group("house_block"):
+			if not block.has_meta("min_xz"):
+				continue
+			var mn: Vector2 = block.get_meta("min_xz")
+			var mx: Vector2 = block.get_meta("max_xz")
+			if at.x > mn.x - 4.0 and at.x < mx.x + 4.0 and at.z > mn.y - 4.0 and at.z < mx.y + 4.0:
+				blocked = true
+				break
+		if not blocked:
+			break
+		at += Vector3(7.0, 0.0, -5.0)
+	var fire = load("res://scripts/world/bonfire.gd").new()
+	fire.position = at
+	add_child(fire)
+	fire.setup(Settings.preset == "low")
 
 func _stations_nodes() -> void:
 	for s in ContentDB.layout.get("stations", []):

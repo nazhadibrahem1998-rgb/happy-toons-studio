@@ -60,6 +60,17 @@ func _set_target() -> void:
 
 static var _day: Array = []
 
+static func hour_is_fire(hour: int) -> bool:
+	var h := posmod(hour, 24)
+	return h >= 18 and h < 20
+
+func _fire_slot() -> Vector3:
+	var fire := get_tree().get_first_node_in_group("bonfire") if is_inside_tree() else null
+	if fire == null or not fire is Node3D:
+		return Vector3.INF
+	var ang := float(absi(npc_id.hash()) % 24) / 24.0 * TAU
+	return (fire as Node3D).global_position + Vector3(cos(ang) * 4.4, 0.0, sin(ang) * 4.4)
+
 static func phase_for(hour: int) -> String:
 	if _day.is_empty():
 		var parsed = JSON.parse_string(FileAccess.get_file_as_string("res://data/world_rules.json"))
@@ -90,6 +101,10 @@ func _goal() -> Vector3:
 			return home
 		return work_at
 	if phase == "return":
+		if hour_is_fire(GameState.hour()):
+			var slot := _fire_slot()
+			if slot != Vector3.INF:
+				return slot
 		return home
 	if walking and route.size() > 0 and phase == "work":
 		var pt: Array = route[route_i]

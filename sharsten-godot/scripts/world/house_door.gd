@@ -40,8 +40,9 @@ func build() -> void:
 	var audio := AudioStreamPlayer3D.new()
 	audio.name = "Creak"
 	audio.stream = _creak()
-	audio.volume_db = -6.0
-	audio.max_distance = 14.0
+	audio.volume_db = -16.0
+	audio.bus = "SFX"
+	audio.max_distance = 12.0
 	add_child(audio)
 
 func use(_who = null) -> void:
@@ -107,18 +108,23 @@ func _process(delta: float) -> void:
 	light.light_energy = 0.65 if open or near else 0.0
 
 func _creak() -> AudioStreamWAV:
-	# A short original creak. No third-party sample is shipped.
-	var wav := AudioStreamWAV.new()
-	wav.format = AudioStreamWAV.FORMAT_8_BITS
-	wav.mix_rate = 8000
-	wav.stereo = false
-	var count := 2800
+	# A short original creak at the same rate as the rest of the mix.
+	var rate := 44100
+	var count := int(rate * 0.35)
 	var data := PackedByteArray()
-	data.resize(count)
+	data.resize(count * 2)
 	for i in count:
-		var t := float(i) / 8000.0
-		var env := exp(-t * 5.5)
-		var tone := sin(t * 140.0 * TAU) * 0.6 + sin(t * 63.0 * TAU) * 0.4
-		data[i] = int(clampf(128.0 + tone * env * 70.0, 0.0, 255.0))
+		var t := float(i) / float(rate)
+		var env := sin(PI * clampf(t / 0.35, 0.0, 1.0))
+		var tone := sin(t * 140.0 * TAU) * 0.45 + sin(t * 63.0 * TAU) * 0.25
+		var v := int(clampf(tone * env * 0.35, -1.0, 1.0) * 32000.0)
+		if v < 0:
+			v += 65536
+		data[i * 2] = v & 255
+		data[i * 2 + 1] = (v >> 8) & 255
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = rate
+	wav.stereo = false
 	wav.data = data
 	return wav

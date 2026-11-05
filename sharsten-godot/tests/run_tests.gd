@@ -385,6 +385,33 @@ func _check_move() -> void:
 	_check(look.y > 0.0, "the camera rises when the mouse goes up")
 	var flipped := LookMath.apply_mouse(0.0, 0.0, 0.0, -8.0, 0.02, true)
 	_check(flipped.y < 0.0, "Invert Y looks down when the mouse goes up")
+	var player_script = load("res://scripts/player/player.gd")
+	_check(float(player_script.SPAWN_Y) >= 0.3, "Azad starts clear of the floor")
+	var stopped: Vector3 = player_script.camera_stop(Vector3.ZERO, Vector3(0.0, 1.2, -4.0), 0.25)
+	_check(stopped.length() < 1.2, "a near wall stops the camera before the stone, at %s" % stopped)
+	var amb = load("res://scripts/world/ambience.gd")
+	var crack = amb._ticks(2.4)
+	_check(amb.seam(crack) < 0.02, "the crackle loop meets, seam %s" % amb.seam(crack))
+	_check(amb.peak(crack) < 0.45, "the crackle stays under a buzz, peak %s" % amb.peak(crack))
+	_check(crack.mix_rate == 44100, "beds use one mix rate")
+	var folk = amb.folk_loop()
+	_check(amb.seam(folk) < 0.02 and folk.mix_rate == 44100, "the bonfire tune loops cleanly")
+	_check(amb.mixed_peak() < 0.85, "wind, crackle, and the tune do not clip when added, peak %s" % amb.mixed_peak())
+	amb._ensure_buses()
+	var limited := false
+	var master_bus := AudioServer.get_bus_index("Master")
+	for effect_i in AudioServer.get_bus_effect_count(master_bus):
+		if AudioServer.get_bus_effect(master_bus, effect_i) is AudioEffectLimiter:
+			limited = true
+	_check(limited, "the master bus has a limiter")
+	var hearth = load("res://scripts/world/bonfire.gd").new()
+	add_child(hearth)
+	hearth.setup(true)
+	_check(hearth.fire_amount() <= 16 and hearth.fire_amount() > 0, "low keeps the bonfire small, flames %d" % hearth.fire_amount())
+	hearth.free()
+	var folk_script = load("res://scripts/npc/villager.gd")
+	_check(folk_script.hour_is_fire(19) and not folk_script.hour_is_fire(11), "evening is the fire, midday is not")
+	_check(folk_script.phase_for(19) == "return", "evening is still the return part of the day")
 
 func _check_village() -> void:
 	var low: Dictionary = GraphicsRules.flags("low")

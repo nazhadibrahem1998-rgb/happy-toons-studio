@@ -336,7 +336,7 @@ static func _check(text: String, on: bool, cb: Callable) -> CheckButton:
 	return c
 
 static func opening_notice() -> String:
-	return "Made with Godot Engine\n\nGodot Engine is available under the MIT License.\nCopyright (c) 2014-present Godot Engine contributors.\nCopyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.\n\nGround, plaster, wood, and rock textures: Poly Haven, CC0.\nKilim paths, cloth weaves, and mountain meshes: original to this game.\nBodies and clips: Quaternius Universal Animation Library, CC0."
+	return "Made with Godot Engine\n\nGodot Engine is available under the MIT License.\nCopyright (c) 2014-present Godot Engine contributors.\nCopyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.\n\nGround, plaster, wood, and rock textures: Poly Haven, CC0.\nCloth weaves, doorway rugs, and mountain meshes: original to this game.\nBodies and clips: Quaternius Universal Animation Library, CC0.\nThe bonfire tune is an original daf-and-melody loop, not a recorded song."
 
 static func credits_text() -> String:
 	return "\n".join([
@@ -366,7 +366,8 @@ static func credits_text() -> String:
 		"Used for: the story, Azad-i Asmani, and the Kurdish clothing meshes on that rig.",
 		"Wool, cotton, and embroidery weaves, the black-grey-cream jamane check,",
 		"doorway rugs and wall hangings, relic gears, and the mountain meshes are original.",
-		"Wind, birds, tandoor crackle, clicks, and the quiet theme are original audio.",
+		"Wind, a soft hearth crackle, clicks, and the bonfire tune are original audio.",
+		"The bonfire tune is not a recording of any published song.",
 		"No Mixamo clips. No assets taken from other games.",
 		"",
 		"INSPIRED BY",
