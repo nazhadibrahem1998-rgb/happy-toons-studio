@@ -27,28 +27,34 @@ func setup(low: bool) -> void:
 	light.shadow_enabled = false
 	add_child(light)
 	var crackle := AudioStreamPlayer3D.new()
+	crackle.name = "Crackle"
 	crackle.stream = _local_crackle()
 	crackle.stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	crackle.stream.loop_begin = 0
 	crackle.stream.loop_end = crackle.stream.data.size() / 2
-	crackle.volume_db = -14.0
-	crackle.bus = "SFX"
-	crackle.unit_size = 4.0
-	crackle.max_distance = 16.0
-	crackle.max_polyphony = 1
+	_place_voice(crackle, -8.0, "SFX", 2.5, 14.0)
 	add_child(crackle)
 	if not OS.has_feature("headless"):
 		crackle.play()
 	music = AudioStreamPlayer3D.new()
+	music.name = "Tune"
 	music.stream = load("res://scripts/world/ambience.gd").folk_loop()
-	music.volume_db = -12.0
-	music.bus = "Music"
-	music.unit_size = 6.0
-	music.max_distance = 18.0
-	music.max_polyphony = 1
+	_place_voice(music, -10.0, "Music", 3.0, 20.0)
 	add_child(music)
 	if not OS.has_feature("headless"):
 		music.play()
+
+func _place_voice(voice: AudioStreamPlayer3D, db: float, bus_name: String, unit: float, reach: float) -> void:
+	# Sit in the flames. Inverse distance: full at `unit` metres, gone past `reach`.
+	voice.position = Vector3(0.0, 0.7, 0.0)
+	voice.volume_db = db
+	voice.bus = bus_name
+	voice.unit_size = unit
+	voice.max_distance = reach
+	voice.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+	voice.panning_strength = 1.0
+	voice.max_polyphony = 1
+	voice.doppler_tracking = AudioStreamPlayer3D.DOPPLER_TRACKING_DISABLED
 
 func fire_amount() -> int:
 	for c in get_children():

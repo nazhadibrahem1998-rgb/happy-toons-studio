@@ -366,7 +366,7 @@ static func credits_text() -> String:
 		"Used for: the story, Azad-i Asmani, and the Kurdish clothing meshes on that rig.",
 		"Wool, cotton, and embroidery weaves, the black-grey-cream jamane check,",
 		"doorway rugs and wall hangings, relic gears, and the mountain meshes are original.",
-		"Wind, a soft hearth crackle, clicks, and the bonfire tune are original audio.",
+		"Wind is the only village-wide bed. The crackle and the tune come from the fire.",
 		"The bonfire tune is not a recording of any published song.",
 		"No Mixamo clips. No assets taken from other games.",
 		"",

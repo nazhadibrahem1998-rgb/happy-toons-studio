@@ -396,7 +396,7 @@ func _check_move() -> void:
 	_check(crack.mix_rate == 44100, "beds use one mix rate")
 	var folk = amb.folk_loop()
 	_check(amb.seam(folk) < 0.02 and folk.mix_rate == 44100, "the bonfire tune loops cleanly")
-	_check(amb.mixed_peak() < 0.85, "wind, crackle, and the tune do not clip when added, peak %s" % amb.mixed_peak())
+	_check(amb.mixed_peak() < 0.85, "the village-wide wind beds do not clip, peak %s" % amb.mixed_peak())
 	amb._ensure_buses()
 	var limited := false
 	var master_bus := AudioServer.get_bus_index("Master")
@@ -408,6 +408,22 @@ func _check_move() -> void:
 	add_child(hearth)
 	hearth.setup(true)
 	_check(hearth.fire_amount() <= 16 and hearth.fire_amount() > 0, "low keeps the bonfire small, flames %d" % hearth.fire_amount())
+	var voices := 0
+	for voice in hearth.get_children():
+		if voice is AudioStreamPlayer3D:
+			voices += 1
+			_check(voice.max_distance > 1.0 and voice.max_distance <= 20.0, "the %s voice dies with distance" % voice.name)
+			_check(voice.attenuation_model == AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE, "the %s voice is spatial" % voice.name)
+			_check(voice.position.distance_to(Vector3(0, 0.7, 0)) < 0.05, "the %s voice sits in the flames" % voice.name)
+	_check(voices == 2, "crackle and tune are both on the fire, saw %d" % voices)
+	var beds = amb.new()
+	add_child(beds)
+	var global_crackle := false
+	for bed in beds.get_children():
+		if bed is AudioStreamPlayer and str(bed.name) == "crackle":
+			global_crackle = true
+	_check(not global_crackle, "the crackle is not a village-wide track")
+	beds.free()
 	hearth.free()
 	var folk_script = load("res://scripts/npc/villager.gd")
 	_check(folk_script.hour_is_fire(19) and not folk_script.hour_is_fire(11), "evening is the fire, midday is not")

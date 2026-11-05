@@ -15,9 +15,9 @@ var _oneshots := 0
 func _ready() -> void:
 	add_to_group("ambience")
 	_ensure_buses()
+	# Wind only. The hearth crackle and the tune live on the bonfire as 3D voices.
 	_bed("wind", _air(3.2, 80.0, 0.06), -10.0)
 	_bed("murmur", _air(2.6, 180.0, 0.02), -16.0)
-	_bed("crackle", _ticks(2.4), -8.0)
 	_click = _blip(880.0, 0.045)
 	_chirp()
 
@@ -172,8 +172,8 @@ static func peak(stream: AudioStreamWAV) -> float:
 	return m
 
 static func mixed_peak() -> float:
-	var beds := [_air(3.2, 80.0, 0.06), _ticks(2.4), folk_loop()]
-	var gains := [db_to_linear(-10.0), db_to_linear(-8.0), db_to_linear(-12.0)]
+	var beds := [_air(3.2, 80.0, 0.06), _air(2.6, 180.0, 0.02)]
+	var gains := [db_to_linear(-10.0), db_to_linear(-16.0)]
 	var n := 44100
 	var m := 0.0
 	for i in n:
