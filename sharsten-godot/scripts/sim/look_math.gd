@@ -18,6 +18,12 @@ static func apply_mouse(yaw: float, pitch: float, rel_x: float, rel_y: float, se
 	pitch = clampf(pitch, PITCH_MIN, PITCH_MAX)
 	return Vector2(yaw, pitch)
 
+static func move_yaw(free_look: bool, locked_yaw: float, steer_yaw: float) -> float:
+	return locked_yaw if free_look else steer_yaw
+
+static func capture_cursor(paused: bool, build_mode: bool, focused: bool) -> bool:
+	return focused and not paused and not build_mode
+
 static func follow_orbit(cam_yaw: float, cam_pitch: float, body_yaw: float, delta: float, free_look: bool) -> Vector2:
 	if free_look:
 		return Vector2(cam_yaw, clampf(cam_pitch, PITCH_MIN, PITCH_MAX))

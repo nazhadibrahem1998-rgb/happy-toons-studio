@@ -338,6 +338,20 @@ func _check_move() -> void:
 	_check(absf(cp - LookMath.REST_PITCH) < 0.12, "pitch eases back to the resting view")
 	var held := LookMath.follow_orbit(2.0, 0.4, 0.2, 0.5, true)
 	_check(is_equal_approx(held.x, 2.0) and is_equal_approx(held.y, 0.4), "holding look leaves the orbit where it is")
+	_check(is_equal_approx(LookMath.move_yaw(true, 1.2, 2.5), 1.2), "Ctrl locks the walk heading")
+	_check(is_equal_approx(LookMath.move_yaw(false, 1.2, 2.5), 2.5), "without Ctrl, walk follows the steered view")
+	_check(LookMath.capture_cursor(false, false, true), "gameplay keeps the cursor captured")
+	_check(not LookMath.capture_cursor(true, false, true), "pause shows the cursor")
+	_check(not LookMath.capture_cursor(false, true, true), "building shows the cursor")
+	_check(not LookMath.capture_cursor(false, false, false), "a lost window shows the cursor")
+	_check(is_equal_approx(rules.target_speed(1.0, true, true), 1.2), "crouch walk is 1.2 m/s and ignores the run")
+	_check(rules.stay_crouched(true, false) and not rules.stay_crouched(false, false), "crouch is hold to duck and release to stand")
+	_check(rules.stay_crouched(false, true), "a low ceiling keeps him crouched")
+	Settings.keybinds["crouch"] = 4194305
+	var v4 := {"version": 4, "preset": "low", "keys": {"sprint": int(KEY_SHIFT), "free_look": int(KEY_CTRL), "move_forward": int(KEY_W)}}
+	_check(Settings._apply_dict(v4), "version 4 gains crouch")
+	_check(int(Settings.keybinds.get("crouch", 0)) == KEY_C, "crouch defaults to C")
+	_check(int(Settings.keybinds.get("sprint", 0)) == KEY_SHIFT and int(Settings.keybinds.get("free_look", 0)) == KEY_CTRL, "crouch migration keeps Shift and Ctrl")
 
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()

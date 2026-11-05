@@ -40,6 +40,10 @@ func tick(_delta: float, speed: float, action: String) -> void:
 	var pace := 1.0
 	if action == "sit":
 		clip = "Armature|Sitting_Idle"
+	elif action == "crouch":
+		clip = "Armature|Crouch_Fwd" if speed > 0.2 else "Armature|Crouch_Idle"
+		if speed > 0.2:
+			pace = Move.anim_pace(speed)
 	elif speed > 0.2:
 		clip = "Armature|Walk"
 		pace = Move.anim_pace(speed)

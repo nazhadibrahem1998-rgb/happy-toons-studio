@@ -10,6 +10,7 @@ const ACTIONS := {
 	"move_right": KEY_D,
 	"sprint": KEY_SHIFT,
 	"free_look": KEY_CTRL,
+	"crouch": KEY_C,
 	"interact": KEY_E,
 	"diary": KEY_TAB,
 	"view": KEY_V,
@@ -44,7 +45,7 @@ const ARROWS := {
 	"move_left": KEY_LEFT,
 	"move_right": KEY_RIGHT,
 }
-const SETTINGS_VERSION := 4
+const SETTINGS_VERSION := 5
 
 var preset := "medium"
 var detected := false
@@ -143,13 +144,16 @@ func _apply_dict(d: Dictionary) -> bool:
 		for action in ACTIONS.keys():
 			if keys.has(action):
 				keybinds[action] = int(keys[action])
-			elif action == "sprint" or action == "free_look":
+			elif action == "sprint" or action == "free_look" or action == "crouch":
 				migrated = true
 	if not _key_ok(int(keybinds.get("sprint", 0))):
 		keybinds["sprint"] = int(KEY_SHIFT)
 		migrated = true
 	if not _key_ok(int(keybinds.get("free_look", 0))):
 		keybinds["free_look"] = int(KEY_CTRL)
+		migrated = true
+	if not _key_ok(int(keybinds.get("crouch", 0))):
+		keybinds["crouch"] = int(KEY_C)
 		migrated = true
 	var mice = d.get("mouse", {})
 	if typeof(mice) == TYPE_DICTIONARY:

@@ -6,6 +6,12 @@ var yaw := 0.4
 var pitch := -0.08
 var body_yaw := 0.4
 var _look_held := false
+var _locked_yaw := 0.4
+var _returning := false
+var _focused := true
+var _crouch := 0.0
+var _capsule: CollisionShape3D
+var _cap: CapsuleShape3D
 var first_person := false
 var cam_dist := 4.4
 var cam_target := 4.4
@@ -37,13 +43,13 @@ func _ready() -> void:
 	floor_snap_length = Move.FLOOR_SNAP
 	floor_max_angle = deg_to_rad(58)
 	safe_margin = Move.SAFE_MARGIN
-	var shape := CollisionShape3D.new()
-	var cap := CapsuleShape3D.new()
-	cap.radius = 0.32
-	cap.height = 1.55
-	shape.shape = cap
-	shape.position = Vector3(0, 0.85, 0)
-	add_child(shape)
+	_capsule = CollisionShape3D.new()
+	_cap = CapsuleShape3D.new()
+	_cap.radius = 0.32
+	_cap.height = 1.55
+	_capsule.shape = _cap
+	_capsule.position = Vector3(0, 0.85, 0)
+	add_child(_capsule)
 	rig = HumanRig.new()
 	var spec := {
 		"kind": "man", "height": 1.0, "skin": "8d5e42", "cloth": "3e4a62",
@@ -62,6 +68,7 @@ func _ready() -> void:
 	global_position = Vector3(float(p.get("x", 12)), 0.2, float(p.get("z", 43)))
 	yaw = float(p.get("yaw", 0.4))
 	body_yaw = yaw
+	_locked_yaw = yaw
 	pitch = float(p.get("pitch", -0.08))
 	first_person = str(p.get("view", "third")) == "first"
 	cam_target = 0.12 if first_person else 4.4
@@ -122,10 +129,14 @@ func _physics_process(delta: float) -> void:
 			wish.x += 1.0
 		if Input.is_action_pressed("move_left"):
 			wish.x -= 1.0
-	var running := bot_sprint if bot_override else Input.is_action_pressed("sprint")
-	var target := Move.target_speed(wish.length(), running)
+	var crouching := _crouch_wants()
+	_crouch = move_toward(_crouch, 1.0 if crouching else 0.0, delta * 6.0)
+	_fit_capsule()
+	var running := (bot_sprint if bot_override else Input.is_action_pressed("sprint")) and not crouching
+	var target := Move.target_speed(wish.length(), running, crouching)
 	_planar = Move.step_speed(_planar, target, delta)
-	var dir := LookMath.wish_dir(yaw, wish.x, wish.y)
+	var basis_yaw := LookMath.move_yaw(_look_held, _locked_yaw, body_yaw if _returning else yaw)
+	var dir := LookMath.wish_dir(basis_yaw, wish.x, wish.y)
 	if wish.length() < 0.1:
 		dir = Vector3.ZERO
 	elif dir.length() > 0.001:
@@ -149,12 +160,14 @@ func _physics_process(delta: float) -> void:
 		_stuck = 0.0
 	if dir.length() > 0.1:
 		body_yaw = lerp_angle(body_yaw, LookMath.face_yaw(dir), Move.turn_blend(delta, true))
+	elif not _look_held and not _returning:
+		body_yaw = lerp_angle(body_yaw, yaw, Move.turn_blend(delta, false))
 	rig.rotation.y = body_yaw
 	_look(delta)
 	var flat := _planar
 	if _swing > 0.0:
 		_swing -= delta
-	var act := force_action if force_action != "" else ("walk" if flat > 0.2 else "idle")
+	var act := "crouch" if crouching else (force_action if force_action != "" else ("walk" if flat > 0.2 else "idle"))
 	if _swing > 0.0 and flat < 0.2:
 		act = "carve"
 	rig.tick(delta, flat if force_action == "" else 0.0, act)
@@ -171,30 +184,77 @@ func _physics_process(delta: float) -> void:
 	if build_mode and Input.is_action_just_pressed("rotate_piece"):
 		build_yaw += PI * 0.5
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_focused = false
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif what == NOTIFICATION_WM_WINDOW_FOCUS_IN or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_focused = true
+		_maintain_cursor()
+
 func _input(event: InputEvent) -> void:
-	if not _look_held or build_mode or get_tree().paused:
+	if build_mode or get_tree().paused or not _focused:
 		return
-	if event is InputEventMouseMotion:
+	if event is InputEventMouseButton and event.pressed:
+		_maintain_cursor()
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var rel: Vector2 = (event as InputEventMouseMotion).relative
+		if rel.length() > 0.0 and not _look_held:
+			_returning = false
 		var turned := LookMath.apply_mouse(yaw, pitch, rel.x, rel.y, Settings.look_sens(), Settings.invert_y)
 		yaw = turned.x
 		pitch = turned.y
 		get_viewport().set_input_as_handled()
 
+## Without Ctrl the mouse steers the third-person view, and W follows that view.
+## With Ctrl the mouse orbits the camera only. Walk stays on the heading from
+## the moment Ctrl was pressed, and Azad does not turn with the mouse.
 func _look(delta: float) -> void:
 	var want := false
 	if not bot_override and not build_mode and not get_tree().paused:
 		want = Input.is_action_pressed("free_look")
 	if want and not _look_held:
 		_look_held = true
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		_locked_yaw = yaw
+		_returning = false
 	elif _look_held and not want:
 		_look_held = false
-		if not get_tree().paused and not build_mode:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	var orbit := LookMath.follow_orbit(yaw, pitch, body_yaw, delta, _look_held)
-	yaw = orbit.x
-	pitch = orbit.y
+		_returning = true
+	if _returning and not _look_held:
+		var orbit := LookMath.follow_orbit(yaw, pitch, body_yaw, delta, false)
+		yaw = orbit.x
+		pitch = orbit.y
+		if absf(angle_difference(yaw, body_yaw)) < 0.03 and absf(pitch - LookMath.REST_PITCH) < 0.03:
+			_returning = false
+	_maintain_cursor()
+
+func _maintain_cursor() -> void:
+	if LookMath.capture_cursor(get_tree().paused, build_mode, _focused):
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _crouch_wants() -> bool:
+	if bot_override:
+		return false
+	var held := Input.is_action_pressed("crouch")
+	var ceiling := _crouch > 0.2 and not held and not _can_stand()
+	return Move.stay_crouched(held, ceiling)
+
+func _can_stand() -> bool:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return true
+	var from := global_position + Vector3(0, 0.7, 0)
+	var to := global_position + Vector3(0, 1.75, 0)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
+	query.exclude = [self]
+	return space.intersect_ray(query).is_empty()
+
+func _fit_capsule() -> void:
+	if _cap == null or _capsule == null:
+		return
+	_cap.height = lerpf(1.55, 1.05, _crouch)
+	_capsule.position.y = lerpf(0.85, 0.58, _crouch)
 
 func _camera(delta: float) -> void:
 	if camera_locked:
@@ -204,7 +264,8 @@ func _camera(delta: float) -> void:
 	camera.far = float(flags.get("view", 85.0)) + 30.0
 	var basis := Basis.from_euler(Vector3(pitch, yaw, 0.0))
 	var look := basis * Vector3(0, 0, -1)
-	var pivot := global_position + Vector3(0, 1.48, 0)
+	var eye := lerpf(1.48, 0.95, _crouch)
+	var pivot := global_position + Vector3(0, eye, 0)
 	var wanted := pivot - look * cam_dist + basis * Vector3(0.28, 0.05, 0)
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(pivot, wanted, 1)

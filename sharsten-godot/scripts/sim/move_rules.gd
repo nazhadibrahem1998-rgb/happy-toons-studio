@@ -6,6 +6,7 @@ class_name MoveRules
 
 const WALK := 2.2
 const RUN := 5.5
+const CROUCH := 1.2
 const CLIP_SPEED := 1.28
 const EASE := 22.0
 const TURN_RATE := 10.0
@@ -15,10 +16,15 @@ const FLOOR_STICK := -2.0
 const FLOOR_SNAP := 0.3
 const SAFE_MARGIN := 0.08
 
-static func target_speed(wish_len: float, running: bool) -> float:
+static func target_speed(wish_len: float, running: bool, crouched: bool = false) -> float:
 	if wish_len < 0.1:
 		return 0.0
+	if crouched:
+		return CROUCH
 	return RUN if running else WALK
+
+static func stay_crouched(key_down: bool, ceiling: bool) -> bool:
+	return key_down or ceiling
 
 static func step_speed(current: float, target: float, delta: float) -> float:
 	if target <= 0.001:
