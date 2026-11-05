@@ -32,6 +32,7 @@ func _ready() -> void:
 	_people()
 	if not OS.has_feature("headless"):
 		_nature()
+		_horizon()
 		_echoes()
 		_final_area()
 		_life()
@@ -69,10 +70,11 @@ func _environment() -> void:
 	var sky := Sky.new()
 	var mat := ProceduralSkyMaterial.new()
 	_sky_mat = mat
-	mat.sky_top_color = Color(0.45, 0.52, 0.78)
-	mat.sky_horizon_color = Color(0.95, 0.72, 0.58)
-	mat.ground_horizon_color = Color(0.55, 0.48, 0.38)
-	mat.ground_bottom_color = Color(0.28, 0.24, 0.2)
+	mat.sky_top_color = Color(0.55, 0.66, 0.86)
+	mat.sky_horizon_color = Color(0.96, 0.82, 0.7)
+	mat.ground_horizon_color = Color(0.78, 0.68, 0.52)
+	mat.ground_bottom_color = Color(0.42, 0.36, 0.28)
+	mat.sky_curve = 0.08
 	mat.sun_angle_max = 32.0
 	sky.sky_material = mat
 	env.sky = sky
@@ -137,7 +139,13 @@ func _floor() -> void:
 	var visual := MeshInstance3D.new()
 	visual.mesh = MeshLib.box(220, 0.4, 240)
 	visual.position = Vector3(70, -0.2, 80)
-	visual.material_override = MeshLib.ground_mat("6a8f48", "ground", 0.08)
+	var ground := StandardMaterial3D.new()
+	ground.albedo_texture = MeshLib.terrain_tex()
+	ground.roughness = 0.96
+	ground.uv1_scale = Vector3(7, 7, 7)
+	ground.uv1_triplanar = true
+	ground.uv1_world_triplanar = true
+	visual.material_override = ground
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(visual)
 
@@ -176,6 +184,8 @@ func _houses() -> void:
 		var style := int(h.get("style", 0)) % walls.size()
 		var node := Node3D.new()
 		node.position = Vector3(float(at[0]), 0, float(at[1]))
+		add_child(node)
+		node.look_at(_lane_point(float(at[0]), float(at[1])), Vector3.UP)
 		var wall_m := StandardMaterial3D.new()
 		wall_m.albedo_color = walls[style]
 		wall_m.albedo_texture = MeshLib.tex("plaster")
@@ -183,17 +193,35 @@ func _houses() -> void:
 		wall_m.uv1_scale = Vector3(0.4, 0.4, 0.4)
 		wall_m.uv1_triplanar = true
 		wall_m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		var wall := MeshLib.part(node, MeshLib.box(2.6, 2.3, 2.3), wall_m, Vector3(0, 1.15, 0))
+		var wall := MeshLib.part(node, MeshLib.box(2.6, 2.2, 2.4), wall_m, Vector3(0, 1.25, 0))
 		wall.add_to_group("house_wall")
-		MeshLib.part(node, MeshLib.box(2.9, 0.28, 2.6), MeshLib.ground_mat("7a3e28", "wood", 0.5), Vector3(0, 2.4, 0))
-		MeshLib.part(node, MeshLib.box(0.55, 0.9, 0.08), MeshLib.mat("4a3428"), Vector3(0, 0.55, -1.28))
+		var stone := MeshLib.ground_mat("9a9088", "rock", 0.7)
+		var timber := MeshLib.ground_mat("6b4226", "wood", 0.45)
+		var earth := MeshLib.ground_mat("8a6848", "mud", 0.35)
+		MeshLib.part(node, MeshLib.box(2.9, 0.35, 2.7), stone, Vector3(0, 0.18, 0))
+		MeshLib.part(node, MeshLib.box(2.85, 0.12, 2.65), timber, Vector3(0, 2.4, 0))
+		MeshLib.part(node, MeshLib.box(3.15, 0.22, 2.95), earth, Vector3(0, 2.55, 0))
+		MeshLib.part(node, MeshLib.box(0.12, 0.22, 3.05), timber, Vector3(-1.35, 2.55, 0))
+		MeshLib.part(node, MeshLib.box(0.12, 0.22, 3.05), timber, Vector3(1.35, 2.55, 0))
+		MeshLib.part(node, MeshLib.box(3.05, 0.22, 0.12), timber, Vector3(0, 2.55, -1.25))
+		MeshLib.part(node, MeshLib.box(0.7, 1.15, 0.08), MeshLib.mat("4a3428"), Vector3(0, 0.62, -1.22))
+		MeshLib.part(node, MeshLib.box(0.12, 1.25, 0.14), timber, Vector3(-0.42, 0.7, -1.24))
+		MeshLib.part(node, MeshLib.box(0.12, 1.25, 0.14), timber, Vector3(0.42, 0.7, -1.24))
+		MeshLib.part(node, MeshLib.box(0.96, 0.12, 0.14), timber, Vector3(0, 1.28, -1.24))
+		MeshLib.part(node, MeshLib.box(0.55, 0.4, 0.06), MeshLib.mat("c4a574"), Vector3(0.85, 1.35, -1.22))
+		MeshLib.part(node, MeshLib.box(1.1, 0.12, 0.55), stone, Vector3(0, 0.06, -1.55))
+		MeshLib.part(node, MeshLib.box(0.9, 0.1, 0.4), stone, Vector3(0, 0.14, -1.7))
+		MeshLib.part(node, MeshLib.box(2.2, 0.55, 0.22), stone, Vector3(1.55, 0.28, 0))
+		var course := MeshLib.ground_mat("b08968", "mud", 0.4)
+		for i in 5:
+			MeshLib.part(node, MeshLib.box(2.68, 0.045, 2.48), course, Vector3(0, 0.48 + i * 0.32, 0))
 		var body := StaticBody3D.new()
 		body.collision_layer = 1
 		body.add_to_group("house_block")
 		var hx := float(at[0])
 		var hz := float(at[1])
-		body.set_meta("min_xz", Vector2(hx - 1.45, hz - 1.45))
-		body.set_meta("max_xz", Vector2(hx + 1.45, hz + 1.45))
+		body.set_meta("min_xz", Vector2(hx - 2.15, hz - 2.15))
+		body.set_meta("max_xz", Vector2(hx + 2.15, hz + 2.15))
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = Vector3(2.9, 3.2, 2.9)
@@ -201,7 +229,22 @@ func _houses() -> void:
 		shape.position = Vector3(0, 1.05, 0)
 		body.add_child(shape)
 		node.add_child(body)
-		add_child(node)
+
+func _lane_point(x: float, z: float) -> Vector3:
+	var best := Vector3(x, 0, z - 3.0)
+	var best_d := 6.0
+	var roads: Dictionary = ContentDB.layout.get("roads", {})
+	for key in ["stone", "dirt"]:
+		for p in roads.get(key, []):
+			var px := float(p[0])
+			var pz := float(p[1])
+			var d := Vector2(x, z).distance_to(Vector2(px, pz))
+			if d > 1.4 and d < best_d:
+				best_d = d
+				best = Vector3(px, 0, pz)
+	if best.distance_to(Vector3(x, 0, z)) < 0.2:
+		best = Vector3(x, 0, z - 3.0)
+	return best
 
 func _landmarks() -> void:
 	var mosque: Dictionary = ContentDB.spot("mosque")
@@ -329,8 +372,8 @@ func _people() -> void:
 			break
 		spawned_people += 1
 		var v = load("res://scripts/npc/villager.gd").new()
-		v.setup(ContentDB.npc(id), by_id.get(id, {}), loop)
 		add_child(v)
+		v.setup(ContentDB.npc(id), by_id.get(id, {}), loop)
 	for i in 4:
 		var sheep := MeshInstance3D.new()
 		sheep.mesh = MeshLib.box(0.55, 0.4, 0.85)
@@ -357,15 +400,35 @@ func _nature() -> void:
 				break
 		if ok:
 			positions.append(Vector3(x, 0, z))
-	tree_detail = _tree_mesh(positions, true)
-	tree_far = _tree_mesh(positions, false)
+	var oaks: Array = []
+	var almonds: Array = []
+	var walnuts: Array = []
+	for i in positions.size():
+		var kind := i % 3
+		if kind == 0:
+			oaks.append(positions[i])
+		elif kind == 1:
+			almonds.append(positions[i])
+		else:
+			walnuts.append(positions[i])
+	tree_detail = _foliage(oaks, "oak", true)
+	tree_far = _foliage(oaks, "oak", false)
 	add_child(tree_detail)
 	add_child(tree_far)
+	add_child(_foliage(almonds, "almond", true))
+	add_child(_foliage(walnuts, "walnut", true))
+	add_child(_foliage([Vector3(15, 0, 44)], "oak", true))
+	add_child(_foliage([Vector3(22.5, 0, 46)], "almond", true))
+	add_child(_foliage([Vector3(19, 0, 41.5)], "walnut", true))
 	var grass_pos: Array = []
+	var rock_pos: Array = []
 	for i in 640:
-		grass_pos.append(Vector3(rng.randf_range(4, 136), 0.14, rng.randf_range(18, 168)))
+		grass_pos.append(Vector3(rng.randf_range(4, 136), 0.12, rng.randf_range(18, 168)))
+		if i % 8 == 0:
+			rock_pos.append(Vector3(rng.randf_range(4, 136), 0.08, rng.randf_range(18, 168)))
 	grass_mm = _grass(grass_pos)
 	add_child(grass_mm)
+	add_child(_rocks(rock_pos))
 	for i in 8:
 		var lamp := OmniLight3D.new()
 		lamp.position = positions[i * 12] + Vector3(0, 2.2, 0)
@@ -375,6 +438,167 @@ func _nature() -> void:
 		lamp.shadow_enabled = false
 		add_child(lamp)
 		lamp_lights.append(lamp)
+
+func _foliage(positions: Array, kind: String, detailed: bool) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _tree_shape(kind, detailed)
+	mm.instance_count = positions.size()
+	for i in positions.size():
+		var p: Vector3 = positions[i]
+		var y := 0.0 if detailed else 0.0
+		var s := 1.0 if detailed else 0.72
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(s, s, s)), Vector3(p.x, y, p.z)))
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	var leaf := StandardMaterial3D.new()
+	leaf.vertex_color_use_as_albedo = true
+	leaf.roughness = 0.92
+	inst.material_override = leaf
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	if not detailed:
+		inst.visibility_range_begin = 18.0
+	else:
+		inst.visibility_range_end = 42.0
+		inst.visibility_range_end_margin = 6.0
+	return inst
+
+func _tree_shape(kind: String, _detailed: bool) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var bark := Color("5a3a28")
+	if kind == "almond":
+		_add_cylinder(st, Vector3(0, 1.05, 0), 0.06, 2.1, Color("6a4a32"))
+		_add_branch(st, Vector3(0, 1.3, 0), Vector3(0.7, 2.15, 0.15), 0.03, bark)
+		_add_branch(st, Vector3(0, 1.45, 0), Vector3(-0.65, 2.3, -0.2), 0.028, bark)
+		_add_branch(st, Vector3(0, 1.15, 0), Vector3(0.15, 1.9, 0.6), 0.025, bark)
+		_add_ellipsoid(st, Vector3(0.78, 2.3, 0.16), Vector3(0.22, 0.42, 0.16), Color("6a8f48"))
+		_add_ellipsoid(st, Vector3(-0.7, 2.45, -0.18), Vector3(0.18, 0.38, 0.14), Color("7ea25a"))
+		_add_ellipsoid(st, Vector3(0.12, 2.05, 0.62), Vector3(0.16, 0.28, 0.14), Color("f0c8d4"))
+		_add_ellipsoid(st, Vector3(0.35, 2.55, -0.05), Vector3(0.14, 0.18, 0.12), Color("f4d0dc"))
+		_add_ellipsoid(st, Vector3(-0.2, 1.85, 0.15), Vector3(0.12, 0.16, 0.1), Color("f7d6e0"))
+	elif kind == "walnut":
+		_add_cylinder(st, Vector3(0, 0.55, 0), 0.18, 1.1, Color("4a3020"))
+		_add_branch(st, Vector3(0, 1.0, 0), Vector3(0.4, 1.45, 0.1), 0.07, bark)
+		_add_branch(st, Vector3(0, 0.95, 0), Vector3(-0.38, 1.4, -0.08), 0.06, bark)
+		_add_ellipsoid(st, Vector3(0.02, 1.7, 0.0), Vector3(0.95, 0.72, 0.9), Color("1a3e22"))
+		_add_ellipsoid(st, Vector3(0.5, 1.45, 0.25), Vector3(0.55, 0.42, 0.5), Color("14361c"))
+		_add_ellipsoid(st, Vector3(-0.48, 1.48, -0.2), Vector3(0.52, 0.4, 0.48), Color("214c2a"))
+	else:
+		_add_cylinder(st, Vector3(0, 0.7, 0), 0.2, 1.4, bark)
+		_add_branch(st, Vector3(0, 1.25, 0), Vector3(1.35, 1.7, 0.2), 0.08, bark)
+		_add_branch(st, Vector3(0, 1.2, 0), Vector3(-1.3, 1.65, -0.15), 0.075, bark)
+		_add_branch(st, Vector3(0, 1.3, 0), Vector3(0.15, 1.75, -1.15), 0.06, bark)
+		_add_ellipsoid(st, Vector3(1.45, 1.85, 0.25), Vector3(1.05, 0.28, 0.7), Color("2a5c2c"))
+		_add_ellipsoid(st, Vector3(-1.4, 1.78, -0.15), Vector3(0.95, 0.26, 0.65), Color("34683a"))
+		_add_ellipsoid(st, Vector3(0.1, 1.95, -1.2), Vector3(0.85, 0.24, 0.75), Color("245428"))
+	return st.commit()
+
+func _add_cylinder(st: SurfaceTool, center: Vector3, radius: float, height: float, color: Color) -> void:
+	var sides := 8
+	var y0 := center.y - height * 0.5
+	var y1 := center.y + height * 0.5
+	for s in sides:
+		var a0 := float(s) / float(sides) * TAU
+		var a1 := float(s + 1) / float(sides) * TAU
+		var p0 := Vector3(cos(a0) * radius, 0, sin(a0) * radius)
+		var p1 := Vector3(cos(a1) * radius, 0, sin(a1) * radius)
+		var n := (p0 + p1).normalized()
+		st.set_color(color)
+		st.set_normal(n)
+		st.add_vertex(center + Vector3(p0.x, y0 - center.y, p0.z))
+		st.set_color(color)
+		st.set_normal(n)
+		st.add_vertex(center + Vector3(p0.x, y1 - center.y, p0.z))
+		st.set_color(color)
+		st.set_normal(n)
+		st.add_vertex(center + Vector3(p1.x, y1 - center.y, p1.z))
+		st.set_color(color)
+		st.set_normal(n)
+		st.add_vertex(center + Vector3(p0.x, y0 - center.y, p0.z))
+		st.set_color(color)
+		st.set_normal(n)
+		st.add_vertex(center + Vector3(p1.x, y1 - center.y, p1.z))
+		st.set_color(color)
+		st.set_normal(n)
+		st.add_vertex(center + Vector3(p1.x, y0 - center.y, p1.z))
+
+func _add_branch(st: SurfaceTool, a: Vector3, b: Vector3, radius: float, color: Color) -> void:
+	var axis := b - a
+	var height := axis.length()
+	if height < 0.001:
+		return
+	axis = axis / height
+	var helper := Vector3.UP if absf(axis.dot(Vector3.UP)) < 0.92 else Vector3.RIGHT
+	var side := axis.cross(helper).normalized()
+	var side2 := axis.cross(side).normalized()
+	var sides := 6
+	for s in sides:
+		var a0 := float(s) / float(sides) * TAU
+		var a1 := float(s + 1) / float(sides) * TAU
+		var r0 := side * cos(a0) * radius + side2 * sin(a0) * radius
+		var r1 := side * cos(a1) * radius + side2 * sin(a1) * radius
+		var n := (r0 + r1).normalized()
+		for p in [a + r0, b + r0, b + r1, a + r0, b + r1, a + r1]:
+			st.set_color(color)
+			st.set_normal(n)
+			st.add_vertex(p)
+
+func _add_ellipsoid(st: SurfaceTool, center: Vector3, radii: Vector3, color: Color) -> void:
+	var rings := 5
+	var sides := 7
+	for r in rings:
+		var v0 := float(r) / float(rings) * PI
+		var v1 := float(r + 1) / float(rings) * PI
+		for s in sides:
+			var u0 := float(s) / float(sides) * TAU
+			var u1 := float(s + 1) / float(sides) * TAU
+			var pts: Array[Vector3] = []
+			for v in [v0, v1]:
+				for u in [u0, u1]:
+					pts.append(center + Vector3(sin(v) * cos(u) * radii.x, cos(v) * radii.y, sin(v) * sin(u) * radii.z))
+			var p00: Vector3 = pts[0]
+			var p01: Vector3 = pts[1]
+			var p10: Vector3 = pts[2]
+			var p11: Vector3 = pts[3]
+			for p in [p00, p10, p11, p00, p11, p01]:
+				st.set_color(color)
+				st.set_normal((Vector3(p.x - center.x, p.y - center.y, p.z - center.z)).normalized())
+				st.add_vertex(p)
+
+func _add_sphere(st: SurfaceTool, center: Vector3, radius: float, color: Color) -> void:
+	var rings := 5
+	var sides := 7
+	for r in rings:
+		var v0 := float(r) / float(rings) * PI
+		var v1 := float(r + 1) / float(rings) * PI
+		for s in sides:
+			var u0 := float(s) / float(sides) * TAU
+			var u1 := float(s + 1) / float(sides) * TAU
+			var p00 := center + Vector3(sin(v0) * cos(u0), cos(v0), sin(v0) * sin(u0)) * radius
+			var p10 := center + Vector3(sin(v1) * cos(u0), cos(v1), sin(v1) * sin(u0)) * radius
+			var p11 := center + Vector3(sin(v1) * cos(u1), cos(v1), sin(v1) * sin(u1)) * radius
+			var p01 := center + Vector3(sin(v0) * cos(u1), cos(v0), sin(v0) * sin(u1)) * radius
+			for p in [p00, p10, p11, p00, p11, p01]:
+				st.set_color(color)
+				st.set_normal((p - center).normalized())
+				st.add_vertex(p)
+
+func _rocks(positions: Array) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = MeshLib.sphere(0.22)
+	mm.instance_count = positions.size()
+	for i in positions.size():
+		var p: Vector3 = positions[i]
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(1.2, 0.6, 1.0)), p))
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	inst.material_override = MeshLib.ground_mat("9a9088", "rock", 0.9)
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	inst.visibility_range_end = 36.0
+	return inst
 
 func _tree_mesh(positions: Array, detailed: bool) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
@@ -396,17 +620,52 @@ func _tree_mesh(positions: Array, detailed: bool) -> MultiMeshInstance3D:
 	inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	return inst
 
+func _clump_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var green := Color("4e9a3a")
+	for i in 6:
+		var ang := float(i) / 6.0 * TAU
+		var base := Vector3(cos(ang) * 0.1, 0.0, sin(ang) * 0.1)
+		var tip := base + Vector3(cos(ang) * 0.05, 0.26 + float(i % 2) * 0.08, sin(ang) * 0.05)
+		var side := Vector3(-sin(ang), 0, cos(ang)) * 0.018
+		var n := (tip - base).normalized()
+		for p in [base - side, tip, base + side, base + side, tip, base - side]:
+			st.set_color(green)
+			st.set_normal(n)
+			st.add_vertex(p)
+	return st.commit()
+
+func _horizon() -> void:
+	var spots := [
+		Vector3(-20, -3.5, 30), Vector3(70, -4.5, -28), Vector3(176, -3.0, 50),
+		Vector3(20, -4.0, 206), Vector3(110, -3.5, 208), Vector3(188, -3.2, 150),
+		Vector3(-16, -3.0, 130), Vector3(150, -4.0, -10),
+	]
+	for i in spots.size():
+		var hill := MeshInstance3D.new()
+		hill.mesh = MeshLib.sphere(16.0 + float(i % 3) * 5.0)
+		hill.position = spots[i]
+		hill.scale = Vector3(1.6, 0.38, 1.15)
+		hill.material_override = MeshLib.mat("b09878" if i % 2 == 0 else "7e9460")
+		hill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(hill)
+
 func _grass(positions: Array) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = MeshLib.box(0.03, 0.28, 0.16)
+	mm.mesh = _clump_mesh()
 	mm.instance_count = positions.size()
 	for i in positions.size():
 		var p: Vector3 = positions[i]
-		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, p))
+		var yaw := sin(p.x * 0.4 + p.z * 0.2) * 0.8
+		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, 0.0, p.z)))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
-	inst.material_override = MeshLib.mat("4e9a3a")
+	var blades := StandardMaterial3D.new()
+	blades.vertex_color_use_as_albedo = true
+	blades.roughness = 0.95
+	inst.material_override = blades
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	return inst
@@ -505,9 +764,10 @@ func apply_graphics() -> void:
 	elif Settings.fog_mode == "light":
 		density *= 0.35
 	env.fog_density = density
-	env.fog_sky_affect = 0.12
-	env.fog_aerial_perspective = 0.04
-	env.fog_light_color = Color(0.78, 0.74, 0.7) if dream else Color(0.62, 0.6, 0.56)
+	env.fog_sky_affect = 0.42
+	env.fog_aerial_perspective = 0.18
+	env.fog_light_color = Color(0.93, 0.78, 0.66) if dream else Color(0.72, 0.68, 0.62)
+	env.fog_sun_scatter = 0.12
 	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
 	env.sdfgi_enabled = bool(f.get("sdfgi", false)) and forward and dream
 	env.sdfgi_cascades = int(f.get("sdfgi_cascades", 4))
@@ -572,9 +832,10 @@ func apply_graphics() -> void:
 func _life() -> void:
 	for i in 6:
 		var bird := MeshInstance3D.new()
-		bird.mesh = MeshLib.sphere(0.12)
+		bird.mesh = MeshLib.sphere(0.06)
+		bird.scale = Vector3(1.8, 0.28, 0.55)
 		bird.material_override = MeshLib.mat("2a2420")
-		bird.position = Vector3(30.0 + i * 8.0, 8.0, 40.0)
+		bird.position = Vector3(30.0 + i * 8.0, 2.2, 40.0)
 		bird.set_meta("i", i)
 		bird.add_to_group("bird")
 		add_child(bird)
@@ -676,7 +937,7 @@ func _process(delta: float) -> void:
 	for bird in get_tree().get_nodes_in_group("bird"):
 		if bird is Node3D:
 			var i := float(bird.get_meta("i", 0))
-			bird.position = Vector3(40.0 + sin(clock * 0.25 + i) * 28.0, 7.5 + sin(clock + i) * 0.6, 60.0 + cos(clock * 0.2 + i) * 22.0)
+			bird.position = Vector3(40.0 + sin(clock * 0.25 + i) * 18.0, 2.15 + sin(clock + i) * 0.15, 70.0 + cos(clock * 0.2 + i) * 14.0)
 	for puff in get_tree().get_nodes_in_group("smoke"):
 		if puff is Node3D and puff.has_meta("base"):
 			var base: Vector3 = puff.get_meta("base")

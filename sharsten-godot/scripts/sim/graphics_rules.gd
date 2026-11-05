@@ -11,8 +11,8 @@ static func flags(preset: String) -> Dictionary:
 				"shadows": false, "shadow_size": 1024, "shadow_distance": 18.0, "shadow_splits": 1,
 				"msaa": 0, "sdfgi": false, "ssao": false, "ssr": false, "ssr_steps": 0,
 				"volumetric_fog": false, "vol_density": 0.0, "glow": false,
-				"fog_density": 0.0016, "view": 42.0, "trees": 28, "grass": 0,
-				"lod_full": 16.0, "grass_range": 0.0, "lamps": 0, "foliage_shadows": false, "animals": 12,
+				"fog_density": 0.0016, "view": 42.0, "trees": 28, "grass": 48,
+				"lod_full": 16.0, "grass_range": 18.0, "lamps": 0, "foliage_shadows": false, "animals": 12,
 				"sdfgi_cell": 1.5, "sdfgi_cascades": 4,
 			}
 		"high":

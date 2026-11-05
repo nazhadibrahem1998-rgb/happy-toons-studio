@@ -1,0 +1,46 @@
+{
+  "influence": [
+    {"id": "raised_fence", "radius": 12.0, "mood": "settled", "need": "quiet lane", "routine": "stay near the new fence"},
+    {"id": "gift_left", "radius": 6.0, "mood": "pleased", "need": "nothing urgent", "routine": "pause by the gift"},
+    {"id": "task_helped", "radius": 10.0, "mood": "grateful", "need": "share the work", "routine": "work beside a friend"}
+  ],
+  "life_changes": [
+    {"id": "note_left", "changes": ["mood", "routine"], "via": "note"},
+    {"id": "gift_left", "changes": ["mood", "friendship"], "via": "gift"},
+    {"id": "overheard_choice", "changes": ["mood", "job"], "via": "overheard"},
+    {"id": "task_helped", "changes": ["home", "friendship", "routine"], "via": "task"}
+  ],
+  "events": [
+    {
+      "id": "meteor_quiet",
+      "title": "A stone from the night sky",
+      "radius": 14.0,
+      "family_friendly": true,
+      "gore": false,
+      "deaths": false,
+      "effects": ["homes_cracked", "people_displaced", "people_afraid", "rebuild_together"],
+      "grants": "relic_metal"
+    }
+  ],
+  "secrets": [
+    {"id": "journal_sky_well", "kind": "journal", "clue": "A page under a loose stone. The old makers drew a wheel that drinks the wind."},
+    {"id": "relic_hum", "kind": "relic", "clue": "The frame hums when the lane is quiet. Nobody left a name on it."}
+  ],
+  "side_quests": [
+    {
+      "id": "questions_at_supper",
+      "tone": "family_comedy",
+      "title": "Questions at supper",
+      "summary": "A bright child keeps asking how the relic frame fits together. The parents answer with supper. The grandmother asks him to carry the bread first.",
+      "audience": "everyone"
+    },
+    {
+      "id": "the_queue_for_nails",
+      "tone": "gallows",
+      "title": "The queue for nails",
+      "summary": "A chalk list on a broken post says who may take two nails. The list is older than the people waiting. They laugh, then they wait anyway.",
+      "audience": "older",
+      "limits": "no gore, no sexual content, almost no swearing"
+    }
+  ]
+}

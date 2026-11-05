@@ -186,10 +186,12 @@ func _woods(world: Node3D, at: Vector3) -> void:
 func _orchard(world: Node3D, at: Vector3) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = MeshLib.sphere(0.55)
+	mm.mesh = MeshLib.sphere(0.42)
 	mm.instance_count = 10
 	for i in 10:
-		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, at + Vector3((i % 5) * 2.2, 1.3, int(i / 5) * 2.4)))
+		var p := at + Vector3((i % 5) * 2.2, 0, int(i / 5) * 2.4)
+		MeshLib.part(world, MeshLib.cyl(0.08, 1.1), MeshLib.mat("5a3a28", 0.9), p + Vector3(0, 0.55, 0))
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(1.15, 0.7, 1.0)), p + Vector3(0.15, 1.35, 0)))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
 	inst.material_override = MeshLib.mat("2f6a32", 0.9)

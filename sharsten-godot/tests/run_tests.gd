@@ -231,6 +231,19 @@ func _check_flocks() -> void:
 	_check(int(GraphicsRules.flags("low")["animals"]) < int(GraphicsRules.flags("medium")["animals"]), "low draws fewer animals than medium")
 	_check(int(GraphicsRules.flags("medium")["animals"]) < int(GraphicsRules.flags("high")["animals"]), "medium draws fewer animals than high")
 
+func _check_influence() -> void:
+	var rules = load("res://scripts/sim/influence.gd").load_rules()
+	var npc := {"id": "pura_shrin", "mood": "calm", "routine": "tend"}
+	var near = load("res://scripts/sim/influence.gd").apply_act(npc, "gift_left", 2.0, rules)
+	var far = load("res://scripts/sim/influence.gd").apply_act(npc, "gift_left", 40.0, rules)
+	_check(str(near.get("mood", "")) == "pleased", "a nearby gift changes mood")
+	_check(str(far.get("mood", "")) == "calm", "a far gift does not change mood")
+	_check(load("res://scripts/sim/influence.gd").event_ok(rules, "meteor_quiet"), "the meteor event stays family-friendly")
+	var comedy = load("res://scripts/sim/influence.gd").quests_of_tone(rules, "family_comedy")
+	var dark = load("res://scripts/sim/influence.gd").quests_of_tone(rules, "gallows")
+	_check(comedy.size() == 1 and dark.size() == 1, "comedy and gallows quests stay in separate lists")
+	_check(str(comedy[0].get("tone", "")) != str(dark[0].get("tone", "")), "the two tones do not share a list")
+
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()
 	_check(villager.choose_social(1.0, false, false, true) == "", "villagers do not gesture at the player")
@@ -309,6 +322,7 @@ func _units() -> void:
 	_check_clothing()
 	_check_flocks()
 	_check_social()
+	_check_influence()
 	_check_settings_ui()
 	_check_settings_roundtrip()
 	var now := 2026

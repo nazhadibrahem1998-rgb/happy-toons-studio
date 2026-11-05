@@ -101,6 +101,36 @@ static func grain_tex() -> Texture2D:
 	_tex["_grain"] = tex
 	return tex
 
+static func terrain_tex() -> Texture2D:
+	if _tex.has("_terrain"):
+		return _tex["_terrain"]
+	var img := Image.create(128, 128, false, Image.FORMAT_RGB8)
+	for y in 128:
+		for x in 128:
+			var n := _noise(x, y)
+			var c := Color(0.33, 0.45, 0.22).lerp(Color(0.5, 0.46, 0.28), clampf(n, 0.0, 1.0))
+			if n > 0.72:
+				c = Color(0.55, 0.46, 0.3)
+			elif n < 0.28:
+				c = Color(0.24, 0.36, 0.16)
+			img.set_pixel(x, y, c)
+	var tex := ImageTexture.create_from_image(img)
+	_tex["_terrain"] = tex
+	return tex
+
+static func _noise(x: int, y: int) -> float:
+	var a := _cell(x / 16, y / 16)
+	var b := _cell(x / 16 + 1, y / 16)
+	var c := _cell(x / 16, y / 16 + 1)
+	var d := _cell(x / 16 + 1, y / 16 + 1)
+	var tx := float(x % 16) / 16.0
+	var ty := float(y % 16) / 16.0
+	return lerpf(lerpf(a, b, tx), lerpf(c, d, tx), ty)
+
+static func _cell(x: int, y: int) -> float:
+	var n := sin(float(x) * 127.1 + float(y) * 311.7) * 43758.5453
+	return n - floor(n)
+
 static func path_mat(hex: String) -> StandardMaterial3D:
 	var key := "path:" + hex
 	if _mats.has(key):

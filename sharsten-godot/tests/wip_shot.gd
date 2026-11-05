@@ -52,9 +52,9 @@ func _shoot(player: Node3D) -> void:
 	cam.current = true
 	var feet := player.global_position + Vector3(0, 0.15, 0)
 	var views := [
-		["v3-01-clothes.png", feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0)],
-		["v3-02-feet.png", feet + Vector3(-1.4, 0.45, 2.1), feet + Vector3(0, 0.2, 0)],
-		["v3-03-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
+		["v4-01-houses.png", feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0)],
+		["v4-02-feet.png", feet + Vector3(-1.4, 0.45, 2.1), feet + Vector3(0, 0.2, 0)],
+		["v4-03-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
 	]
 	for view in views:
 		cam.look_at_from_position(view[1], view[2], Vector3.UP)
