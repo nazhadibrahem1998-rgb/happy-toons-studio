@@ -14,6 +14,7 @@ const SPECIES := [
 	{"id": "bird", "color": "2a2420", "scale": Vector3(0.16, 0.12, 0.28), "speed": 1.4},
 	{"id": "donkey", "color": "8d8a86", "scale": Vector3(0.45, 0.7, 1.05), "speed": 0.5},
 	{"id": "horse", "color": "6b4226", "scale": Vector3(0.5, 0.85, 1.35), "speed": 0.85},
+	{"id": "cow", "color": "c4a574", "scale": Vector3(0.7, 0.8, 1.3), "speed": 0.28},
 ]
 
 var pos: PackedVector2Array = PackedVector2Array()
@@ -32,7 +33,7 @@ func setup(count: int, seed_value: int) -> void:
 	rng.seed = seed_value
 	var yards := [
 		Vector2(36, 28), Vector2(70, 24), Vector2(24, 78), Vector2(96, 60),
-		Vector2(52, 110), Vector2(18, 120), Vector2(110, 36), Vector2(84, 140),
+		Vector2(52, 110), Vector2(18, 120), Vector2(110, 36), Vector2(84, 140), Vector2(48, 18),
 	]
 	for i in count:
 		var sp := i % SPECIES.size()

@@ -139,7 +139,8 @@ func _subs(now: float) -> void:
 		l.custom_minimum_size = Vector2(1100, 0)
 		l.add_theme_font_size_override("normal_font_size", Settings.subtitle_px())
 		l.add_theme_color_override("default_color", Color("f6edd8"))
-		l.text = "[b]%s[/b]  %s" % [line.get("name", ""), line.get("text", "")]
+		var prefix := str(line.get("name", ""))
+		l.text = "[font_size=%d][b]%s[/b][/font_size]  %s" % [maxi(14, Settings.subtitle_px() - 4), prefix, line.get("text", "")]
 		sub_box.add_child(l)
 
 func _hints() -> void:

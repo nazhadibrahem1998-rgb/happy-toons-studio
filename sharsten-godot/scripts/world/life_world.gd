@@ -140,6 +140,10 @@ func _nature(world: Node3D) -> void:
 	_bridge(world, Vector3(40, 0, 6))
 	_bridge(world, Vector3(96, 0, 6))
 	_woods(world, Vector3(120, 0, 150))
+	_orchard(world, Vector3(18, 0, 60))
+	_terraces(world, Vector3(108, 0, 130))
+	_pen(world, Vector3(40, 0, 30))
+	_hills(world)
 	_cave(world, Vector3(12, 0, 150))
 	_sign(world, Vector3(40, 0, 9), "River bridge")
 	_sign(world, Vector3(14, 0, 146), "Cave path")
@@ -176,6 +180,42 @@ func _woods(world: Node3D, at: Vector3) -> void:
 	inst.material_override = MeshLib.mat("5a3a28", 0.9)
 	inst.visibility_range_end = 70.0
 	inst.visibility_range_end_margin = 8.0
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	world.add_child(inst)
+
+func _orchard(world: Node3D, at: Vector3) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = MeshLib.sphere(0.55)
+	mm.instance_count = 10
+	for i in 10:
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, at + Vector3((i % 5) * 2.2, 1.3, int(i / 5) * 2.4)))
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	inst.material_override = MeshLib.mat("2f6a32", 0.9)
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	inst.visibility_range_end = 55.0
+	world.add_child(inst)
+
+func _terraces(world: Node3D, at: Vector3) -> void:
+	for i in 4:
+		MeshLib.part(world, MeshLib.box(8, 0.35, 1.4), MeshLib.mat("a89880", 0.95), at + Vector3(0, 0.2 + i * 0.15, i * 1.6))
+
+func _pen(world: Node3D, at: Vector3) -> void:
+	MeshLib.part(world, MeshLib.box(6, 0.7, 0.25), MeshLib.mat("9a9088", 0.95), at + Vector3(0, 0.35, 2.5))
+	MeshLib.part(world, MeshLib.box(0.25, 0.7, 5), MeshLib.mat("9a9088", 0.95), at + Vector3(-3, 0.35, 0))
+
+func _hills(world: Node3D) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = MeshLib.sphere(8.0)
+	mm.instance_count = 6
+	var spots := [Vector3(-6, -2, 20), Vector3(150, -3, 40), Vector3(20, -4, 180), Vector3(140, -3, 170), Vector3(80, -5, -8), Vector3(160, -2, 100)]
+	for i in spots.size():
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, spots[i]))
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	inst.material_override = MeshLib.mat("b7a48a", 0.96)
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	world.add_child(inst)
 

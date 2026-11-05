@@ -143,42 +143,41 @@ func _clothes(spec: Dictionary) -> void:
 	var dress := MeshLib.mat(str(spec.get("dress", spec.get("cloth", "a33b3b"))), 0.84)
 	var wrap := MeshLib.mat(str(spec.get("wrap", "d8c4a4")), 0.8)
 	var vest := MeshLib.mat(str(spec.get("vest", "3a2a22")), 0.84)
-	var shoes := MeshLib.mat("2a2118", 0.7)
+	var shoes := MeshLib.mat("f7f4ee", 0.75)
+	var turban := _turban_mat(str(spec.get("name", "azad")))
 	if kind == "mullah":
 		var robe := MeshLib.mat(str(spec.get("robe", "241c18")), 0.9)
-		_attach("neck_01", MeshLib.box(0.28, 0.16, 0.26), robe, Vector3.ZERO, "torso")
-		_attach("spine_03", MeshLib.box(0.52, 0.4, 0.48), robe, Vector3(0, 0.06, 0), "torso")
-		_attach("spine_02", MeshLib.box(0.5, 0.5, 0.46), robe, Vector3.ZERO, "torso")
-		_attach("spine_02", MeshLib.box(0.48, 0.72, 0.12), robe, Vector3(0, 0.08, -0.18), "torso")
-		_attach("spine_01", MeshLib.box(0.52, 0.4, 0.48), robe, Vector3(0, -0.06, 0), "torso")
-		_attach("pelvis", MeshLib.box(0.5, 0.28, 0.36), robe, Vector3(0, -0.08, 0), "legs")
-		_limb("thigh_l", 0.16, 0.5, robe, "legs")
-		_limb("thigh_r", 0.16, 0.5, robe, "legs")
-		_limb("calf_l", 0.13, 0.46, robe, "legs")
-		_limb("calf_r", 0.13, 0.46, robe, "legs")
-		_limb("upperarm_l", 0.1, 0.36, robe, "torso")
-		_limb("upperarm_r", 0.1, 0.36, robe, "torso")
-		_limb("lowerarm_l", 0.08, 0.32, robe, "torso")
-		_limb("lowerarm_r", 0.08, 0.32, robe, "torso")
+		_wrap("neck_01", 0.16, 0.22, robe, "torso")
+		_wrap("spine_03", 0.26, 0.42, robe, "torso")
+		_wrap("spine_02", 0.28, 0.46, robe, "torso")
+		_wrap("spine_01", 0.27, 0.4, robe, "torso")
+		_wrap("pelvis", 0.26, 0.32, robe, "legs")
+		_limb("thigh_l", 0.2, 0.13, 0.5, robe, "legs")
+		_limb("thigh_r", 0.2, 0.13, 0.5, robe, "legs")
+		_limb("calf_l", 0.13, 0.08, 0.46, robe, "legs")
+		_limb("calf_r", 0.13, 0.08, 0.46, robe, "legs")
+		_limb("upperarm_l", 0.1, 0.09, 0.34, robe, "torso")
+		_limb("upperarm_r", 0.1, 0.09, 0.34, robe, "torso")
+		_limb("lowerarm_l", 0.09, 0.12, 0.32, robe, "torso")
+		_limb("lowerarm_r", 0.09, 0.12, 0.32, robe, "torso")
 		_attach("spine_01", MeshLib.box(0.52, 0.07, 0.38), sash_m, Vector3.ZERO, "sash")
 		_attach("Head", MeshLib.sphere(0.15), MeshLib.mat("f7f4ee"), Vector3(0, 0.07, 0), "head")
 		_attach("Head", MeshLib.box(0.06, 0.22, 0.05), MeshLib.mat("f7f4ee"), Vector3(0.1, -0.02, 0), "head")
 	elif girl:
-		_attach("neck_01", MeshLib.box(0.26, 0.14, 0.24), dress, Vector3.ZERO, "torso")
-		_attach("spine_03", MeshLib.box(0.52, 0.4, 0.48), dress, Vector3(0, 0.06, 0), "torso")
-		_attach("spine_02", MeshLib.box(0.5, 0.5, 0.46), dress, Vector3.ZERO, "torso")
-		_attach("spine_02", MeshLib.box(0.48, 0.72, 0.12), dress, Vector3(0, 0.08, -0.18), "torso")
-		_attach("spine_02", MeshLib.box(0.36, 0.28, 0.1), vest, Vector3(0, 0.02, 0.16), "torso")
-		_attach("spine_01", MeshLib.box(0.52, 0.4, 0.48), dress, Vector3(0, -0.06, 0), "torso")
-		_attach("pelvis", MeshLib.box(0.58, 0.34, 0.42), dress, Vector3(0, -0.1, 0), "legs")
-		_limb("thigh_l", 0.15, 0.5, dress, "legs")
-		_limb("thigh_r", 0.15, 0.5, dress, "legs")
-		_limb("calf_l", 0.12, 0.46, dress, "legs")
-		_limb("calf_r", 0.12, 0.46, dress, "legs")
-		_limb("upperarm_l", 0.09, 0.36, dress, "torso")
-		_limb("upperarm_r", 0.09, 0.36, dress, "torso")
-		_limb("lowerarm_l", 0.075, 0.32, dress, "torso")
-		_limb("lowerarm_r", 0.075, 0.32, dress, "torso")
+		_wrap("neck_01", 0.15, 0.2, dress, "torso")
+		_wrap("spine_03", 0.24, 0.4, dress, "torso")
+		_wrap("spine_02", 0.26, 0.44, dress, "torso")
+		_wrap("spine_02", 0.2, 0.28, vest, "torso")
+		_wrap("spine_01", 0.25, 0.38, dress, "torso")
+		_wrap("pelvis", 0.3, 0.36, dress, "legs")
+		_limb("thigh_l", 0.18, 0.11, 0.5, dress, "legs")
+		_limb("thigh_r", 0.18, 0.11, 0.5, dress, "legs")
+		_limb("calf_l", 0.12, 0.08, 0.46, dress, "legs")
+		_limb("calf_r", 0.12, 0.08, 0.46, dress, "legs")
+		_limb("upperarm_l", 0.09, 0.08, 0.34, dress, "torso")
+		_limb("upperarm_r", 0.09, 0.08, 0.34, dress, "torso")
+		_limb("lowerarm_l", 0.08, 0.12, 0.32, dress, "torso")
+		_limb("lowerarm_r", 0.08, 0.12, 0.32, dress, "torso")
 		_attach("spine_01", MeshLib.box(0.5, 0.06, 0.36), sash_m, Vector3.ZERO, "sash")
 		_attach("Head", MeshLib.box(0.24, 0.1, 0.22), wrap, Vector3(0, 0.08, 0), "head")
 		_attach("Head", MeshLib.box(0.2, 0.34, 0.06), wrap, Vector3(0, -0.08, -0.08), "head")
@@ -186,36 +185,46 @@ func _clothes(spec: Dictionary) -> void:
 			_attach("Head", MeshLib.box(0.16, 0.02, 0.02), MeshLib.mat("e0b040", 0.45, 0.5), Vector3(0, 0.02, 0.1), "head")
 	else:
 		# Shal u shapik: jacket, wide trousers, sash, turban or klaw.
-		_attach("neck_01", MeshLib.box(0.28, 0.16, 0.26), shirt, Vector3.ZERO, "torso")
-		_attach("spine_03", MeshLib.box(0.54, 0.42, 0.5), shirt, Vector3(0, 0.08, 0), "torso")
-		_attach("spine_02", MeshLib.box(0.52, 0.52, 0.48), shirt, Vector3.ZERO, "torso")
-		_attach("spine_02", MeshLib.box(0.5, 0.74, 0.12), shirt, Vector3(0, 0.1, -0.2), "torso")
-		_attach("spine_01", MeshLib.box(0.54, 0.42, 0.5), cloth, Vector3(0, -0.08, 0), "torso")
-		_attach("pelvis", MeshLib.box(0.52, 0.26, 0.38), cloth, Vector3(0, -0.06, 0), "legs")
-		_limb("thigh_l", 0.17, 0.5, cloth, "legs")
-		_limb("thigh_r", 0.17, 0.5, cloth, "legs")
-		_limb("calf_l", 0.14, 0.46, cloth, "legs")
-		_limb("calf_r", 0.14, 0.46, cloth, "legs")
-		_limb("upperarm_l", 0.1, 0.36, shirt, "torso")
-		_limb("upperarm_r", 0.1, 0.36, shirt, "torso")
-		_limb("lowerarm_l", 0.08, 0.32, shirt, "torso")
-		_limb("lowerarm_r", 0.08, 0.32, shirt, "torso")
-		_attach("spine_01", MeshLib.box(0.54, 0.07, 0.4), sash_m, Vector3.ZERO, "sash")
-		var hw := str(spec.get("headwear", "turban"))
-		if hw == "klaw" or hw == "headband":
-			_attach("Head", MeshLib.cyl(0.14, 0.08), wrap, Vector3(0, 0.1, 0), "head")
-			_attach("Head", MeshLib.box(0.22, 0.04, 0.2), wrap, Vector3(0, 0.06, 0), "head")
-		else:
-			_attach("Head", MeshLib.sphere(0.15), wrap, Vector3(0, 0.08, 0), "head")
-			_attach("Head", MeshLib.box(0.07, 0.24, 0.06), wrap, Vector3(0.11, -0.02, 0), "head")
+		_wrap("neck_01", 0.16, 0.24, shirt, "torso")
+		_wrap("spine_03", 0.26, 0.42, shirt, "torso")
+		_wrap("spine_02", 0.28, 0.48, cloth, "torso")
+		_wrap("spine_01", 0.27, 0.4, cloth, "torso")
+		_wrap("pelvis", 0.28, 0.34, cloth, "legs")
+		_limb("thigh_l", 0.22, 0.12, 0.5, cloth, "legs")
+		_limb("thigh_r", 0.22, 0.12, 0.5, cloth, "legs")
+		_limb("calf_l", 0.13, 0.07, 0.46, cloth, "legs")
+		_limb("calf_r", 0.13, 0.07, 0.46, cloth, "legs")
+		_limb("upperarm_l", 0.1, 0.09, 0.34, shirt, "torso")
+		_limb("upperarm_r", 0.1, 0.09, 0.34, shirt, "torso")
+		_limb("lowerarm_l", 0.09, 0.13, 0.32, shirt, "torso")
+		_limb("lowerarm_r", 0.09, 0.13, 0.32, shirt, "torso")
+		_attach("spine_01", MeshLib.box(0.16, 0.08, 0.62), sash_m, Vector3.ZERO, "sash")
+		_attach("Head", MeshLib.cyl(0.13, 0.07), turban, Vector3(0, 0.1, 0), "head")
+		_attach("Head", MeshLib.cyl(0.15, 0.04), wrap, Vector3(0, 0.06, 0), "head")
 	_attach("foot_l", MeshLib.box(0.1, 0.06, 0.16), shoes, Vector3(0, -0.02, 0.02), "legs")
 	_attach("foot_r", MeshLib.box(0.1, 0.06, 0.16), shoes, Vector3(0, -0.02, 0.02), "legs")
 
-func _limb(bone: String, radius: float, length: float, mat: Material, role: String) -> void:
-	# Move the cloth from the joint toward the next bone, so trousers and sleeves
-	# follow the limb instead of riding up into the torso.
+func _turban_mat(id: String) -> Material:
+	var palette := ["1c1c1c", "8a8680", "f3f0ea"]
+	return MeshLib.mat(palette[absi(id.hash()) % palette.size()], 0.8)
+
+func _wrap(bone: String, radius: float, height: float, mat: Material, role: String) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius * 1.06
+	mesh.height = height
+	mesh.radial_segments = 12
+	_attach(bone, mesh, mat, Vector3.ZERO, role)
+
+func _limb(bone: String, r_near: float, r_far: float, length: float, mat: Material, role: String) -> void:
 	var along := _toward_child(bone)
-	_attach(bone, MeshLib.cyl(radius, length), mat, along * length * 0.42, role)
+	var mesh := CylinderMesh.new()
+	# Local +Y points toward the child, which is the cuff or the ankle.
+	mesh.top_radius = r_far
+	mesh.bottom_radius = r_near
+	mesh.height = length
+	mesh.radial_segments = 12
+	_attach(bone, mesh, mat, along * length * 0.38, role)
 
 func _toward_child(bone: String) -> Vector3:
 	if skel == null:

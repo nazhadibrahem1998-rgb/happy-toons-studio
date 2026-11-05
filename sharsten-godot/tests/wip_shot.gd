@@ -49,16 +49,22 @@ func _shoot(player: Node3D) -> void:
 	var cam := Camera3D.new()
 	cam.fov = 46
 	add_child(cam)
-	var feet := player.global_position + Vector3(0, 0.15, 0)
-	cam.look_at_from_position(feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0), Vector3.UP)
 	cam.current = true
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	var img := get_viewport().get_texture().get_image()
-	if img.get_width() != 1920 or img.get_height() != 1080:
-		img.resize(1920, 1080, Image.INTERPOLATE_LANCZOS)
-	var path := ProjectSettings.globalize_path("res://wip/v3-wip.png")
-	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
-	img.save_png(path)
-	print("WIPSHOT %dx%d %s" % [img.get_width(), img.get_height(), path])
+	var feet := player.global_position + Vector3(0, 0.15, 0)
+	var views := [
+		["v3-01-clothes.png", feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0)],
+		["v3-02-feet.png", feet + Vector3(-1.4, 0.45, 2.1), feet + Vector3(0, 0.2, 0)],
+		["v3-03-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
+	]
+	for view in views:
+		cam.look_at_from_position(view[1], view[2], Vector3.UP)
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		if img.get_width() != 1920 or img.get_height() != 1080:
+			img.resize(1920, 1080, Image.INTERPOLATE_LANCZOS)
+		var path := ProjectSettings.globalize_path("res://wip/" + str(view[0]))
+		DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+		img.save_png(path)
+		print("WIPSHOT %dx%d %s" % [img.get_width(), img.get_height(), path])
 	get_tree().quit(0)

@@ -7,7 +7,6 @@ var walking := false
 var work := "idle"
 var home := Vector3.ZERO
 var rig: HumanRig
-var label: Label3D
 var agent: NavigationAgent3D
 var _speed := 0.0
 
@@ -47,18 +46,6 @@ func setup(spec: Dictionary, entry: Dictionary, loop: Array) -> void:
 		rig = HumanRig.new()
 		add_child(rig)
 		rig.setup(spec)
-	label = Label3D.new()
-	label.text = "%s\n%s" % [spec.get("name", ""), spec.get("gloss", "")]
-	label.font = ThemeDB.fallback_font
-	label.position = Vector3(0, 1.68 * float(spec.get("height", 1.0)), 0)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 20
-	label.pixel_size = 0.0016
-	label.modulate = Color(0.98, 0.95, 0.88, 0.92)
-	label.outline_modulate = Color(0.15, 0.1, 0.08, 0.8)
-	label.outline_size = 4
-	label.outline_modulate.a = 0.75
-	add_child(label)
 	call_deferred("_set_target")
 
 func _set_target() -> void:
@@ -144,9 +131,6 @@ func _physics_process(delta: float) -> void:
 		act = "pray"
 	if rig:
 		rig.tick(delta, _speed, act)
-	var player := get_tree().get_first_node_in_group("player")
-	if player is Node3D and label:
-		label.visible = global_position.distance_to(player.global_position) < 8.0
 
 func choose_social(dist: float, other_is_villager: bool, child: bool, meal: bool) -> String:
 	# Gestures are only between villagers. The player is never a partner.
