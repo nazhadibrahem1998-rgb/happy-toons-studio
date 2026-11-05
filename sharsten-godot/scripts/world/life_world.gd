@@ -185,18 +185,27 @@ func _woods(world: Node3D, at: Vector3) -> void:
 func _orchard(world: Node3D, at: Vector3) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = MeshLib.sphere(0.55)
+	var tree = load("res://assets/nature/quaternius/CommonTree_3.fbx").instantiate()
+	mm.mesh = _mesh_of(tree)
+	tree.free()
 	mm.instance_count = 6
 	for i in 6:
 		var p := at + Vector3((i % 3) * 3.2, 0, int(i / 3) * 3.4)
-		MeshLib.part(world, MeshLib.cyl(0.1, 1.3), MeshLib.mat("5a3a28", 0.9), p + Vector3(0, 0.65, 0))
-		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(1.8, 0.32, 1.35)), p + Vector3(0, 1.55, 0)))
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(1.15, 1.05, 1.15)), p))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
-	inst.material_override = MeshLib.mat("2f6a32", 0.9)
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	inst.visibility_range_end = 55.0
 	world.add_child(inst)
+
+func _mesh_of(node: Node) -> Mesh:
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh:
+		return (node as MeshInstance3D).mesh
+	for child in node.get_children():
+		var found := _mesh_of(child)
+		if found:
+			return found
+	return MeshLib.sphere(0.4)
 
 func _terraces(world: Node3D, at: Vector3) -> void:
 	for i in 4:
@@ -206,19 +215,9 @@ func _pen(world: Node3D, at: Vector3) -> void:
 	MeshLib.part(world, MeshLib.box(6, 0.7, 0.25), MeshLib.mat("9a9088", 0.95), at + Vector3(0, 0.35, 2.5))
 	MeshLib.part(world, MeshLib.box(0.25, 0.7, 5), MeshLib.mat("9a9088", 0.95), at + Vector3(-3, 0.35, 0))
 
-func _hills(world: Node3D) -> void:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = MeshLib.sphere(8.0)
-	mm.instance_count = 6
-	var spots := [Vector3(-6, -2, 20), Vector3(150, -3, 40), Vector3(20, -4, 180), Vector3(140, -3, 170), Vector3(80, -5, -8), Vector3(160, -2, 100)]
-	for i in spots.size():
-		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, spots[i]))
-	var inst := MultiMeshInstance3D.new()
-	inst.multimesh = mm
-	inst.material_override = MeshLib.mat("b7a48a", 0.96)
-	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	world.add_child(inst)
+func _hills(_world: Node3D) -> void:
+	# The village ridges are a height field. The old sphere hills are gone.
+	pass
 
 func _cave(world: Node3D, at: Vector3) -> void:
 	# A short walkable tunnel. Walls are colliders; two lamps keep it readable.

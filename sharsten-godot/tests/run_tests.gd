@@ -215,6 +215,8 @@ func _check_clothing() -> void:
 		var who := str(spec.get("kind", "")) + "/" + str(spec.get("headwear", spec.get("child_kind", "")))
 		_check(rig.clothing_count() >= 8, "%s has a full set of cloth meshes (%d)" % [who, rig.clothing_count()])
 		_check(rig.has_clothing("torso") and rig.has_clothing("legs") and rig.has_clothing("head") and rig.has_clothing("sash"), "%s covers torso, legs, head, and sash" % who)
+		rig.tick(0.05, 1.2, "walk")
+		_check(absf(rig.sole_lift()) <= 0.08, "%s feet stay near the ground, lift %s" % [who, rig.sole_lift()])
 		rig.free()
 
 func _check_flocks() -> void:
@@ -372,7 +374,12 @@ func _check_village() -> void:
 			wall_ok = true
 	_check(wall_ok, "the house wall stays a closed box")
 	_check(bottom <= 0.02, "the house meets the ground, bottom %s" % bottom)
+	_check(house.find_children("wall-door*", "Node", true, false).size() > 0 or house.get_child_count() > 3, "the house uses modular pieces")
 	house.free()
+	var credits := FileAccess.get_file_as_string("res://CREDITS.md")
+	for name in ["UAL1_Standard.fbx", "wall-block.fbx", "CommonTree_1.fbx", "rock_face.jpg", "colormap.png", "CC0"]:
+		_check(credits.find(name) >= 0, "credits list %s" % name)
+	_check(int(low.get("trees", 99)) <= 40 and int(low.get("grass", 99)) <= 64, "low texture and instance budget stays small")
 
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()

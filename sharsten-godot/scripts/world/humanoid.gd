@@ -148,6 +148,7 @@ func _clothes(spec: Dictionary) -> void:
 	var vest := MeshLib.cloth_mat(str(spec.get("vest", "3a2a22")), "embroidery")
 	var shoes := MeshLib.cloth_mat("f7f4ee", "cotton")
 	var turban := _turban_mat(str(spec.get("name", "azad")))
+	_hair(str(spec.get("name", "azad")))
 	if kind == "mullah":
 		var robe := MeshLib.cloth_mat(str(spec.get("robe", "241c18")), "wool")
 		_wrap("neck_01", 0.16, 0.22, robe, "torso")
@@ -212,6 +213,14 @@ func _clothes(spec: Dictionary) -> void:
 		_attach("Head", MeshLib.cyl(0.15, 0.04), wrap, Vector3(0, 0.06, 0), "head")
 	_foot_cover("foot_l", shoes)
 	_foot_cover("foot_r", shoes)
+
+func _hair(id: String) -> void:
+	var tones := ["2a1c14", "3b2418", "1a1a1a", "4a3022", "5a3a28"]
+	var mat := MeshLib.mat(tones[absi(id.hash()) % tones.size()], 0.72)
+	# The jamane is a band. Hair has to sit on the crown above it, and at the nape.
+	_attach("Head", MeshLib.sphere(0.15), mat, Vector3(0, 0.17, -0.02), "head")
+	_attach("Head", MeshLib.sphere(0.1), mat, Vector3(0, 0.13, -0.11), "head")
+	_attach("Head", MeshLib.sphere(0.055), mat, Vector3(0.09, 0.15, 0.0), "head")
 
 func _turban_mat(id: String) -> Material:
 	# Checkered jamane in black, grey, and cream. No red-and-white check.

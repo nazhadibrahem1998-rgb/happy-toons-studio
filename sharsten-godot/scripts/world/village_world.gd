@@ -201,7 +201,7 @@ static func make_house(style: int) -> Node3D:
 	wall_m.uv1_scale = Vector3(0.55, 0.55, 0.55)
 	wall_m.uv1_triplanar = true
 	wall_m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var wall := MeshLib.part(node, MeshLib.box(2.6, 2.15, 2.4), wall_m, Vector3(0, 1.2, 0))
+	var wall := MeshLib.part(node, MeshLib.box(3.2, 0.36, 3.05), wall_m, Vector3(0, 0.18, 0))
 	wall.add_to_group("house_wall")
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -264,7 +264,58 @@ static func make_house(style: int) -> Node3D:
 	shape.position = Vector3(0, 1.05, 0)
 	body.add_child(shape)
 	node.add_child(body)
+	# Walls are separate stone courses with a door gap, a lower side room, and a courtyard.
+	_kit(node, "wall-block.fbx", Vector3(-0.95, 0.2, -1.22), Vector3(1.2, 1.9, 0.42), "stone")
+	_kit(node, "wall-block.fbx", Vector3(1.0, 0.2, -1.22), Vector3(1.15, 1.9, 0.42), "stone")
+	_kit(node, "wall-block.fbx", Vector3(0.05, 0.2, 1.22), Vector3(2.55, 1.85, 0.4), "stone")
+	_kit(node, "wall-block.fbx", Vector3(-1.38, 0.2, 0.05), Vector3(0.4, 1.9, 2.15), "stone")
+	_kit(node, "wall-block.fbx", Vector3(1.38, 0.2, 0.45), Vector3(0.4, 1.55, 1.35), "stone")
+	_kit(node, "wall-door.fbx", Vector3(0.05, 0.15, -1.28), Vector3(0.95, 1.7, 0.42), "wood")
+	_kit(node, "wall-window-round.fbx", Vector3(1.05, 0.85, -1.28), Vector3(0.55, 0.7, 0.32), "wood")
+	_kit(node, "roof-flat.fbx", Vector3(0.05, 2.15, 0.0), Vector3(3.35, 0.9, 3.15), "earth")
+	_kit(node, "planks.fbx", Vector3(0.05, 2.28, -1.55), Vector3(3.55, 0.4, 0.42), "wood")
+	_kit(node, "stairs-stone.fbx", Vector3(0.05, 0, -2.05), Vector3(1.25, 0.45, 1.05), "stone")
+	_kit(node, "wall-block.fbx", Vector3(2.15, 0.15, 0.15), Vector3(1.15, 1.15, 2.2), "stone")
+	_kit(node, "roof-flat.fbx", Vector3(2.15, 1.4, 0.15), Vector3(1.5, 0.55, 2.45), "earth")
+	_kit(node, "wall-broken.fbx", Vector3(-1.55, 0.15, 1.2), Vector3(0.85, 1.05, 0.85), "stone")
+	if style % 2 == 0:
+		_kit(node, "chimney.fbx", Vector3(0.85, 2.25, 0.4), Vector3(0.55, 0.75, 0.55), "stone")
+	_kit(node, "rock-wide.fbx", Vector3(-1.85, 0, -0.2), Vector3(1.05, 0.5, 0.85), "stone")
+	_kit(node, "wall-block.fbx", Vector3(-1.15, 0.1, -2.45), Vector3(2.3, 0.75, 0.26), "stone")
 	return node
+
+static func _kit(parent: Node3D, file: String, pos: Vector3, scl: Vector3, which: String = "stone") -> void:
+	var packed = load("res://assets/buildings/kenney/" + file)
+	if packed == null:
+		return
+	var inst = packed.instantiate()
+	inst.position = pos
+	inst.scale = scl
+	_paint_kit(inst, _kit_mat(which))
+	parent.add_child(inst)
+
+static func _kit_mat(which: String) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.94
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.45, 0.45, 0.45)
+	if which == "wood":
+		mat.albedo_color = Color("7a4a28")
+		mat.albedo_texture = MeshLib.tex("wood")
+	elif which == "earth":
+		mat.albedo_color = Color("8a6848")
+		mat.albedo_texture = MeshLib.tex("mud")
+	else:
+		mat.albedo_color = Color("c4b49a")
+		mat.albedo_texture = MeshLib.tex("rock")
+	return mat
+
+static func _paint_kit(node: Node, mat: Material) -> void:
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_override = mat
+		(node as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in node.get_children():
+		_paint_kit(child, mat)
 
 static func _add_box(st: SurfaceTool, size: Vector3, center: Vector3, color: Color) -> void:
 	var hx := size.x * 0.5
@@ -470,20 +521,26 @@ func _nature() -> void:
 	var oaks: Array = []
 	var almonds: Array = []
 	var walnuts: Array = []
+	var poplars: Array = []
+	var bushes: Array = []
 	for i in positions.size():
 		var kind := i % 4
 		if kind == 0:
 			almonds.append(positions[i])
 		elif kind == 1:
 			walnuts.append(positions[i])
-		else:
+		elif kind == 2:
 			oaks.append(positions[i])
-	tree_detail = _foliage(oaks, "oak", true)
-	tree_far = _foliage(oaks, "oak", false)
-	add_child(tree_detail)
-	add_child(tree_far)
-	add_child(_foliage(almonds, "almond", true))
-	add_child(_foliage(walnuts, "walnut", true))
+		else:
+			poplars.append(positions[i])
+		if i % 10 == 0:
+			bushes.append(positions[i] + Vector3(1.1, 0, 0.4))
+	tree_detail = _place_trees(oaks, "oak", true)
+	tree_far = _place_trees(oaks, "oak", false)
+	_place_trees(almonds, "almond", true)
+	_place_trees(walnuts, "walnut", true)
+	_place_trees(poplars, "poplar", true)
+	_place_trees(bushes, "bush", true)
 	add_child(_foliage([Vector3(15, 0, 44)], "oak", true))
 	add_child(_foliage([Vector3(22.5, 0, 46)], "almond", true))
 	add_child(_foliage([Vector3(19, 0, 41.5)], "walnut", true))
@@ -506,23 +563,52 @@ func _nature() -> void:
 		add_child(lamp)
 		lamp_lights.append(lamp)
 
+func _place_trees(positions: Array, kind: String, detailed: bool) -> MultiMeshInstance3D:
+	var cell := 22.0
+	var buckets := {}
+	for p in positions:
+		var key := "%d:%d" % [int(floor(p.x / cell)), int(floor(p.z / cell))]
+		if not buckets.has(key):
+			buckets[key] = []
+		(buckets[key] as Array).append(p)
+	var first: MultiMeshInstance3D = null
+	for key in buckets:
+		var inst := _foliage(buckets[key], kind, detailed)
+		inst.add_to_group("tree_detail" if detailed else "tree_far")
+		add_child(inst)
+		if first == null:
+			first = inst
+	return first
+
 func _foliage(positions: Array, kind: String, detailed: bool) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = _impostor_mesh() if not detailed else _tree_shape(kind, true)
+	mm.mesh = _impostor_mesh() if not detailed else _nature_mesh(kind)
 	mm.instance_count = positions.size()
 	for i in positions.size():
 		var p: Vector3 = positions[i]
 		var yaw := sin(p.x * 0.2 + p.z * 0.13) * 0.6
-		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, 0.0, p.z)))
+		var basis := Basis(Vector3.UP, yaw)
+		if detailed:
+			var wide := 1.7
+			var tall := 1.2
+			if kind == "oak":
+				wide = 1.85
+				tall = 1.25
+			elif kind == "almond":
+				wide = 1.35
+				tall = 1.15
+			elif kind == "poplar":
+				wide = 0.72
+				tall = 1.65
+			elif kind == "bush":
+				wide = 0.85
+				tall = 0.75
+			basis = basis.scaled(Vector3(wide, tall, wide))
+		mm.set_instance_transform(i, Transform3D(basis, Vector3(p.x, 0.0, p.z)))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
-	if detailed:
-		var leaf := StandardMaterial3D.new()
-		leaf.vertex_color_use_as_albedo = true
-		leaf.roughness = 0.92
-		inst.material_override = leaf
-	else:
+	if not detailed:
 		inst.material_override = MeshLib.impostor_mat()
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
@@ -532,6 +618,35 @@ func _foliage(positions: Array, kind: String, detailed: bool) -> MultiMeshInstan
 		inst.visibility_range_end = 42.0
 		inst.visibility_range_end_margin = 6.0
 	return inst
+
+static var _nature_cache := {}
+
+func _nature_mesh(kind: String) -> Mesh:
+	var file := "CommonTree_1.fbx"
+	if kind == "almond":
+		file = "CommonTree_5.fbx"
+	elif kind == "walnut":
+		file = "CommonTree_2.fbx"
+	elif kind == "poplar":
+		file = "BirchTree_1.fbx"
+	elif kind == "bush":
+		file = "Bush_1.fbx"
+	if _nature_cache.has(file):
+		return _nature_cache[file]
+	var inst = load("res://assets/nature/quaternius/" + file).instantiate()
+	var found: Mesh = _first_mesh(inst)
+	inst.free()
+	_nature_cache[file] = found
+	return found
+
+func _first_mesh(node: Node) -> Mesh:
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh:
+		return (node as MeshInstance3D).mesh
+	for c in node.get_children():
+		var found := _first_mesh(c)
+		if found:
+			return found
+	return MeshLib.sphere(0.4)
 
 func _impostor_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
@@ -720,23 +835,46 @@ func _clump_mesh() -> ArrayMesh:
 	return st.commit()
 
 func _horizon() -> void:
-	var rock := MeshLib.ground_mat("9a8878", "rock", 0.08)
-	var ridge := [Vector3(-20, 0, -70), Vector3(40, 0, -78), Vector3(110, 0, -64), Vector3(180, 0, -82)]
-	for i in ridge.size():
-		var at: Vector3 = ridge[i]
-		for k in 3:
-			var cone := CylinderMesh.new()
-			var height := 70.0 - float(k) * 14.0 - float(i % 2) * 8.0
-			cone.top_radius = 0.6
-			cone.bottom_radius = 28.0 + float(k) * 6.0
-			cone.height = height
-			cone.radial_segments = 6
-			var hill := MeshInstance3D.new()
-			hill.mesh = cone
-			hill.position = at + Vector3(float(k - 1) * 18.0, height * 0.15 - 24.0, float(k) * 6.0)
-			hill.material_override = rock
-			hill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			add_child(hill)
+	var rock := MeshLib.ground_mat("c4b49a", "rock_face", 0.12)
+	# The mesh is 162 m deep. Keep its near edge north of the village so it does not bury the lanes.
+	for i in 2:
+		var ridge := MeshInstance3D.new()
+		ridge.mesh = _height_ridge(18, 1407 + i * 17)
+		ridge.position = Vector3(-40.0 + float(i) * 36.0, -8.0, -188.0 - float(i) * 18.0)
+		ridge.material_override = rock
+		ridge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(ridge)
+
+func _height_ridge(n: int, seed: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var step := 9.0
+	var h := PackedFloat32Array()
+	h.resize((n + 1) * (n + 1))
+	for z in n + 1:
+		for x in n + 1:
+			var nx := float(x) / float(n)
+			var nz := float(z) / float(n)
+			var ridge := pow(sin(nx * PI), 1.35) * pow(sin(nz * PI), 0.75)
+			var crest := maxf(0.0, sin(nx * TAU)) * sin(nz * PI)
+			var noise := sin((nx * 9.0 + float(seed)) * 1.7) * cos(nz * 7.0 * 1.3)
+			h[z * (n + 1) + x] = ridge * 26.0 + crest * 7.0 + noise * 3.2
+	for z in n:
+		for x in n:
+			var i00 := z * (n + 1) + x
+			var i10 := i00 + 1
+			var i01 := i00 + (n + 1)
+			var i11 := i01 + 1
+			var p00 := Vector3(float(x) * step, h[i00], float(z) * step)
+			var p10 := Vector3(float(x + 1) * step, h[i10], float(z) * step)
+			var p01 := Vector3(float(x) * step, h[i01], float(z + 1) * step)
+			var p11 := Vector3(float(x + 1) * step, h[i11], float(z + 1) * step)
+			for tri in [[p00, p10, p11], [p00, p11, p01]]:
+				var nrm: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
+				for p in tri:
+					st.set_normal(nrm)
+					st.add_vertex(p)
+	return st.commit()
 
 func _grass(positions: Array) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
@@ -761,10 +899,9 @@ func _echoes() -> void:
 	for spot in ContentDB.layout.get("echoes", []):
 		var root := Node3D.new()
 		root.position = Vector3(float(spot.get("x", 0)), 0, float(spot.get("z", 0)))
-		var trunk := MeshLib.part(root, MeshLib.cyl(0.1, 1.4), MeshLib.mat("5a3a28"), Vector3(0, 0.7, 0))
-		trunk.rotation.z = 0.08
-		var crown := MeshLib.part(root, MeshLib.sphere(0.55), MeshLib.mat("2f7a32"), Vector3(0.1, 1.55, 0))
-		crown.scale = Vector3(1.5, 0.35, 1.2)
+		var echo_tree = load("res://assets/nature/quaternius/CommonTree_5.fbx").instantiate()
+		echo_tree.scale = Vector3(0.9, 0.9, 0.9)
+		root.add_child(echo_tree)
 		root.add_to_group("dream_only")
 		add_child(root)
 
@@ -901,20 +1038,21 @@ func apply_graphics() -> void:
 		else:
 			sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 		RenderingServer.directional_shadow_atlas_set_size(int(f.get("shadow_size", 2048)), true)
-	var trees := int(f.get("trees", 90))
 	var view := float(f.get("view", 85)) * Settings.view_mul
-	if tree_detail and tree_detail.multimesh:
-		tree_detail.multimesh.visible_instance_count = mini(trees, tree_detail.multimesh.instance_count)
-		tree_detail.visibility_range_begin = 0.0
-		tree_detail.visibility_range_end = float(f.get("lod_full", 24))
-		tree_detail.visibility_range_end_margin = 4.0
-		tree_detail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(f.get("foliage_shadows", false)) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if tree_far and tree_far.multimesh:
-		tree_far.multimesh.visible_instance_count = mini(trees, tree_far.multimesh.instance_count)
-		tree_far.visibility_range_begin = maxf(float(f.get("lod_full", 24)) - 4.0, 0.0)
-		tree_far.visibility_range_begin_margin = 4.0
-		tree_far.visibility_range_end = view
-		tree_far.visibility_range_end_margin = 6.0
+	var lod := float(f.get("lod_full", 24))
+	var shadow := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(f.get("foliage_shadows", false)) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for node in get_tree().get_nodes_in_group("tree_detail"):
+		if node is MultiMeshInstance3D:
+			node.visibility_range_begin = 0.0
+			node.visibility_range_end = lod + 12.0
+			node.visibility_range_end_margin = 4.0
+			node.cast_shadow = shadow
+	for node in get_tree().get_nodes_in_group("tree_far"):
+		if node is MultiMeshInstance3D:
+			node.visibility_range_begin = maxf(lod - 4.0, 0.0)
+			node.visibility_range_begin_margin = 4.0
+			node.visibility_range_end = view
+			node.visibility_range_end_margin = 6.0
 	if grass_mm and grass_mm.multimesh:
 		grass_mm.multimesh.visible_instance_count = mini(int(f.get("grass", 0)), grass_mm.multimesh.instance_count)
 		grass_mm.visibility_range_end = float(f.get("grass_range", 28))
