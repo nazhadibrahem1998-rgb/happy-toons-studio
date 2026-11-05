@@ -353,6 +353,27 @@ func _check_move() -> void:
 	_check(int(Settings.keybinds.get("crouch", 0)) == KEY_C, "crouch defaults to C")
 	_check(int(Settings.keybinds.get("sprint", 0)) == KEY_SHIFT and int(Settings.keybinds.get("free_look", 0)) == KEY_CTRL, "crouch migration keeps Shift and Ctrl")
 
+func _check_village() -> void:
+	var low: Dictionary = GraphicsRules.flags("low")
+	_check(int(low.get("lamps", 9)) <= 4 and int(low.get("trees", 99)) <= 40, "low keeps a small lamp and tree budget")
+	_check(int(low.get("grass", 99)) <= 64 and not bool(low.get("volumetric_fog", true)), "low skips heavy fog and extra grass")
+	_check(float(low.get("fog_density", 1.0)) <= 0.001, "low fog stays faint")
+	var house = load("res://scripts/world/village_world.gd").make_house(0)
+	var shapes: Array = house.find_children("*", "CollisionShape3D", true, false)
+	_check(shapes.size() >= 1, "a house has a collider")
+	var bottom := 99.0
+	var wall_ok := false
+	for mi in house.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		var aabb: AABB = mi.transform * mi.mesh.get_aabb()
+		bottom = minf(bottom, aabb.position.y)
+		if mi.is_in_group("house_wall") and mi.mesh is BoxMesh:
+			wall_ok = true
+	_check(wall_ok, "the house wall stays a closed box")
+	_check(bottom <= 0.02, "the house meets the ground, bottom %s" % bottom)
+	house.free()
+
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()
 	_check(villager.choose_social(1.0, false, false, true) == "", "villagers do not gesture at the player")
@@ -433,6 +454,7 @@ func _units() -> void:
 	_check_social()
 	_check_influence()
 	_check_move()
+	_check_village()
 	_check_settings_ui()
 	_check_settings_roundtrip()
 	var now := 2026
@@ -472,7 +494,7 @@ func _units() -> void:
 	var ultra: Dictionary = GraphicsRules.flags("ultra")
 	_check(med["ssao"] and not med["sdfgi"] and not med["ssil"] and not med["ssr"] and not med["volumetric_fog"], "medium uses SSAO without realtime GI")
 	_check(high["sdfgi"] and high["ssao"] and high["ssil"] and high["volumetric_fog"], "high has GI, SSAO, SSIL, and light volumetric fog")
-	_check(load("res://scripts/world/mesh_lib.gd").kilim_mat() != null, "kilim paths have a woven material")
+	_check(load("res://scripts/world/mesh_lib.gd").kilim_mat() != null, "a doorway rug still has a woven material")
 	_check(load("res://scripts/world/mesh_lib.gd").cloth_mat("8a8680", "jamane0") != null, "jamane cloth has a weave")
 	_check(ultra["ssr"] and ultra["trees"] > high["trees"] and ultra["view"] > high["view"], "ultra is denser and sees farther")
 	_check(med["view"] < high["view"] and med["shadow_size"] < high["shadow_size"], "medium is lighter than high")

@@ -9,7 +9,7 @@ func _ready() -> void:
 	get_window().mode = Window.MODE_WINDOWED
 	get_window().size = Vector2i(1920, 1080)
 	DisplayServer.window_set_size(Vector2i(1920, 1080))
-	Settings.preset = "medium"
+	Settings.preset = "low"
 	Settings.fog_mode = "light"
 	Settings.scale = 1.0
 	Settings.fsr_mode = "off"
@@ -54,15 +54,15 @@ func _shoot(player: Node3D) -> void:
 	cam.current = true
 	var feet := player.global_position + Vector3(0, 0.15, 0)
 	var views := [
-		["v5-01-medium-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
-		["v5-02-medium-cloth.png", feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0)],
+		["v10-01-low-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
+		["v10-02-low-house.png", feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0)],
 	]
 	for view in views:
 		cam.look_at_from_position(view[1], view[2], Vector3.UP)
 		await RenderingServer.frame_post_draw
 		await RenderingServer.frame_post_draw
 		_save_shot(str(view[0]))
-	Settings.preset = "ultra"
+	Settings.preset = "high"
 	Settings.fog_mode = "preset"
 	Settings.apply_runtime()
 	var world := get_tree().root.find_child("VillageWorld", true, false)
@@ -76,7 +76,7 @@ func _shoot(player: Node3D) -> void:
 	cam.look_at_from_position(feet + Vector3(-8.0, 4.4, 10.0), feet + Vector3(4, 1.2, -12), Vector3.UP)
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
-	_save_shot("v5-03-ultra-lane.png")
+	_save_shot("v10-03-high-lane.png")
 	get_tree().quit(0)
 
 func _save_shot(file_name: String) -> void:

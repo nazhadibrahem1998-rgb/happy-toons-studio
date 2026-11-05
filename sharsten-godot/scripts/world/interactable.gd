@@ -79,14 +79,14 @@ func _meta() -> void:
 func _visual() -> void:
 	match kind:
 		"wood":
-			MeshLib.part(self, MeshLib.cyl(0.12, 0.7), MeshLib.mat("6b4226"), Vector3(0, 0.35, 0))
-			MeshLib.part(self, MeshLib.sphere(0.28), MeshLib.mat("2f7a32"), Vector3(0, 0.85, 0))
+			MeshLib.part(self, MeshLib.cyl(0.1, 0.7), MeshLib.mat("6b4226"), Vector3(0, 0.12, 0))
+			MeshLib.part(self, MeshLib.cyl(0.08, 0.55), MeshLib.mat("5a3a28"), Vector3(0.12, 0.1, 0.05))
 		"stone":
 			MeshLib.part(self, MeshLib.sphere(0.28), MeshLib.ground_mat("9a9088", "rock", 0.8), Vector3(0, 0.2, 0))
 		"clay":
 			MeshLib.part(self, MeshLib.box(0.7, 0.18, 0.7), MeshLib.mat("a67c52"), Vector3(0, 0.1, 0))
 		"fibre", "herb":
-			MeshLib.part(self, MeshLib.box(0.4, 0.5, 0.4), MeshLib.mat("3f8a40" if kind == "herb" else "c2a06a"), Vector3(0, 0.28, 0))
+			MeshLib.part(self, MeshLib.box(0.28, 0.12, 0.28), MeshLib.mat("3f8a40" if kind == "herb" else "c2a06a"), Vector3(0, 0.06, 0))
 		"hide":
 			MeshLib.part(self, MeshLib.box(0.5, 0.7, 0.06), MeshLib.mat("8a623c"), Vector3(0, 0.6, 0))
 		"found":
@@ -130,8 +130,9 @@ func _station_mesh() -> void:
 		"stone":
 			MeshLib.part(self, MeshLib.box(1.1, 0.5, 0.7), MeshLib.mat("9a9088"), Vector3(0, 0.3, 0))
 		"trade":
-			MeshLib.part(self, MeshLib.box(1.4, 0.05, 1.0), MeshLib.mat("8b1e2d"), Vector3(0, 0.05, 0))
-			MeshLib.part(self, MeshLib.sphere(0.12), MeshLib.mat("e4c48a"), Vector3(0.2, 0.16, 0))
+			MeshLib.part(self, MeshLib.box(1.3, 0.08, 0.7), MeshLib.mat("6b4226"), Vector3(0, 0.55, 0))
+			MeshLib.part(self, MeshLib.box(0.08, 0.5, 0.08), MeshLib.mat("5a3a28"), Vector3(-0.5, 0.25, 0.25))
+			MeshLib.part(self, MeshLib.box(0.08, 0.5, 0.08), MeshLib.mat("5a3a28"), Vector3(0.5, 0.25, -0.25))
 		_:
 			MeshLib.part(self, MeshLib.box(0.6, 0.6, 0.6), wood, Vector3(0, 0.3, 0))
 

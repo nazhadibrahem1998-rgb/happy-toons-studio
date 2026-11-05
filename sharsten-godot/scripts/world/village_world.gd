@@ -168,92 +168,128 @@ func _wall(x: float, z: float, w: float, d: float) -> void:
 
 func _roads() -> void:
 	var roads: Dictionary = ContentDB.layout.get("roads", {})
-	MeshLib.paint_tiles(self, roads.get("stone", []), 0.02, Vector3(2.2, 0.015, 2.2), MeshLib.kilim_mat())
-	MeshLib.paint_tiles(self, roads.get("dirt", []), 0.004, Vector3(2.28, 0.018, 2.28), MeshLib.path_mat("8d6844"))
+	var cobble: Array = roads.get("stone", [])
+	var dirt: Array = roads.get("dirt", [])
+	MeshLib.paint_tiles(self, dirt, 0.008, Vector3(2.7, 0.012, 2.7), MeshLib.path_mat("6f8a4e"))
+	MeshLib.paint_tiles(self, cobble, 0.008, Vector3(2.55, 0.012, 2.55), MeshLib.path_mat("7d8a52"))
+	MeshLib.paint_tiles(self, dirt, 0.02, Vector3(2.15, 0.016, 2.15), MeshLib.path_mat("8d6844"))
+	MeshLib.paint_tiles(self, cobble, 0.028, Vector3(2.05, 0.018, 2.05), MeshLib.path_mat("b7a48a"))
 
 func _houses() -> void:
-	var walls := [Color("d2c2a0"), Color("c4a574"), Color("b08968"), Color("e6d4b4"), Color("a68462")]
 	for h in ContentDB.layout.get("houses", []):
 		var at: Array = h.get("at", [0, 0])
-		var style := int(h.get("style", 0)) % walls.size()
-		var node := Node3D.new()
+		var style := int(h.get("style", 0))
+		var node := make_house(style)
 		node.position = Vector3(float(at[0]), 0, float(at[1]))
 		add_child(node)
 		node.look_at(_lane_point(float(at[0]), float(at[1])), Vector3.UP)
-		var wall_m := StandardMaterial3D.new()
-		wall_m.albedo_color = walls[style]
-		wall_m.albedo_texture = MeshLib.tex("rock")
-		wall_m.roughness = 0.94
-		wall_m.uv1_scale = Vector3(0.55, 0.55, 0.55)
-		wall_m.uv1_triplanar = true
-		wall_m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		var wall := MeshLib.part(node, MeshLib.box(2.6, 2.2, 2.4), wall_m, Vector3(0, 1.25, 0))
-		wall.add_to_group("house_wall")
-		var stone := MeshLib.ground_mat("9a9088", "rock", 0.7)
-		var timber := MeshLib.ground_mat("6b4226", "wood", 0.45)
-		var earth := MeshLib.ground_mat("8a6848", "mud", 0.35)
-		MeshLib.part(node, MeshLib.box(2.9, 0.35, 2.7), stone, Vector3(0, 0.18, 0))
-		MeshLib.part(node, MeshLib.box(2.85, 0.12, 2.65), timber, Vector3(0, 2.4, 0))
-		MeshLib.part(node, MeshLib.box(3.15, 0.22, 2.95), earth, Vector3(0, 2.55, 0))
-		MeshLib.part(node, MeshLib.box(0.12, 0.22, 3.05), timber, Vector3(-1.35, 2.55, 0))
-		MeshLib.part(node, MeshLib.box(0.12, 0.22, 3.05), timber, Vector3(1.35, 2.55, 0))
-		MeshLib.part(node, MeshLib.box(3.05, 0.22, 0.12), timber, Vector3(0, 2.55, -1.25))
-		MeshLib.part(node, MeshLib.box(0.7, 1.15, 0.08), MeshLib.mat("4a3428"), Vector3(0, 0.62, -1.22))
-		MeshLib.part(node, MeshLib.box(0.12, 1.25, 0.14), timber, Vector3(-0.42, 0.7, -1.24))
-		MeshLib.part(node, MeshLib.box(0.12, 1.25, 0.14), timber, Vector3(0.42, 0.7, -1.24))
-		MeshLib.part(node, MeshLib.box(0.96, 0.12, 0.14), timber, Vector3(0, 1.28, -1.24))
-		MeshLib.part(node, MeshLib.box(0.55, 0.4, 0.06), MeshLib.mat("c4a574"), Vector3(0.85, 1.35, -1.22))
-		MeshLib.part(node, MeshLib.box(1.1, 0.12, 0.55), stone, Vector3(0, 0.06, -1.55))
-		MeshLib.part(node, MeshLib.box(0.9, 0.1, 0.4), stone, Vector3(0, 0.14, -1.7))
-		MeshLib.part(node, MeshLib.box(2.2, 0.55, 0.22), stone, Vector3(1.55, 0.28, 0))
-		_rubble(node, style)
-		var course := MeshLib.ground_mat("b08968", "mud", 0.4)
-		for i in 5:
-			MeshLib.part(node, MeshLib.box(2.68, 0.045, 2.48), course, Vector3(0, 0.48 + i * 0.32, 0))
-		var body := StaticBody3D.new()
-		body.collision_layer = 1
-		body.add_to_group("house_block")
-		var hx := float(at[0])
-		var hz := float(at[1])
-		body.set_meta("min_xz", Vector2(hx - 2.15, hz - 2.15))
-		body.set_meta("max_xz", Vector2(hx + 2.15, hz + 2.15))
-		var shape := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = Vector3(2.9, 3.2, 2.9)
-		shape.shape = box
-		shape.position = Vector3(0, 1.05, 0)
-		body.add_child(shape)
-		node.add_child(body)
+		var block := node.get_node_or_null("HouseBlock")
+		if block:
+			var hx := float(at[0])
+			var hz := float(at[1])
+			block.set_meta("min_xz", Vector2(hx - 2.15, hz - 2.15))
+			block.set_meta("max_xz", Vector2(hx + 2.15, hz + 2.15))
 
-func _rubble(node: Node3D, style: int) -> void:
-	var rock := MeshLib.ground_mat("a09080", "rock", 1.4)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = style * 19 + 5
-	for i in 8:
-		var ang := rng.randf() * TAU
-		var rad := rng.randf_range(1.35, 1.75)
-		var s := rng.randf_range(0.1, 0.26)
-		var stone := MeshLib.part(node, MeshLib.sphere(s), rock, Vector3(cos(ang) * rad, s * 0.28, sin(ang) * rad))
-		stone.scale = Vector3(1.25, 0.5, 1.0)
-	if style % 3 != 0:
-		return
-	var rust := MeshLib.mat("7a4e3a", 0.48, 0.72)
-	var gear := CylinderMesh.new()
-	gear.top_radius = 0.32
-	gear.bottom_radius = 0.32
-	gear.height = 0.07
-	gear.radial_segments = 14
-	var disc := MeshLib.part(node, gear, rust, Vector3(0.15, 1.15, -1.34))
-	disc.rotation.x = PI * 0.5
-	for i in 6:
-		var a := float(i) / 6.0 * TAU
-		MeshLib.part(node, MeshLib.box(0.07, 0.11, 0.06), rust, Vector3(0.15 + cos(a) * 0.38, 1.15 + sin(a) * 0.38, -1.36))
-	var pipe := CylinderMesh.new()
-	pipe.top_radius = 0.05
-	pipe.bottom_radius = 0.05
-	pipe.height = 1.05
-	var tube := MeshLib.part(node, pipe, rust, Vector3(-0.55, 0.85, -1.32))
-	tube.rotation.z = PI * 0.5
+static func make_house(style: int) -> Node3D:
+	var node := Node3D.new()
+	var walls := [Color("d2c2a0"), Color("c4a574"), Color("b08968"), Color("e6d4b4"), Color("a68462")]
+	var tint: Color = walls[style % walls.size()]
+	var wall_m := StandardMaterial3D.new()
+	wall_m.albedo_color = tint
+	wall_m.albedo_texture = MeshLib.tex("rock")
+	wall_m.roughness = 0.94
+	wall_m.uv1_scale = Vector3(0.55, 0.55, 0.55)
+	wall_m.uv1_triplanar = true
+	wall_m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var wall := MeshLib.part(node, MeshLib.box(2.6, 2.15, 2.4), wall_m, Vector3(0, 1.2, 0))
+	wall.add_to_group("house_wall")
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var stone := Color("9a9088")
+	var timber := Color("6b4226")
+	var earth := Color("8a6848")
+	var door := Color("4a3428")
+	_add_box(st, Vector3(3.05, 0.28, 2.85), Vector3(0, 0.14, 0), stone)
+	_add_box(st, Vector3(2.95, 0.1, 2.75), Vector3(0, 2.32, 0), timber)
+	_add_box(st, Vector3(3.25, 0.16, 3.05), Vector3(0, 2.46, 0), earth)
+	_add_box(st, Vector3(0.1, 0.16, 3.35), Vector3(-1.45, 2.46, 0), timber)
+	_add_box(st, Vector3(0.1, 0.16, 3.35), Vector3(1.45, 2.46, 0), timber)
+	_add_box(st, Vector3(3.35, 0.16, 0.1), Vector3(0, 2.46, -1.4), timber)
+	_add_box(st, Vector3(3.35, 0.16, 0.1), Vector3(0, 2.46, 1.4), timber)
+	_add_box(st, Vector3(0.72, 1.2, 0.08), Vector3(0, 0.6, -1.28), door)
+	_add_box(st, Vector3(0.1, 1.28, 0.1), Vector3(-0.42, 0.64, -1.32), timber)
+	_add_box(st, Vector3(0.1, 1.28, 0.1), Vector3(0.42, 0.64, -1.32), timber)
+	_add_box(st, Vector3(0.94, 0.1, 0.1), Vector3(0, 1.24, -1.32), timber)
+	_add_box(st, Vector3(0.5, 0.42, 0.06), Vector3(0.82, 1.35, -1.28), Color("c4a574"))
+	_add_box(st, Vector3(0.62, 0.08, 0.08), Vector3(0.82, 1.12, -1.32), timber)
+	_add_box(st, Vector3(0.08, 0.5, 0.08), Vector3(0.56, 1.35, -1.32), timber)
+	_add_box(st, Vector3(0.08, 0.5, 0.08), Vector3(1.08, 1.35, -1.32), timber)
+	_add_box(st, Vector3(1.15, 0.1, 0.5), Vector3(0, 0.05, -1.6), stone)
+	_add_box(st, Vector3(0.9, 0.1, 0.38), Vector3(0, 0.14, -1.85), stone)
+	if style % 2 == 0:
+		_add_box(st, Vector3(0.22, 0.7, 2.2), Vector3(1.7, 0.35, 0.2), stone)
+	else:
+		_add_box(st, Vector3(1.6, 0.55, 0.2), Vector3(-0.3, 0.28, 1.45), stone)
+	if style % 3 == 0:
+		var rust := Color("7a4e3a")
+		_add_box(st, Vector3(0.46, 0.46, 0.05), Vector3(0.2, 1.2, -1.3), rust)
+	if style % 4 == 0:
+		var rug := MeshInstance3D.new()
+		rug.name = "DoorRug"
+		rug.mesh = MeshLib.box(0.7, 0.015, 0.45)
+		rug.material_override = MeshLib.kilim_mat()
+		rug.position = Vector3(0, 0.02, -1.45)
+		rug.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(rug)
+	elif style % 4 == 1:
+		_add_box(st, Vector3(0.04, 0.45, 0.35), Vector3(1.72, 0.85, 0.2), Color("8e2a2a"))
+	var trim := MeshInstance3D.new()
+	trim.mesh = st.commit()
+	var flat := StandardMaterial3D.new()
+	flat.vertex_color_use_as_albedo = true
+	flat.roughness = 0.92
+	trim.material_override = flat
+	trim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(trim)
+	var body := StaticBody3D.new()
+	body.name = "HouseBlock"
+	body.collision_layer = 1
+	body.add_to_group("house_block")
+	body.set_meta("min_xz", Vector2(-2.15, -2.15))
+	body.set_meta("max_xz", Vector2(2.15, 2.15))
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(2.9, 3.2, 2.9)
+	shape.shape = box
+	shape.position = Vector3(0, 1.05, 0)
+	body.add_child(shape)
+	node.add_child(body)
+	return node
+
+static func _add_box(st: SurfaceTool, size: Vector3, center: Vector3, color: Color) -> void:
+	var hx := size.x * 0.5
+	var hy := size.y * 0.5
+	var hz := size.z * 0.5
+	var p := [
+		center + Vector3(-hx, -hy, -hz), center + Vector3(hx, -hy, -hz),
+		center + Vector3(hx, hy, -hz), center + Vector3(-hx, hy, -hz),
+		center + Vector3(-hx, -hy, hz), center + Vector3(hx, -hy, hz),
+		center + Vector3(hx, hy, hz), center + Vector3(-hx, hy, hz),
+	]
+	var faces := [
+		[0, 2, 1, 0, 3, 2], [4, 5, 6, 4, 6, 7],
+		[0, 1, 5, 0, 5, 4], [3, 6, 2, 3, 7, 6],
+		[0, 7, 3, 0, 4, 7], [1, 2, 6, 1, 6, 5],
+	]
+	for face in faces:
+		var a: Vector3 = p[face[0]]
+		var b: Vector3 = p[face[1]]
+		var c: Vector3 = p[face[2]]
+		var n := (b - a).cross(c - a).normalized()
+		for idx in face:
+			st.set_color(color)
+			st.set_normal(n)
+			st.add_vertex(p[idx])
 
 func _lane_point(x: float, z: float) -> Vector3:
 	var best := Vector3(x, 0, z - 3.0)
@@ -276,9 +312,15 @@ func _landmarks() -> void:
 	var m := Node3D.new()
 	m.position = Vector3(float(mosque.get("x", 43)), 0, float(mosque.get("z", 72)))
 	var plaster := MeshLib.ground_mat("e6d8c4", "plaster", 0.3)
-	MeshLib.part(m, MeshLib.box(8.0, 3.2, 6.5), plaster, Vector3(0, 1.6, 0))
-	MeshLib.part(m, MeshLib.sphere(2.1), plaster, Vector3(0, 4.0, 0))
-	MeshLib.part(m, MeshLib.box(1.1, 5.5, 1.1), plaster, Vector3(-3.2, 2.7, -2.4))
+	var timber := MeshLib.ground_mat("6b4226", "wood", 0.45)
+	var earth := MeshLib.ground_mat("8a6848", "mud", 0.4)
+	MeshLib.part(m, MeshLib.box(7.4, 2.5, 5.6), plaster, Vector3(0, 1.35, 0))
+	MeshLib.part(m, MeshLib.box(7.8, 0.16, 6.0), earth, Vector3(0, 2.68, 0))
+	MeshLib.part(m, MeshLib.box(0.14, 0.18, 6.3), timber, Vector3(-3.5, 2.68, 0))
+	MeshLib.part(m, MeshLib.box(0.14, 0.18, 6.3), timber, Vector3(3.5, 2.68, 0))
+	MeshLib.part(m, MeshLib.box(1.15, 4.4, 1.15), plaster, Vector3(-3.0, 2.2, -2.1))
+	MeshLib.part(m, MeshLib.box(1.4, 0.16, 1.4), earth, Vector3(-3.0, 4.45, -2.1))
+	MeshLib.part(m, MeshLib.box(0.9, 1.4, 0.08), timber, Vector3(0, 0.75, -2.9))
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	body.add_to_group("house_block")
@@ -719,9 +761,10 @@ func _echoes() -> void:
 	for spot in ContentDB.layout.get("echoes", []):
 		var root := Node3D.new()
 		root.position = Vector3(float(spot.get("x", 0)), 0, float(spot.get("z", 0)))
-		var trunk := MeshLib.part(root, MeshLib.cyl(0.1, 1.6), MeshLib.mat("5a3a28"), Vector3(0.2, 0.8, 0))
-		trunk.rotation.z = 0.25
-		MeshLib.part(root, MeshLib.sphere(0.45), MeshLib.mat("2f7a32"), Vector3(0.45, 1.5, 0))
+		var trunk := MeshLib.part(root, MeshLib.cyl(0.1, 1.4), MeshLib.mat("5a3a28"), Vector3(0, 0.7, 0))
+		trunk.rotation.z = 0.08
+		var crown := MeshLib.part(root, MeshLib.sphere(0.55), MeshLib.mat("2f7a32"), Vector3(0.1, 1.55, 0))
+		crown.scale = Vector3(1.5, 0.35, 1.2)
 		root.add_to_group("dream_only")
 		add_child(root)
 
@@ -808,13 +851,14 @@ func apply_graphics() -> void:
 		density = 0.0
 	elif Settings.fog_mode == "light":
 		density *= 0.35
+	density *= 0.65
 	env.fog_density = density
-	env.fog_sky_affect = 0.42
-	env.fog_aerial_perspective = 0.18
+	env.fog_sky_affect = 0.18
+	env.fog_aerial_perspective = 0.08
 	env.fog_light_color = Color(0.98, 0.72, 0.46) if dream else Color(0.7, 0.62, 0.52)
 	env.fog_sun_scatter = 0.22
 	env.ambient_light_color = Color(0.9, 0.74, 0.55)
-	env.ambient_light_energy = 0.55 if bool(f.get("sdfgi", false)) else 0.78
+	env.ambient_light_energy = 0.55 if bool(f.get("sdfgi", false)) else 0.95
 	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
 	env.sdfgi_enabled = bool(f.get("sdfgi", false)) and forward and dream
 	env.sdfgi_cascades = int(f.get("sdfgi_cascades", 4))

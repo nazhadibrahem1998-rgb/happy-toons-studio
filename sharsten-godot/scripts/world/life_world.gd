@@ -56,7 +56,6 @@ func _cluster(world: Node3D, at: Vector3, kind: String, ruined: bool) -> void:
 			_prop(root, world, MeshLib.box(1.4, 0.08, 0.8), wood, Vector3(0, 0.72, 0), Vector3(1.5, 0.9, 0.9), true)
 			_prop(root, world, MeshLib.box(1.6, 0.55, 0.4), wood, Vector3(0, 0.28, 1.1), Vector3(1.7, 0.7, 0.5), true)
 			_prop(root, world, MeshLib.box(1.6, 0.55, 0.4), wood, Vector3(0, 0.28, -1.1), Vector3(1.7, 0.7, 0.5), true)
-			_rug(root, cloth, Vector3(0, 0.02, 0))
 		"plaza":
 			_prop(root, world, MeshLib.box(6, 0.08, 6), rust, Vector3(0, 0.02, 0), Vector3(6.2, 0.4, 6.2), false)
 			_prop(root, world, MeshLib.box(1.2, 0.4, 1.2), rust, Vector3(1.4, 0.15, 1.2), Vector3(1.4, 0.5, 1.4), false)
@@ -111,7 +110,7 @@ func _garden(world: Node3D, at: Vector3) -> void:
 		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, p))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
-	inst.material_override = MeshLib.mat("d45a78", 0.9)
+	inst.material_override = MeshLib.mat("c4b48a", 0.9)
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	inst.visibility_range_end = 48.0
 	inst.visibility_range_end_margin = 6.0
@@ -186,12 +185,12 @@ func _woods(world: Node3D, at: Vector3) -> void:
 func _orchard(world: Node3D, at: Vector3) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = MeshLib.sphere(0.42)
-	mm.instance_count = 10
-	for i in 10:
-		var p := at + Vector3((i % 5) * 2.2, 0, int(i / 5) * 2.4)
-		MeshLib.part(world, MeshLib.cyl(0.08, 1.1), MeshLib.mat("5a3a28", 0.9), p + Vector3(0, 0.55, 0))
-		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(1.15, 0.7, 1.0)), p + Vector3(0.15, 1.35, 0)))
+	mm.mesh = MeshLib.sphere(0.55)
+	mm.instance_count = 6
+	for i in 6:
+		var p := at + Vector3((i % 3) * 3.2, 0, int(i / 3) * 3.4)
+		MeshLib.part(world, MeshLib.cyl(0.1, 1.3), MeshLib.mat("5a3a28", 0.9), p + Vector3(0, 0.65, 0))
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(1.8, 0.32, 1.35)), p + Vector3(0, 1.55, 0)))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
 	inst.material_override = MeshLib.mat("2f6a32", 0.9)

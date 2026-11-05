@@ -365,7 +365,7 @@ static func credits_text() -> String:
 		"THIS PROJECT",
 		"Used for: the story, Azad-i Asmani, and the Kurdish clothing meshes on that rig.",
 		"Wool, cotton, and embroidery weaves, the black-grey-cream jamane check,",
-		"the red kilim paths, relic gears, and the mountain meshes are original.",
+		"doorway rugs and wall hangings, relic gears, and the mountain meshes are original.",
 		"Wind, birds, tandoor crackle, clicks, and the quiet theme are original audio.",
 		"No Mixamo clips. No assets taken from other games.",
 		"",
