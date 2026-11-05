@@ -269,27 +269,43 @@ func _check_influence() -> void:
 
 func _check_move() -> void:
 	var rules = load("res://scripts/sim/move_rules.gd")
-	_check(is_equal_approx(rules.target_speed(1.0, false), 1.28), "walk stays at the v3 speed")
-	var run_speed := float(rules.target_speed(1.0, true))
-	_check(run_speed >= 4.5 and run_speed <= 5.0, "run is between 4.5 and 5 m/s")
+	_check(is_equal_approx(rules.target_speed(1.0, false), 2.2), "walk is 2.2 m/s")
+	_check(is_equal_approx(rules.target_speed(1.0, true), 5.5), "run is 5.5 m/s")
 	_check(is_equal_approx(rules.target_speed(0.0, true), 0.0), "no input means a full stop")
-	_check(is_equal_approx(rules.step_speed(0.0, 1.28, 0.016), 1.28), "walk acceleration is the v3 snap")
-	_check(is_equal_approx(rules.step_speed(4.75, 0.0, 0.016), 0.0), "releasing movement stops at once")
-	var climbing := float(rules.step_speed(1.28, run_speed, 0.05))
-	_check(climbing > 1.28 and climbing < run_speed, "run eases up from a walk")
-	var speed := 1.28
-	for _i in 30:
-		speed = rules.step_speed(speed, run_speed, 0.016)
-	_check(is_equal_approx(speed, run_speed), "run reaches full speed")
+	var eased := float(rules.step_speed(0.0, 2.2, 0.05))
+	_check(eased > 0.8 and eased < 2.2, "walk eases in over about a tenth of a second")
+	_check(is_equal_approx(rules.step_speed(0.0, 2.2, 0.1), 2.2), "walk reaches full speed in 0.1 s")
+	_check(is_equal_approx(rules.step_speed(5.5, 0.0, 0.016), 0.0), "releasing movement stops at once")
+	var speed := 0.0
+	for _i in 40:
+		speed = rules.step_speed(speed, 5.5, 0.016)
+	_check(is_equal_approx(speed, 5.5), "run reaches full speed")
 	var moving := float(rules.turn_blend(0.016, true))
 	var idle := float(rules.turn_blend(0.016, false))
-	_check(moving > idle and is_equal_approx(moving, 1.0 - exp(-10.0 * 0.016)), "turn rate matches v3")
-	_check(is_equal_approx(rules.anim_pace(1.28), 1.0), "walk animation pace matches v3")
-	_check(rules.anim_pace(run_speed) > rules.anim_pace(1.28), "run animation speeds up with the ground")
+	_check(moving > idle and is_equal_approx(moving, 1.0 - exp(-10.0 * 0.016)), "turn rate stays quick")
+	_check(is_equal_approx(rules.anim_pace(2.2), 2.2 / 1.28), "walk animation matches the ground speed")
+	_check(rules.anim_pace(5.5) > rules.anim_pace(2.2), "run animation speeds up with the ground")
 	_check(is_equal_approx(rules.stick_y(true, 1.0, 0.016), -2.0), "on the floor the body is stuck down")
 	_check(rules.stick_y(false, 0.0, 0.016) < 0.0, "in the air gravity pulls down")
 	_check(int(Settings.ACTIONS.get("sprint", 0)) == KEY_SHIFT, "run defaults to Shift")
-	_check(Settings.key_label("sprint") != "", "the run key can be shown after a rebind")
+	var saved := {"version": 2, "preset": "low", "keys": {"sprint": 4194305, "move_forward": int(KEY_W)}}
+	_check(Settings._apply_dict(saved), "an Escape run bind is migrated")
+	_check(int(Settings.keybinds.get("sprint", 0)) == KEY_SHIFT, "sprint 4194305 becomes Shift")
+	_check(int(Settings.keybinds.get("move_forward", 0)) == KEY_W, "other saved keys stay")
+	Settings._install_actions()
+	var left := InputEventKey.new()
+	left.physical_keycode = KEY_SHIFT
+	left.keycode = KEY_SHIFT
+	left.location = 1
+	left.pressed = true
+	var right := InputEventKey.new()
+	right.physical_keycode = KEY_SHIFT
+	right.keycode = KEY_SHIFT
+	right.location = 2
+	right.pressed = true
+	_check(InputMap.event_is_action(left, "sprint") and InputMap.event_is_action(right, "sprint"), "both Shift keys run")
+	_check(str(Settings.try_rebind("sprint", KEY_ESCAPE)) == "cancel", "Escape does not replace the run key")
+	_check(int(Settings.keybinds.get("sprint", 0)) == KEY_SHIFT, "run stays on Shift after Escape")
 
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()

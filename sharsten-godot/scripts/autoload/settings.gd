@@ -43,6 +43,7 @@ const ARROWS := {
 	"move_left": KEY_LEFT,
 	"move_right": KEY_RIGHT,
 }
+const SETTINGS_VERSION := 3
 
 var preset := "medium"
 var detected := false
@@ -76,10 +77,11 @@ func _ready() -> void:
 		keybinds[action] = int(ACTIONS[action])
 	for action in MOUSE_ACTIONS.keys():
 		mouse_binds[action] = int(MOUSE_ACTIONS[action])
+	var migrated := false
 	if FileAccess.file_exists(_path()):
 		var parsed = JSON.parse_string(FileAccess.get_file_as_string(_path()))
 		if typeof(parsed) == TYPE_DICTIONARY:
-			_apply_dict(parsed)
+			migrated = _apply_dict(parsed)
 			detected = true
 	if not detected:
 		preset = GraphicsRules.preset_for_adapter(RenderingServer.get_video_adapter_name(), 0)
@@ -89,6 +91,8 @@ func _ready() -> void:
 		elif preset == "medium":
 			scale = 0.85
 		detected = true
+		save()
+	elif migrated:
 		save()
 	_install_actions()
 	call_deferred("apply_runtime")
@@ -103,7 +107,7 @@ func age_path() -> String:
 		return age_override
 	return "user://sharsten_age.json"
 
-func _apply_dict(d: Dictionary) -> void:
+func _apply_dict(d: Dictionary) -> bool:
 	preset = str(d.get("preset", preset))
 	if preset not in GraphicsRules.ORDER:
 		preset = "medium"
@@ -132,19 +136,43 @@ func _apply_dict(d: Dictionary) -> void:
 	show_hints = bool(d.get("show_hints", show_hints))
 	rain = bool(d.get("rain", rain))
 	var keys = d.get("keys", {})
+	var file_version := int(d.get("version", 0))
+	var migrated := file_version < SETTINGS_VERSION
 	if typeof(keys) == TYPE_DICTIONARY:
 		for action in ACTIONS.keys():
 			if keys.has(action):
 				keybinds[action] = int(keys[action])
+			elif action == "sprint":
+				migrated = true
+	if not _sprint_ok(int(keybinds.get("sprint", 0))):
+		keybinds["sprint"] = int(KEY_SHIFT)
+		migrated = true
 	var mice = d.get("mouse", {})
 	if typeof(mice) == TYPE_DICTIONARY:
 		for action in MOUSE_ACTIONS.keys():
 			if mice.has(action):
 				mouse_binds[action] = int(mice[action])
+	return migrated
+
+func _sprint_ok(code: int) -> bool:
+	# 4194305 is KEY_ESCAPE. A rebind used to store Escape when the owner
+	# closed the controls screen, so run never saw Shift (4194325).
+	if code == 0 or code == KEY_NONE or code == KEY_ESCAPE:
+		return false
+	return OS.get_keycode_string(code) != ""
+
+func event_key(event: InputEventKey) -> int:
+	var physical := int(event.physical_keycode)
+	var logical := int(event.keycode)
+	if physical == KEY_SHIFT or logical == KEY_SHIFT:
+		return int(KEY_SHIFT)
+	if physical != 0:
+		return physical
+	return logical
 
 func to_dict() -> Dictionary:
 	return {
-		"version": 2,
+		"version": SETTINGS_VERSION,
 		"preset": preset,
 		"scale": scale,
 		"fsr_mode": fsr_mode,
@@ -254,9 +282,7 @@ func _install_actions() -> void:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 		InputMap.action_erase_events(action)
-		var ev := InputEventKey.new()
-		ev.physical_keycode = int(keybinds.get(action, ACTIONS[action])) as Key
-		InputMap.action_add_event(action, ev)
+		_bind_key(action, int(keybinds.get(action, ACTIONS[action])))
 		if ARROWS.has(action):
 			var arrow := InputEventKey.new()
 			arrow.physical_keycode = int(ARROWS[action]) as Key
@@ -269,9 +295,25 @@ func _install_actions() -> void:
 		mb.button_index = int(mouse_binds.get(action, MOUSE_ACTIONS[action]))
 		InputMap.action_add_event(action, mb)
 
+func _bind_key(action: String, code: int) -> void:
+	if code == KEY_SHIFT:
+		for loc in [0, 1, 2]:
+			var ev := InputEventKey.new()
+			ev.physical_keycode = KEY_SHIFT
+			ev.keycode = KEY_SHIFT
+			ev.location = loc
+			InputMap.action_add_event(action, ev)
+		return
+	var ev := InputEventKey.new()
+	ev.physical_keycode = code as Key
+	ev.keycode = code as Key
+	InputMap.action_add_event(action, ev)
+
 func try_rebind(action: String, code: Key) -> String:
 	if not ACTIONS.has(action):
 		return "unknown"
+	if int(code) == 0 or int(code) == KEY_NONE or int(code) == KEY_ESCAPE:
+		return "cancel"
 	for other in keybinds.keys():
 		if other != action and int(keybinds[other]) == int(code):
 			return "used"

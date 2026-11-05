@@ -195,7 +195,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if Settings.rebind_action != "":
 		var rebound := false
 		if event is InputEventKey and event.pressed and not event.echo and Settings.ACTIONS.has(Settings.rebind_action):
-			Settings.try_rebind(Settings.rebind_action, (event as InputEventKey).physical_keycode)
+			Settings.try_rebind(Settings.rebind_action, Settings.event_key(event) as Key)
 			rebound = true
 		elif event is InputEventMouseButton and event.pressed and Settings.MOUSE_ACTIONS.has(Settings.rebind_action):
 			Settings.try_rebind_mouse(Settings.rebind_action, (event as InputEventMouseButton).button_index)
