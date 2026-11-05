@@ -5,6 +5,7 @@ class_name HumanRig
 ## attached to the same skeleton. The old cube IK is gone: it made the legs split.
 
 const MODEL := preload("res://assets/characters/quaternius/UAL1_Standard.fbx")
+const Move = preload("res://scripts/sim/move_rules.gd")
 
 var anim: AnimationPlayer
 var skel: Skeleton3D
@@ -39,11 +40,9 @@ func tick(_delta: float, speed: float, action: String) -> void:
 	var pace := 1.0
 	if action == "sit":
 		clip = "Armature|Sitting_Idle"
-	elif speed > 2.15:
-		clip = "Armature|Walk"
-		pace = 1.65
 	elif speed > 0.2:
 		clip = "Armature|Walk"
+		pace = Move.anim_pace(speed)
 	elif action in ["talk", "teach", "pray", "eat"]:
 		clip = "Armature|Idle_Talking"
 	elif action in ["carve", "hammer", "hoe", "weave", "bake", "tend"]:

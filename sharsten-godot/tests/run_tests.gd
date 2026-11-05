@@ -267,6 +267,30 @@ func _check_influence() -> void:
 	_check(str(aunt.get("mood", "")) == "relieved" and str(aunt.get("life", "")).find("debt") >= 0, "lending changes her situation")
 	_check(bool(GameState.data.get("flags", {}).get("money:lend_jug", false)), "the lend quest flag is set")
 
+func _check_move() -> void:
+	var rules = load("res://scripts/sim/move_rules.gd")
+	_check(is_equal_approx(rules.target_speed(1.0, false), 1.28), "walk stays at the v3 speed")
+	var run_speed := float(rules.target_speed(1.0, true))
+	_check(run_speed >= 4.5 and run_speed <= 5.0, "run is between 4.5 and 5 m/s")
+	_check(is_equal_approx(rules.target_speed(0.0, true), 0.0), "no input means a full stop")
+	_check(is_equal_approx(rules.step_speed(0.0, 1.28, 0.016), 1.28), "walk acceleration is the v3 snap")
+	_check(is_equal_approx(rules.step_speed(4.75, 0.0, 0.016), 0.0), "releasing movement stops at once")
+	var climbing := float(rules.step_speed(1.28, run_speed, 0.05))
+	_check(climbing > 1.28 and climbing < run_speed, "run eases up from a walk")
+	var speed := 1.28
+	for _i in 30:
+		speed = rules.step_speed(speed, run_speed, 0.016)
+	_check(is_equal_approx(speed, run_speed), "run reaches full speed")
+	var moving := float(rules.turn_blend(0.016, true))
+	var idle := float(rules.turn_blend(0.016, false))
+	_check(moving > idle and is_equal_approx(moving, 1.0 - exp(-10.0 * 0.016)), "turn rate matches v3")
+	_check(is_equal_approx(rules.anim_pace(1.28), 1.0), "walk animation pace matches v3")
+	_check(rules.anim_pace(run_speed) > rules.anim_pace(1.28), "run animation speeds up with the ground")
+	_check(is_equal_approx(rules.stick_y(true, 1.0, 0.016), -2.0), "on the floor the body is stuck down")
+	_check(rules.stick_y(false, 0.0, 0.016) < 0.0, "in the air gravity pulls down")
+	_check(int(Settings.ACTIONS.get("sprint", 0)) == KEY_SHIFT, "run defaults to Shift")
+	_check(Settings.key_label("sprint") != "", "the run key can be shown after a rebind")
+
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()
 	_check(villager.choose_social(1.0, false, false, true) == "", "villagers do not gesture at the player")
@@ -346,6 +370,7 @@ func _units() -> void:
 	_check_flocks()
 	_check_social()
 	_check_influence()
+	_check_move()
 	_check_settings_ui()
 	_check_settings_roundtrip()
 	var now := 2026

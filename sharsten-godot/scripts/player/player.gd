@@ -1,7 +1,6 @@
 extends CharacterBody3D
 
-const WALK := 1.28
-const RUN := 3.15
+const Move = preload("res://scripts/sim/move_rules.gd")
 
 var yaw := 0.4
 var pitch := -0.08
@@ -26,15 +25,16 @@ var hot_i := 0
 var aiming := false
 var _stuck := 0.0
 var _swing := 0.0
+var _planar := 0.0
 const HOTBAR := ["hands", "fence", "wall", "oven", "loom", "stool", "diary", "craft"]
 
 func _ready() -> void:
 	add_to_group("player")
 	collision_layer = 2
-	collision_mask = 1
-	floor_snap_length = 0.25
+	collision_mask = 1 | 4
+	floor_snap_length = Move.FLOOR_SNAP
 	floor_max_angle = deg_to_rad(50)
-	safe_margin = 0.08
+	safe_margin = Move.SAFE_MARGIN
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.32
@@ -72,6 +72,7 @@ func _on_moved() -> void:
 	global_position = Vector3(float(p.get("x", global_position.x)), 0.2, float(p.get("z", global_position.z)))
 	yaw = float(p.get("yaw", yaw))
 	velocity = Vector3.ZERO
+	_planar = 0.0
 
 func _unhandled_input(event: InputEvent) -> void:
 	if get_tree().paused:
@@ -122,21 +123,22 @@ func _physics_process(delta: float) -> void:
 			wish.x += 1.0
 		if Input.is_action_pressed("move_left"):
 			wish.x -= 1.0
-	var sprint := bot_sprint or Input.is_action_pressed("sprint")
-	var speed := RUN if sprint and wish.length() > 0.1 else WALK
-	if wish.length() < 0.1:
-		speed = 0.0
+	var running := bot_sprint if bot_override else Input.is_action_pressed("sprint")
+	var target := Move.target_speed(wish.length(), running)
+	_planar = Move.step_speed(_planar, target, delta)
 	var dir := LookMath.wish_dir(yaw, wish.x, wish.y)
-	velocity.x = dir.x * (RUN if sprint and wish.length() > 0.1 else WALK if wish.length() > 0.1 else 0.0)
-	velocity.z = dir.z * (RUN if sprint and wish.length() > 0.1 else WALK if wish.length() > 0.1 else 0.0)
-	if not is_on_floor():
-		velocity.y -= 22.0 * delta
-	else:
-		velocity.y = -2.0
+	if wish.length() < 0.1:
+		dir = Vector3.ZERO
+	elif dir.length() > 0.001:
+		dir = dir.normalized()
+	velocity.x = dir.x * _planar
+	velocity.z = dir.z * _planar
+	velocity.y = Move.stick_y(is_on_floor(), velocity.y, delta)
 	move_and_slide()
 	if global_position.y < -1.2:
 		global_position = last_safe
 		velocity = Vector3.ZERO
+		_planar = 0.0
 	if is_on_floor():
 		last_safe = global_position
 	if wish.length() > 0.2 and get_real_velocity().length() < 0.05 and is_on_floor():
@@ -147,10 +149,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		_stuck = 0.0
 	if dir.length() > 0.1:
-		rig.rotation.y = lerp_angle(rig.rotation.y, LookMath.face_yaw(dir), 1.0 - exp(-10.0 * delta))
+		rig.rotation.y = lerp_angle(rig.rotation.y, LookMath.face_yaw(dir), Move.turn_blend(delta, true))
 	elif not first_person:
-		rig.rotation.y = lerp_angle(rig.rotation.y, yaw, 1.0 - exp(-4.0 * delta))
-	var flat := Vector2(velocity.x, velocity.z).length()
+		rig.rotation.y = lerp_angle(rig.rotation.y, yaw, Move.turn_blend(delta, false))
+	var flat := _planar
 	if _swing > 0.0:
 		_swing -= delta
 	var act := force_action if force_action != "" else ("walk" if flat > 0.2 else "idle")
