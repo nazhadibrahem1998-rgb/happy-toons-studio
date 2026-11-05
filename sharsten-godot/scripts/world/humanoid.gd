@@ -137,16 +137,16 @@ func _clothes(spec: Dictionary) -> void:
 		return
 	var kind := str(spec.get("kind", "man"))
 	var girl := kind == "woman" or str(spec.get("child_kind", "")) == "girl"
-	var sash_m := MeshLib.mat(str(spec.get("sash", "8b1e2d")), 0.72)
-	var cloth := MeshLib.mat(str(spec.get("cloth", "4a4034")), 0.86)
-	var shirt := MeshLib.mat(str(spec.get("shirt", "c2a078")), 0.82)
-	var dress := MeshLib.mat(str(spec.get("dress", spec.get("cloth", "a33b3b"))), 0.84)
-	var wrap := MeshLib.mat(str(spec.get("wrap", "d8c4a4")), 0.8)
-	var vest := MeshLib.mat(str(spec.get("vest", "3a2a22")), 0.84)
-	var shoes := MeshLib.mat("f7f4ee", 0.75)
+	var sash_m := MeshLib.cloth_mat(str(spec.get("sash", "8b1e2d")), "wool")
+	var cloth := MeshLib.cloth_mat(str(spec.get("cloth", "4a4034")), "wool")
+	var shirt := MeshLib.cloth_mat(str(spec.get("shirt", "c2a078")), "cotton")
+	var dress := MeshLib.cloth_mat(str(spec.get("dress", spec.get("cloth", "a33b3b"))), "embroidery")
+	var wrap := MeshLib.cloth_mat(str(spec.get("wrap", "d8c4a4")), "cotton")
+	var vest := MeshLib.cloth_mat(str(spec.get("vest", "3a2a22")), "embroidery")
+	var shoes := MeshLib.cloth_mat("f7f4ee", "cotton")
 	var turban := _turban_mat(str(spec.get("name", "azad")))
 	if kind == "mullah":
-		var robe := MeshLib.mat(str(spec.get("robe", "241c18")), 0.9)
+		var robe := MeshLib.cloth_mat(str(spec.get("robe", "241c18")), "wool")
 		_wrap("neck_01", 0.16, 0.22, robe, "torso")
 		_wrap("spine_03", 0.26, 0.42, robe, "torso")
 		_wrap("spine_02", 0.28, 0.46, robe, "torso")
@@ -211,8 +211,9 @@ func _clothes(spec: Dictionary) -> void:
 	_foot_cover("foot_r", shoes)
 
 func _turban_mat(id: String) -> Material:
-	var palette := ["1c1c1c", "8a8680", "f3f0ea"]
-	return MeshLib.mat(palette[absi(id.hash()) % palette.size()], 0.8)
+	# Checkered jamane in black, grey, and cream. No red-and-white check.
+	var which := absi(id.hash()) % 3
+	return MeshLib.cloth_mat("ffffff", "jamane%d" % which)
 
 func _wrap(bone: String, radius: float, height: float, mat: Material, role: String) -> void:
 	var mesh := CylinderMesh.new()

@@ -9,8 +9,10 @@ func _ready() -> void:
 	get_window().mode = Window.MODE_WINDOWED
 	get_window().size = Vector2i(1920, 1080)
 	DisplayServer.window_set_size(Vector2i(1920, 1080))
-	Settings.preset = "low"
+	Settings.preset = "medium"
 	Settings.fog_mode = "light"
+	Settings.scale = 1.0
+	Settings.fsr_mode = "off"
 	Settings.vsync = false
 	Settings.fullscreen = false
 	Settings.apply_runtime()
@@ -52,19 +54,36 @@ func _shoot(player: Node3D) -> void:
 	cam.current = true
 	var feet := player.global_position + Vector3(0, 0.15, 0)
 	var views := [
-		["v4-01-houses.png", feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0)],
-		["v4-02-feet.png", feet + Vector3(-1.4, 0.45, 2.1), feet + Vector3(0, 0.2, 0)],
-		["v4-03-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
+		["v5-01-medium-lane.png", feet + Vector3(-6.0, 3.2, 8.0), feet + Vector3(2, 0.6, -4)],
+		["v5-02-medium-cloth.png", feet + Vector3(-2.35, 1.15, 3.05), feet + Vector3(0, 0.85, 0)],
 	]
 	for view in views:
 		cam.look_at_from_position(view[1], view[2], Vector3.UP)
 		await RenderingServer.frame_post_draw
 		await RenderingServer.frame_post_draw
-		var img := get_viewport().get_texture().get_image()
-		if img.get_width() != 1920 or img.get_height() != 1080:
-			img.resize(1920, 1080, Image.INTERPOLATE_LANCZOS)
-		var path := ProjectSettings.globalize_path("res://wip/" + str(view[0]))
-		DirAccess.make_dir_recursive_absolute(path.get_base_dir())
-		img.save_png(path)
-		print("WIPSHOT %dx%d %s" % [img.get_width(), img.get_height(), path])
+		_save_shot(str(view[0]))
+	Settings.preset = "ultra"
+	Settings.fog_mode = "preset"
+	Settings.apply_runtime()
+	var world := get_tree().root.find_child("VillageWorld", true, false)
+	if world == null:
+		for child in get_children():
+			if child.has_method("apply_graphics"):
+				world = child
+				break
+	if world != null and world.has_method("apply_graphics"):
+		world.apply_graphics()
+	cam.look_at_from_position(feet + Vector3(-8.0, 4.4, 10.0), feet + Vector3(4, 1.2, -12), Vector3.UP)
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	_save_shot("v5-03-ultra-lane.png")
 	get_tree().quit(0)
+
+func _save_shot(file_name: String) -> void:
+	var img := get_viewport().get_texture().get_image()
+	if img.get_width() != 1920 or img.get_height() != 1080:
+		img.resize(1920, 1080, Image.INTERPOLATE_LANCZOS)
+	var path := ProjectSettings.globalize_path("res://wip/" + file_name)
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	img.save_png(path)
+	print("WIPSHOT %dx%d %s" % [img.get_width(), img.get_height(), path])

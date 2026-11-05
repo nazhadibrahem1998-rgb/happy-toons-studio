@@ -335,7 +335,7 @@ static func _check(text: String, on: bool, cb: Callable) -> CheckButton:
 	return c
 
 static func opening_notice() -> String:
-	return "Made with Godot Engine\n\nGodot Engine is available under the MIT License.\nCopyright (c) 2014-present Godot Engine contributors.\nCopyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.\n\nGround, plaster, wood, rock, and mud textures: Poly Haven, CC0.\nStory, people, clothing, and animation: original to this game."
+	return "Made with Godot Engine\n\nGodot Engine is available under the MIT License.\nCopyright (c) 2014-present Godot Engine contributors.\nCopyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.\n\nGround, plaster, wood, and rock textures: Poly Haven, CC0.\nKilim paths, cloth weaves, and mountain meshes: original to this game.\nBodies and clips: Quaternius Universal Animation Library, CC0."
 
 static func credits_text() -> String:
 	return "\n".join([
@@ -350,7 +350,7 @@ static func credits_text() -> String:
 		"https://godotengine.org/license",
 		"",
 		"POLY HAVEN",
-		"Used for: ground, plaster, wood, rock, and mud colours in the valley.",
+		"Used for: grassland, plaster, timber, rock walls, rubble, and the distant peaks.",
 		"aerial_grass_rock, plastered_wall, wood_floor, rock_boulder_dry, brown_mud_dry.",
 		"Licence: CC0 1.0.",
 		"https://polyhaven.com",
@@ -362,8 +362,10 @@ static func credits_text() -> String:
 		"https://quaternius.com",
 		"",
 		"THIS PROJECT",
-		"Used for: the story, Azad-i Asmani, Kurdish clothing on that rig,",
-		"and the original wind, birds, tandoor crackle, clicks, and quiet theme.",
+		"Used for: the story, Azad-i Asmani, and the Kurdish clothing meshes on that rig.",
+		"Wool, cotton, and embroidery weaves, the black-grey-cream jamane check,",
+		"the red kilim paths, relic gears, and the mountain meshes are original.",
+		"Wind, birds, tandoor crackle, clicks, and the quiet theme are original audio.",
 		"No Mixamo clips. No assets taken from other games.",
 		"",
 		"INSPIRED BY",

@@ -47,7 +47,7 @@ const ARROWS := {
 var preset := "medium"
 var detected := false
 var scale := 1.0
-var fsr_mode := "off"
+var fsr_mode := "fsr2"
 var vsync := true
 var fps_cap := 0
 var sensitivity := 1.0
@@ -83,6 +83,11 @@ func _ready() -> void:
 			detected = true
 	if not detected:
 		preset = GraphicsRules.preset_for_adapter(RenderingServer.get_video_adapter_name(), 0)
+		fsr_mode = "fsr2"
+		if preset == "low":
+			scale = 0.67
+		elif preset == "medium":
+			scale = 0.85
 		detected = true
 		save()
 	_install_actions()
@@ -220,6 +225,9 @@ func _apply_window() -> void:
 		msaa = 2
 	elif aa_mode == "4x":
 		msaa = 4
+	var use_taa := aa_mode == "preset" and preset != "low"
+	if use_taa:
+		msaa = 0
 	match msaa:
 		4:
 			win.msaa_3d = Viewport.MSAA_4X
@@ -227,6 +235,7 @@ func _apply_window() -> void:
 			win.msaa_3d = Viewport.MSAA_2X
 		_:
 			win.msaa_3d = Viewport.MSAA_DISABLED
+	win.use_taa = use_taa
 	if DisplayServer.get_name() == "headless":
 		return
 	if fullscreen:

@@ -70,17 +70,17 @@ func _environment() -> void:
 	var sky := Sky.new()
 	var mat := ProceduralSkyMaterial.new()
 	_sky_mat = mat
-	mat.sky_top_color = Color(0.55, 0.66, 0.86)
-	mat.sky_horizon_color = Color(0.96, 0.82, 0.7)
-	mat.ground_horizon_color = Color(0.78, 0.68, 0.52)
-	mat.ground_bottom_color = Color(0.42, 0.36, 0.28)
+	mat.sky_top_color = Color(0.45, 0.62, 0.86)
+	mat.sky_horizon_color = Color(0.98, 0.72, 0.46)
+	mat.ground_horizon_color = Color(0.72, 0.58, 0.4)
+	mat.ground_bottom_color = Color(0.36, 0.3, 0.22)
 	mat.sky_curve = 0.08
 	mat.sun_angle_max = 32.0
 	sky.sky_material = mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.72, 0.68, 0.62)
-	env.ambient_light_energy = 0.62
+	env.ambient_light_color = Color(0.86, 0.72, 0.56)
+	env.ambient_light_energy = 0.7
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.78, 0.74, 0.7)
@@ -90,9 +90,9 @@ func _environment() -> void:
 	we.environment = env
 	add_child(we)
 	sun = DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-46, 38, 0)
-	sun.light_color = Color(1.0, 0.9, 0.74)
-	sun.light_energy = 1.25
+	sun.rotation_degrees = Vector3(-22, 52, 0)
+	sun.light_color = Color(1.0, 0.74, 0.46)
+	sun.light_energy = 1.45
 	sun.shadow_bias = 0.08
 	sun.shadow_normal_bias = 2.0
 	sun.shadow_blur = 1.1
@@ -139,13 +139,7 @@ func _floor() -> void:
 	var visual := MeshInstance3D.new()
 	visual.mesh = MeshLib.box(220, 0.4, 240)
 	visual.position = Vector3(70, -0.2, 80)
-	var ground := StandardMaterial3D.new()
-	ground.albedo_texture = MeshLib.terrain_tex()
-	ground.roughness = 0.96
-	ground.uv1_scale = Vector3(7, 7, 7)
-	ground.uv1_triplanar = true
-	ground.uv1_world_triplanar = true
-	visual.material_override = ground
+	visual.material_override = MeshLib.ground_mat("8aaa58", "ground", 9.0)
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(visual)
 
@@ -174,7 +168,7 @@ func _wall(x: float, z: float, w: float, d: float) -> void:
 
 func _roads() -> void:
 	var roads: Dictionary = ContentDB.layout.get("roads", {})
-	MeshLib.paint_tiles(self, roads.get("stone", []), 0.004, Vector3(2.32, 0.02, 2.32), MeshLib.path_mat("b89a6a"))
+	MeshLib.paint_tiles(self, roads.get("stone", []), 0.02, Vector3(2.2, 0.015, 2.2), MeshLib.kilim_mat())
 	MeshLib.paint_tiles(self, roads.get("dirt", []), 0.004, Vector3(2.28, 0.018, 2.28), MeshLib.path_mat("8d6844"))
 
 func _houses() -> void:
@@ -188,9 +182,9 @@ func _houses() -> void:
 		node.look_at(_lane_point(float(at[0]), float(at[1])), Vector3.UP)
 		var wall_m := StandardMaterial3D.new()
 		wall_m.albedo_color = walls[style]
-		wall_m.albedo_texture = MeshLib.tex("plaster")
-		wall_m.roughness = 0.9
-		wall_m.uv1_scale = Vector3(0.4, 0.4, 0.4)
+		wall_m.albedo_texture = MeshLib.tex("rock")
+		wall_m.roughness = 0.94
+		wall_m.uv1_scale = Vector3(0.55, 0.55, 0.55)
 		wall_m.uv1_triplanar = true
 		wall_m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		var wall := MeshLib.part(node, MeshLib.box(2.6, 2.2, 2.4), wall_m, Vector3(0, 1.25, 0))
@@ -212,6 +206,7 @@ func _houses() -> void:
 		MeshLib.part(node, MeshLib.box(1.1, 0.12, 0.55), stone, Vector3(0, 0.06, -1.55))
 		MeshLib.part(node, MeshLib.box(0.9, 0.1, 0.4), stone, Vector3(0, 0.14, -1.7))
 		MeshLib.part(node, MeshLib.box(2.2, 0.55, 0.22), stone, Vector3(1.55, 0.28, 0))
+		_rubble(node, style)
 		var course := MeshLib.ground_mat("b08968", "mud", 0.4)
 		for i in 5:
 			MeshLib.part(node, MeshLib.box(2.68, 0.045, 2.48), course, Vector3(0, 0.48 + i * 0.32, 0))
@@ -229,6 +224,36 @@ func _houses() -> void:
 		shape.position = Vector3(0, 1.05, 0)
 		body.add_child(shape)
 		node.add_child(body)
+
+func _rubble(node: Node3D, style: int) -> void:
+	var rock := MeshLib.ground_mat("a09080", "rock", 1.4)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = style * 19 + 5
+	for i in 8:
+		var ang := rng.randf() * TAU
+		var rad := rng.randf_range(1.35, 1.75)
+		var s := rng.randf_range(0.1, 0.26)
+		var stone := MeshLib.part(node, MeshLib.sphere(s), rock, Vector3(cos(ang) * rad, s * 0.28, sin(ang) * rad))
+		stone.scale = Vector3(1.25, 0.5, 1.0)
+	if style % 3 != 0:
+		return
+	var rust := MeshLib.mat("7a4e3a", 0.48, 0.72)
+	var gear := CylinderMesh.new()
+	gear.top_radius = 0.32
+	gear.bottom_radius = 0.32
+	gear.height = 0.07
+	gear.radial_segments = 14
+	var disc := MeshLib.part(node, gear, rust, Vector3(0.15, 1.15, -1.34))
+	disc.rotation.x = PI * 0.5
+	for i in 6:
+		var a := float(i) / 6.0 * TAU
+		MeshLib.part(node, MeshLib.box(0.07, 0.11, 0.06), rust, Vector3(0.15 + cos(a) * 0.38, 1.15 + sin(a) * 0.38, -1.36))
+	var pipe := CylinderMesh.new()
+	pipe.top_radius = 0.05
+	pipe.bottom_radius = 0.05
+	pipe.height = 1.05
+	var tube := MeshLib.part(node, pipe, rust, Vector3(-0.55, 0.85, -1.32))
+	tube.rotation.z = PI * 0.5
 
 func _lane_point(x: float, z: float) -> Vector3:
 	var best := Vector3(x, 0, z - 3.0)
@@ -404,13 +429,13 @@ func _nature() -> void:
 	var almonds: Array = []
 	var walnuts: Array = []
 	for i in positions.size():
-		var kind := i % 3
+		var kind := i % 4
 		if kind == 0:
-			oaks.append(positions[i])
-		elif kind == 1:
 			almonds.append(positions[i])
-		else:
+		elif kind == 1:
 			walnuts.append(positions[i])
+		else:
+			oaks.append(positions[i])
 	tree_detail = _foliage(oaks, "oak", true)
 	tree_far = _foliage(oaks, "oak", false)
 	add_child(tree_detail)
@@ -442,19 +467,21 @@ func _nature() -> void:
 func _foliage(positions: Array, kind: String, detailed: bool) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = _tree_shape(kind, detailed)
+	mm.mesh = _impostor_mesh() if not detailed else _tree_shape(kind, true)
 	mm.instance_count = positions.size()
 	for i in positions.size():
 		var p: Vector3 = positions[i]
-		var y := 0.0 if detailed else 0.0
-		var s := 1.0 if detailed else 0.72
-		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(s, s, s)), Vector3(p.x, y, p.z)))
+		var yaw := sin(p.x * 0.2 + p.z * 0.13) * 0.6
+		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, 0.0, p.z)))
 	var inst := MultiMeshInstance3D.new()
 	inst.multimesh = mm
-	var leaf := StandardMaterial3D.new()
-	leaf.vertex_color_use_as_albedo = true
-	leaf.roughness = 0.92
-	inst.material_override = leaf
+	if detailed:
+		var leaf := StandardMaterial3D.new()
+		leaf.vertex_color_use_as_albedo = true
+		leaf.roughness = 0.92
+		inst.material_override = leaf
+	else:
+		inst.material_override = MeshLib.impostor_mat()
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	if not detailed:
@@ -463,6 +490,20 @@ func _foliage(positions: Array, kind: String, detailed: bool) -> MultiMeshInstan
 		inst.visibility_range_end = 42.0
 		inst.visibility_range_end_margin = 6.0
 	return inst
+
+func _impostor_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for turn in 2:
+		var basis := Basis(Vector3.UP, float(turn) * PI * 0.5)
+		var corners := [Vector3(-1.5, 0.0, 0), Vector3(1.5, 0.0, 0), Vector3(1.5, 2.8, 0), Vector3(-1.5, 2.8, 0)]
+		var uvs := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
+		var normal := basis * Vector3(0, 0, 1)
+		for corner in [0, 1, 2, 0, 2, 3]:
+			st.set_uv(uvs[corner])
+			st.set_normal(normal)
+			st.add_vertex(basis * corners[corner])
+	return st.commit()
 
 func _tree_shape(kind: String, _detailed: bool) -> ArrayMesh:
 	var st := SurfaceTool.new()
@@ -487,12 +528,12 @@ func _tree_shape(kind: String, _detailed: bool) -> ArrayMesh:
 		_add_ellipsoid(st, Vector3(-0.48, 1.48, -0.2), Vector3(0.52, 0.4, 0.48), Color("214c2a"))
 	else:
 		_add_cylinder(st, Vector3(0, 0.7, 0), 0.2, 1.4, bark)
-		_add_branch(st, Vector3(0, 1.25, 0), Vector3(1.35, 1.7, 0.2), 0.08, bark)
-		_add_branch(st, Vector3(0, 1.2, 0), Vector3(-1.3, 1.65, -0.15), 0.075, bark)
-		_add_branch(st, Vector3(0, 1.3, 0), Vector3(0.15, 1.75, -1.15), 0.06, bark)
-		_add_ellipsoid(st, Vector3(1.45, 1.85, 0.25), Vector3(1.05, 0.28, 0.7), Color("2a5c2c"))
-		_add_ellipsoid(st, Vector3(-1.4, 1.78, -0.15), Vector3(0.95, 0.26, 0.65), Color("34683a"))
-		_add_ellipsoid(st, Vector3(0.1, 1.95, -1.2), Vector3(0.85, 0.24, 0.75), Color("245428"))
+		_add_branch(st, Vector3(0, 1.25, 0), Vector3(1.8, 1.65, 0.25), 0.08, bark)
+		_add_branch(st, Vector3(0, 1.2, 0), Vector3(-1.75, 1.6, -0.2), 0.075, bark)
+		_add_branch(st, Vector3(0, 1.3, 0), Vector3(0.15, 1.7, -1.5), 0.06, bark)
+		_add_ellipsoid(st, Vector3(1.9, 1.75, 0.3), Vector3(1.45, 0.28, 0.95), Color("2a5c2c"))
+		_add_ellipsoid(st, Vector3(-1.85, 1.7, -0.2), Vector3(1.35, 0.26, 0.9), Color("34683a"))
+		_add_ellipsoid(st, Vector3(0.1, 1.85, -1.6), Vector3(1.2, 0.24, 1.0), Color("245428"))
 	return st.commit()
 
 func _add_cylinder(st: SurfaceTool, center: Vector3, radius: float, height: float, color: Color) -> void:
@@ -637,19 +678,23 @@ func _clump_mesh() -> ArrayMesh:
 	return st.commit()
 
 func _horizon() -> void:
-	var spots := [
-		Vector3(-20, -3.5, 30), Vector3(70, -4.5, -28), Vector3(176, -3.0, 50),
-		Vector3(20, -4.0, 206), Vector3(110, -3.5, 208), Vector3(188, -3.2, 150),
-		Vector3(-16, -3.0, 130), Vector3(150, -4.0, -10),
-	]
-	for i in spots.size():
-		var hill := MeshInstance3D.new()
-		hill.mesh = MeshLib.sphere(16.0 + float(i % 3) * 5.0)
-		hill.position = spots[i]
-		hill.scale = Vector3(1.6, 0.38, 1.15)
-		hill.material_override = MeshLib.mat("b09878" if i % 2 == 0 else "7e9460")
-		hill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(hill)
+	var rock := MeshLib.ground_mat("9a8878", "rock", 0.08)
+	var ridge := [Vector3(-20, 0, -70), Vector3(40, 0, -78), Vector3(110, 0, -64), Vector3(180, 0, -82)]
+	for i in ridge.size():
+		var at: Vector3 = ridge[i]
+		for k in 3:
+			var cone := CylinderMesh.new()
+			var height := 70.0 - float(k) * 14.0 - float(i % 2) * 8.0
+			cone.top_radius = 0.6
+			cone.bottom_radius = 28.0 + float(k) * 6.0
+			cone.height = height
+			cone.radial_segments = 6
+			var hill := MeshInstance3D.new()
+			hill.mesh = cone
+			hill.position = at + Vector3(float(k - 1) * 18.0, height * 0.15 - 24.0, float(k) * 6.0)
+			hill.material_override = rock
+			hill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(hill)
 
 func _grass(positions: Array) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
@@ -766,8 +811,10 @@ func apply_graphics() -> void:
 	env.fog_density = density
 	env.fog_sky_affect = 0.42
 	env.fog_aerial_perspective = 0.18
-	env.fog_light_color = Color(0.93, 0.78, 0.66) if dream else Color(0.72, 0.68, 0.62)
-	env.fog_sun_scatter = 0.12
+	env.fog_light_color = Color(0.98, 0.72, 0.46) if dream else Color(0.7, 0.62, 0.52)
+	env.fog_sun_scatter = 0.22
+	env.ambient_light_color = Color(0.9, 0.74, 0.55)
+	env.ambient_light_energy = 0.55 if bool(f.get("sdfgi", false)) else 0.78
 	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
 	env.sdfgi_enabled = bool(f.get("sdfgi", false)) and forward and dream
 	env.sdfgi_cascades = int(f.get("sdfgi_cascades", 4))
@@ -777,11 +824,14 @@ func apply_graphics() -> void:
 	env.ssao_enabled = bool(f.get("ssao", false)) and forward
 	env.ssao_radius = 1.1
 	env.ssao_intensity = 1.15
+	env.ssil_enabled = bool(f.get("ssil", false)) and forward
+	env.ssil_radius = 3.5
+	env.ssil_intensity = 0.8
 	env.ssr_enabled = bool(f.get("ssr", false)) and forward
 	env.ssr_max_steps = int(f.get("ssr_steps", 32))
 	env.volumetric_fog_enabled = bool(f.get("volumetric_fog", false)) and forward and dream
 	env.volumetric_fog_density = float(f.get("vol_density", 0.0))
-	env.volumetric_fog_albedo = Color(0.75, 0.7, 0.8)
+	env.volumetric_fog_albedo = Color(0.95, 0.72, 0.48)
 	env.volumetric_fog_length = minf(float(f.get("view", 80.0)), 80.0)
 	env.glow_enabled = bool(f.get("glow", false)) and forward
 	env.glow_intensity = 0.25

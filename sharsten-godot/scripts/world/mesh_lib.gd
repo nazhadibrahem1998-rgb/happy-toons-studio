@@ -131,6 +131,136 @@ static func _cell(x: int, y: int) -> float:
 	var n := sin(float(x) * 127.1 + float(y) * 311.7) * 43758.5453
 	return n - floor(n)
 
+static func cloth_mat(hex: String, pattern: String) -> StandardMaterial3D:
+	var key := "cloth:%s:%s" % [hex, pattern]
+	if _mats.has(key):
+		return _mats[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(hex) if not pattern.begins_with("jamane") else Color.WHITE
+	m.albedo_texture = _cloth_tex(pattern)
+	m.roughness = 0.84
+	var tile := 4.0 if pattern.begins_with("jamane") else 8.0
+	m.uv1_scale = Vector3(tile, tile, tile)
+	m.uv1_triplanar = true
+	_mats[key] = m
+	return m
+
+static func kilim_mat() -> StandardMaterial3D:
+	if _mats.has("kilim"):
+		return _mats["kilim"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color.WHITE
+	m.albedo_texture = _kilim_tex()
+	m.roughness = 0.9
+	m.uv1_scale = Vector3(2, 2, 2)
+	_mats["kilim"] = m
+	return m
+
+static func impostor_mat() -> StandardMaterial3D:
+	if _mats.has("impostor"):
+		return _mats["impostor"]
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _impostor_tex()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.35
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 1.0
+	_mats["impostor"] = m
+	return m
+
+static func _cloth_tex(pattern: String) -> Texture2D:
+	if _tex.has(pattern):
+		return _tex[pattern]
+	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
+	if pattern.begins_with("jamane"):
+		var dark := Color("1c1c1c")
+		var light := Color("f3f0ea")
+		if pattern == "jamane1":
+			dark = Color("5c5954")
+			light = Color("d9d4cc")
+		elif pattern == "jamane2":
+			dark = Color("2a2a28")
+			light = Color("8a8680")
+		for y in 64:
+			for x in 64:
+				var on := (x / 8 + y / 8) % 2 == 0
+				img.set_pixel(x, y, light if on else dark)
+	elif pattern == "embroidery":
+		for y in 64:
+			for x in 64:
+				var edge := x < 6 or x > 57 or y < 6 or y > 57
+				var stitch := (x + y) % 9 == 0 or (x - y) % 11 == 0
+				var c := Color("6b3030")
+				if edge:
+					c = Color("c4a056")
+				elif stitch and (x < 14 or x > 50 or y < 14 or y > 50):
+					c = Color("e0c070")
+				img.set_pixel(x, y, c)
+	elif pattern == "cotton":
+		for y in 64:
+			for x in 64:
+				var n := 0.82 + 0.08 * sin(x * 1.7) * cos(y * 1.4)
+				var thread := 0.06 if x % 3 == 0 or y % 3 == 0 else 0.0
+				img.set_pixel(x, y, Color(n - thread, n - thread * 0.4, n * 0.86))
+	else:
+		for y in 64:
+			for x in 64:
+				var n := 0.55 + 0.06 * sin(float(x) * 2.2) + 0.04 * cos(float(y) * 2.6)
+				var thread := 0.04 if x % 2 == 0 else 0.0
+				img.set_pixel(x, y, Color(n + thread, n * 0.78, n * 0.55))
+	var tex := ImageTexture.create_from_image(img)
+	_tex[pattern] = tex
+	return tex
+
+static func _kilim_tex() -> Texture2D:
+	if _tex.has("_kilim"):
+		return _tex["_kilim"]
+	var img := Image.create(128, 128, false, Image.FORMAT_RGB8)
+	var red := Color("7a2424")
+	var tan := Color("c4a06a")
+	var ink := Color("3a2a22")
+	for y in 128:
+		for x in 128:
+			var lx := x % 32
+			var ly := y % 32
+			var c := red
+			if lx < 2 or ly < 2 or lx > 29 or ly > 29:
+				c = ink
+			elif lx < 4 or ly < 4 or lx > 27 or ly > 27:
+				c = tan
+			else:
+				var dx := absi(lx - 16)
+				var dy := absi(ly - 16)
+				if dx + dy < 6:
+					c = tan
+				elif dx + dy < 8:
+					c = ink
+			img.set_pixel(x, y, c)
+	var tex := ImageTexture.create_from_image(img)
+	_tex["_kilim"] = tex
+	return tex
+
+static func _impostor_tex() -> Texture2D:
+	if _tex.has("_impostor"):
+		return _tex["_impostor"]
+	var img := Image.create(64, 96, false, Image.FORMAT_RGBA8)
+	for y in 96:
+		for x in 64:
+			var u := (float(x) - 32.0) / 30.0
+			var v := (float(y) - 70.0) / 18.0
+			var canopy := u * u + v * v
+			var trunk := absi(x - 32) < 3 and y < 42
+			if canopy < 1.0 and y > 30:
+				var g := 0.22 + (1.0 - canopy) * 0.18
+				img.set_pixel(x, y, Color(0.16, g, 0.1, 0.95))
+			elif trunk:
+				img.set_pixel(x, y, Color(0.32, 0.2, 0.1, 1.0))
+			else:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+	var tex := ImageTexture.create_from_image(img)
+	_tex["_impostor"] = tex
+	return tex
+
 static func path_mat(hex: String) -> StandardMaterial3D:
 	var key := "path:" + hex
 	if _mats.has(key):

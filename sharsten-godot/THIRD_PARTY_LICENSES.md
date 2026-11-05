@@ -21,7 +21,7 @@ https://godotengine.org/license
 
 ## Poly Haven textures (CC0)
 
-Diffuse textures in `assets/textures/polyhaven/`, used on the ground, plaster walls, wood, rock, and mud lanes. CC0 1.0 Universal. No attribution is required by the licence. They are credited anyway.
+Diffuse textures in `assets/textures/polyhaven/`, used on the grassland, plaster, timber roofs, rock walls, rubble, and the distant peaks. CC0 1.0 Universal. No attribution is required by the licence. They are credited anyway.
 
 - aerial_grass_rock — https://polyhaven.com/a/aerial_grass_rock — file `ground.jpg`
 - plastered_wall — https://polyhaven.com/a/plastered_wall — file `plaster.jpg`
@@ -34,6 +34,8 @@ Diffuse textures in `assets/textures/polyhaven/`, used on the ground, plaster wa
 The villager and player bodies, and the idle, walk, talk, and sit clips, come from `assets/characters/quaternius/UAL1_Standard.fbx`.
 
 Quaternius released the Universal Animation Library as CC0 1.0. The file in this project was taken from the public mirror https://github.com/IAFahim/quaternius.universalAnimationLibrary.standard (the original pack is also published by Quaternius). No attribution is required by the licence. It is credited anyway. Kurdish clothing worn on top of the rig is original to Sharsten. Sheep, goats, chickens, dogs, cats, birds, donkeys, and horses are original low-poly silhouettes. The Quaternius animal pack could not be downloaded in this environment, so it is not included.
+
+The kilim lane pattern, the wool, cotton, and embroidery cloth images, and the black, grey, and cream jamane checks are original to this project. They are not photographs and not taken from the concept frames. Distant mountain meshes and the rusty gears set into some walls are original geometry. The rock colour on those meshes is the Poly Haven `rock_boulder_dry` texture above.
 
 The CC0 1.0 legal text is published at https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
