@@ -3,7 +3,7 @@ class_name Ending
 
 const BANNER := "Part 2 coming in an update"
 const WHITE_THOUGHT := "The grove has folded back. I am at its gate again."
-const RED_THOUGHT := "The dream cracks. I wake in the real Sharsten, worn down after a long war. The machines are only relics. No banner names who fired the last shot."
+const RED_THOUGHT := "The dream cracks. I wake in the real Sharsten, worn down after a long collapse. The machines are only relics. No one is named, and no banner is raised."
 
 static func apply(state: Dictionary, color: String, final_start: Dictionary) -> Dictionary:
 	if color == "white":

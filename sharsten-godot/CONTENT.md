@@ -96,7 +96,7 @@ Presets are in `scripts/sim/graphics_rules.gd`.
 
 The first launch picks a preset from the GPU name. An unknown name falls back to Medium. `AMD Radeon(TM) Graphics` and other integrated names start on Low, or Medium if a larger VRAM figure is passed in. High and Ultra stay for gaming GPUs. Resolution scale can use FSR 1 or FSR 2 when it is below 100%.
 
-The dream is the gentle old village. The red seed wakes the real Sharsten: worn ground, rusted relic frames, and the same people in the same clothes. No real nation is named. Windmill, water wheel, and the rocket stay sealed; studying a relic writes the blueprint into Engineering.
+The dream is the gentle old village. The red seed wakes the real Sharsten: worn ground, rusted relic frames, and the same people in the same clothes. No real nation is named. The text names no political party, flag, symbol, slogan, or leader, and it does not retell any real conflict. Windmill, water wheel, and the rocket stay sealed; studying a relic writes the blueprint into Engineering.
 
 Trees and grass use distance fades. Medium keeps the near detail band short so a 1060-class machine is not asked to shade the whole valley.
 

@@ -4,6 +4,6 @@ Sharsten was made with an AI coding assistant. The assistant wrote and revised g
 
 No AI image model, AI music model, or AI voice model was used to generate a shipped asset. Textures are Poly Haven CC0 photographs. The wind, birds, tandoor crackle, UI clicks, and the quiet theme are original waveforms synthesized in `scripts/world/ambience.gd`. Bodies and the idle, walk, talk, and sit clips are the Quaternius Universal Animation Library (CC0). Kurdish clothing (sash, shirt, dress, turban, headscarf) is original geometry parented to that skeleton.
 
-Azad-i Asmani and the villagers are fictional. No real person is depicted.
+Azad-i Asmani and the villagers are fictional. No real person is depicted. The game names no political party, flag, symbol, slogan, or leader, and it does not retell any real conflict.
 
 This file is the store disclosure. The in-game credits say the same thing in short.

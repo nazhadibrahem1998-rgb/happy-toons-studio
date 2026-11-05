@@ -50,6 +50,8 @@ Ideas only. No names, pictures, music, or interface from these works are in the 
 
 Sharsten is not affiliated with, endorsed by, or sponsored by any of them.
 
+The game names no political party, flag, symbol, slogan, or leader, and it does not retell any real conflict.
+
 ## Not used
 
-No Mixamo clips. No purchased assets. No Kenney or Quaternius packs are bundled in this build. Animation is an original idle, walk, and run blend with planted feet, written in `scripts/world/humanoid.gd`.
+No Mixamo clips. No purchased assets. Animal bodies in the valley are original low-poly silhouettes. The Quaternius animal pack is not included.
