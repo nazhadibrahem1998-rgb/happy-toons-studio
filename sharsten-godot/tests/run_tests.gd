@@ -306,6 +306,38 @@ func _check_move() -> void:
 	_check(InputMap.event_is_action(left, "sprint") and InputMap.event_is_action(right, "sprint"), "both Shift keys run")
 	_check(str(Settings.try_rebind("sprint", KEY_ESCAPE)) == "cancel", "Escape does not replace the run key")
 	_check(int(Settings.keybinds.get("sprint", 0)) == KEY_SHIFT, "run stays on Shift after Escape")
+	var older := {"version": 3, "preset": "low", "keys": {"sprint": int(KEY_SHIFT), "free_look": 4194305, "move_forward": int(KEY_W)}}
+	_check(Settings._apply_dict(older), "a version 3 file gains the look key")
+	_check(int(Settings.keybinds.get("free_look", 0)) == KEY_CTRL, "look defaults to Ctrl")
+	_check(int(Settings.keybinds.get("sprint", 0)) == KEY_SHIFT, "adding look keeps sprint on Shift")
+	Settings._install_actions()
+	var ctrl := InputEventKey.new()
+	ctrl.physical_keycode = KEY_CTRL
+	ctrl.keycode = KEY_CTRL
+	ctrl.location = 1
+	ctrl.pressed = true
+	var ctrl_r := InputEventKey.new()
+	ctrl_r.physical_keycode = KEY_CTRL
+	ctrl_r.keycode = KEY_CTRL
+	ctrl_r.location = 2
+	ctrl_r.pressed = true
+	_check(InputMap.event_is_action(ctrl, "free_look") and InputMap.event_is_action(ctrl_r, "free_look"), "both Ctrl keys look around")
+	var high := LookMath.apply_mouse(0.0, 0.0, 0.0, -5000.0, 0.01, false)
+	var low := LookMath.apply_mouse(0.0, 0.0, 0.0, 5000.0, 0.01, false)
+	_check(high.y <= LookMath.PITCH_MAX + 0.001 and high.y > 0.0, "pitch stops near 45 degrees up")
+	_check(low.y >= LookMath.PITCH_MIN - 0.001 and low.y < 0.0, "pitch stops near 60 degrees down")
+	var back := LookMath.follow_orbit(2.0, 0.6, 0.2, 0.016, false)
+	_check(absf(angle_difference(back.x, 0.2)) > 1.0, "the camera does not snap behind in one frame")
+	var cy := 2.0
+	var cp := 0.6
+	for _step in 28:
+		var stepped := LookMath.follow_orbit(cy, cp, 0.2, 0.016, false)
+		cy = stepped.x
+		cp = stepped.y
+	_check(absf(angle_difference(cy, 0.2)) < 0.25, "the camera eases behind the body")
+	_check(absf(cp - LookMath.REST_PITCH) < 0.12, "pitch eases back to the resting view")
+	var held := LookMath.follow_orbit(2.0, 0.4, 0.2, 0.5, true)
+	_check(is_equal_approx(held.x, 2.0) and is_equal_approx(held.y, 0.4), "holding look leaves the orbit where it is")
 
 func _check_social() -> void:
 	var villager = load("res://scripts/npc/villager.gd").new()

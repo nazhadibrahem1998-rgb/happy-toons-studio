@@ -4,6 +4,8 @@ const Move = preload("res://scripts/sim/move_rules.gd")
 
 var yaw := 0.4
 var pitch := -0.08
+var body_yaw := 0.4
+var _look_held := false
 var first_person := false
 var cam_dist := 4.4
 var cam_target := 4.4
@@ -33,7 +35,7 @@ func _ready() -> void:
 	collision_layer = 2
 	collision_mask = 1 | 4
 	floor_snap_length = Move.FLOOR_SNAP
-	floor_max_angle = deg_to_rad(50)
+	floor_max_angle = deg_to_rad(58)
 	safe_margin = Move.SAFE_MARGIN
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
@@ -59,6 +61,7 @@ func _ready() -> void:
 	var p: Dictionary = GameState.data.get("player", {})
 	global_position = Vector3(float(p.get("x", 12)), 0.2, float(p.get("z", 43)))
 	yaw = float(p.get("yaw", 0.4))
+	body_yaw = yaw
 	pitch = float(p.get("pitch", -0.08))
 	first_person = str(p.get("view", "third")) == "first"
 	cam_target = 0.12 if first_person else 4.4
@@ -71,17 +74,13 @@ func _on_moved() -> void:
 	var p: Dictionary = GameState.data.get("player", {})
 	global_position = Vector3(float(p.get("x", global_position.x)), 0.2, float(p.get("z", global_position.z)))
 	yaw = float(p.get("yaw", yaw))
+	body_yaw = yaw
 	velocity = Vector3.ZERO
 	_planar = 0.0
 
 func _unhandled_input(event: InputEvent) -> void:
 	if get_tree().paused:
 		return
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not build_mode:
-		var rel: Vector2 = (event as InputEventMouseMotion).relative
-		var r := LookMath.apply_mouse(yaw, pitch, rel.x, rel.y, Settings.look_sens(), Settings.invert_y)
-		yaw = r.x
-		pitch = r.y
 	if event.is_action_pressed("zoom_in"):
 		_zoom(-1)
 	elif event.is_action_pressed("zoom_out"):
@@ -143,15 +142,15 @@ func _physics_process(delta: float) -> void:
 		last_safe = global_position
 	if wish.length() > 0.2 and get_real_velocity().length() < 0.05 and is_on_floor():
 		_stuck += delta
-		if _stuck > 1.4:
+		if _stuck > 0.45:
 			global_position += Vector3(0, 0.2, 0) - dir * 0.6
 			_stuck = 0.0
 	else:
 		_stuck = 0.0
 	if dir.length() > 0.1:
-		rig.rotation.y = lerp_angle(rig.rotation.y, LookMath.face_yaw(dir), Move.turn_blend(delta, true))
-	elif not first_person:
-		rig.rotation.y = lerp_angle(rig.rotation.y, yaw, Move.turn_blend(delta, false))
+		body_yaw = lerp_angle(body_yaw, LookMath.face_yaw(dir), Move.turn_blend(delta, true))
+	rig.rotation.y = body_yaw
+	_look(delta)
 	var flat := _planar
 	if _swing > 0.0:
 		_swing -= delta
@@ -172,6 +171,31 @@ func _physics_process(delta: float) -> void:
 	if build_mode and Input.is_action_just_pressed("rotate_piece"):
 		build_yaw += PI * 0.5
 
+func _input(event: InputEvent) -> void:
+	if not _look_held or build_mode or get_tree().paused:
+		return
+	if event is InputEventMouseMotion:
+		var rel: Vector2 = (event as InputEventMouseMotion).relative
+		var turned := LookMath.apply_mouse(yaw, pitch, rel.x, rel.y, Settings.look_sens(), Settings.invert_y)
+		yaw = turned.x
+		pitch = turned.y
+		get_viewport().set_input_as_handled()
+
+func _look(delta: float) -> void:
+	var want := false
+	if not bot_override and not build_mode and not get_tree().paused:
+		want = Input.is_action_pressed("free_look")
+	if want and not _look_held:
+		_look_held = true
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif _look_held and not want:
+		_look_held = false
+		if not get_tree().paused and not build_mode:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var orbit := LookMath.follow_orbit(yaw, pitch, body_yaw, delta, _look_held)
+	yaw = orbit.x
+	pitch = orbit.y
+
 func _camera(delta: float) -> void:
 	if camera_locked:
 		return
@@ -184,10 +208,16 @@ func _camera(delta: float) -> void:
 	var wanted := pivot - look * cam_dist + basis * Vector3(0.28, 0.05, 0)
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(pivot, wanted, 1)
+	query.exclude = [self]
 	query.collide_with_areas = false
 	var hit := space.intersect_ray(query)
-	if not hit.is_empty() and cam_dist > 0.4:
-		camera.global_position = hit.position + hit.normal * 0.12
+	if not hit.is_empty():
+		var pulled: Vector3 = hit.position + hit.normal * 0.2
+		var along := pulled - pivot
+		if along.length() < 0.45:
+			along = -look * 0.45
+			pulled = pivot + along
+		camera.global_position = pulled
 	else:
 		camera.global_position = wanted
 	camera.global_transform = Transform3D(basis, camera.global_position)

@@ -96,8 +96,8 @@ func _process(delta: float) -> void:
 		var player := get_tree().get_first_node_in_group("player")
 		if player and player.get("HOTBAR") != null:
 			tool = str(player.HOTBAR[player.hot_i])
-		key_hud.text = "1-8 %s    %s run    %s look    %s diary    %s view    LMB gather    RMB use    Wheel tools    Ctrl+wheel zoom" % [
-			tool, Settings.key_label("sprint"), Settings.key_label("interact"), Settings.key_label("diary"), Settings.key_label("view")
+		key_hud.text = "1-8 %s    %s run    Hold %s: look around    %s diary    %s view    LMB gather    RMB use" % [
+			tool, Settings.key_label("sprint"), Settings.key_label("free_look"), Settings.key_label("diary"), Settings.key_label("view")
 		]
 	var now := Time.get_ticks_msec() / 1000.0
 	if thought_label:

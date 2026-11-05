@@ -251,6 +251,7 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		Settings.rain = on
 		Settings.save()
 	))
+	box.add_child(plain("Hold %s: look around. Release it and the camera returns behind you." % Settings.key_label("free_look"), 16, Color("f0e2c4")))
 	box.add_child(plain("Keys and mouse  — click a binding, then press a key or mouse button", 16, Color("f0e2c4")))
 	var grid := GridContainer.new()
 	grid.name = "BindGrid"

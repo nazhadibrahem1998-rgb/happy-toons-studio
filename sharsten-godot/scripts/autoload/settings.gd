@@ -9,6 +9,7 @@ const ACTIONS := {
 	"move_left": KEY_A,
 	"move_right": KEY_D,
 	"sprint": KEY_SHIFT,
+	"free_look": KEY_CTRL,
 	"interact": KEY_E,
 	"diary": KEY_TAB,
 	"view": KEY_V,
@@ -43,7 +44,7 @@ const ARROWS := {
 	"move_left": KEY_LEFT,
 	"move_right": KEY_RIGHT,
 }
-const SETTINGS_VERSION := 3
+const SETTINGS_VERSION := 4
 
 var preset := "medium"
 var detected := false
@@ -142,10 +143,13 @@ func _apply_dict(d: Dictionary) -> bool:
 		for action in ACTIONS.keys():
 			if keys.has(action):
 				keybinds[action] = int(keys[action])
-			elif action == "sprint":
+			elif action == "sprint" or action == "free_look":
 				migrated = true
-	if not _sprint_ok(int(keybinds.get("sprint", 0))):
+	if not _key_ok(int(keybinds.get("sprint", 0))):
 		keybinds["sprint"] = int(KEY_SHIFT)
+		migrated = true
+	if not _key_ok(int(keybinds.get("free_look", 0))):
+		keybinds["free_look"] = int(KEY_CTRL)
 		migrated = true
 	var mice = d.get("mouse", {})
 	if typeof(mice) == TYPE_DICTIONARY:
@@ -154,7 +158,7 @@ func _apply_dict(d: Dictionary) -> bool:
 				mouse_binds[action] = int(mice[action])
 	return migrated
 
-func _sprint_ok(code: int) -> bool:
+func _key_ok(code: int) -> bool:
 	# 4194305 is KEY_ESCAPE. A rebind used to store Escape when the owner
 	# closed the controls screen, so run never saw Shift (4194325).
 	if code == 0 or code == KEY_NONE or code == KEY_ESCAPE:
@@ -166,6 +170,8 @@ func event_key(event: InputEventKey) -> int:
 	var logical := int(event.keycode)
 	if physical == KEY_SHIFT or logical == KEY_SHIFT:
 		return int(KEY_SHIFT)
+	if physical == KEY_CTRL or logical == KEY_CTRL:
+		return int(KEY_CTRL)
 	if physical != 0:
 		return physical
 	return logical
@@ -296,11 +302,11 @@ func _install_actions() -> void:
 		InputMap.action_add_event(action, mb)
 
 func _bind_key(action: String, code: int) -> void:
-	if code == KEY_SHIFT:
+	if code == KEY_SHIFT or code == KEY_CTRL:
 		for loc in [0, 1, 2]:
 			var ev := InputEventKey.new()
-			ev.physical_keycode = KEY_SHIFT
-			ev.keycode = KEY_SHIFT
+			ev.physical_keycode = code as Key
+			ev.keycode = code as Key
 			ev.location = loc
 			InputMap.action_add_event(action, ev)
 		return
