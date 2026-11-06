@@ -1,0 +1,13 @@
+{
+  "name": "toon-tennis",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:logic": "node --test tests/logic.test.js",
+    "test:smoke": "playwright test",
+    "test": "node --test tests/logic.test.js && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}
