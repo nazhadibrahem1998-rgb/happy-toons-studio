@@ -168,6 +168,7 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 .site-foot a:hover{text-decoration:underline}
 .site-foot .ai{margin-top:12px;background:rgba(255,255,255,.08);border-radius:14px;padding:10px 14px}
 .site-foot .legal{border-top:1px solid rgba(255,255,255,.15);margin-top:30px;padding-top:18px;text-align:center;font-size:.9rem}
+.site-foot .owner-credit{display:block;margin:8px auto 0;max-width:34rem;font-size:.78rem;font-weight:500;line-height:1.45;color:rgba(216,211,245,.72)}
 @media(max-width:860px){.hero .wrap{grid-template-columns:1fr}.hero{padding:36px 0 84px;text-align:center}.lead{margin-left:auto;margin-right:auto}.cta-row{justify-content:center}.gallery{grid-template-columns:1fr}.st1{left:0}.seller{justify-content:center}.site-foot .cols{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.site-foot .cols{grid-template-columns:1fr}section{padding:60px 0}.btn{width:100%}.cta-row{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
