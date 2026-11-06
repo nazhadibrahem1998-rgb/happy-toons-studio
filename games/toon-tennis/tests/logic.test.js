@@ -8,6 +8,7 @@ import {
   fly,
   inCourt,
   netCrossing,
+  playerLimits,
   pointInBox,
   racketContact,
   resolveStrike,
@@ -401,4 +402,73 @@ test('hard CPU beats easy CPU', () => {
     maxRally: state.stats.maxRally,
     faults: state.stats.faults,
   }));
+});
+
+test('a very fast ball does not tunnel through a swinging racket', () => {
+  const state = createMatchState({ mode: 'local', seed: 1 });
+  state.stage = 'play';
+  state.players[0].x = 8;
+  state.players[0].z = 4;
+  state.players[0].swinging = true;
+  state.players[0].swingT = 0.18;
+  state.players[0].didHit = false;
+  state.ball = {
+    x: 6.4, y: 1.1, z: 4, vx: 100, vy: 0, vz: 0, spin: 0,
+    lastHitter: 1, bounceCount: 1, inPlay: true, serve: false, mustBounce: false,
+    netCord: false, netFail: false, crossed: true, sinceBounce: 1, asleep: false,
+  };
+  let hit = false;
+  for (let i = 0; i < 8 && state.stage === 'play'; i++) {
+    const events = step(state, [{ mx: 0, mz: 0, swing: true }, IDLE[1]], DT);
+    if (events.includes('hit') && state.ball.lastHitter === 0) hit = true;
+  }
+  assert.equal(hit, true);
+});
+
+test('players stay inside their own half', () => {
+  const state = createMatchState({ mode: 'local', seed: 2 });
+  const push = [
+    { mx: 1, mz: 1, swing: false, gotoX: 100, gotoZ: 100 },
+    { mx: -1, mz: -1, swing: false, gotoX: -100, gotoZ: -100 },
+  ];
+  for (let i = 0; i < 180; i++) step(state, push, DT);
+  for (const player of state.players) {
+    const limits = playerLimits(player.side);
+    assert.ok(player.x >= limits.x0 - 0.001 && player.x <= limits.x1 + 0.001);
+    assert.ok(player.z >= limits.z0 - 0.001 && player.z <= limits.z1 + 0.001);
+  }
+});
+
+function trackerInput(state) {
+  const ball = state.ball;
+  const me = state.players[0];
+  const input = { mx: 0, mz: 0, swing: false };
+  if (state.stage === 'serve' && state.match.server === 0) input.swing = true;
+  if (ball?.inPlay && ball.lastHitter !== 0) {
+    input.mz = Math.max(-1, Math.min(1, (ball.z - me.z) / 0.4));
+    input.mx = Math.max(-1, Math.min(1, (ball.x - 0.7 - me.x) / 0.5));
+    const rdx = ball.x - me.x;
+    if (rdx > 0.2 && rdx < 1.4 && Math.abs(ball.z - me.z) < 1 && ball.y < 2.2 && ball.y > 0.3 && (!ball.mustBounce || ball.bounceCount >= 1) && ball.x < COURT.netX) {
+      input.swing = true;
+    }
+  }
+  return input;
+}
+
+test('easy CPU is beatable and hard CPU is not a pushover', () => {
+  function play(difficulty, seed) {
+    const state = createMatchState({ mode: 'cpu', difficulty, gamesToWin: 3, seed });
+    let steps = 0;
+    while (!state.match.over && steps < 30000) {
+      step(state, [trackerInput(state), IDLE[1]], DT);
+      steps += 1;
+    }
+    return state;
+  }
+  const easy = play('easy', 4);
+  assert.equal(easy.match.over, true);
+  assert.equal(easy.match.winner, 0, `easy games ${easy.match.games.join('-')}`);
+  const hard = play('hard', 4);
+  assert.equal(hard.match.over, true);
+  assert.equal(hard.match.winner, 1, `hard games ${hard.match.games.join('-')}`);
 });

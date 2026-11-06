@@ -273,6 +273,12 @@ export function step(state, inputs, dt) {
 
   if (state.stage === 'between') {
     state.betweenT -= h;
+    for (let i = 0; i < 2; i++) {
+      const paddle = state.paddles[i];
+      const input = isCpu(state, i) ? cpuControl(state, paddle) : (inputs?.[i] || ZERO);
+      if (!isCpu(state, i)) paddle.speed = HUMAN_SPEED;
+      applyMove(paddle, input, h);
+    }
     if (state.betweenT <= 0) {
       launch(state);
       events.push('serve');

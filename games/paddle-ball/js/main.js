@@ -1,6 +1,7 @@
 import { createAudio } from './audio.js';
 import { createRenderer, unproject } from './draw.js';
 import { digits, t } from './i18n.js';
+import { addPoint } from './scoring.js';
 import { COURT, createMatchState, paddleLimit, step } from './sim.js';
 
 const canvas = document.getElementById('game');
@@ -237,20 +238,27 @@ function pointerToX(event) {
   return paddleLimit(world.x, COURT.paddleW);
 }
 
+const activePointers = new Map();
 document.querySelectorAll('.half').forEach((half) => {
   half.addEventListener('pointerdown', (event) => {
     if (phase !== 'play') return;
     audio.unlock();
-    const zone = Number(half.dataset.zone);
-    const who = controlIndex(zone);
+    const who = controlIndex(Number(half.dataset.zone));
+    activePointers.set(event.pointerId, who);
     goto[who] = pointerToX(event);
-    half.setPointerCapture(event.pointerId);
+    if (half.setPointerCapture) {
+      try { half.setPointerCapture(event.pointerId); } catch { /* some browsers reject capture */ }
+    }
     event.preventDefault();
   });
   half.addEventListener('pointermove', (event) => {
-    if (phase !== 'play' || !half.hasPointerCapture(event.pointerId)) return;
-    goto[controlIndex(Number(half.dataset.zone))] = pointerToX(event);
+    const who = activePointers.get(event.pointerId);
+    if (who == null || phase !== 'play') return;
+    goto[who] = pointerToX(event);
   });
+  const end = (event) => activePointers.delete(event.pointerId);
+  half.addEventListener('pointerup', end);
+  half.addEventListener('pointercancel', end);
 });
 
 canvas.addEventListener('pointerdown', (event) => {
@@ -369,8 +377,24 @@ window.__PB = {
       sound: settings.sound,
       portrait: portraitNow(),
       paddles: state.paddles.map((p) => ({ x: p.x, y: p.y, side: p.side })),
-      ball: state.ball ? { x: state.ball.x, y: state.ball.y, vx: state.ball.vx, vy: state.ball.vy } : null,
+      ball: state.ball ? { x: state.ball.x, y: state.ball.y, vx: state.ball.vx, vy: state.ball.vy, inPlay: state.ball.inPlay } : null,
+      time: state.time,
     };
+  },
+  award(winner) {
+    const result = addPoint(state.score, winner);
+    if (result.type === 'match' || state.score.over) {
+      state.stage = 'match';
+      state.message = { key: 'match', winner: state.score.winner, timer: 0 };
+      if (state.ball) state.ball.inPlay = false;
+    } else {
+      state.stage = 'between';
+      state.betweenT = 0.45;
+      state.server = winner;
+      state.message = { key: 'point', winner, timer: 0.45 };
+    }
+    updateHud();
+    return this.get();
   },
 };
 

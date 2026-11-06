@@ -33,15 +33,36 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 1280, height: 720 },
-        deviceScaleFactor: 1,
-      },
+      use: { browserName: 'chromium', viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 },
+    },
+    {
+      name: 'desktop-1080',
+      use: { browserName: 'chromium', viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 },
     },
     {
       name: 'iphone',
-      use: { ...iphoneLandscape, browserName: 'chromium' },
+      use: { ...iphoneLandscape, browserName: 'webkit' },
+    },
+    {
+      name: 'iphone-portrait',
+      use: {
+        ...devices['iPhone 13'],
+        browserName: 'webkit',
+        viewport: { width: 390, height: 844 },
+        screen: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'android',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 915, height: 412 },
+        isMobile: true,
+        hasTouch: true,
+        userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+      },
     },
   ],
 });

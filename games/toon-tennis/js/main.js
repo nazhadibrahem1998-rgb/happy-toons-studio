@@ -1,7 +1,7 @@
 import { createAudio } from './audio.js';
 import { createRenderer, unproject } from './draw.js';
 import { digits, pointText, t } from './i18n.js';
-import { scoreNames } from './scoring.js';
+import { addPoint, scoreNames } from './scoring.js';
 import { createMatchState, playerLimits, step } from './sim.js';
 
 const canvas = document.getElementById('game');
@@ -407,8 +407,7 @@ function resize() {
   document.documentElement.style.setProperty('--app-h', `${h}px`);
   renderer.resize(w, h);
   const portrait = h > w + 40;
-  const coarse = touchWanted();
-  rotate.hidden = !(coarse && portrait);
+  rotate.hidden = !(touchWanted() && portrait && phase === 'play');
   updateHud();
 }
 
@@ -450,7 +449,23 @@ window.__TT = {
       sound: settings.sound,
       players: state.players.map((p) => ({ x: p.x, z: p.z, side: p.side })),
       ball: state.ball ? { x: state.ball.x, y: state.ball.y, z: state.ball.z, inPlay: state.ball.inPlay } : null,
+      time: state.time,
     };
+  },
+  award(winner) {
+    const result = addPoint(state.match, winner);
+    if (result.type === 'game') {
+      state.stage = 'between';
+      state.betweenT = 0.45;
+      state.message = { key: 'game', winner, timer: 0.45 };
+    }
+    if (result.type === 'match' || state.match.over) {
+      state.stage = 'match';
+      state.message = { key: 'match', winner: state.match.winner, timer: 0 };
+      if (state.ball) state.ball.inPlay = false;
+    }
+    updateHud();
+    return this.get();
   },
 };
 

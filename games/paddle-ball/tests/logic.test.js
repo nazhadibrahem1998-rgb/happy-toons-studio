@@ -5,6 +5,7 @@ import {
   COURT,
   applyHit,
   createMatchState,
+  paddleLimit,
   runUntilOver,
   step,
 } from '../js/sim.js';
@@ -132,6 +133,34 @@ test('normal CPU players finish a race to 7', () => {
     maxRally: state.stats.maxRally,
     steps: state.steps,
   }));
+});
+
+test('paddles can slide during the serve countdown', () => {
+  const state = createMatchState({ mode: 'local', target: 7, seed: 1 });
+  assert.equal(state.stage, 'between');
+  const start = state.paddles[0].x;
+  for (let i = 0; i < 25; i++) step(state, [{ mx: 1 }, { mx: 0 }], DT);
+  assert.ok(state.paddles[0].x > start + 0.5, state.paddles[0].x);
+  assert.ok(state.paddles[0].x <= COURT.width - COURT.paddleW / 2 + 0.001);
+});
+
+test('paddles stay on the court and a fast ball stays inside the sides', () => {
+  const state = createMatchState({ mode: 'local', target: 11, seed: 6 });
+  state.stage = 'play';
+  state.ball = { x: 5, y: 8, vx: 19, vy: 4, rally: 0, inPlay: true };
+  const half = COURT.paddleW / 2;
+  for (let i = 0; i < 240 && state.stage === 'play'; i++) {
+    step(state, [{ gotoX: i % 2 ? -40 : 40 }, { gotoX: 500 }], DT);
+    for (const paddle of state.paddles) {
+      assert.ok(paddle.x >= half - 0.001 && paddle.x <= COURT.width - half + 0.001, paddle.x);
+    }
+    if (state.ball?.inPlay) {
+      assert.ok(state.ball.x >= COURT.ballR - 0.05 && state.ball.x <= COURT.width - COURT.ballR + 0.05);
+      assert.ok(Math.hypot(state.ball.vx, state.ball.vy) <= COURT.maxSpeed + 0.2);
+    }
+  }
+  assert.equal(paddleLimit(-5), half);
+  assert.equal(paddleLimit(99), COURT.width - half);
 });
 
 test('hard CPU beats easy CPU', () => {

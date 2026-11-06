@@ -829,10 +829,14 @@ export function step(state, inputs, dt) {
   }
 
   if (state.stage === 'play' && state.ball?.inPlay) {
-    tryHit(state, state.players[0], events);
-    if (state.stage === 'play' && state.ball.inPlay) tryHit(state, state.players[1], events);
-    if (state.stage === 'play' && state.ball.inPlay) {
-      const result = flyAndBounce(state.ball, h);
+    const speed = Math.hypot(state.ball.vx || 0, state.ball.vy || 0, state.ball.vz || 0);
+    const pieces = Math.min(8, Math.max(1, Math.ceil((speed * h) / 0.45)));
+    const sub = h / pieces;
+    for (let piece = 0; piece < pieces && state.stage === 'play' && state.ball?.inPlay; piece++) {
+      tryHit(state, state.players[0], events);
+      if (state.stage === 'play' && state.ball?.inPlay) tryHit(state, state.players[1], events);
+      if (!(state.stage === 'play' && state.ball?.inPlay)) break;
+      const result = flyAndBounce(state.ball, sub);
       if (result.net === 'fail') onNetFail(state, events);
       else if (result.bounce && state.stage === 'play') onBounce(state, events);
       if (state.ball && state.ball.y < -2 && state.stage === 'play') {

@@ -129,7 +129,9 @@ canvas {
   padding: 4px 14px;
   box-shadow: 0 4px 0 var(--ink);
   pointer-events: none;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  max-width: min(92vw, 560px);
 }
 
 #touch {
@@ -222,22 +224,33 @@ details { margin: 4px 0 8px; }
 details p { margin: 6px 0; }
 .credit { margin: 4px 0; font-size: 0.92rem; }
 .credit.ku { color: #5d5880; }
-.langs { display: flex; gap: 8px; }
-.langs button { flex: 1; }
+.langs { display: flex; flex-wrap: wrap; gap: 8px; }
+.langs button { flex: 1 1 140px; min-width: 0; }
 
 #rotate {
   position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: grid;
-  place-items: center;
-  background: rgba(43, 35, 80, 0.55);
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 4;
+  pointer-events: none;
+  max-width: min(92vw, 420px);
+  background: rgba(43, 35, 80, 0.88);
   color: white;
   text-align: center;
-  padding: 24px;
-  font-size: 1.4rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.95rem;
 }
 #rotate[hidden] { display: none !important; }
+
+@media (max-width: 720px) {
+  #hud { gap: 4px; }
+  #hud button { padding: 4px 8px; font-size: 0.78rem; }
+  .scoreline { gap: 4px; padding: 2px 8px; }
+  .scoreline .pts { min-width: 0; font-size: 0.9rem; }
+  .scoreline .who { min-width: 0; font-size: 0.8rem; }
+}
 
 @media (max-height: 480px) {
   h1 { font-size: 1.45rem; }
