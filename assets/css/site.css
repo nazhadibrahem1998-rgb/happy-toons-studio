@@ -95,6 +95,11 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 .card .actions{margin-top:auto;padding-top:18px;display:flex;flex-wrap:wrap;gap:10px}
 .prose{max-width:780px;margin:0 auto}
 .prose h2{font-size:1.8rem;margin:34px 0 10px}
+.founder{text-align:center;margin:0 auto 8px}
+.founder img{width:min(400px,100%);height:auto;aspect-ratio:1;object-fit:cover;object-position:center;border-radius:50%;border:4px solid var(--ink);box-shadow:0 8px 0 var(--ink);background:#fff;display:block;margin:0 auto}
+.founder .kicker{display:inline-block;margin:18px 0 8px}
+.prose .founder h2{margin:0 0 4px;font-size:clamp(1.8rem,4vw,2.4rem)}
+.founder .role{color:var(--muted);font-weight:800;margin:0}
 .prose h3{font-size:1.3rem;margin:22px 0 6px}
 .prose p,.prose li{color:#423b6b;margin-bottom:10px}
 .prose ul{padding-left:22px;margin-bottom:12px}
