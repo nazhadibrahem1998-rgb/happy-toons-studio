@@ -141,6 +141,7 @@ p { margin: 0 0 8px; line-height: 1.45; }
 .swatch:disabled { opacity: 0.35; cursor: default; }
 .ai { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
 .legal { color: #7f8b99; font-size: 0.75rem; margin: 8px 0 0; font-family: 'Segoe UI', Tahoma, sans-serif; direction: ltr; unicode-bidi: isolate; text-align: center; }
+.owner { color: #8b93a3; font-size: 0.72rem; margin: 6px 0 0; font-family: 'Segoe UI', Tahoma, sans-serif; direction: ltr; unicode-bidi: isolate; text-align: center; }
 .banner, .notice, .warn {
   border-radius: 12px;
   padding: 10px 12px;

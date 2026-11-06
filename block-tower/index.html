@@ -9,11 +9,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Block Tower">
+<meta name="author" content="Ayub Azizi">
 <meta name="description" content="Block Tower (بورجی خشت) — a night-time 3D tower climb for ages 15–18. Happy Toons Studio.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<title>Block Tower — بورجی خشت — Happy Toons Studio</title>
+<title>Block Tower</title>
 <link rel="stylesheet" href="style.css">
 <script>
 (function () {
@@ -66,8 +67,8 @@
     <button type="button" id="gemBtn" aria-label="Gems">◆ <span id="gemCount">0</span></button>
     <span id="shieldPip" hidden aria-label="Shield">◆</span>
     <button type="button" id="muteBtn" aria-pressed="false">♪</button>
-    <button type="button" id="fullBtn" aria-label="پڕشاشە">⛶</button>
-    <button type="button" id="pauseBtn" aria-label="وەستان">❚❚</button>
+    <button type="button" id="fullBtn" aria-label="Full screen">⛶</button>
+    <button type="button" id="pauseBtn" aria-label="Pause">❚❚</button>
   </div>
 </div>
 
@@ -97,8 +98,7 @@
       <button type="button" id="iosDismiss" aria-label="Dismiss">×</button>
     </div>
     <p class="studio">Happy Toons Studio</p>
-    <h1>بورجی خشت</h1>
-    <p class="en-title">Block Tower</p>
+    <h1 data-i18n="gameTitle">Block Tower</h1>
     <p class="tag" data-i18n="tag">Climb a night-time neon tower.</p>
     <p class="age" data-i18n="age">For ages 15–18</p>
     <button type="button" id="playBtn" class="btn" data-i18n="play">Play</button>
@@ -139,6 +139,7 @@
       </div>
     </div>
     <p class="ai" id="aiNote"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
+    <p class="owner" id="ownerCredit">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</p>
     <p class="legal" id="footerCredit">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
@@ -185,7 +186,7 @@
       <ul id="community"></ul>
     </section>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
-    <button type="button" id="helpClose" class="btn" data-i18n="close">داخستن</button>
+    <button type="button" id="helpClose" class="btn" data-i18n="close">Close</button>
   </div>
 </div>
 
@@ -217,7 +218,7 @@
     <div id="fbCount">٠ / ٥٠٠</div>
     <p id="fbStatus" role="status"></p>
     <button type="button" id="fbSend" class="btn">Send · ناردن</button>
-    <button type="button" id="fbClose" class="btn alt" data-i18n="close">داخستن</button>
+    <button type="button" id="fbClose" class="btn alt" data-i18n="close">Close</button>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
@@ -225,11 +226,11 @@
 <div id="pause" class="screen" hidden>
   <div class="panel">
     <h2 data-i18n="pause">Pause</h2>
-    <button type="button" id="resumeBtn" class="btn" data-i18n="resume">بەردەوامبوون</button>
+    <button type="button" id="resumeBtn" class="btn" data-i18n="resume">Resume</button>
     <button type="button" id="pauseHelp" class="btn alt" data-i18n="help">Help</button>
     <button type="button" id="pauseUpgrades" class="btn alt">Upgrades</button>
-    <button type="button" id="restartBtn" class="btn alt" data-i18n="again">دووبارە</button>
-    <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">مێنیو</button>
+    <button type="button" id="restartBtn" class="btn alt" data-i18n="again">Again</button>
+    <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">Menu</button>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
@@ -239,14 +240,15 @@
     <h2 id="winTitle" data-i18n="winTitle">You reached the crown</h2>
     <p id="winSub" data-i18n="winSub">The tower is complete.</p>
     <div class="records">
-      <div><span data-i18n="time">کات</span> <b id="finishTime">—</b></div>
-      <div><span data-i18n="best">باشترین کات</span> <b id="finishBest">—</b></div>
-      <div><span data-i18n="highest">بەرزترین نهۆم</span> <b id="finishHighest">—</b></div>
+      <div><span data-i18n="time">Time</span> <b id="finishTime">—</b></div>
+      <div><span data-i18n="best">Best time</span> <b id="finishBest">—</b></div>
+      <div><span data-i18n="highest">Highest floor</span> <b id="finishHighest">—</b></div>
     </div>
     <ol id="raceResults" hidden></ol>
-    <button type="button" id="finishAgain" class="btn" data-i18n="again">دووبارە</button>
-    <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">مێنیو</button>
+    <button type="button" id="finishAgain" class="btn" data-i18n="again">Again</button>
+    <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">Menu</button>
     <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
+    <p class="owner">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</p>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>

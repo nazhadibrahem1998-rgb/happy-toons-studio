@@ -16,7 +16,7 @@ const banner = document.getElementById('banner');
 const touch = document.getElementById('touch');
 const rotate = document.getElementById('rotate');
 
-const SAVE_KEY = 'toon-tennis-settings';
+const SAVE_KEY = 'toon-tennis-en';
 
 function loadSettings() {
   const base = { mode: 'cpu', difficulty: 'normal', gamesToWin: 3, lang: 'en', sound: true };
@@ -44,6 +44,9 @@ let state = createMatchState({ mode: 'demo', difficulty: 'normal', seed });
 const keys = new Set();
 const swingEdge = [false, false];
 const goto = [null, null];
+const fingers = new Map();
+const hover = [null, null];
+let latency = null;
 let mouseOn = false;
 
 function saveSettings() {
@@ -250,90 +253,142 @@ function controlIndex(zone) {
   return zone === 1 ? 1 : 0;
 }
 
-function zoneToWorld(index, localX, localY) {
-  const limits = playerLimits(index);
-  return {
-    x: limits.x0 + clamp01(localX) * (limits.x1 - limits.x0),
-    z: limits.z1 - clamp01(localY) * (limits.z1 - limits.z0),
-  };
-}
-
-function clamp01(v) {
-  return Math.max(0, Math.min(1, v));
-}
-
-const pointers = new Map();
-document.querySelectorAll('.half').forEach((half) => {
-  half.addEventListener('pointerdown', (event) => {
-    if (phase !== 'play') return;
-    audio.unlock();
-    const hit = event.target.closest('.hitbtn');
-    if (hit) {
-      swingEdge[controlIndex(Number(hit.dataset.hit))] = true;
-      event.preventDefault();
-      return;
-    }
-    half.setPointerCapture(event.pointerId);
-    pointers.set(event.pointerId, {
-      zone: Number(half.dataset.zone),
-      x: event.clientX,
-      y: event.clientY,
-      moved: false,
-    });
-    event.preventDefault();
-  });
-  half.addEventListener('pointermove', (event) => {
-    const rec = pointers.get(event.pointerId);
-    if (!rec || phase !== 'play') return;
-    if (Math.hypot(event.clientX - rec.x, event.clientY - rec.y) > 12) rec.moved = true;
-    const rect = half.getBoundingClientRect();
-    const who = controlIndex(rec.zone);
-    goto[who] = zoneToWorld(
-      who,
-      (event.clientX - rect.left) / rect.width,
-      (event.clientY - rect.top) / rect.height,
-    );
-  });
-  const end = (event) => {
-    const rec = pointers.get(event.pointerId);
-    if (!rec) return;
-    pointers.delete(event.pointerId);
-    if (!rec.moved && phase === 'play') swingEdge[controlIndex(rec.zone)] = true;
-  };
-  half.addEventListener('pointerup', end);
-  half.addEventListener('pointercancel', end);
-});
-
-canvas.addEventListener('pointerdown', (event) => {
-  if (event.pointerType !== 'mouse' || phase !== 'play') return;
-  audio.unlock();
-  const who = mousePlayer(event);
-  if (who == null) return;
-  swingEdge[who] = true;
-  aimMouse(event, who);
-});
-canvas.addEventListener('pointermove', (event) => {
-  if (event.pointerType !== 'mouse' || phase !== 'play') return;
-  const who = mousePlayer(event);
-  if (who == null) return;
-  mouseOn = true;
-  aimMouse(event, who);
-});
-
-function mousePlayer(event) {
-  if (settings.mode === 'local' && event.clientX > window.innerWidth / 2) return null;
-  return 0;
-}
-
-function aimMouse(event, who) {
+function layoutPoint(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  const world = unproject(renderer.layout(), event.clientX - rect.left, event.clientY - rect.top);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const sx = canvas.width / Math.max(1, rect.width);
+  const sy = canvas.height / Math.max(1, rect.height);
+  return {
+    x: (clientX - rect.left) * sx / dpr,
+    y: (clientY - rect.top) * sy / dpr,
+  };
+}
+
+function worldFromClient(clientX, clientY, who) {
+  const p = layoutPoint(clientX, clientY);
+  const world = unproject(renderer.layout(), p.x, p.y);
   const limits = playerLimits(who);
-  goto[who] = {
+  return {
     x: Math.max(limits.x0, Math.min(limits.x1, world.x)),
     z: Math.max(limits.z0, Math.min(limits.z1, world.z)),
   };
 }
+
+function samplePoint(event) {
+  let x = event.clientX;
+  let y = event.clientY;
+  if (typeof event.getCoalescedEvents === 'function') {
+    try {
+      const extra = event.getCoalescedEvents();
+      if (extra && extra.length) {
+        const last = extra[extra.length - 1];
+        if (Number.isFinite(last.clientX) && Number.isFinite(last.clientY)) {
+          x = last.clientX;
+          y = last.clientY;
+        }
+      }
+    } catch { /* some browsers throw if the event is already gone */ }
+  }
+  return { x, y };
+}
+
+function syncGoto() {
+  goto[0] = hover[0];
+  goto[1] = hover[1];
+  for (const rec of fingers.values()) goto[rec.who] = worldFromClient(rec.clientX, rec.clientY, rec.who);
+}
+
+function noteLatency(who, clientX, clientY) {
+  latency = {
+    eventTime: performance.now(),
+    who,
+    clientX,
+    clientY,
+    applied: 0,
+    rendered: 0,
+    lag: 0,
+    x: null,
+    z: null,
+    expectedX: null,
+    expectedZ: null,
+  };
+}
+
+function pointerZone(event) {
+  return event.clientX < window.innerWidth / 2 ? 0 : 1;
+}
+
+function assignWho(event) {
+  const half = event.target && event.target.closest ? event.target.closest('.half') : null;
+  if (half) return controlIndex(Number(half.dataset.zone));
+  const zone = pointerZone(event);
+  if (event.pointerType === 'mouse' && settings.mode === 'local' && zone === 1) return null;
+  return controlIndex(zone);
+}
+
+function trackPointer(event, fresh) {
+  if (phase !== 'play') return;
+  const hit = event.target && event.target.closest ? event.target.closest('.hitbtn') : null;
+  if (hit && fresh) {
+    if (event.cancelable) event.preventDefault();
+    swingEdge[controlIndex(Number(hit.dataset.hit))] = true;
+    audio.unlock();
+    return;
+  }
+  if (event.cancelable) event.preventDefault();
+  const pt = samplePoint(event);
+  let rec = fingers.get(event.pointerId);
+  if (!rec && !fresh && event.pointerType === 'mouse' && !event.buttons) {
+    const who = assignWho(event);
+    if (who == null) return;
+    if ([...fingers.values()].some((item) => item.who === who)) return;
+    hover[who] = worldFromClient(pt.x, pt.y, who);
+    syncGoto();
+    noteLatency(who, pt.x, pt.y);
+    audio.unlock();
+    return;
+  }
+  if (!rec) {
+    if (!fresh) return;
+    const who = assignWho(event);
+    if (who == null) return;
+    hover[who] = null;
+    rec = { who, clientX: pt.x, clientY: pt.y, moved: false, originX: pt.x, originY: pt.y };
+  } else if (Math.hypot(pt.x - rec.originX, pt.y - rec.originY) > 12) {
+    rec.moved = true;
+  }
+  rec.clientX = pt.x;
+  rec.clientY = pt.y;
+  fingers.set(event.pointerId, rec);
+  syncGoto();
+  noteLatency(rec.who, pt.x, pt.y);
+  audio.unlock();
+}
+
+const pointerOpts = { passive: false };
+function bindPointer(el) {
+  el.addEventListener('pointerdown', (event) => {
+    trackPointer(event, true);
+    if (el.setPointerCapture && fingers.has(event.pointerId)) {
+      try { el.setPointerCapture(event.pointerId); } catch { /* some browsers reject capture */ }
+    }
+  }, pointerOpts);
+  el.addEventListener('pointermove', (event) => {
+    if (fingers.has(event.pointerId)) mouseOn = true;
+    trackPointer(event, false);
+  }, pointerOpts);
+  const end = (event) => {
+    const rec = fingers.get(event.pointerId);
+    if (rec) hover[rec.who] = worldFromClient(rec.clientX, rec.clientY, rec.who);
+    fingers.delete(event.pointerId);
+    syncGoto();
+    if (rec && !rec.moved && phase === 'play') swingEdge[rec.who] = true;
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+document.querySelectorAll('.half').forEach(bindPointer);
+bindPointer(canvas);
 
 window.addEventListener('keydown', (event) => {
   if (event.repeat) return;
@@ -354,8 +409,14 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
   } else if (event.code.startsWith('Arrow') || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
     event.preventDefault();
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) goto[0] = null;
-    if (event.code.startsWith('Arrow')) goto[1] = null;
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+      goto[0] = null;
+      hover[0] = null;
+    }
+    if (event.code.startsWith('Arrow')) {
+      goto[1] = null;
+      hover[1] = null;
+    }
   }
   audio.unlock();
 });
@@ -367,6 +428,7 @@ window.addEventListener('blur', () => {
 });
 
 function readInputs() {
+  syncGoto();
   const p1x = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
   const p1z = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
   const p2x = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0);
@@ -374,9 +436,34 @@ function readInputs() {
   const g0 = p1x || p1z ? null : goto[0];
   const g1 = p2x || p2z ? null : goto[1];
   return [
-    { mx: p1x, mz: p1z, swing: swingEdge[0], gotoX: g0?.x, gotoZ: g0?.z },
-    { mx: p2x, mz: p2z, swing: swingEdge[1], gotoX: g1?.x, gotoZ: g1?.z },
+    { mx: p1x, mz: p1z, swing: swingEdge[0], snap: !!g0, gotoX: g0?.x, gotoZ: g0?.z },
+    { mx: p2x, mz: p2z, swing: swingEdge[1], snap: !!g1, gotoX: g1?.x, gotoZ: g1?.z },
   ];
+}
+
+function placeSnapped() {
+  if (phase !== 'play') return;
+  const inputs = readInputs();
+  for (let i = 0; i < 2; i++) {
+    const input = inputs[i];
+    if (!input.snap || !Number.isFinite(input.gotoX) || !Number.isFinite(input.gotoZ)) continue;
+    const player = state.players[i];
+    const limits = playerLimits(player.side);
+    player.x = Math.max(limits.x0, Math.min(limits.x1, input.gotoX));
+    player.z = Math.max(limits.z0, Math.min(limits.z1, input.gotoZ));
+    player.vx = 0;
+    player.vz = 0;
+  }
+  if (latency && !latency.applied) {
+    latency.applied = performance.now();
+    latency.lag = latency.applied - latency.eventTime;
+    const who = latency.who;
+    const expected = worldFromClient(latency.clientX, latency.clientY, who);
+    latency.x = state.players[who].x;
+    latency.z = state.players[who].z;
+    latency.expectedX = expected.x;
+    latency.expectedZ = expected.z;
+  }
 }
 
 const SOUND_EVENTS = new Set([
@@ -414,6 +501,7 @@ function resize() {
 let acc = 0;
 let last = 0;
 function frame(now) {
+  placeSnapped();
   if (!last) last = now;
   let delta = now - last;
   last = now;
@@ -428,6 +516,7 @@ function frame(now) {
   swingEdge[0] = false;
   swingEdge[1] = false;
   renderer.frame(state, now / 1000);
+  if (latency && latency.applied && !latency.rendered) latency.rendered = performance.now();
   if (phase !== 'menu') updateHud();
   document.body.dataset.phase = phase;
   document.body.dataset.ready = '1';
@@ -452,6 +541,8 @@ window.__TT = {
       time: state.time,
     };
   },
+  latency() { return latency; },
+  worldFromClient,
   award(winner) {
     const result = addPoint(state.match, winner);
     if (result.type === 'game') {

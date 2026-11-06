@@ -250,14 +250,20 @@ function cpuControl(state, paddle) {
 }
 
 function applyMove(paddle, input, dt) {
+  // Human touch/mouse is a same-frame snap. No easing and no speed cap.
+  if (input?.snap && Number.isFinite(input.gotoX)) {
+    paddle.x = paddleLimit(input.gotoX, paddle.w);
+    paddle.vx = 0;
+    return;
+  }
   let mx = clamp(input?.mx || 0, -1, 1);
   if (Number.isFinite(input?.gotoX)) {
     const dx = input.gotoX - paddle.x;
     mx = Math.abs(dx) < 0.04 ? 0 : clamp(dx / 0.38, -1, 1);
   }
-  const want = mx * paddle.speed;
-  const k = 1 - Math.exp(-dt * 16);
-  paddle.vx += (want - paddle.vx) * k;
+  // Keyboard and CPU reach the capped speed immediately. Only the CPU and
+  // keyboard stay speed-capped; a finger is never sent down this path.
+  paddle.vx = mx * paddle.speed;
   paddle.x = paddleLimit(paddle.x + paddle.vx * dt, paddle.w);
 }
 

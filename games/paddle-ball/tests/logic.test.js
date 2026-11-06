@@ -135,6 +135,18 @@ test('normal CPU players finish a race to 7', () => {
   }));
 });
 
+test('a touch snap puts the paddle on the pointer in one step', () => {
+  const state = createMatchState({ mode: 'local', target: 7, seed: 1 });
+  state.stage = 'play';
+  const target = 2.25;
+  step(state, [{ snap: true, gotoX: target }, { mx: 0 }], DT);
+  assert.ok(Math.abs(state.paddles[0].x - target) < 0.001, state.paddles[0].x);
+  const start = state.paddles[1].x;
+  step(state, [{ mx: 0 }, { mx: 1 }], DT);
+  const moved = Math.abs(state.paddles[1].x - start);
+  assert.ok(moved > 0.05 && moved < 0.2, moved);
+});
+
 test('paddles can slide during the serve countdown', () => {
   const state = createMatchState({ mode: 'local', target: 7, seed: 1 });
   assert.equal(state.stage, 'between');

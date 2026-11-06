@@ -425,6 +425,20 @@ test('a very fast ball does not tunnel through a swinging racket', () => {
   assert.equal(hit, true);
 });
 
+test('a touch snap puts the player on the pointer in one step', () => {
+  const state = createMatchState({ mode: 'local', seed: 1 });
+  state.stage = 'play';
+  const limits = playerLimits(0);
+  const target = { x: (limits.x0 + limits.x1) / 2, z: (limits.z0 + limits.z1) / 2 };
+  step(state, [{ snap: true, gotoX: target.x, gotoZ: target.z, swing: false }, IDLE[1]], DT);
+  assert.ok(Math.abs(state.players[0].x - target.x) < 0.001, state.players[0].x);
+  assert.ok(Math.abs(state.players[0].z - target.z) < 0.001, state.players[0].z);
+  const start = state.players[1].x;
+  step(state, [IDLE[0], { mx: 1, mz: 0, swing: false }], DT);
+  const moved = Math.abs(state.players[1].x - start);
+  assert.ok(moved > 0.02 && moved < 0.25, moved);
+});
+
 test('players stay inside their own half', () => {
   const state = createMatchState({ mode: 'local', seed: 2 });
   const push = [

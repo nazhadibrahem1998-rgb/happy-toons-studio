@@ -733,27 +733,33 @@ function cpuControl(state, player, dt) {
 }
 
 function applyMove(player, input, dt) {
-  let mx = clamp(input?.mx || 0, -1, 1);
-  let mz = clamp(input?.mz || 0, -1, 1);
-  if (Number.isFinite(input?.gotoX) && Number.isFinite(input?.gotoZ)) {
-    const dx = input.gotoX - player.x;
-    const dz = input.gotoZ - player.z;
-    mx = Math.abs(dx) < 0.05 ? 0 : clamp(dx / 0.42, -1, 1);
-    mz = Math.abs(dz) < 0.05 ? 0 : clamp(dz / 0.42, -1, 1);
-  }
-  const mag = Math.hypot(mx, mz);
-  if (mag > 1) {
-    mx /= mag;
-    mz /= mag;
-  }
-  const wantVx = mx * player.speed;
-  const wantVz = mz * player.speed;
-  const k = 1 - Math.exp(-dt * 14);
-  player.vx += (wantVx - player.vx) * k;
-  player.vz += (wantVz - player.vz) * k;
   const limits = playerLimits(player.side);
-  player.x = clamp(player.x + player.vx * dt, limits.x0, limits.x1);
-  player.z = clamp(player.z + player.vz * dt, limits.z0, limits.z1);
+  // Human touch/mouse is a same-frame snap. No easing and no speed cap.
+  if (input?.snap && Number.isFinite(input.gotoX) && Number.isFinite(input.gotoZ)) {
+    player.x = clamp(input.gotoX, limits.x0, limits.x1);
+    player.z = clamp(input.gotoZ, limits.z0, limits.z1);
+    player.vx = 0;
+    player.vz = 0;
+  } else {
+    let mx = clamp(input?.mx || 0, -1, 1);
+    let mz = clamp(input?.mz || 0, -1, 1);
+    if (Number.isFinite(input?.gotoX) && Number.isFinite(input?.gotoZ)) {
+      const dx = input.gotoX - player.x;
+      const dz = input.gotoZ - player.z;
+      mx = Math.abs(dx) < 0.05 ? 0 : clamp(dx / 0.42, -1, 1);
+      mz = Math.abs(dz) < 0.05 ? 0 : clamp(dz / 0.42, -1, 1);
+    }
+    const mag = Math.hypot(mx, mz);
+    if (mag > 1) {
+      mx /= mag;
+      mz /= mag;
+    }
+    // Keyboard and CPU reach the capped speed immediately.
+    player.vx = mx * player.speed;
+    player.vz = mz * player.speed;
+    player.x = clamp(player.x + player.vx * dt, limits.x0, limits.x1);
+    player.z = clamp(player.z + player.vz * dt, limits.z0, limits.z1);
+  }
   player.swingT = Math.max(0, player.swingT - dt);
   player.swingCd = Math.max(0, player.swingCd - dt);
   player.swingStarted = false;

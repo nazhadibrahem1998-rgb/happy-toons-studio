@@ -40,6 +40,7 @@ html, body {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
 html[lang="ckb"] body {
@@ -71,6 +72,9 @@ canvas {
   width: 100%;
   height: 100%;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #hud[hidden],
@@ -224,6 +228,13 @@ details { margin: 4px 0 8px; }
 details p { margin: 6px 0; }
 .credit { margin: 4px 0; font-size: 0.92rem; }
 .credit.ku { color: #5d5880; }
+.owner {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(43, 35, 80, 0.45);
+}
 .langs { display: flex; flex-wrap: wrap; gap: 8px; }
 .langs button { flex: 1 1 140px; min-width: 0; }
 
@@ -264,7 +275,7 @@ details p { margin: 6px 0; }
   }
   #menu .brand { grid-column: 1; }
   #menu .choices { grid-column: 2; }
-  #menu .help, #menu .credit, #menu .langs { grid-column: 1 / -1; }
+  #menu .help, #menu .credit, #menu .owner, #menu .langs { grid-column: 1 / -1; }
   .go { min-height: 42px; font-size: 1.05rem; margin: 2px 0 4px; }
   .row { margin-bottom: 4px; }
   .row button { padding: 6px 8px; }

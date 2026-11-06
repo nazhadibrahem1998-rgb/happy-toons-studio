@@ -38,6 +38,7 @@ html, body {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
 html[lang="ckb"] body {
@@ -57,7 +58,15 @@ button.on { background: var(--yellow); color: var(--ink); }
 button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
 #app { position: fixed; inset: 0; height: var(--app-h); width: 100%; overflow: hidden; }
-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 
 #hud {
   position: absolute;
@@ -174,6 +183,13 @@ h1 { margin: 0 0 4px; font-size: clamp(1.7rem, 4vw, 2.6rem); line-height: 1; col
 }
 details p { margin: 6px 0; }
 .credit { margin: 4px 0; }
+.owner {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(244, 241, 255, 0.55);
+}
 .langs { display: flex; flex-wrap: wrap; gap: 8px; }
 .langs button, .credit { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
 
@@ -195,6 +211,6 @@ details p { margin: 6px 0; }
   }
   #menu .brand { grid-column: 1; }
   #menu .choices { grid-column: 2; }
-  #menu .help, #menu .credit, #menu .langs { grid-column: 1 / -1; }
+  #menu .help, #menu .credit, #menu .owner, #menu .langs { grid-column: 1 / -1; }
   .go { min-height: 42px; font-size: 1.05rem; }
 }

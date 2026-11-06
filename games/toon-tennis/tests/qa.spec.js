@@ -151,23 +151,25 @@ test('touch moves both sides in a two-player game', async ({ page }, info) => {
   await expect(page.locator('#touch')).toBeVisible();
   const left = await page.locator('.half[data-zone="0"]').boundingBox();
   const right = await page.locator('.half[data-zone="1"]').boundingBox();
-  const x0 = await page.evaluate(() => window.__TT.get().players[0].x);
-  await page.mouse.move(left.x + left.width * 0.2, left.y + left.height * 0.55);
-  await page.mouse.down();
-  await page.mouse.move(left.x + left.width * 0.85, left.y + left.height * 0.55);
-  await page.mouse.up();
-  await page.waitForTimeout(250);
-  const x1 = await page.evaluate(() => window.__TT.get().players[0].x);
-  expect(x1).toBeGreaterThan(x0 + 0.3);
-
-  const z0 = await page.evaluate(() => window.__TT.get().players[1].z);
-  await page.mouse.move(right.x + right.width * 0.5, right.y + right.height * 0.75);
-  await page.mouse.down();
-  await page.mouse.move(right.x + right.width * 0.5, right.y + right.height * 0.2);
-  await page.mouse.up();
-  await page.waitForTimeout(250);
-  const z1 = await page.evaluate(() => window.__TT.get().players[1].z);
-  expect(Math.abs(z1 - z0)).toBeGreaterThan(0.2);
+  async function releaseAt(box, across, down, who) {
+    const point = { x: box.x + box.width * across, y: box.y + box.height * down };
+    const start = await page.evaluate((index) => window.__TT.get().players[index], who);
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    const landed = await page.evaluate(({ x, y, index }) => {
+      const player = window.__TT.get().players[index];
+      const expected = window.__TT.worldFromClient(x, y, index);
+      return { player, expected };
+    }, { ...point, index: who });
+    expect(Math.abs(landed.player.x - landed.expected.x)).toBeLessThan(0.15);
+    expect(Math.abs(landed.player.z - landed.expected.z)).toBeLessThan(0.15);
+    const moved = Math.hypot(landed.player.x - start.x, landed.player.z - start.z);
+    expect(moved).toBeGreaterThan(0.2);
+  }
+  await releaseAt(left, 0.78, 0.42, 0);
+  await releaseAt(right, 0.35, 0.28, 1);
   await noScroll(page);
   assertClean(bag);
 });

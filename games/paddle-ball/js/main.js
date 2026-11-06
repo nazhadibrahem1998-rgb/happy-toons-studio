@@ -14,7 +14,7 @@ const hud = document.getElementById('hud');
 const banner = document.getElementById('banner');
 const touch = document.getElementById('touch');
 
-const SAVE_KEY = 'paddle-ball-settings';
+const SAVE_KEY = 'paddle-ball-en';
 
 function loadSettings() {
   const base = { mode: 'cpu', difficulty: 'normal', target: 7, lang: 'en', sound: true };
@@ -39,6 +39,9 @@ let seed = 4;
 let state = createMatchState({ mode: 'demo', difficulty: 'normal', target: 7, seed });
 const keys = new Set();
 const goto = [null, null];
+const fingers = new Map();
+const hover = [null, null];
+let latency = null;
 
 function saveSettings() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(settings)); } catch { /* private mode */ }
@@ -232,52 +235,116 @@ function pointerZone(event) {
   return event.clientX < window.innerWidth / 2 ? 0 : 1;
 }
 
-function pointerToX(event) {
+function layoutPoint(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  const world = unproject(renderer.layout(), event.clientX - rect.left, event.clientY - rect.top);
-  return paddleLimit(world.x, COURT.paddleW);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const sx = canvas.width / Math.max(1, rect.width);
+  const sy = canvas.height / Math.max(1, rect.height);
+  return {
+    x: (clientX - rect.left) * sx / dpr,
+    y: (clientY - rect.top) * sy / dpr,
+  };
 }
 
-const activePointers = new Map();
-document.querySelectorAll('.half').forEach((half) => {
-  half.addEventListener('pointerdown', (event) => {
-    if (phase !== 'play') return;
-    audio.unlock();
-    const who = controlIndex(Number(half.dataset.zone));
-    activePointers.set(event.pointerId, who);
-    goto[who] = pointerToX(event);
-    if (half.setPointerCapture) {
-      try { half.setPointerCapture(event.pointerId); } catch { /* some browsers reject capture */ }
-    }
-    event.preventDefault();
-  });
-  half.addEventListener('pointermove', (event) => {
-    const who = activePointers.get(event.pointerId);
-    if (who == null || phase !== 'play') return;
-    goto[who] = pointerToX(event);
-  });
-  const end = (event) => activePointers.delete(event.pointerId);
-  half.addEventListener('pointerup', end);
-  half.addEventListener('pointercancel', end);
-});
+function worldFromClient(clientX, clientY) {
+  const p = layoutPoint(clientX, clientY);
+  const world = unproject(renderer.layout(), p.x, p.y);
+  return { x: paddleLimit(world.x, COURT.paddleW) };
+}
 
-canvas.addEventListener('pointerdown', (event) => {
-  if (event.pointerType !== 'mouse' || phase !== 'play') return;
-  audio.unlock();
-  aimMouse(event);
-});
-canvas.addEventListener('pointermove', (event) => {
-  if (event.pointerType !== 'mouse' || phase !== 'play') return;
-  if (event.buttons === 0 && settings.mode === 'local') return;
-  aimMouse(event);
-});
+function samplePoint(event) {
+  let x = event.clientX;
+  let y = event.clientY;
+  if (typeof event.getCoalescedEvents === 'function') {
+    try {
+      const extra = event.getCoalescedEvents();
+      if (extra && extra.length) {
+        const last = extra[extra.length - 1];
+        if (Number.isFinite(last.clientX) && Number.isFinite(last.clientY)) {
+          x = last.clientX;
+          y = last.clientY;
+        }
+      }
+    } catch { /* some browsers throw if the event is already gone */ }
+  }
+  return { x, y };
+}
 
-function aimMouse(event) {
+function syncGoto() {
+  goto[0] = hover[0];
+  goto[1] = hover[1];
+  for (const rec of fingers.values()) goto[rec.who] = worldFromClient(rec.clientX, rec.clientY);
+}
+
+function noteLatency(who, clientX, clientY) {
+  latency = {
+    eventTime: performance.now(),
+    who,
+    clientX,
+    clientY,
+    applied: 0,
+    rendered: 0,
+    lag: 0,
+    x: null,
+    expectedX: null,
+  };
+}
+
+function assignWho(event) {
+  const half = event.target && event.target.closest ? event.target.closest('.half') : null;
+  if (half) return controlIndex(Number(half.dataset.zone));
   const zone = pointerZone(event);
-  if (settings.mode === 'local' && zone === 1 && event.pointerType === 'mouse') return;
-  const who = settings.mode === 'local' ? zone : 0;
-  goto[who] = pointerToX(event);
+  if (event.pointerType === 'mouse' && settings.mode === 'local' && zone === 1) return null;
+  return controlIndex(zone);
 }
+
+function trackPointer(event, fresh) {
+  if (phase !== 'play') return;
+  if (event.cancelable) event.preventDefault();
+  const pt = samplePoint(event);
+  let who = fingers.get(event.pointerId)?.who;
+  if (who == null && !fresh && event.pointerType === 'mouse' && !event.buttons && settings.mode !== 'local') {
+    who = assignWho(event);
+    if (who == null) return;
+    if ([...fingers.values()].some((item) => item.who === who)) return;
+    hover[who] = worldFromClient(pt.x, pt.y);
+    syncGoto();
+    noteLatency(who, pt.x, pt.y);
+    audio.unlock();
+    return;
+  }
+  if (who == null) {
+    if (!fresh) return;
+    who = assignWho(event);
+    if (who == null) return;
+    hover[who] = null;
+  }
+  fingers.set(event.pointerId, { who, clientX: pt.x, clientY: pt.y });
+  syncGoto();
+  noteLatency(who, pt.x, pt.y);
+  audio.unlock();
+}
+
+const pointerOpts = { passive: false };
+function bindPointer(el) {
+  el.addEventListener('pointerdown', (event) => {
+    trackPointer(event, true);
+    if (el.setPointerCapture && fingers.has(event.pointerId)) {
+      try { el.setPointerCapture(event.pointerId); } catch { /* some browsers reject capture */ }
+    }
+  }, pointerOpts);
+  el.addEventListener('pointermove', (event) => trackPointer(event, false), pointerOpts);
+  const end = (event) => {
+    const rec = fingers.get(event.pointerId);
+    if (rec) hover[rec.who] = worldFromClient(rec.clientX, rec.clientY);
+    fingers.delete(event.pointerId);
+    syncGoto();
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+document.querySelectorAll('.half').forEach(bindPointer);
+bindPointer(canvas);
 
 window.addEventListener('keydown', (event) => {
   if (event.repeat) return;
@@ -290,9 +357,11 @@ window.addEventListener('keydown', (event) => {
   if (phase !== 'play') return;
   if (['KeyA', 'KeyD', 'KeyW', 'KeyS'].includes(event.code)) {
     goto[0] = null;
+    hover[0] = null;
     event.preventDefault();
   } else if (event.code.startsWith('Arrow')) {
     goto[1] = null;
+    hover[1] = null;
     event.preventDefault();
   }
   audio.unlock();
@@ -305,12 +374,34 @@ function axis(neg, pos) {
 }
 
 function readInputs() {
+  syncGoto();
   const p1 = axis('KeyA', 'KeyD') || axis('KeyS', 'KeyW');
   const p2 = axis('ArrowLeft', 'ArrowRight') || axis('ArrowDown', 'ArrowUp');
+  const g0 = p1 ? null : goto[0];
+  const g1 = p2 ? null : goto[1];
   return [
-    { mx: p1, gotoX: p1 ? undefined : goto[0] },
-    { mx: p2, gotoX: p2 ? undefined : goto[1] },
+    { mx: p1, snap: !!g0, gotoX: g0 ? g0.x : undefined },
+    { mx: p2, snap: !!g1, gotoX: g1 ? g1.x : undefined },
   ];
+}
+
+function placeSnapped() {
+  if (phase !== 'play') return;
+  const inputs = readInputs();
+  for (let i = 0; i < 2; i++) {
+    const input = inputs[i];
+    if (!input.snap || !Number.isFinite(input.gotoX)) continue;
+    const paddle = state.paddles[i];
+    paddle.x = paddleLimit(input.gotoX, paddle.w);
+    paddle.vx = 0;
+  }
+  if (latency && !latency.applied) {
+    latency.applied = performance.now();
+    latency.lag = latency.applied - latency.eventTime;
+    const who = latency.who;
+    latency.x = state.paddles[who].x;
+    latency.expectedX = worldFromClient(latency.clientX, latency.clientY).x;
+  }
 }
 
 function tick(dt) {
@@ -346,6 +437,7 @@ function resize() {
 let acc = 0;
 let last = 0;
 function frame(now) {
+  placeSnapped();
   if (!last) last = now;
   let delta = now - last;
   last = now;
@@ -358,6 +450,7 @@ function frame(now) {
     steps += 1;
   }
   renderer.frame(state);
+  if (latency && latency.applied && !latency.rendered) latency.rendered = performance.now();
   if (phase !== 'menu') updateHud();
   document.body.dataset.phase = phase;
   document.body.dataset.ready = '1';
@@ -381,6 +474,8 @@ window.__PB = {
       time: state.time,
     };
   },
+  latency() { return latency; },
+  worldFromClient,
   award(winner) {
     const result = addPoint(state.score, winner);
     if (result.type === 'match' || state.score.over) {
