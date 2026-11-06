@@ -34,7 +34,9 @@ test('menu, move, jump, and no console errors', async ({ page }, info) => {
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await expect(page.locator('#playBtn')).toHaveText('Play');
-  await expect(page.locator('h1')).toHaveText('بورجی خشت');
+  await expect(page.locator('h1')).toHaveText('Block Tower');
+  await expect(page).toHaveTitle('Block Tower');
+  await expect(page.locator('#ownerCredit')).toHaveText('© 2026 Ayub Azizi — Creator & owner of Happy Toons Studio');
   await expect(page.locator('#footerCredit')).toHaveText('© 2026 Nazhad Ibrahem – Happy Toons Studio');
   await expect(page.locator('#aiNote')).toContainText('دروستکراو بە یارمەتی AI (کۆد و گرافیک)');
   await expect(page.locator('#aiNote')).toContainText('Made with AI assistance (code and graphics)');

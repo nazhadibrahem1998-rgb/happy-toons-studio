@@ -706,6 +706,7 @@ function applyLang(next) {
   refreshRunButtons();
   document.documentElement.lang = lang === 'en' ? 'en' : 'ckb';
   document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+  document.title = lang === 'en' ? 'Block Tower' : 'بورجی خشت';
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     el.textContent = t(lang, el.getAttribute('data-i18n'));
   });

@@ -48,6 +48,7 @@ body.touch #hint{display:none}
 .hero-intro b{font-weight:900}
 #over h1.fallen{font-size:clamp(32px,7vw,64px);letter-spacing:1px}
 .copy{margin-top:18px;font-size:11px;opacity:.55}
+.owner{margin-top:4px;font-size:11px;line-height:1.35;color:#c9c4dc;opacity:.55}
 /* v2 additions */
 .stats b{display:inline-block}
 .stats b.pop{animation:pop .3s ease-out}
