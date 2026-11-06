@@ -173,8 +173,8 @@ function drawKid(ctx, layout, player, time) {
   const feet = project(layout, player.x, 0, player.z);
   const s = Math.max(22, feet.scale * 1.15);
   const face = player.side === 0 ? 1 : -1;
-  const shirt = player.side === 0 ? '#ff5fa2' : '#2ec4b6';
-  const shorts = player.side === 0 ? '#4d7cff' : '#ff9f43';
+  const shirt = player.side === 0 ? '#ff9f43' : '#4d7cff';
+  const shorts = player.side === 0 ? '#ffd23f' : '#9db7ff';
   const speed = Math.hypot(player.vx, player.vz);
   const bob = Math.sin(time * 9 + player.side * 2) * Math.min(5, speed * 1.2);
   const step = Math.sin(time * 12 + player.side) * Math.min(1, speed / 4);
@@ -203,11 +203,13 @@ function drawKid(ctx, layout, player, time) {
 
   ctx.fillStyle = shirt;
   ctx.lineWidth = Math.max(2, s * 0.055);
-  roundRect(ctx, -s * 0.28, -s * 0.7, s * 0.56, s * 0.58, s * 0.16);
+  ctx.beginPath();
+  ctx.arc(0, -s * 0.46, s * 0.36, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = shorts;
-  roundRect(ctx, -s * 0.26, -s * 0.28, s * 0.52, s * 0.18, s * 0.06);
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.28, s * 0.22, s * 0.1, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#ffd7be';
@@ -216,7 +218,7 @@ function drawKid(ctx, layout, player, time) {
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = player.side === 0 ? '#ff4f98' : '#6d4dff';
+  ctx.fillStyle = player.side === 0 ? '#ff7a18' : '#2f62ff';
   ctx.beginPath();
   if (player.side === 0) {
     ctx.arc(-s * 0.2, -s * 1.1, s * 0.14, 0, Math.PI * 2);
@@ -270,7 +272,7 @@ function drawKid(ctx, layout, player, time) {
   ctx.lineTo(0, -s * 0.34);
   ctx.stroke();
   ctx.translate(0, -s * 0.48);
-  ctx.strokeStyle = player.side === 0 ? '#ffd23f' : '#ff5fa2';
+  ctx.strokeStyle = player.side === 0 ? '#ffe566' : '#d7e4ff';
   ctx.lineWidth = Math.max(2, s * 0.055);
   ctx.beginPath();
   ctx.ellipse(0, 0, s * 0.15, s * 0.22, 0, 0, Math.PI * 2);

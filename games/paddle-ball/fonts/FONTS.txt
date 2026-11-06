@@ -1,0 +1,4 @@
+Baloo 2 (latin subset) — SIL Open Font License 1.1. Copyright 2019 The Baloo 2 Project Authors.
+Noto Sans Arabic bold (subset, file kurdish-bold.woff2) — SIL Open Font License 1.1.
+Copyright 2022 The Noto Project Authors. See OFL-kurdish.txt in this folder.
+Both files are self-hosted. No remote font requests.

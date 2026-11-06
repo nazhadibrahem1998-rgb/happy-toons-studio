@@ -1,0 +1,45 @@
+import { defineConfig, devices } from '@playwright/test';
+
+const iphone = {
+  ...devices['iPhone 13'],
+  deviceScaleFactor: 2,
+  isMobile: true,
+  hasTouch: true,
+  defaultBrowserType: 'chromium',
+};
+
+export default defineConfig({
+  testDir: './tests',
+  testMatch: '**/*.spec.js',
+  timeout: 60000,
+  expect: { timeout: 10000 },
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
+  reporter: 'list',
+  use: {
+    baseURL: 'http://127.0.0.1:8767',
+    trace: 'off',
+    video: 'off',
+  },
+  webServer: {
+    command: 'python3 -m http.server 8767 --bind 127.0.0.1',
+    port: 8767,
+    reuseExistingServer: false,
+    timeout: 20000,
+  },
+  projects: [
+    {
+      name: 'desktop',
+      use: { browserName: 'chromium', viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 },
+    },
+    {
+      name: 'iphone-landscape',
+      use: { ...iphone, browserName: 'chromium', viewport: { width: 844, height: 390 }, screen: { width: 844, height: 390 } },
+    },
+    {
+      name: 'iphone-portrait',
+      use: { ...iphone, browserName: 'chromium', viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 } },
+    },
+  ],
+});
