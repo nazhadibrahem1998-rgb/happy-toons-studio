@@ -95,6 +95,11 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 .card .actions{margin-top:auto;padding-top:18px;display:flex;flex-wrap:wrap;gap:10px}
 .prose{max-width:780px;margin:0 auto}
 .prose h2{font-size:1.8rem;margin:34px 0 10px}
+.founder{text-align:center;margin:0 auto 8px}
+.founder img{width:min(400px,100%);height:auto;aspect-ratio:1;object-fit:cover;object-position:center;border-radius:50%;border:4px solid var(--ink);box-shadow:0 8px 0 var(--ink);background:#fff;display:block;margin:0 auto}
+.founder .kicker{display:inline-block;margin:18px 0 8px}
+.prose .founder h2{margin:0 0 4px;font-size:clamp(1.8rem,4vw,2.4rem)}
+.founder .role{color:var(--muted);font-weight:800;margin:0}
 .prose h3{font-size:1.3rem;margin:22px 0 6px}
 .prose p,.prose li{color:#423b6b;margin-bottom:10px}
 .prose ul{padding-left:22px;margin-bottom:12px}
@@ -147,6 +152,8 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 .g-tt{background:linear-gradient(160deg,#ffd23f,#ff9f43)}
 .g-bt{background:linear-gradient(160deg,#12141c,#123844)}
 .g-sv{background:linear-gradient(160deg,#7ec85a,#e4d3b0)}
+.g-tennis{background:linear-gradient(160deg,#79d2ff,#3cbe62)}
+.g-paddle{background:linear-gradient(160deg,#140e36,#4d7cff)}
 .meta{font-size:.92rem;color:var(--muted);font-weight:700;margin-top:8px}
 .parent-note{background:#fff8e1;border:2px dashed #e8c25a;border-radius:14px;padding:10px 14px;margin-top:12px;font-size:.93rem;color:#5d4a13}
 /* final */
@@ -166,6 +173,7 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 .site-foot a:hover{text-decoration:underline}
 .site-foot .ai{margin-top:12px;background:rgba(255,255,255,.08);border-radius:14px;padding:10px 14px}
 .site-foot .legal{border-top:1px solid rgba(255,255,255,.15);margin-top:30px;padding-top:18px;text-align:center;font-size:.9rem}
+.site-foot .owner-credit{display:block;margin:8px auto 0;max-width:34rem;font-size:.78rem;font-weight:500;line-height:1.45;color:rgba(216,211,245,.72)}
 @media(max-width:860px){.hero .wrap{grid-template-columns:1fr}.hero{padding:36px 0 84px;text-align:center}.lead{margin-left:auto;margin-right:auto}.cta-row{justify-content:center}.gallery{grid-template-columns:1fr}.st1{left:0}.seller{justify-content:center}.site-foot .cols{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.site-foot .cols{grid-template-columns:1fr}section{padding:60px 0}.btn{width:100%}.cta-row{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

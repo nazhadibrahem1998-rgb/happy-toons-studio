@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Toon Tennis">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fd8ff"/>
+      <stop offset="1" stop-color="#d7f3ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#sky)"/>
+  <circle cx="680" cy="78" r="42" fill="#ffe14a"/>
+  <circle cx="150" cy="92" r="28" fill="#fff" opacity=".85"/>
+  <circle cx="188" cy="100" r="20" fill="#fff" opacity=".85"/>
+  <rect x="120" y="78" width="560" height="320" rx="28" fill="#3cbe62" stroke="#1a1440" stroke-width="6"/>
+  <rect x="150" y="108" width="500" height="260" rx="8" fill="none" stroke="#fffaf2" stroke-width="6"/>
+  <line x1="400" y1="108" x2="400" y2="368" stroke="#fffaf2" stroke-width="6"/>
+  <line x1="150" y1="188" x2="650" y2="188" stroke="#fffaf2" stroke-width="4" stroke-dasharray="14 12"/>
+  <line x1="150" y1="288" x2="650" y2="288" stroke="#fffaf2" stroke-width="4" stroke-dasharray="14 12"/>
+  <rect x="392" y="96" width="16" height="284" fill="#fffaf2" stroke="#1a1440" stroke-width="3"/>
+  <path d="M396 110 v256" stroke="#1a1440" stroke-width="2" stroke-dasharray="6 8"/>
+  <g>
+    <ellipse cx="250" cy="292" rx="36" ry="12" fill="#1a1440" opacity=".18"/>
+    <circle cx="250" cy="250" r="34" fill="#ff9f43" stroke="#1a1440" stroke-width="4"/>
+    <rect x="228" y="242" width="44" height="12" rx="6" fill="#fffaf2"/>
+    <circle cx="238" cy="242" r="4" fill="#1a1440"/>
+    <circle cx="262" cy="242" r="4" fill="#1a1440"/>
+    <path d="M292 214c18-28 36-28 48-8" fill="none" stroke="#1a1440" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="342" cy="202" r="10" fill="#ffe14a" stroke="#1a1440" stroke-width="3"/>
+  </g>
+  <g>
+    <ellipse cx="548" cy="196" rx="36" ry="12" fill="#1a1440" opacity=".18"/>
+    <circle cx="548" cy="154" r="34" fill="#4d7cff" stroke="#1a1440" stroke-width="4"/>
+    <rect x="526" y="146" width="44" height="12" rx="6" fill="#fffaf2"/>
+    <circle cx="536" cy="146" r="4" fill="#1a1440"/>
+    <circle cx="560" cy="146" r="4" fill="#1a1440"/>
+    <path d="M500 128c-16 22-34 18-42-4" fill="none" stroke="#1a1440" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <circle cx="430" cy="168" r="16" fill="#ffe14a" stroke="#1a1440" stroke-width="4"/>
+  <path d="M422 160c8 4 8 10 0 14" fill="none" stroke="#fff" stroke-width="2"/>
+</svg>
