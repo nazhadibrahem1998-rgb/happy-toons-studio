@@ -147,6 +147,8 @@ a.card:hover{transform:translateY(-5px) rotate(-.6deg)}
 .g-tt{background:linear-gradient(160deg,#ffd23f,#ff9f43)}
 .g-bt{background:linear-gradient(160deg,#12141c,#123844)}
 .g-sv{background:linear-gradient(160deg,#7ec85a,#e4d3b0)}
+.g-tennis{background:linear-gradient(160deg,#79d2ff,#3cbe62)}
+.g-paddle{background:linear-gradient(160deg,#140e36,#4d7cff)}
 .meta{font-size:.92rem;color:var(--muted);font-weight:700;margin-top:8px}
 .parent-note{background:#fff8e1;border:2px dashed #e8c25a;border-radius:14px;padding:10px 14px;margin-top:12px;font-size:.93rem;color:#5d4a13}
 /* final */

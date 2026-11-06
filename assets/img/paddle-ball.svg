@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Paddle Ball">
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#140e36"/>
+      <stop offset="1" stop-color="#2a1458"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#night)"/>
+  <circle cx="120" cy="70" r="3" fill="#fff"/>
+  <circle cx="200" cy="120" r="2" fill="#fff"/>
+  <circle cx="640" cy="80" r="2.5" fill="#fff"/>
+  <circle cx="700" cy="160" r="2" fill="#fff"/>
+  <circle cx="90" cy="300" r="2" fill="#fff"/>
+  <circle cx="730" cy="340" r="3" fill="#fff"/>
+  <rect x="230" y="36" width="340" height="378" rx="28" fill="#2a1868" stroke="#7af0ff" stroke-width="6"/>
+  <line x1="250" y1="225" x2="550" y2="225" stroke="#ff5fa2" stroke-width="4" stroke-dasharray="12 12" opacity=".8"/>
+  <circle cx="400" cy="225" r="46" fill="none" stroke="#ffe14a" stroke-width="5"/>
+  <rect x="318" y="70" width="164" height="28" rx="14" fill="#4d7cff" stroke="#fffaf2" stroke-width="4"/>
+  <rect x="346" y="76" width="108" height="8" rx="4" fill="#fff" opacity=".55"/>
+  <rect x="318" y="352" width="164" height="28" rx="14" fill="#ff9f43" stroke="#fffaf2" stroke-width="4"/>
+  <rect x="346" y="358" width="108" height="8" rx="4" fill="#fff" opacity=".55"/>
+  <circle cx="430" cy="168" r="18" fill="#ffe14a" stroke="#1a1440" stroke-width="4"/>
+  <circle cx="423" cy="162" r="5" fill="#fff"/>
+</svg>
