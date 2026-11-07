@@ -63,9 +63,9 @@ func _ready() -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if taken or not body.is_in_group("player"):
 		return
-	if not body.has_method("add_ammo"):
+	if not body.has_method("unlock_metal_sword"):
 		return
-	if not bool(body.call("add_ammo", amount)):
+	if not bool(body.call("unlock_metal_sword")):
 		return
 	taken = true
 	visible = false

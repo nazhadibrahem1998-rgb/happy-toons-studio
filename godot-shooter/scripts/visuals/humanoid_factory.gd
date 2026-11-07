@@ -31,6 +31,7 @@ static func _gurut(root: Node3D, mats: Array[StandardMaterial3D]) -> void:
 	_box(root, mats, "torso", Vector3(0.38, 0.42, 0.22), Vector3(0, 1.32, 0), shirt)
 	_box(root, mats, "vest", Vector3(0.42, 0.34, 0.16), Vector3(0, 1.36, -0.06), vest)
 	_box(root, mats, "vest_back", Vector3(0.4, 0.3, 0.08), Vector3(0, 1.34, 0.1), vest)
+	_flag_patch(root)
 	_box(root, mats, "sash", Vector3(0.46, 0.07, 0.26), Vector3(0, 1.08, 0), sash, 0.7, 0.0, Vector3(0, 0, 14))
 	_box(root, mats, "thigh_l", Vector3(0.26, 0.42, 0.30), Vector3(-0.15, 0.72, 0), cloth)
 	_box(root, mats, "thigh_r", Vector3(0.26, 0.42, 0.30), Vector3(0.15, 0.72, 0), cloth)
@@ -46,6 +47,21 @@ static func _gurut(root: Node3D, mats: Array[StandardMaterial3D]) -> void:
 	_sphere(root, mats, "jamana", 0.132, Vector3(0, 1.72, 0.01), wrap, 0.8)
 	_box(root, mats, "jamana_tail", Vector3(0.07, 0.36, 0.05), Vector3(0.02, 1.46, 0.12), wrap)
 	_box(root, mats, "neck", Vector3(0.08, 0.08, 0.08), Vector3(0, 1.52, 0), skin, 0.65, 0.0, Vector3.ZERO, false)
+
+
+static func _flag_patch(root: Node3D) -> void:
+	# Upper back of the vest, on the side the over-the-shoulder camera sees.
+	var patch := MeshInstance3D.new()
+	patch.name = "FlagPatch"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.112, 0.075)
+	quad.orientation = QuadMesh.FACE_Z
+	patch.mesh = quad
+	patch.position = Vector3(0.105, 1.29, 0.152)
+	patch.material_override = KurdistanFlag.patch_material()
+	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	patch.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	root.add_child(patch)
 
 
 static func _soldier(root: Node3D, mats: Array[StandardMaterial3D], commander: bool) -> void:

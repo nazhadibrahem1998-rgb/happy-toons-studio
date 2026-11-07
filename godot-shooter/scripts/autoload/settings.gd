@@ -9,6 +9,7 @@ var sensitivity: float = BASE_SENS
 var volume: float = 0.8
 var quality: String = "high"
 var user_chose_quality: bool = false
+var difficulty: String = "easy"
 
 
 func _ready() -> void:
@@ -32,7 +33,13 @@ func _detect_quality() -> String:
 	var adapter := ""
 	if RenderingServer.has_method("get_video_adapter_name"):
 		adapter = RenderingServer.get_video_adapter_name().to_lower()
+	if OS.has_feature("mobile") or TouchMode.active():
+		return "low"
 	if adapter == "" or "llvmpipe" in adapter or "lavapipe" in adapter or "swiftshader" in adapter:
+		return "low"
+	var mem := OS.get_memory_info()
+	var physical := int(mem.get("physical", 0))
+	if physical > 0 and physical < 7 * 1024 * 1024 * 1024:
 		return "low"
 	return "high"
 
@@ -52,6 +59,14 @@ func set_sensitivity_multiplier(multiplier: float) -> void:
 
 func sensitivity_multiplier() -> float:
 	return sensitivity / BASE_SENS
+
+
+func set_difficulty(next: String) -> void:
+	if next != "easy" and next != "normal":
+		return
+	difficulty = next
+	_save()
+	settings_changed.emit()
 
 
 func set_quality(next: String) -> void:
@@ -142,6 +157,9 @@ func _load() -> void:
 	sensitivity = float(cfg.get_value("input", "sensitivity", sensitivity))
 	quality = str(cfg.get_value("video", "quality", quality))
 	user_chose_quality = bool(cfg.get_value("video", "chosen", false))
+	var saved := str(cfg.get_value("game", "difficulty", difficulty))
+	if saved == "easy" or saved == "normal":
+		difficulty = saved
 
 
 func _save() -> void:
@@ -150,4 +168,5 @@ func _save() -> void:
 	cfg.set_value("input", "sensitivity", sensitivity)
 	cfg.set_value("video", "quality", quality)
 	cfg.set_value("video", "chosen", user_chose_quality)
+	cfg.set_value("game", "difficulty", difficulty)
 	cfg.save(PATH)

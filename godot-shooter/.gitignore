@@ -10,6 +10,9 @@ exports/
 *.tmp
 
 export_credentials.cfg
+*.keystore
+*.jks
+android/
 
 .DS_Store
 *~

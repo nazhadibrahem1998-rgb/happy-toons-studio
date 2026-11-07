@@ -5,7 +5,7 @@ var streams: Dictionary = {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	for id in ["ak", "m16", "reload", "impact", "hurt", "empty", "foot", "ui", "ambience"]:
+	for id in ["ak", "m16", "reload", "impact", "hurt", "empty", "foot", "ui", "ambience", "swing"]:
 		var path := "res://assets/audio/%s.wav" % id
 		if ResourceLoader.exists(path):
 			streams[id] = load(path)
