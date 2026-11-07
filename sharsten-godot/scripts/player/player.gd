@@ -175,6 +175,7 @@ func _physics_process(delta: float) -> void:
 			_stuck = 0.0
 	else:
 		_stuck = 0.0
+	var prev_body := body_yaw
 	if dir.length() > 0.1:
 		body_yaw = lerp_angle(body_yaw, LookMath.face_yaw(dir), Move.turn_blend(delta, true))
 	elif not _look_held and not _returning:
@@ -186,8 +187,9 @@ func _physics_process(delta: float) -> void:
 		_swing -= delta
 	var act := "crouch" if crouching else (force_action if force_action != "" else ("walk" if flat > 0.2 else "idle"))
 	if _swing > 0.0 and flat < 0.2:
-		act = "carve"
-	rig.tick(delta, flat if force_action == "" else 0.0, act)
+		act = "open" if prompt_kind == "door" else "carve"
+	var turn_rate := absf(angle_difference(body_yaw, prev_body)) / maxf(delta, 0.001)
+	rig.tick(delta, flat if force_action == "" else 0.0, act, turn_rate)
 	_camera(delta)
 	_prompt()
 	GameState.poll_overhear(global_position)
@@ -430,6 +432,8 @@ func _prompt() -> void:
 func _interact() -> void:
 	if prompt_kind == "":
 		return
+	if prompt_kind == "door":
+		_swing = 0.45
 	for n in get_tree().get_nodes_in_group("interact"):
 		if str(n.get_meta("id", "")) == prompt_id and n.has_method("use"):
 			n.use(self)

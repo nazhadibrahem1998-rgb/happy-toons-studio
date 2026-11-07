@@ -156,8 +156,8 @@ func _watch_feet() -> void:
 		worst_span = span
 	worst_sole = sole if foot_samples == 0 else maxf(worst_sole, sole)
 	foot_samples += 1
-	if body.rig.anim:
-		walk_clip = str(body.rig.anim.current_animation)
+	if body.rig:
+		walk_clip = str(body.rig._clip)
 
 func _check_walls() -> void:
 	var walls := get_tree().get_nodes_in_group("house_wall")
@@ -225,6 +225,13 @@ func _check_clothing() -> void:
 	worker.setup({"kind": "man", "prop": "axe", "costume": true, "headwear": "turban", "cloth": "3a322c", "shirt": "c2a078", "sash": "8b1e2d", "wrap": "d8c4a4"})
 	worker.tick(0.05, 0.0, "chop")
 	_check(worker.tool_attached() and worker.tool.visible, "the axe stays on the hand while he works")
+	_check(str(worker._clip) == "Armature|Interact", "work plays the tool clip, got %s" % worker._clip)
+	worker.tick(0.05, 2.2, "walk")
+	_check(str(worker._clip) == "Armature|Walk", "a walking pace stays on the walk clip")
+	worker.tick(0.05, 5.5, "walk")
+	_check(str(worker._clip) == "Armature|Sprint", "a run pace uses the sprint clip")
+	worker.tick(0.05, 1.1, "crouch")
+	_check(str(worker._clip) == "Armature|Crouch_Fwd", "crouch movement uses the crouch walk")
 	var plain := HumanRig.new()
 	add_child(plain)
 	plain.setup({"kind": "man", "costume": false, "cloth": "3a322c", "shirt": "c2a078", "sash": "8b1e2d", "wrap": "d8c4a4"})

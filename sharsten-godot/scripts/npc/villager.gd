@@ -11,6 +11,7 @@ var inside := Vector3.ZERO
 var rig: HumanRig
 var agent: NavigationAgent3D
 var _speed := 0.0
+var _use_t := 0.0
 
 func setup(spec: Dictionary, entry: Dictionary, loop: Array) -> void:
 	npc_id = str(spec.get("id", ""))
@@ -139,6 +140,7 @@ func _physics_process(delta: float) -> void:
 	dir.y = 0.0
 	_speed = 0.0
 	var arrived_home := night and global_position.distance_to(inside) < 0.8
+	var prev_yaw := rotation.y
 	if dir.length() > 0.35 and not arrived_home and not meal:
 		dir = dir.normalized()
 		_speed = 0.85 * _purse_pace()
@@ -184,8 +186,17 @@ func _physics_process(delta: float) -> void:
 		act = _work_act()
 	elif hour == 12 and (npc_id == "mullah_husen" or work == "teach"):
 		act = "pray"
-	if rig and _should_animate():
-		rig.tick(delta, _speed, act)
+	var turn_rate := absf(angle_difference(rotation.y, prev_yaw)) / maxf(delta, 0.001)
+	if _use_t > 0.0:
+		_use_t -= delta
+		act = "open"
+	if rig:
+		if _should_animate():
+			rig.set_lod(true)
+			rig.tick(delta, _speed, act, turn_rate)
+		elif rig.lod_on:
+			rig.tick(delta, 0.0, "idle")
+			rig.set_lod(false)
 
 func _work_act() -> String:
 	if work in ["hoe", "hammer", "carve"]:
@@ -200,9 +211,7 @@ func _should_animate() -> bool:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null or not player is Node3D:
 		return true
-	if global_position.distance_squared_to((player as Node3D).global_position) < 900.0:
-		return true
-	return Engine.get_physics_frames() % 10 == 0
+	return global_position.distance_squared_to((player as Node3D).global_position) < 400.0
 
 func _touch_door(phase: String) -> void:
 	var door := _my_door()
@@ -212,6 +221,8 @@ func _touch_door(phase: String) -> void:
 	var crossing := phase == "home" or phase == "leave" or phase == "return"
 	if crossing and dist < 2.2:
 		door.set_open(true, npc_id)
+		if _use_t <= 0.0:
+			_use_t = 0.45
 	elif dist > 3.4 and str(door.opened_by) == npc_id:
 		door.set_open(false, npc_id)
 
