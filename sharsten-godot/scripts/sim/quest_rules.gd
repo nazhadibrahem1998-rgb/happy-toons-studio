@@ -70,6 +70,29 @@ static func gate_ready(qdefs: Dictionary, state: Dictionary) -> bool:
 			return false
 	return true
 
+static func next_line(qdefs: Dictionary, order: Array, state: Dictionary) -> String:
+	if str(state.get("phase", "dream")) == "woke":
+		return "The red seed woke you. Part 2 is still to come."
+	var quests: Dictionary = state.get("quests", {})
+	for id in order:
+		if not qdefs.has(id):
+			continue
+		var def: Dictionary = qdefs[id]
+		if not bool(def.get("required", false)):
+			continue
+		var st: Dictionary = quests.get(id, {})
+		if str(st.get("status", "")) == "done":
+			continue
+		for obj in def.get("objectives", []):
+			var have := measure(obj, state, {})
+			if quests.has(id):
+				have = int(st.get("progress", {}).get(str(obj.get("id", "")), have))
+			if have < int(obj.get("count", 1)):
+				return "%s — %s" % [def.get("title", id), obj.get("text", "")]
+	if gate_ready(qdefs, state) or bool(state.get("gate_open", false)):
+		return "Go to the star spring. The red seed or the white stone is the choice."
+	return "Walk the lane. The next deed will show itself."
+
 static func missing_titles(qdefs: Dictionary, state: Dictionary) -> Array:
 	var quests: Dictionary = state.get("quests", {})
 	var names: Array = []

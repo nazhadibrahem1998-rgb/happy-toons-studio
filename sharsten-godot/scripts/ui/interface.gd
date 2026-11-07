@@ -21,6 +21,7 @@ var crack: ColorRect
 var vignette: TextureRect
 var health_back: ColorRect
 var health_fill: ColorRect
+var objective_label: Label
 var crack_t := -1.0
 var note_panel: Control
 var diary: Control
@@ -62,6 +63,13 @@ func _hud() -> void:
 	health_fill.color = Color(0.55, 0.22, 0.18, 0.95)
 	health_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(health_fill)
+	objective_label = Label.new()
+	objective_label.position = Vector2(28, 52)
+	objective_label.custom_minimum_size = Vector2(900, 28)
+	objective_label.add_theme_font_size_override("font_size", 18)
+	objective_label.add_theme_color_override("font_color", Color("f6edd8"))
+	objective_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(objective_label)
 	thought_label = RichTextLabel.new()
 	thought_label.bbcode_enabled = true
 	thought_label.fit_content = true
@@ -142,6 +150,9 @@ func _process(delta: float) -> void:
 		health_fill.size.x = 216.0 * ratio
 		health_back.visible = screen == "play" and not cine
 		health_fill.visible = health_back.visible
+	if objective_label:
+		objective_label.visible = screen == "play" and not cine
+		objective_label.text = GameState.objective_line()
 	if crack_t >= 0.0:
 		crack_t += delta
 		crack.color.a = clampf(crack_t / 1.4, 0.0, 1.0)
@@ -379,6 +390,13 @@ func _fill_page(body: VBoxContainer) -> void:
 				for obj in defn.get("objectives", []):
 					var have := int(st.get("progress", {}).get(obj.get("id", ""), 0))
 					body.add_child(Desk.label("    %s  (%d/%d)" % [obj.get("text", ""), have, int(obj.get("count", 1))], 15))
+			body.add_child(Desk.label("Fragments of the old world", 20))
+			var found: Array = GameState.data.get("relic_notes", [])
+			if found.is_empty():
+				body.add_child(Desk.label("None kept yet. They lie on the lanes.", 15))
+			for note in found:
+				body.add_child(Desk.label(str(note.get("title", "")), 18))
+				body.add_child(Desk.label(str(note.get("text", "")), 15))
 		"bag":
 			_bag(body)
 		"map":
@@ -642,9 +660,15 @@ func _open_pause() -> void:
 	var save := Desk.button("Save")
 	save.pressed.connect(func():
 		GameState.save_now()
-		GameState.say_thought("Written down.")
+		GameState.say_thought("The dream is written down.")
 	)
 	box.add_child(save)
+	var slot := Desk.button("Save slot")
+	slot.pressed.connect(func():
+		GameState.save_slot()
+		GameState.say_thought("Kept in the spare slot.")
+	)
+	box.add_child(slot)
 	var settings := Desk.button("Settings")
 	settings.pressed.connect(func(): Desk.build_settings(self, _close_settings))
 	box.add_child(settings)

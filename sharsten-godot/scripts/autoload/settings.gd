@@ -60,6 +60,7 @@ var fps_cap := 0
 var sensitivity := 1.0
 var invert_y := false
 var volume := 0.8
+var music := 0.7
 var subtitle := "medium"
 var fullscreen := false
 var resolution := "1920x1080"
@@ -131,6 +132,7 @@ func _apply_dict(d: Dictionary) -> bool:
 	# Version 5 and older are forced back to mouse-up = look-up once.
 	# A later toggle of Invert Y is kept.
 	volume = clampf(float(d.get("volume", volume)), 0.0, 1.0)
+	music = clampf(float(d.get("music", music)), 0.0, 1.0)
 	subtitle = str(d.get("subtitle", subtitle))
 	fullscreen = bool(d.get("fullscreen", fullscreen))
 	resolution = str(d.get("resolution", resolution))
@@ -200,6 +202,7 @@ func to_dict() -> Dictionary:
 		"sensitivity": sensitivity,
 		"invert_y": invert_y,
 		"volume": volume,
+		"music": music,
 		"subtitle": subtitle,
 		"fullscreen": fullscreen,
 		"resolution": resolution,
@@ -240,12 +243,17 @@ func apply_runtime() -> void:
 	_apply_window()
 
 func _apply_audio() -> void:
-	var bus := AudioServer.get_bus_index("Master")
+	_bus_level("Master", volume)
+	_bus_level("Ambience", ambience)
+	_bus_level("Music", music)
+	_bus_level("SFX", sfx)
+
+func _bus_level(bus_name: String, linear: float) -> void:
+	var bus := AudioServer.get_bus_index(bus_name)
 	if bus < 0:
 		return
-	var v := maxf(volume, 0.0001)
-	AudioServer.set_bus_volume_db(bus, linear_to_db(v))
-	AudioServer.set_bus_mute(bus, volume <= 0.001)
+	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(linear, 0.0001)))
+	AudioServer.set_bus_mute(bus, linear <= 0.001)
 
 func _apply_window() -> void:
 	Engine.max_fps = fps_cap

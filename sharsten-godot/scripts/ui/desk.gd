@@ -216,6 +216,14 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		Settings.apply_runtime()
 	)
 	box.add_child(vol)
+	box.add_child(plain("Music", 16, Color("f0e2c4")))
+	var music := slider(Settings.music, 0.0, 1.0)
+	music.value_changed.connect(func(v):
+		Settings.music = v
+		Settings.save()
+		Settings.apply_runtime()
+	)
+	box.add_child(music)
 	box.add_child(plain("Ambience", 16, Color("f0e2c4")))
 	var amb := slider(Settings.ambience, 0.0, 1.0)
 	amb.value_changed.connect(func(v):

@@ -10,6 +10,8 @@ var npcs := {}
 var npc_order: Array = []
 var conversations: Array = []
 var notes := {}
+var relics := {}
+var relic_order: Array = []
 var trades: Array = []
 var layout := {}
 var errors: Array = []
@@ -29,6 +31,10 @@ func _ready() -> void:
 		npc_order.append(str(defn.get("id", "")))
 	conversations = _load("res://data/dialogue.json").get("conversations", [])
 	notes = _index(_load("res://data/notes.json"), "notes")
+	var relics_file := _load("res://data/relics.json")
+	for row in relics_file.get("relics", []):
+		relics[str(row.get("id", ""))] = row
+		relic_order.append(str(row.get("id", "")))
 	trades = _load("res://data/trades.json").get("trades", [])
 	layout = _load("res://data/layout.json")
 	_validate()

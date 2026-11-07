@@ -143,6 +143,10 @@ func _title() -> void:
 	cont.disabled = not GameState.has_save()
 	cont.pressed.connect(_continue)
 	box.add_child(cont)
+	var slot := Desk.button("Load slot")
+	slot.disabled = not GameState.has_slot()
+	slot.pressed.connect(_load_slot)
+	box.add_child(slot)
 	var settings := Desk.button("Settings")
 	settings.pressed.connect(func(): Desk.build_settings(root_ui, _close_settings))
 	box.add_child(settings)
@@ -201,6 +205,10 @@ func _begin() -> void:
 
 func _continue() -> void:
 	if GameState.load_game():
+		_enter()
+
+func _load_slot() -> void:
+	if GameState.load_slot():
 		_enter()
 
 func _enter() -> void:
