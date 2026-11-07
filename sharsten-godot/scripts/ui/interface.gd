@@ -44,14 +44,14 @@ func _hud() -> void:
 	thought_label.scroll_active = false
 	thought_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	thought_label.offset_left = 360
-	thought_label.offset_top = 820
+	thought_label.offset_top = 28
 	thought_label.offset_right = 1560
-	thought_label.offset_bottom = 900
+	thought_label.offset_bottom = 88
 	thought_label.add_theme_color_override("default_color", Color("efe6ff"))
 	thought_label.add_theme_font_size_override("normal_font_size", 20)
 	add_child(thought_label)
 	sub_box = VBoxContainer.new()
-	sub_box.position = Vector2(360, 900)
+	sub_box.position = Vector2(360, 96)
 	sub_box.custom_minimum_size = Vector2(1200, 80)
 	sub_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sub_box)
@@ -131,7 +131,10 @@ func _subs(now: float) -> void:
 		c.queue_free()
 	if not show:
 		return
-	for line in GameState.subtitle_lines:
+	var lines: Array = GameState.subtitle_lines
+	if lines.size() > 2:
+		lines = lines.slice(lines.size() - 2, lines.size())
+	for line in lines:
 		var l := RichTextLabel.new()
 		l.bbcode_enabled = true
 		l.fit_content = true
