@@ -14,6 +14,7 @@ const SPECIES := [
 	{"id": "bird", "color": "2a2420", "scale": Vector3(0.16, 0.12, 0.28), "speed": 1.4},
 	{"id": "donkey", "color": "8d8a86", "scale": Vector3(0.45, 0.7, 1.05), "speed": 0.5},
 	{"id": "horse", "color": "6b4226", "scale": Vector3(0.5, 0.85, 1.35), "speed": 0.85},
+	{"id": "cart", "color": "6b4226", "scale": Vector3(1.1, 0.7, 1.8), "speed": 0.55},
 	{"id": "cow", "color": "c4a574", "scale": Vector3(0.7, 0.8, 1.3), "speed": 0.28},
 ]
 
@@ -37,7 +38,7 @@ func setup(count: int, seed_value: int) -> void:
 	]
 	for i in count:
 		var sp := i % SPECIES.size()
-		var yard: Vector2 = yards[sp]
+		var yard: Vector2 = yards[sp % yards.size()]
 		species.append(sp)
 		home.append(yard)
 		pos.append(yard + Vector2(rng.randf_range(-3.5, 3.5), rng.randf_range(-3.5, 3.5)))

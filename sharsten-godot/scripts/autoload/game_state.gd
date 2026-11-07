@@ -59,6 +59,11 @@ func save_path() -> String:
 		return save_path_override
 	return "user://sharsten_save.json"
 
+func slot_path() -> String:
+	if save_path_override != "":
+		return save_path_override + ".slot"
+	return "user://sharsten_slot.json"
+
 func start_new() -> void:
 	data = SaveFileS.blank(_start())
 	near_station = ""
@@ -78,6 +83,22 @@ func save_now() -> bool:
 
 func autosave() -> void:
 	_save_wait = 0.4
+
+func save_slot() -> bool:
+	return SaveFileS.write_atomic(slot_path(), data.duplicate(true))
+
+func has_slot() -> bool:
+	return FileAccess.file_exists(slot_path())
+
+func load_slot() -> bool:
+	var loaded := SaveFileS.read(slot_path(), _start())
+	if loaded.is_empty():
+		return false
+	data = loaded
+	move_token += 1
+	moved.emit()
+	refreshed.emit()
+	return true
 
 func load_game() -> bool:
 	var loaded := SaveFileS.read(save_path(), _start())
@@ -383,9 +404,28 @@ func _after_rules() -> void:
 	var done: Array = QuestRulesS.refresh(ContentDB.quests, data, _spots())
 	if done.has("first_steps"):
 		say_thought("The mallet sits right in the hand. Voices carry from the spoon stall. Papers wait on the mosque step, by the pasture, and on a basket in the lane.")
+	_advance_chain()
 	_check_gate()
 	autosave()
 	refreshed.emit()
+
+func objective_line() -> String:
+	if not is_instance_valid(ContentDB):
+		return ""
+	return QuestRulesS.next_line(ContentDB.quests, ContentDB.quest_order, data)
+
+func _advance_chain() -> void:
+	var ready := true
+	for qid in ContentDB.quest_order:
+		var def: Dictionary = ContentDB.quests.get(qid, {})
+		if not bool(def.get("required", false)):
+			continue
+		var st: Dictionary = data["quests"].get(qid, {})
+		if str(st.get("status", "")) == "done":
+			continue
+		if ready:
+			activate(qid)
+		ready = false
 
 func _check_gate() -> void:
 	var open := QuestRulesS.gate_ready(ContentDB.quests, data)
@@ -404,6 +444,27 @@ func hour() -> int:
 func grant_xp(amount: int) -> void:
 	data["xp"] = int(data.get("xp", 0)) + amount
 	data["level"] = 1 + int(data["xp"]) / 40
+
+func pickup_relic(relic_id: String) -> Dictionary:
+	var row: Dictionary = {}
+	if is_instance_valid(ContentDB):
+		row = ContentDB.relics.get(relic_id, {})
+	if row.is_empty():
+		return {}
+	var flag := "relic:" + relic_id
+	if bool(data["flags"].get(flag, false)):
+		say_thought("I already kept that fragment.")
+		return row
+	data["flags"][flag] = true
+	var notes: Array = data.get("relic_notes", [])
+	notes.append({"id": relic_id, "title": row.get("title", relic_id), "text": row.get("text", "")})
+	data["relic_notes"] = notes
+	if not (data["notes_read"] as Array).has(relic_id):
+		(data["notes_read"] as Array).append(relic_id)
+	grant_xp(8)
+	say_thought(str(row.get("text", "")))
+	_after_rules()
+	return row
 
 func study_relic() -> void:
 	if bool(data["flags"].get("studied_relic", false)):

@@ -64,6 +64,7 @@ var blocking := false
 var _hit_area: Area3D
 var _hurt_area: Area3D
 var _struck := {}
+var _step := 0.0
 const HOTBAR := ["hands", "fence", "wall", "oven", "loom", "stool", "diary", "craft"]
 const SPAWN_Y := 0.35
 
@@ -335,6 +336,7 @@ func _physics_process(delta: float) -> void:
 		_land_t = maxf(_land_t - delta, 0.0)
 	rig.tick(delta, flat if force_action == "" else 0.0, act, turn_rate, air)
 	_update_blend(running, seated)
+	_steps(delta)
 	_camera(delta)
 	_prompt()
 	GameState.poll_overhear(global_position)
@@ -523,6 +525,20 @@ func _near_seat() -> bool:
 		if n is Node3D and global_position.distance_to((n as Node3D).global_position) < best:
 			return true
 	return false
+
+func _steps(delta: float) -> void:
+	if not is_on_floor() or _planar < 0.4 or _hoist >= 0.0:
+		return
+	_step -= delta
+	if _step > 0.0:
+		return
+	_step = 0.42 if _planar < 3.0 else 0.28
+	var surface := "grass"
+	if global_position.y > 2.2:
+		surface = "wood"
+	elif global_position.y > 0.4:
+		surface = "stone"
+	get_tree().call_group("ambience", "play_step", surface)
 
 func _update_blend(running: bool, seated: bool) -> void:
 	var crowd := 0

@@ -69,6 +69,9 @@ func _meta() -> void:
 	elif kind == "relic":
 		set_meta("kind", "relic")
 		set_meta("verb", "Study the relic")
+	elif kind == "fragment":
+		set_meta("kind", "fragment")
+		set_meta("verb", "Take the fragment")
 	elif kind == "ore" or locked:
 		set_meta("kind", "resource")
 		set_meta("verb", "Look at the ore")
@@ -115,6 +118,8 @@ func _visual() -> void:
 		"relic":
 			MeshLib.part(self, MeshLib.box(0.9, 2.2, 0.9), MeshLib.mat("5a4038", 0.6, 0.4), Vector3(0, 1.1, 0))
 			MeshLib.part(self, MeshLib.box(2.2, 0.12, 0.12), MeshLib.mat("6a3a2a", 0.5, 0.45), Vector3(0, 2.0, 0))
+		"fragment":
+			MeshLib.part(self, MeshLib.box(0.22, 0.06, 0.16), MeshLib.mat("8a8e92", 0.45, 0.5), Vector3(0, 0.12, 0))
 		_:
 			MeshLib.part(self, MeshLib.box(0.3, 0.3, 0.3), MeshLib.mat("888888"), Vector3(0, 0.2, 0))
 
@@ -179,6 +184,14 @@ func use(_player: Node) -> void:
 		return
 	if kind == "relic":
 		GameState.study_relic()
+		return
+	if kind == "fragment":
+		var note := GameState.pickup_relic(id)
+		if not note.is_empty():
+			get_tree().call_group("ui", "show_note", note)
+			_puff()
+			used = true
+			visible = false
 		return
 	if kind == "note":
 		var note := GameState.read_note(id)

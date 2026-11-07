@@ -34,7 +34,7 @@ Kurdish clothing, hair caps, sashes, turbans, and headscarves parented to that s
 
 The dream sky is an original procedural golden-hour sky. A midday Poly Haven HDRI was not used, because it would wash out that light.
 
-The Newroz hearth music is an original eight-second loop written for this game: a daf pulse and a short melody. It is not a recording, and it is not Hasan Zirak's Newroz song or any other published tune. The fire crackle, wind, and door creak are original waveforms in `scripts/world/ambience.gd` and `scripts/world/house_door.gd`.
+The Newroz hearth music is an original eight-second loop written for this game: a daf pulse and a short melody. It is not a recording, and it is not Hasan Zirak's Newroz song or any other published tune. The fire crackle, wind, door creak, bird chirps, and footsteps are original waveforms in `scripts/world/ambience.gd` and `scripts/world/house_door.gd`. They are not AI audio and not a downloaded sample. Horses, donkeys, and carts are original low silhouettes that walk a lane. A CC0 animal mesh pack could not be fetched for this build.
 
 GUT, used only to run the stability tests, is MIT. Copyright (c) 2018 Tom "Butch" Wesley. https://github.com/bitwes/Gut. Phantom Camera is not included. The camera stays the approved rig on a Godot SpringArm3D.
 

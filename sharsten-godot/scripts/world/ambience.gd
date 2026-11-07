@@ -46,6 +46,14 @@ static func _bus(bus_name: String, db: float) -> void:
 		AudioServer.set_bus_send(idx, "Master")
 	AudioServer.set_bus_volume_db(idx, db)
 
+func play_step(surface: String) -> void:
+	var tone := 180.0
+	if surface == "stone":
+		tone = 320.0
+	elif surface == "wood":
+		tone = 240.0
+	_oneshot(_blip(tone, 0.04), -14.0 + _gain(Settings.sfx))
+
 func play_click() -> void:
 	_oneshot(_click, -10.0 + _gain(Settings.sfx))
 

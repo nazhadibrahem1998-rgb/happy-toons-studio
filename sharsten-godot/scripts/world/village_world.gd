@@ -1269,6 +1269,12 @@ func _life() -> void:
 	var relic = load("res://scripts/world/interactable.gd").new()
 	relic.configure({"kind": "relic", "id": "wind_relic", "at": [96.0, 48.0]})
 	add_child(relic)
+	for relic_id in ContentDB.relic_order:
+		var row: Dictionary = ContentDB.relics[relic_id]
+		var fragment = load("res://scripts/world/interactable.gd").new()
+		var at: Array = row.get("at", [0, 0])
+		fragment.configure({"kind": "fragment", "id": relic_id, "at": at, "verb": "Take the fragment"})
+		add_child(fragment)
 
 func _ruins() -> void:
 	var root := Node3D.new()

@@ -1,0 +1,40 @@
+{
+  "relics": [
+    {
+      "id": "glass_screen",
+      "title": "Cracked glass screen",
+      "text": "HUMAN_REVIEW. A palm-sized pane, cracked, with no picture left in it. Azad writes: a window that forgot what it showed.",
+      "at": [22.0, 50.0]
+    },
+    {
+      "id": "rusted_gear",
+      "title": "Rusted gear",
+      "text": "HUMAN_REVIEW. Teeth worn smooth. It once turned something larger than a cart wheel. Azad does not know the machine.",
+      "at": [58.0, 88.0]
+    },
+    {
+      "id": "metal_tag",
+      "title": "Strange metal tag",
+      "text": "HUMAN_REVIEW. Stamped marks, not letters he can read. No nation, no name. He keeps it in the diary.",
+      "at": [88.0, 42.0]
+    },
+    {
+      "id": "coil",
+      "title": "A coil of dull wire",
+      "text": "HUMAN_REVIEW. Soft metal in a spiral. It is not jewellery. It remembers being pulled through a wall.",
+      "at": [36.0, 24.0]
+    },
+    {
+      "id": "keycap",
+      "title": "A little square key",
+      "text": "HUMAN_REVIEW. One key from a board of them. The mark on its face is worn away. Azad cannot say the word.",
+      "at": [104.0, 64.0]
+    },
+    {
+      "id": "battery",
+      "title": "A clay-cased cell",
+      "text": "HUMAN_REVIEW. A small sealed jar of another age. It is dead. The diary keeps the rubbing, not the spark.",
+      "at": [28.0, 102.0]
+    }
+  ]
+}
