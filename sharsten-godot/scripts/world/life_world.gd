@@ -24,6 +24,8 @@ func bind(world: Node3D, sun_node: DirectionalLight3D, environment: Environment,
 	_ruins(world)
 	_signs(world)
 	_animals(world)
+	var stock = load("res://scripts/world/road_stock.gd").new()
+	world.add_child(stock)
 	_weather(world)
 
 func _collect_blocks(world: Node) -> void:
@@ -297,6 +299,10 @@ func _apply_meshes() -> void:
 		var inst: MultiMeshInstance3D = meshes[sp]
 		var shown := 0
 		var scale: Vector3 = Flocks.SPECIES[sp]["scale"]
+		var kind := str(Flocks.SPECIES[sp]["id"])
+		if kind == "horse" or kind == "donkey" or kind == "cart":
+			inst.multimesh.visible_instance_count = 0
+			continue
 		for i in flocks.pos.size():
 			if int(flocks.species[i]) != sp:
 				continue

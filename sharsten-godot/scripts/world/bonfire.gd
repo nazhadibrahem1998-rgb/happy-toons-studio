@@ -28,10 +28,10 @@ func setup(low: bool) -> void:
 	add_child(light)
 	var crackle := AudioStreamPlayer3D.new()
 	crackle.name = "Crackle"
-	crackle.stream = _local_crackle()
-	crackle.stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	crackle.stream.loop_begin = 0
-	crackle.stream.loop_end = crackle.stream.data.size() / 2
+	var fire: AudioStream = load("res://assets/audio/cc0/fire.ogg")
+	if fire is AudioStreamOggVorbis:
+		(fire as AudioStreamOggVorbis).loop = true
+	crackle.stream = fire
 	_place_voice(crackle, -8.0, "SFX", 2.5, 14.0)
 	add_child(crackle)
 	if not OS.has_feature("headless"):

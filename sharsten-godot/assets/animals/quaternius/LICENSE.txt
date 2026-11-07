@@ -1,0 +1,6 @@
+Quaternius — Ultimate Animated Animals
+Files: Horse.fbx, Donkey.fbx
+Source: https://quaternius.com/packs/ultimateanimatedanimals.html
+The files in this folder are the CC0 pack, taken from the public vendored copy in https://github.com/danwahl/animasim (assets/source/fbx).
+Licence: CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/
+The cart body is a Kenney Fantasy Town Kit plank (CC0) with original wooden wheels. There is no separate wagon download.
