@@ -33,7 +33,7 @@ const JOBS = ['idle', 'farmer', 'shepherd', 'baker', 'miller', 'weaver', 'smith'
 const PANELS = ['help', 'credits', 'quests', 'people', 'build', 'craft', 'detail', 'pause'];
 
 let lang = 'ckb';
-let quality = coarse ? 'mid' : 'high';
+let quality = coarse ? 'mid' : 'ultra';
 if (navigator.deviceMemory && navigator.deviceMemory <= 2) quality = 'low';
 let stickPref = !!coarse;
 let adhanOn = true;
@@ -45,7 +45,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
   if (saved) {
     if (saved.lang === 'ckb' || saved.lang === 'en') lang = saved.lang;
-    if (saved.quality === 'low' || saved.quality === 'mid' || saved.quality === 'high') quality = saved.quality;
+    if (saved.quality === 'low' || saved.quality === 'mid' || saved.quality === 'high' || saved.quality === 'ultra') quality = saved.quality;
     if (typeof saved.sticks === 'boolean') stickPref = saved.sticks;
     if (typeof saved.easy === 'boolean') easy = saved.easy;
     if (typeof saved.adhan === 'boolean') adhanOn = saved.adhan;
@@ -700,7 +700,7 @@ function paint() {
   const phase = t(lang, phaseOf(state.hour));
   document.getElementById('clockMeta').textContent = `${t(lang, 'day')} ${formatNum(state.day, lang)} · ${season} · ${phase}`;
   document.getElementById('modeBtn').textContent = state.mode === 'walk' ? t(lang, 'modeToBuild') : t(lang, 'modeToWalk');
-  const qKey = quality === 'low' ? 'qualityLow' : quality === 'high' ? 'qualityHigh' : 'qualityMid';
+  const qKey = quality === 'low' ? 'qualityLow' : quality === 'ultra' ? 'qualityUltra' : quality === 'high' ? 'qualityHigh' : 'qualityMid';
   document.getElementById('qualityBtn').textContent = t(lang, qKey);
   paintStage();
   paintCraft();
@@ -1056,7 +1056,8 @@ document.getElementById('modeBtn').addEventListener('click', () => { closeHud();
 document.getElementById('langEn').addEventListener('click', () => { lang = 'en'; applyLang(); });
 document.getElementById('langCkb').addEventListener('click', () => { lang = 'ckb'; applyLang(); });
 document.getElementById('qualityBtn').addEventListener('click', () => {
-  quality = quality === 'low' ? 'mid' : quality === 'mid' ? 'high' : 'low';
+  const order = ['low', 'mid', 'high', 'ultra'];
+  quality = order[(order.indexOf(quality) + 1) % order.length];
   view.setQuality(quality);
   saveSettings();
   paint();
@@ -1345,7 +1346,8 @@ function frame(now) {
   const radius = renderRadiusUnits(quality);
   const camDist = walking ? 5.2 : buildCam.dist;
   const haze = metersToUnits(40);
-  view.setFog(camDist + haze, camDist + haze + metersToUnits(55));
+  const fogReach = quality === 'ultra' ? metersToUnits(90) : metersToUnits(55);
+  view.setFog(camDist + haze, camDist + haze + fogReach);
   view.setPreview(!playing);
   view.sync(state, now / 1000, { x: here.x, z: here.z, radius });
   const boot = document.getElementById('boot');
@@ -1562,6 +1564,19 @@ window.__SV = {
   },
   getHillColor: () => view.getHillColor(),
   lookReport: () => view.lookReport(),
+  portrait(id) { view.setPortrait(id); },
+  park(id, x, z) {
+    const v = state.villagers.find((item) => item.id === id);
+    if (!v) return false;
+    v.gx = x;
+    v.gz = z;
+    v.tx = x;
+    v.tz = z;
+    v.goalGx = x;
+    v.goalGz = z;
+    return true;
+  },
+  drawCalls: () => view.drawCalls(),
   i18nAudit,
   stepKeys(dt, codes) {
     (codes || []).forEach((code) => keys.add(code));

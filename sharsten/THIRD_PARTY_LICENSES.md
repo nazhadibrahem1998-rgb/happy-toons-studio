@@ -23,6 +23,10 @@ The full licence texts that these files require are in `vendor/notices/`.
 - Notice: `vendor/notices/YUKA-MIT.txt`
 - What we use: the arrive steering speed from `ArriveBehavior` (`speed = min(maxSpeed, distance / deceleration)`, and zero inside a tolerance), in `vendor/arrive.js`. Villagers ease to a stop at their goal. The same ease slides a raider back after a sword hit.
 
+## Surfaces and clothes
+
+Stone, mud plaster, wood, grass, dirt and water are generated in the game (`vendor/surfaces.js`). They are not copied from ambientCG, Poly Haven, or any other texture library. The walk, idle and prayer motion is procedural on our own rig. No Mixamo, Quaternius or Kenney clips are included. Kurdish shal û shapik, dresses, turbans and the mullah’s robe are simple shapes we modelled for this game.
+
 ## Adhan recording
 
 - Name: Adhan, Aishatu98
