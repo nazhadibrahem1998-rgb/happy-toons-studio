@@ -21,6 +21,9 @@ var bot_wish := Vector2.ZERO
 var bot_sprint := false
 var rig: HumanRig
 var camera: Camera3D
+var _arm: SpringArm3D
+var _arm_len := 4.4
+var _arm_primed := false
 var prompt := ""
 var prompt_kind := ""
 var prompt_id := ""
@@ -65,11 +68,16 @@ func _ready() -> void:
 	}
 	add_child(rig)
 	rig.setup(spec)
+	_arm = SpringArm3D.new()
+	_arm.name = "SpringArm"
+	_arm.collision_mask = 1
+	_arm.margin = 0.3
+	add_child(_arm)
 	camera = Camera3D.new()
 	camera.fov = 68.0
 	camera.near = 0.08
 	camera.far = 220.0
-	add_child(camera)
+	_arm.add_child(camera)
 	camera.current = true
 	var p: Dictionary = GameState.data.get("player", {})
 	global_position = Vector3(float(p.get("x", 12)), SPAWN_Y, float(p.get("z", 43)))
@@ -272,26 +280,19 @@ func _camera(delta: float) -> void:
 	var flags: Dictionary = Settings.current_flags()
 	camera.far = float(flags.get("view", 85.0)) + 30.0
 	var basis := Basis.from_euler(Vector3(pitch, yaw, 0.0))
-	var look := basis * Vector3(0, 0, -1)
 	var eye := lerpf(1.48, 0.95, _crouch)
 	var pivot := global_position + Vector3(0, eye, 0)
-	var wanted := pivot - look * cam_dist + basis * Vector3(0.28, 0.05, 0)
-	var space := get_world_3d().direct_space_state
-	var safe := 1.0
-	if space != null:
-		var sphere := SphereShape3D.new()
-		sphere.radius = 0.22
-		var cast := PhysicsShapeQueryParameters3D.new()
-		cast.shape = sphere
-		cast.transform = Transform3D(Basis.IDENTITY, pivot)
-		cast.motion = wanted - pivot
-		cast.collision_mask = 1
-		cast.exclude = [self]
-		var frac := space.cast_motion(cast)
-		if frac.size() > 0:
-			safe = float(frac[0])
-	camera.global_position = camera_stop(pivot, wanted, safe)
-	camera.global_transform = Transform3D(basis, camera.global_position)
+	# +Z of this basis is behind the look, which is the direction SpringArm3D extends.
+	_arm.global_position = pivot
+	_arm.global_basis = basis
+	var blocked: float = camera.position.z
+	if _arm_primed and blocked + 0.08 < _arm.spring_length:
+		_arm_len = blocked
+	else:
+		_arm_len = lerpf(_arm_len, cam_dist, 1.0 - exp(-7.0 * delta))
+	_arm.spring_length = maxf(_arm_len, 0.2)
+	_arm_primed = true
+	camera.rotation = Vector3.ZERO
 	rig.set_first_person(first_person or cam_dist < 0.35)
 
 func _pointer_over_scroll() -> bool:
