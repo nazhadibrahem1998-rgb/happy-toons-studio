@@ -33,6 +33,10 @@ gdscript/warnings/untyped_declaration=0
 gdscript/warnings/unused_variable=0
 gdscript/warnings/unused_signal=0
 
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
 [rendering]
 
 renderer/rendering_method="forward_plus"

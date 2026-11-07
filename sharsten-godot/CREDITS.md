@@ -36,6 +36,8 @@ The dream sky is an original procedural golden-hour sky. A midday Poly Haven HDR
 
 The Newroz hearth music is an original eight-second loop written for this game: a daf pulse and a short melody. It is not a recording, and it is not Hasan Zirak's Newroz song or any other published tune. The fire crackle, wind, and door creak are original waveforms in `scripts/world/ambience.gd` and `scripts/world/house_door.gd`.
 
+GUT, used only to run the stability tests, is MIT. Copyright (c) 2018 Tom "Butch" Wesley. https://github.com/bitwes/Gut. Phantom Camera is not included. The camera stays the approved rig on a Godot SpringArm3D.
+
 Wooden house doors, the short creak, interior mats, hearths, shelves, jars, and low tables are original geometry. The creak is synthesized in `scripts/world/house_door.gd`. It is not a downloaded sample.
 
 ## This project
