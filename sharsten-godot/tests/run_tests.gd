@@ -318,6 +318,9 @@ func _check_move() -> void:
 	_check(not rules.can_jump(true, true, false, true), "crouch blocks the jump")
 	_check(not rules.can_jump(false, true, false, false), "no jump without coyote time")
 	_check(not rules.can_jump(true, true, true, false), "no second jump in the air")
+	_check(rules.mantle_ok(1.2) and not rules.mantle_ok(0.1) and not rules.mantle_ok(6.0), "a mantle fits a ledge, not a step or a tower")
+	_check(rules.drop_ok(1.5, 1.0) and not rules.drop_ok(8.0, 1.0), "a drop stays within a short fall")
+	_check(rules.cross_ok(0.2, 1.2) and not rules.cross_ok(0.2, 0.2), "a roof gap is a short crossing")
 	_check(int(Settings.ACTIONS.get("jump", 0)) == KEY_SPACE, "jump is Space")
 	for action in Settings.ACTIONS.keys():
 		if action != "jump":

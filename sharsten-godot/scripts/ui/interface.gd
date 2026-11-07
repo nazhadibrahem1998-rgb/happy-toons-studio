@@ -18,6 +18,7 @@ var sub_box: VBoxContainer
 var hint_label: Label
 var banner: Label
 var crack: ColorRect
+var vignette: TextureRect
 var crack_t := -1.0
 var note_panel: Control
 var diary: Control
@@ -38,6 +39,15 @@ func _ready() -> void:
 	GameState.refreshed.connect(_on_refresh)
 
 func _hud() -> void:
+	vignette = TextureRect.new()
+	vignette.name = "BlendVignette"
+	vignette.texture = _blend_vignette()
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vignette.visible = false
+	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	add_child(vignette)
 	thought_label = RichTextLabel.new()
 	thought_label.bbcode_enabled = true
 	thought_label.fit_content = true
@@ -108,6 +118,8 @@ func _process(delta: float) -> void:
 			thought_label.add_theme_font_size_override("normal_font_size", Settings.subtitle_px())
 	_subs(now)
 	_hints()
+	if vignette:
+		vignette.visible = GameState.blended and screen == "play" and not cine
 	if crack_t >= 0.0:
 		crack_t += delta
 		crack.color.a = clampf(crack_t / 1.4, 0.0, 1.0)
@@ -115,6 +127,17 @@ func _process(delta: float) -> void:
 			crack_t = -1.0
 			crack.color.a = 0.0
 			_show_banner()
+
+func _blend_vignette() -> ImageTexture:
+	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	for y in 64:
+		for x in 64:
+			var dx := (float(x) - 31.5) / 31.5
+			var dy := (float(y) - 31.5) / 31.5
+			var radius := sqrt(dx * dx + dy * dy)
+			var alpha := clampf((radius - 0.42) / 0.58, 0.0, 1.0)
+			img.set_pixel(x, y, Color(0.04, 0.06, 0.05, alpha * alpha * 0.62))
+	return ImageTexture.create_from_image(img)
 
 func _subs(now: float) -> void:
 	if sub_box == null:

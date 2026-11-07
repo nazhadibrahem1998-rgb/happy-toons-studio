@@ -23,6 +23,7 @@ var active_spot := ""
 var move_token := 0
 var save_path_override := ""
 var ignore_station := false
+var blended := false
 var _save_wait := 0.0
 
 func _ready() -> void:
@@ -342,6 +343,13 @@ func read_note(note_id: String) -> Dictionary:
 		activate(qid)
 	_after_rules()
 	return note
+
+func set_blended(on: bool) -> void:
+	if blended == on:
+		return
+	blended = on
+	if typeof(data) == TYPE_DICTIONARY and data.has("flags"):
+		data["flags"]["blended"] = on
 
 func touch_rune(flag: String) -> void:
 	data["flags"][flag] = true
