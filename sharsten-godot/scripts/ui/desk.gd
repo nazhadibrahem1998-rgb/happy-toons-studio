@@ -252,6 +252,7 @@ static func build_settings(host: Node, on_close: Callable) -> Control:
 		Settings.save()
 	))
 	box.add_child(plain("Hold %s: look around. Release it and the camera returns behind you. Hold %s: crouch. %s: jump." % [Settings.key_label("free_look"), Settings.key_label("crouch"), Settings.key_label("jump")], 16, Color("f0e2c4")))
+	box.add_child(plain("Left click strikes. %s rolls. Hold %s to block; a block as the blow lands answers it. %s changes the weapon. The flintlock is not in this dream." % [Settings.key_label("dodge"), Settings.key_label("block"), Settings.key_label("weapon")], 16, Color("f0e2c4")))
 	box.add_child(plain("Keys and mouse  — click a binding, then press a key or mouse button", 16, Color("f0e2c4")))
 	var grid := GridContainer.new()
 	grid.name = "BindGrid"

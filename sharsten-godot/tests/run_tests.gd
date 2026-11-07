@@ -321,6 +321,14 @@ func _check_move() -> void:
 	_check(rules.mantle_ok(1.2) and not rules.mantle_ok(0.1) and not rules.mantle_ok(6.0), "a mantle fits a ledge, not a step or a tower")
 	_check(rules.drop_ok(1.5, 1.0) and not rules.drop_ok(8.0, 1.0), "a drop stays within a short fall")
 	_check(rules.cross_ok(0.2, 1.2) and not rules.cross_ok(0.2, 0.2), "a roof gap is a short crossing")
+	var combat = load("res://scripts/sim/combat_rules.gd")
+	_check(is_equal_approx(combat.resolve(10.0, false, false), 10.0), "an open hit deals full damage")
+	_check(combat.resolve(10.0, true, false) < 10.0 and combat.resolve(10.0, true, false) > 0.0, "a block cuts the damage")
+	_check(is_equal_approx(combat.resolve(10.0, true, true), 0.0), "a timed block answers the blow")
+	_check(not combat.allowed("flintlock", "dream") and combat.allowed("flintlock", "woke"), "the flintlock is only in the waking world")
+	_check(combat.allowed("sword", "dream") and combat.allowed("shovel", "dream"), "blades and tools stay in the dream")
+	_check(int(Settings.ACTIONS.get("dodge", 0)) == KEY_Q and int(Settings.ACTIONS.get("block", 0)) == KEY_F, "roll is Q and block is F")
+	_check(int(Settings.MOUSE_ACTIONS.get("attack", 0)) == MOUSE_BUTTON_LEFT, "left click stays the strike")
 	_check(int(Settings.ACTIONS.get("jump", 0)) == KEY_SPACE, "jump is Space")
 	for action in Settings.ACTIONS.keys():
 		if action != "jump":
