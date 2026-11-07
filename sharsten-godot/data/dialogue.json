@@ -1,0 +1,103 @@
+{
+  "conversations": [
+    {
+      "id": "spoons",
+      "spot": "spoon_bench",
+      "radius": 8.0,
+      "speakers": ["khola_direzh", "hama_kawchkan"],
+      "starts_quest": "spoon_mould",
+      "lines": [
+        {"speaker": "khola_direzh", "text": "The mould split again, Hama. I carried the timber down a lane that turned twice into itself."},
+        {"speaker": "hama_kawchkan", "text": "Then leave a new mould on the bench. The children still need spoons, however tall the day is."}
+      ]
+    },
+    {
+      "id": "spring_talk",
+      "spot": "spring",
+      "radius": 8.0,
+      "speakers": ["pura_shrin", "dayka_hapsa"],
+      "starts_quest": "spirit_braid",
+      "lines": [
+        {"speaker": "pura_shrin", "text": "The spring is repeating its own song, Hapsa. I have heard the same verse three times."},
+        {"speaker": "dayka_hapsa", "text": "A four-strand braid, hung on the willow, would quiet it. I have said so to the water."}
+      ]
+    },
+    {
+      "id": "runes_talk",
+      "spot": "mosque",
+      "radius": 8.0,
+      "speakers": ["mullah_husen", "mam_raso"],
+      "starts_quest": "rune_stones",
+      "lines": [
+        {"speaker": "mullah_husen", "text": "Three rune stones have wandered from the circle, Raso. The dream is a poor shepherd."},
+        {"speaker": "mam_raso", "text": "One by the north ridge, one on the east rock, one on the south lane. They are teaching us to look."}
+      ]
+    },
+    {
+      "id": "hide_talk",
+      "spot": "fence_spot",
+      "radius": 9.0,
+      "speakers": ["hasana_nono", "awa_kurzh"],
+      "starts_quest": "satchel",
+      "lines": [
+        {"speaker": "hasana_nono", "text": "The racks are full of shed hide again. The goats leave it on the thorn."},
+        {"speaker": "awa_kurzh", "text": "A satchel of it would keep a rubbing dry. Nothing was slain for the making."}
+      ]
+    },
+    {
+      "id": "smith_talk",
+      "spot": "stone_bench",
+      "radius": 8.0,
+      "speakers": ["khola_piza", "mama_qadir"],
+      "starts_quest": "",
+      "lines": [
+        {"speaker": "khola_piza", "text": "The dark ore will not wake. I have tapped it, and it only dreams."},
+        {"speaker": "mama_qadir", "text": "Then we shoe nothing today. A later fire can have it."}
+      ]
+    },
+    {
+      "id": "bake_talk",
+      "spot": "tandoor",
+      "radius": 8.0,
+      "speakers": ["haji_wasman", "ama_damshr"],
+      "starts_quest": "",
+      "lines": [
+        {"speaker": "haji_wasman", "text": "The clay of the tandoor is tired, Ama. I wrote as much and left it on the step."},
+        {"speaker": "ama_damshr", "text": "Two cups on the shelf would please it. I will keep the oven warm until they are there."}
+      ]
+    },
+    {
+      "id": "round_loaf_talk",
+      "spot": "tandoor",
+      "radius": 8.0,
+      "speakers": ["kura_rasho", "dayka_hapsa"],
+      "starts_quest": "round_loaf",
+      "lines": [
+        {"speaker": "kura_rasho", "text": "A round loaf has no corners, so it should cost half a coin. I worked it out."},
+        {"speaker": "dayka_hapsa", "text": "It costs a coin because it is bread. Carry it, and count the corners on the way home."}
+      ]
+    },
+    {
+      "id": "borrowed_jug_talk",
+      "spot": "spring",
+      "radius": 8.0,
+      "speakers": ["pura_shrin", "dayka_hapsa"],
+      "starts_quest": "borrowed_jug",
+      "lines": [
+        {"speaker": "pura_shrin", "text": "The good jug can go visiting if a coin sits here until it comes back."},
+        {"speaker": "dayka_hapsa", "text": "A quiet bargain. The jug does not need a speech, and neither does the coin."}
+      ]
+    },
+    {
+      "id": "extra_hands_talk",
+      "spot": "stump",
+      "radius": 8.0,
+      "speakers": ["pira_majid", "kura_rasho"],
+      "starts_quest": "extra_hands",
+      "lines": [
+        {"speaker": "pira_majid", "text": "One jar at dawn. That is a job, not a debate."},
+        {"speaker": "kura_rasho", "text": "I stepped the path. It is shorter than he thinks, so the jar could have a friend."}
+      ]
+    }
+  ]
+}
