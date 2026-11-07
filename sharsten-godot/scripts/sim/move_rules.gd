@@ -12,6 +12,9 @@ const EASE := 22.0
 const TURN_RATE := 10.0
 const IDLE_TURN_RATE := 4.0
 const GRAVITY := 22.0
+const JUMP_HEIGHT := 0.5
+const COYOTE := 0.12
+const JUMP_BUFFER := 0.12
 const FLOOR_STICK := -2.0
 const FLOOR_SNAP := 0.3
 const SAFE_MARGIN := 0.08
@@ -39,6 +42,12 @@ static func anim_pace(ground_speed: float) -> float:
 	if ground_speed <= 0.2:
 		return 1.0
 	return ground_speed / CLIP_SPEED
+
+static func jump_velocity() -> float:
+	return sqrt(2.0 * GRAVITY * JUMP_HEIGHT)
+
+static func can_jump(recent_ground: bool, buffered: bool, already: bool, crouched: bool) -> bool:
+	return recent_ground and buffered and not already and not crouched
 
 static func stick_y(on_floor: bool, y: float, delta: float) -> float:
 	if on_floor:

@@ -313,6 +313,15 @@ func _check_move() -> void:
 	_check(rules.anim_pace(5.5) > rules.anim_pace(2.2), "run animation speeds up with the ground")
 	_check(is_equal_approx(rules.stick_y(true, 1.0, 0.016), -2.0), "on the floor the body is stuck down")
 	_check(rules.stick_y(false, 0.0, 0.016) < 0.0, "in the air gravity pulls down")
+	_check(is_equal_approx(rules.jump_velocity(), sqrt(22.0)), "a jump rises about half a metre")
+	_check(rules.can_jump(true, true, false, false), "a grounded press can jump")
+	_check(not rules.can_jump(true, true, false, true), "crouch blocks the jump")
+	_check(not rules.can_jump(false, true, false, false), "no jump without coyote time")
+	_check(not rules.can_jump(true, true, true, false), "no second jump in the air")
+	_check(int(Settings.ACTIONS.get("jump", 0)) == KEY_SPACE, "jump is Space")
+	for action in Settings.ACTIONS.keys():
+		if action != "jump":
+			_check(int(Settings.ACTIONS[action]) != KEY_SPACE, "Space is not also %s" % action)
 	_check(int(Settings.ACTIONS.get("sprint", 0)) == KEY_SHIFT, "run defaults to Shift")
 	var saved := {"version": 2, "preset": "low", "keys": {"sprint": 4194305, "move_forward": int(KEY_W)}}
 	_check(Settings._apply_dict(saved), "an Escape run bind is migrated")

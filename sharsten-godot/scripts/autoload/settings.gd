@@ -11,6 +11,7 @@ const ACTIONS := {
 	"sprint": KEY_SHIFT,
 	"free_look": KEY_CTRL,
 	"crouch": KEY_C,
+	"jump": KEY_SPACE,
 	"interact": KEY_E,
 	"diary": KEY_TAB,
 	"view": KEY_V,
