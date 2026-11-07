@@ -31,6 +31,7 @@ func _ready() -> void:
 	_stations_nodes()
 	_bake_nav()
 	_people()
+	_encounter()
 	if not OS.has_feature("headless"):
 		_nature()
 		_horizon()
@@ -603,6 +604,14 @@ func _bake_nav() -> void:
 	region.navigation_mesh = mesh
 	if not OS.has_feature("headless"):
 		add_child(region)
+
+func _encounter() -> void:
+	# Outside the east edge, clear of the lanes. Three imaginary thornbeasts.
+	var origin := Vector3(132.0, 0.35, 34.0)
+	for i in 3:
+		var beast = load("res://scripts/npc/beast.gd").new()
+		beast.position = origin + Vector3(-1.4 + float(i) * 1.5, 0, 1.2 if i == 1 else 0.0)
+		add_child(beast)
 
 func _nav_blocked(x: float, z: float, pad: float) -> bool:
 	var p := Vector2(x, z)

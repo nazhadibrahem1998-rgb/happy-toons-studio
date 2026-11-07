@@ -19,6 +19,8 @@ var hint_label: Label
 var banner: Label
 var crack: ColorRect
 var vignette: TextureRect
+var health_back: ColorRect
+var health_fill: ColorRect
 var crack_t := -1.0
 var note_panel: Control
 var diary: Control
@@ -48,6 +50,18 @@ func _hud() -> void:
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	add_child(vignette)
+	health_back = ColorRect.new()
+	health_back.position = Vector2(28, 28)
+	health_back.size = Vector2(220, 14)
+	health_back.color = Color(0.08, 0.07, 0.06, 0.72)
+	health_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(health_back)
+	health_fill = ColorRect.new()
+	health_fill.position = Vector2(30, 30)
+	health_fill.size = Vector2(216, 10)
+	health_fill.color = Color(0.55, 0.22, 0.18, 0.95)
+	health_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(health_fill)
 	thought_label = RichTextLabel.new()
 	thought_label.bbcode_enabled = true
 	thought_label.fit_content = true
@@ -120,6 +134,14 @@ func _process(delta: float) -> void:
 	_hints()
 	if vignette:
 		vignette.visible = GameState.blended and screen == "play" and not cine
+	if health_fill:
+		var body := get_tree().get_first_node_in_group("player")
+		var ratio := 1.0
+		if body and body.get("health") != null and float(body.health_max) > 0.0:
+			ratio = clampf(float(body.health) / float(body.health_max), 0.0, 1.0)
+		health_fill.size.x = 216.0 * ratio
+		health_back.visible = screen == "play" and not cine
+		health_fill.visible = health_back.visible
 	if crack_t >= 0.0:
 		crack_t += delta
 		crack.color.a = clampf(crack_t / 1.4, 0.0, 1.0)

@@ -38,6 +38,23 @@ func setup(spec: Dictionary) -> void:
 	if OS.has_feature("headless"):
 		visible = false
 
+func show_weapon(id: String) -> void:
+	if tool:
+		tool.visible = id != "fists" and id != "flintlock"
+	if id == "fists" or id == "flintlock" or skel == null:
+		return
+	if tool == null:
+		_make_tool({"prop": "staff"})
+	if tool == null:
+		return
+	tool.visible = true
+	var mesh: Mesh = MeshLib.box(0.08, 0.55, 0.02)
+	if id in ["shovel", "staff", "hammer"]:
+		mesh = MeshLib.cyl(0.03, 0.85)
+	elif id == "sickle":
+		mesh = MeshLib.box(0.28, 0.06, 0.02)
+	tool.mesh = mesh
+
 func set_first_person(on: bool) -> void:
 	if model:
 		model.visible = not on
@@ -53,7 +70,8 @@ func tick(delta: float, speed: float, action: String, turn_rate: float = 0.0, ai
 	var turning := speed < 0.35 and turn_rate > 1.1 and air == "" and action != "crouch"
 	var clip := _clip_for(speed, action, air, turning)
 	var crouched := action == "crouch" and air == ""
-	var acting := air != "" or (speed < 0.35 and action in ["sit", "talk", "teach", "pray", "eat", "carve", "hammer", "hoe", "chop", "weave", "bake", "tend", "kneel", "open"])
+	var combat := action in ["jab", "cross", "kick", "blade", "tool", "roll", "guard", "hurt"]
+	var acting := air != "" or combat or (speed < 0.35 and action in ["sit", "talk", "teach", "pray", "eat", "carve", "hammer", "hoe", "chop", "weave", "bake", "tend", "kneel", "open"])
 	if action == "open" and speed >= 0.35:
 		acting = true
 	var want_mix := 1.0 if acting else 0.0
@@ -91,6 +109,22 @@ func tick(delta: float, speed: float, action: String, turn_rate: float = 0.0, ai
 		_plant_feet()
 
 func _clip_for(speed: float, action: String, air: String, turning: bool) -> String:
+	if action == "jab":
+		return "Armature|Punch_Jab"
+	if action == "cross":
+		return "Armature|Punch_Cross"
+	if action == "kick":
+		return "Armature|Push"
+	if action == "blade":
+		return "Armature|Sword_Attack"
+	if action == "tool":
+		return "Armature|Interact"
+	if action == "roll":
+		return "Armature|Roll"
+	if action == "guard":
+		return "Armature|Sword_Idle"
+	if action == "hurt":
+		return "Armature|Hit_Chest"
 	if air == "start":
 		return "Armature|Jump_Start"
 	if air == "fall":
@@ -177,8 +211,9 @@ func _build_tree() -> void:
 		return
 	for clip in ["Armature|Idle", "Armature|Walk", "Armature|Jog_Fwd", "Armature|Sprint", "Armature|Crouch_Idle", "Armature|Crouch_Fwd", "Armature|Idle_Talking", "Armature|Sitting_Idle", "Armature|Interact", "Armature|Fixing_Kneeling", "Armature|Jump"]:
 		_set_loop(clip, Animation.LOOP_LINEAR)
-	for clip in ["Armature|Jump_Start", "Armature|Jump_Land"]:
+	for clip in ["Armature|Jump_Start", "Armature|Jump_Land", "Armature|Punch_Jab", "Armature|Punch_Cross", "Armature|Push", "Armature|Sword_Attack", "Armature|Roll", "Armature|Hit_Chest"]:
 		_set_loop(clip, Animation.LOOP_NONE)
+	_set_loop("Armature|Sword_Idle", Animation.LOOP_LINEAR)
 	tree = AnimationTree.new()
 	tree.name = "Motion"
 	add_child(tree)
@@ -297,8 +332,18 @@ func _clothes(spec: Dictionary) -> void:
 	var vest := MeshLib.cloth_mat(str(spec.get("vest", "3a2a22")), "embroidery")
 	var shoes := MeshLib.cloth_mat("f7f4ee", "cotton")
 	var turban := _turban_mat(str(spec.get("name", "azad")))
-	_hair(str(spec.get("name", "azad")))
+	if not bool(spec.get("beast", false)):
+		_hair(str(spec.get("name", "azad")))
 	_base_layer()
+	if bool(spec.get("beast", false)):
+		var hide := MeshLib.mat("241c16", 0.9)
+		for piece in clothing:
+			for child in piece.get_children():
+				if child is MeshInstance3D:
+					(child as MeshInstance3D).material_override = hide
+		_foot_cover("foot_l", hide)
+		_foot_cover("foot_r", hide)
+		return
 	if not bool(spec.get("costume", true)):
 		_foot_cover("foot_l", shoes)
 		_foot_cover("foot_r", shoes)

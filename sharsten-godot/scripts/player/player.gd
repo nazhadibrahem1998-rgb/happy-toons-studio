@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 const Move = preload("res://scripts/sim/move_rules.gd")
+const Combat = preload("res://scripts/sim/combat_rules.gd")
 
 var yaw := 0.4
 var pitch := -0.08
@@ -48,6 +49,21 @@ var aiming := false
 var _stuck := 0.0
 var _swing := 0.0
 var _planar := 0.0
+var health := 100.0
+var health_max := 100.0
+var weapon_id := "fists"
+var _attack_t := 0.0
+var _hit_left := 0.0
+var _attack_move := ""
+var _combo := 0
+var _combo_until := 0.0
+var _dodge_t := 0.0
+var _iframe := 0.0
+var _block_age := 1.0
+var blocking := false
+var _hit_area: Area3D
+var _hurt_area: Area3D
+var _struck := {}
 const HOTBAR := ["hands", "fence", "wall", "oven", "loom", "stool", "diary", "craft"]
 const SPAWN_Y := 0.35
 
@@ -101,6 +117,30 @@ func _ready() -> void:
 	cam_dist = cam_target
 	rig.set_first_person(first_person)
 	last_safe = global_position
+	_hit_area = Area3D.new()
+	_hit_area.collision_layer = 0
+	_hit_area.collision_mask = 8
+	_hit_area.monitoring = false
+	var hit_shape := CollisionShape3D.new()
+	var hit_ball := SphereShape3D.new()
+	hit_ball.radius = 0.46
+	hit_shape.shape = hit_ball
+	_hit_area.add_child(hit_shape)
+	add_child(_hit_area)
+	_hurt_area = Area3D.new()
+	_hurt_area.collision_layer = 16
+	_hurt_area.collision_mask = 0
+	_hurt_area.monitorable = true
+	_hurt_area.add_to_group("player_hurt")
+	var hurt_shape := CollisionShape3D.new()
+	var hurt_cap := CapsuleShape3D.new()
+	hurt_cap.radius = 0.38
+	hurt_cap.height = 1.2
+	hurt_shape.shape = hurt_cap
+	hurt_shape.position = Vector3(0, 0.85, 0)
+	_hurt_area.add_child(hurt_shape)
+	add_child(_hurt_area)
+	collision_mask = 1 | 4 | 8
 	GameState.moved.connect(_on_moved)
 
 func _on_moved() -> void:
@@ -135,6 +175,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("attack"):
 		_attack()
+	elif event.is_action_pressed("dodge"):
+		_begin_dodge()
+	elif event.is_action_pressed("weapon"):
+		_cycle_weapon()
 	elif event.is_action_pressed("aim"):
 		_aim_or_use()
 	elif event.is_action_pressed("focus"):
@@ -158,7 +202,29 @@ func _physics_process(delta: float) -> void:
 	var crouching := _crouch_wants()
 	_crouch = move_toward(_crouch, 1.0 if crouching else 0.0, delta * 6.0)
 	_fit_capsule()
-	var running := (bot_sprint if bot_override else Input.is_action_pressed("sprint")) and not crouching
+	blocking = (not bot_override) and Input.is_action_pressed("block") and _attack_t <= 0.0 and _dodge_t <= 0.0 and _hoist < 0.0
+	if blocking and Input.is_action_just_pressed("block"):
+		_block_age = 0.0
+	elif blocking:
+		_block_age += delta
+	else:
+		_block_age = 1.0
+	if _iframe > 0.0:
+		_iframe = maxf(_iframe - delta, 0.0)
+	if _combo_until > 0.0:
+		_combo_until = maxf(_combo_until - delta, 0.0)
+		if _combo_until <= 0.0:
+			_combo = 0
+	if _dodge_t > 0.0:
+		_dodge_t = maxf(_dodge_t - delta, 0.0)
+	if _attack_t > 0.0:
+		_attack_t = maxf(_attack_t - delta, 0.0)
+		if _attack_t <= 0.0:
+			_attack_move = ""
+			_hit_left = 0.0
+			if _hit_area:
+				_hit_area.monitoring = false
+	var running := (bot_sprint if bot_override else Input.is_action_pressed("sprint")) and not crouching and _attack_t <= 0.0 and _dodge_t <= 0.0
 	var target := Move.target_speed(wish.length(), running, crouching)
 	_planar = Move.step_speed(_planar, target, delta)
 	var basis_yaw := LookMath.move_yaw(_look_held, _locked_yaw, body_yaw if _returning else yaw)
@@ -167,6 +233,9 @@ func _physics_process(delta: float) -> void:
 		dir = Vector3.ZERO
 	elif dir.length() > 0.001:
 		dir = dir.normalized()
+	if _hit_left > 0.0:
+		_hit_left = maxf(_hit_left - delta, 0.0)
+		_poke(dir)
 	if _hoist_cool > 0.0:
 		_hoist_cool = maxf(_hoist_cool - delta, 0.0)
 	var focus := get_viewport().gui_get_focus_owner()
@@ -202,6 +271,13 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.y = Move.stick_y(grounded, velocity.y, delta)
 		floor_snap_length = 0.0 if velocity.y > 0.05 else Move.FLOOR_SNAP
+		if _dodge_t > 0.0:
+			var roll := dir if dir.length() > 0.1 else Vector3(-sin(body_yaw), 0, -cos(body_yaw))
+			velocity.x = roll.x * 6.4
+			velocity.z = roll.z * 6.4
+		elif _attack_t > 0.0:
+			velocity.x *= 0.25
+			velocity.z *= 0.25
 		move_and_slide()
 	else:
 		velocity = Vector3.ZERO
@@ -233,9 +309,15 @@ func _physics_process(delta: float) -> void:
 	var flat := _planar
 	if _swing > 0.0:
 		_swing -= delta
-	var seated := _near_seat() and flat < 0.25 and not crouching and _hoist < 0.0
+	var seated := _near_seat() and flat < 0.25 and not crouching and _hoist < 0.0 and _attack_t <= 0.0
 	var act := "crouch" if crouching else (force_action if force_action != "" else ("walk" if flat > 0.2 else "idle"))
-	if seated:
+	if _dodge_t > 0.0:
+		act = "roll"
+	elif _attack_move != "":
+		act = _attack_move
+	elif blocking:
+		act = "guard"
+	elif seated:
 		act = "sit"
 	elif _swing > 0.0 and flat < 0.2:
 		act = "open" if prompt_kind == "door" else "carve"
@@ -545,8 +627,103 @@ func _attack() -> void:
 	if prompt_kind in ["resource", "found"]:
 		_interact()
 		return
-	_swing = 0.35
-	GameState.say_thought("The swing meets only air.")
+	_begin_strike()
+
+func _begin_dodge() -> void:
+	if build_mode or _dodge_t > 0.0 or _hoist >= 0.0 or _attack_t > 0.0:
+		return
+	_dodge_t = 0.46
+	_iframe = 0.28
+	_attack_move = ""
+	blocking = false
+
+func _cycle_weapon() -> void:
+	if build_mode:
+		return
+	var phase := str(GameState.data.get("phase", "dream"))
+	weapon_id = Combat.next_weapon(weapon_id, phase)
+	if rig:
+		rig.show_weapon(weapon_id)
+
+func _begin_strike() -> void:
+	if _attack_t > 0.0 or _dodge_t > 0.0 or _hoist >= 0.0:
+		return
+	var phase := str(GameState.data.get("phase", "dream"))
+	if not Combat.allowed(weapon_id, phase):
+		weapon_id = "fists"
+		GameState.say_thought("The flintlock stays in the waking world. This dream has no powder.")
+		return
+	var row: Dictionary = Combat.weapon(weapon_id)
+	if weapon_id == "fists":
+		if _combo_until <= 0.0:
+			_combo = 0
+		_attack_move = str(Combat.FISTS[_combo])
+		_combo = (_combo + 1) % Combat.FISTS.size()
+		_combo_until = 0.7
+	else:
+		_attack_move = str(row.get("move", "blade"))
+		_combo = 0
+	_attack_t = float(row.get("speed", 0.4))
+	_hit_left = minf(0.14, _attack_t * 0.45)
+	_struck.clear()
+	blocking = false
+	if rig:
+		rig.show_weapon(weapon_id)
+
+func _poke(dir: Vector3) -> void:
+	var aim := dir if dir.length() > 0.1 else Vector3(-sin(body_yaw), 0.0, -cos(body_yaw))
+	var reach := float(Combat.weapon(weapon_id).get("reach", 1.2))
+	_hit_area.global_position = global_position + Vector3(0, 1.0, 0) + aim * reach * 0.55
+	_hit_area.monitoring = true
+	for area in _hit_area.get_overlapping_areas():
+		if not area is Area3D:
+			continue
+		var body := (area as Node).get_parent()
+		if body == null or _struck.has(body):
+			continue
+		if not Combat.can_damage(body):
+			continue
+		_struck[body] = true
+		var row: Dictionary = Combat.weapon(weapon_id)
+		Combat.apply_hit(body, float(row.get("damage", 8)), global_position, false, false)
+
+func receive_hit(amount: float, from: Vector3) -> void:
+	if _iframe > 0.0 or health <= 0.0:
+		return
+	var timed := blocking and _block_age <= Combat.PARRY
+	var dealt := Combat.resolve(amount, blocking, timed)
+	health = maxf(health - dealt, 0.0)
+	if timed:
+		_attack_move = "cross"
+		_attack_t = 0.28
+		_hit_left = 0.1
+		_struck.clear()
+		var foe := _nearest_enemy()
+		if foe:
+			Combat.apply_hit(foe, 11.0, global_position, false, true)
+	else:
+		var away := global_position - from
+		away.y = 0.0
+		if away.length() > 0.05:
+			velocity += away.normalized() * 3.5
+		_attack_move = "hurt"
+		_attack_t = 0.25
+	if health <= 0.0:
+		health = 45.0
+		global_position = last_safe
+		velocity = Vector3.ZERO
+		GameState.say_thought("I stumble back. The dream keeps me on my feet.")
+
+func _nearest_enemy() -> Node:
+	var best: Node = null
+	var reach := 2.4
+	for n in get_tree().get_nodes_in_group("enemy"):
+		if n is Node3D:
+			var d := global_position.distance_to((n as Node3D).global_position)
+			if d < reach:
+				reach = d
+				best = n
+	return best
 
 func _aim_or_use() -> void:
 	if build_mode:
