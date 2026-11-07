@@ -1,0 +1,16 @@
+Poly Haven textures are CC0 1.0.
+https://creativecommons.org/publicdomain/zero/1.0/
+https://polyhaven.com/license
+
+linen.jpg — rough_linen, 1K diffuse, desaturated in this project so cloth dyes stay true
+  https://polyhaven.com/a/rough_linen
+clay_wall.jpg — clay_block_wall, 1K diffuse
+  https://polyhaven.com/a/clay_block_wall
+stone_wall.jpg — old_stone_wall, 1K diffuse
+  https://polyhaven.com/a/old_stone_wall
+roof_tiles.jpg — clay_roof_tiles, 1K diffuse
+  https://polyhaven.com/a/clay_roof_tiles
+woodfloor.jpg — wood_floor, 1K diffuse
+  https://polyhaven.com/a/wood_floor
+
+Earlier files in this folder (ground, mud, plaster, rock, rock_face, wood) are also Poly Haven CC0. See CREDITS.md.

@@ -330,11 +330,11 @@ static func make_house(style: int) -> Node3D:
 	node.add_child(hinge)
 	_interior(node)
 	_kit(node, "wall-window-round.fbx", Vector3(1.05, 0.85, -1.28), Vector3(0.55, 0.7, 0.32), "wood")
-	_kit(node, "roof-flat.fbx", Vector3(0.05, 2.15, 0.0), Vector3(3.35, 0.9, 3.15), "earth")
+	_kit(node, "roof-flat.fbx", Vector3(0.05, 2.15, 0.0), Vector3(3.35, 0.9, 3.15), "roof")
 	_kit(node, "planks.fbx", Vector3(0.05, 2.28, -1.55), Vector3(3.55, 0.4, 0.42), "wood")
 	_kit(node, "stairs-stone.fbx", Vector3(0.05, 0, -2.05), Vector3(1.25, 0.45, 1.05), "stone")
 	_kit(node, "wall-block.fbx", Vector3(2.15, 0.15, 0.15), Vector3(1.15, 1.15, 2.2), "stone")
-	_kit(node, "roof-flat.fbx", Vector3(2.15, 1.4, 0.15), Vector3(1.5, 0.55, 2.45), "earth")
+	_kit(node, "roof-flat.fbx", Vector3(2.15, 1.4, 0.15), Vector3(1.5, 0.55, 2.45), "roof")
 	_kit(node, "wall-broken.fbx", Vector3(-1.55, 0.15, 1.2), Vector3(0.85, 1.05, 0.85), "stone")
 	if style % 2 == 0:
 		_kit(node, "chimney.fbx", Vector3(0.85, 2.25, 0.4), Vector3(0.55, 0.75, 0.55), "stone")
@@ -415,14 +415,17 @@ static func _kit_mat(which: String) -> StandardMaterial3D:
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.45, 0.45, 0.45)
 	if which == "wood":
-		mat.albedo_color = Color("7a4a28")
-		mat.albedo_texture = MeshLib.tex("wood")
+		mat.albedo_color = Color("c4a07a")
+		mat.albedo_texture = MeshLib.tex("woodfloor") if MeshLib.tex("woodfloor") != null else MeshLib.tex("wood")
 	elif which == "earth":
-		mat.albedo_color = Color("8a6848")
-		mat.albedo_texture = MeshLib.tex("mud")
+		mat.albedo_color = Color("c4a888")
+		mat.albedo_texture = MeshLib.tex("clay_wall") if MeshLib.tex("clay_wall") != null else MeshLib.tex("mud")
+	elif which == "roof":
+		mat.albedo_color = Color("c4a07a")
+		mat.albedo_texture = MeshLib.tex("roof_tiles") if MeshLib.tex("roof_tiles") != null else MeshLib.tex("mud")
 	else:
-		mat.albedo_color = Color("c4b49a")
-		mat.albedo_texture = MeshLib.tex("rock")
+		mat.albedo_color = Color("d7d0c4")
+		mat.albedo_texture = MeshLib.tex("stone_wall") if MeshLib.tex("stone_wall") != null else MeshLib.tex("rock")
 	return mat
 
 static func _paint_kit(node: Node, mat: Material) -> void:

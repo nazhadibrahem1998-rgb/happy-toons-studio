@@ -1,0 +1,28 @@
+CC0 recordings. No AI audio.
+
+wind.ogg
+  Pack page: https://opengameart.org/content/wind
+  File: wind/Wind.ogg inside wind.zip
+  Licence: CC0 1.0
+
+birds_wind.ogg
+  Page: https://opengameart.org/content/birds-and-wind-ambient-birds-wind-and-synth
+  File: Birds and Wind - Ambient
+  Licence: CC0 1.0
+
+fire.ogg
+  Page: https://opengameart.org/content/fire-crackling
+  File: fire-1_0.ogg
+  Licence: CC0 1.0
+
+footstep_grass.ogg, footstep_stone.ogg, footstep_wood.ogg, creak.ogg
+  Kenney RPG Audio, CC0
+  Page: https://opengameart.org/content/50-rpg-sound-effects
+  File: RPGsounds_Kenney.zip
+  Also: https://kenney.nl/assets/rpg-audio
+
+ui_click.ogg
+  Kenney Interface Sounds, CC0
+  Page: https://opengameart.org/content/interface-sounds
+  File: Audio/click_001.ogg
+  Also: https://kenney.nl/assets/interface-sounds

@@ -136,11 +136,17 @@ static func cloth_mat(hex: String, pattern: String) -> StandardMaterial3D:
 	if _mats.has(key):
 		return _mats[key]
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(hex) if not pattern.begins_with("jamane") else Color.WHITE
-	m.albedo_texture = _cloth_tex(pattern)
-	m.roughness = 0.84
-	var tile := 4.0 if pattern.begins_with("jamane") else 8.0
-	m.uv1_scale = Vector3(tile, tile, tile)
+	var linen := tex("linen")
+	if linen != null and not pattern.begins_with("jamane") and pattern != "embroidery":
+		m.albedo_color = Color(hex)
+		m.albedo_texture = linen
+		m.uv1_scale = Vector3(9.0, 9.0, 9.0)
+	else:
+		m.albedo_color = Color(hex) if not pattern.begins_with("jamane") else Color.WHITE
+		m.albedo_texture = _cloth_tex(pattern)
+		var tile := 4.0 if pattern.begins_with("jamane") else 8.0
+		m.uv1_scale = Vector3(tile, tile, tile)
+	m.roughness = 0.86
 	m.uv1_triplanar = true
 	_mats[key] = m
 	return m

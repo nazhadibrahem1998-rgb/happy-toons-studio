@@ -39,7 +39,8 @@ func build() -> void:
 	add_child(panel)
 	var audio := AudioStreamPlayer3D.new()
 	audio.name = "Creak"
-	audio.stream = _creak()
+	var creak: AudioStream = load("res://assets/audio/cc0/creak.ogg")
+	audio.stream = creak
 	audio.volume_db = -16.0
 	audio.bus = "SFX"
 	audio.max_distance = 12.0

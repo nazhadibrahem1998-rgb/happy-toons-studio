@@ -9,15 +9,36 @@ extends Node
 const RATE := 44100
 const MAX_ONESHOTS := 2
 
-var _click: AudioStreamWAV
+var _click: AudioStream
+var _steps := {}
 var _oneshots := 0
 
 func _ready() -> void:
 	add_to_group("ambience")
 	_ensure_buses()
 	# Wind is the only village-wide bed. Crackle and the tune are 3D voices on the fire.
-	_bed("wind", _air(3.2, 80.0, 0.06), -10.0)
-	_click = _blip(880.0, 0.045)
+	var wind_stream: AudioStream = load("res://assets/audio/cc0/wind.ogg")
+	_loop_ogg(wind_stream)
+	_bed("wind", wind_stream, -12.0)
+	var birds := AudioStreamPlayer3D.new()
+	birds.name = "Birds"
+	var bird_stream: AudioStream = load("res://assets/audio/cc0/birds_wind.ogg")
+	_loop_ogg(bird_stream)
+	birds.stream = bird_stream
+	birds.bus = "Music"
+	birds.volume_db = -14.0
+	birds.position = Vector3(40, 2.0, 60)
+	birds.max_distance = 48.0
+	birds.unit_size = 8.0
+	add_child(birds)
+	if not OS.has_feature("headless"):
+		birds.play()
+	_click = load("res://assets/audio/cc0/ui_click.ogg")
+	_steps = {
+		"grass": load("res://assets/audio/cc0/footstep_grass.ogg"),
+		"stone": load("res://assets/audio/cc0/footstep_stone.ogg"),
+		"wood": load("res://assets/audio/cc0/footstep_wood.ogg"),
+	}
 	_chirp()
 
 static func _ensure_buses() -> void:
@@ -47,12 +68,14 @@ static func _bus(bus_name: String, db: float) -> void:
 	AudioServer.set_bus_volume_db(idx, db)
 
 func play_step(surface: String) -> void:
-	var tone := 180.0
-	if surface == "stone":
-		tone = 320.0
-	elif surface == "wood":
-		tone = 240.0
-	_oneshot(_blip(tone, 0.04), -14.0 + _gain(Settings.sfx))
+	var stream: AudioStream = _steps.get(surface, _steps.get("grass"))
+	if stream == null:
+		return
+	_oneshot(stream, -8.0 + _gain(Settings.sfx))
+
+func _loop_ogg(stream: AudioStream) -> void:
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
 
 func play_click() -> void:
 	_oneshot(_click, -10.0 + _gain(Settings.sfx))
@@ -71,10 +94,12 @@ func _chirp() -> void:
 func _gain(linear: float) -> float:
 	return linear_to_db(maxf(linear, 0.001))
 
-func _bed(bus_name: String, stream: AudioStreamWAV, db: float) -> void:
-	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	stream.loop_begin = 0
-	stream.loop_end = stream.data.size() / 2
+func _bed(bus_name: String, stream: AudioStream, db: float) -> void:
+	if stream is AudioStreamWAV:
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = stream.data.size() / 2
+	_loop_ogg(stream)
 	var p := AudioStreamPlayer.new()
 	p.name = bus_name
 	p.stream = stream
