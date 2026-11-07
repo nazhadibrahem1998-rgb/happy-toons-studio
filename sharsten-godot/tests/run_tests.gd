@@ -393,6 +393,7 @@ func _check_move() -> void:
 	add_child(body)
 	_check(body.find_children("*", "SpringArm3D", true, false).size() == 1, "the camera sits on a spring arm")
 	body.free()
+	_check(str(ProjectSettings.get_setting("physics/3d/physics_engine")) == "Jolt Physics", "3D physics is Jolt")
 	var amb = load("res://scripts/world/ambience.gd")
 	var crack = amb._ticks(2.4)
 	_check(amb.seam(crack) < 0.02, "the crackle loop meets, seam %s" % amb.seam(crack))
