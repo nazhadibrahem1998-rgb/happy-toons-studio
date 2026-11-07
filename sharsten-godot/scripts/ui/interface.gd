@@ -163,7 +163,7 @@ func _hints() -> void:
 		hint_label.text = "Left click places  ·  Right click cancels  ·  [%s] Turn  ·  [%s] Leave building" % [Settings.key_label("rotate_piece"), b]
 		_build_card(true)
 	else:
-		hint_label.text = "[%s] %s    [%s] Diary    [%s] View    [%s] Build    [Esc] Pause" % [e, verb, tab, v, b]
+		hint_label.text = "[%s] Jump    [%s] %s    [%s] Diary    [%s] View    [%s] Build    [Esc] Pause" % [Settings.key_label("jump"), e, verb, tab, v, b]
 		_build_card(false)
 
 func _build_card(show: bool) -> void:

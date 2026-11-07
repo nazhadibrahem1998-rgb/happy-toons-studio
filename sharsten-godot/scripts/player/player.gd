@@ -19,6 +19,12 @@ var last_safe := Vector3(12, 0.2, 43)
 var bot_override := false
 var bot_wish := Vector2.ZERO
 var bot_sprint := false
+var bot_crouch := false
+var _coyote := 0.12
+var _jump_buffer := 0.0
+var _jumped := false
+var _jump_t := 0.0
+var _land_t := 0.0
 var rig: HumanRig
 var camera: Camera3D
 var _arm: SpringArm3D
@@ -158,7 +164,30 @@ func _physics_process(delta: float) -> void:
 		dir = dir.normalized()
 	velocity.x = dir.x * _planar
 	velocity.z = dir.z * _planar
-	velocity.y = Move.stick_y(is_on_floor(), velocity.y, delta)
+	var grounded := is_on_floor()
+	if grounded:
+		_coyote = Move.COYOTE
+		if _jumped:
+			_jumped = false
+			_land_t = 0.22
+	else:
+		_coyote = maxf(_coyote - delta, 0.0)
+	var focus := get_viewport().gui_get_focus_owner()
+	if not bot_override and Input.is_action_just_pressed("jump") and focus == null:
+		_jump_buffer = Move.JUMP_BUFFER
+	else:
+		_jump_buffer = maxf(_jump_buffer - delta, 0.0)
+	var hopped := Move.can_jump(_coyote > 0.0, _jump_buffer > 0.0, _jumped, crouching) and _jump_headroom()
+	if hopped:
+		velocity.y = Move.jump_velocity()
+		_jumped = true
+		_coyote = 0.0
+		_jump_buffer = 0.0
+		_land_t = 0.0
+		_jump_t = 0.16
+	else:
+		velocity.y = Move.stick_y(grounded, velocity.y, delta)
+	floor_snap_length = 0.0 if velocity.y > 0.05 else Move.FLOOR_SNAP
 	move_and_slide()
 	if global_position.y < -1.2:
 		global_position = last_safe
@@ -175,6 +204,7 @@ func _physics_process(delta: float) -> void:
 			_stuck = 0.0
 	else:
 		_stuck = 0.0
+	var prev_body := body_yaw
 	if dir.length() > 0.1:
 		body_yaw = lerp_angle(body_yaw, LookMath.face_yaw(dir), Move.turn_blend(delta, true))
 	elif not _look_held and not _returning:
@@ -186,8 +216,18 @@ func _physics_process(delta: float) -> void:
 		_swing -= delta
 	var act := "crouch" if crouching else (force_action if force_action != "" else ("walk" if flat > 0.2 else "idle"))
 	if _swing > 0.0 and flat < 0.2:
-		act = "carve"
-	rig.tick(delta, flat if force_action == "" else 0.0, act)
+		act = "open" if prompt_kind == "door" else "carve"
+	var turn_rate := absf(angle_difference(body_yaw, prev_body)) / maxf(delta, 0.001)
+	var air := ""
+	if _jump_t > 0.0:
+		air = "start"
+		_jump_t = maxf(_jump_t - delta, 0.0)
+	elif not is_on_floor() and _jumped:
+		air = "fall"
+	elif _land_t > 0.0:
+		air = "land"
+		_land_t = maxf(_land_t - delta, 0.0)
+	rig.tick(delta, flat if force_action == "" else 0.0, act, turn_rate, air)
 	_camera(delta)
 	_prompt()
 	GameState.poll_overhear(global_position)
@@ -250,9 +290,22 @@ func _maintain_cursor() -> void:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
+func request_jump() -> void:
+	_jump_buffer = Move.JUMP_BUFFER
+
+func _jump_headroom() -> bool:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return true
+	var from := global_position + Vector3(0, 1.05, 0)
+	var to := from + Vector3(0, 0.7, 0)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
+	query.exclude = [self]
+	return space.intersect_ray(query).is_empty()
+
 func _crouch_wants() -> bool:
 	if bot_override:
-		return false
+		return bot_crouch
 	var held := Input.is_action_pressed("crouch")
 	var ceiling := _crouch > 0.2 and not held and not _can_stand()
 	return Move.stay_crouched(held, ceiling)
@@ -430,6 +483,8 @@ func _prompt() -> void:
 func _interact() -> void:
 	if prompt_kind == "":
 		return
+	if prompt_kind == "door":
+		_swing = 0.45
 	for n in get_tree().get_nodes_in_group("interact"):
 		if str(n.get_meta("id", "")) == prompt_id and n.has_method("use"):
 			n.use(self)

@@ -5,7 +5,7 @@ Every shipped third-party file is CC0 1.0. No attribution is required by the lic
 ## Quaternius — Universal Animation Library
 
 - File: `assets/characters/quaternius/UAL1_Standard.fbx`
-- Used for: Azad and every villager body, plus idle, walk, crouch, talk, and sit clips.
+- Used for: Azad and every villager body. An AnimationTree blends idle, walk, jog, sprint, and crouch from real speed, and plays turn steps, door and tool actions, and the jump clips.
 - Source: https://quaternius.com/ and the public mirror https://github.com/IAFahim/quaternius.universalAnimationLibrary.standard
 - Licence: CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/
 

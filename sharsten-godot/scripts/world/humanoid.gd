@@ -8,11 +8,16 @@ const MODEL := preload("res://assets/characters/quaternius/UAL1_Standard.fbx")
 const Move = preload("res://scripts/sim/move_rules.gd")
 
 var anim: AnimationPlayer
+var tree: AnimationTree
 var skel: Skeleton3D
 var model: Node3D
 var height_mul := 1.0
 var ankle := 0.1
 var _clip := ""
+var _mix := 0.0
+var _stance := 0.0
+var blend_speed := 0.0
+var lod_on := true
 var clothing: Array = []
 var tool: MeshInstance3D
 
@@ -28,7 +33,7 @@ func setup(spec: Dictionary) -> void:
 	_tint(spec)
 	_clothes(spec)
 	_make_tool(spec)
-	_play("Armature|Idle")
+	_build_tree()
 	_measure_ankle()
 	if OS.has_feature("headless"):
 		visible = false
@@ -37,30 +42,101 @@ func set_first_person(on: bool) -> void:
 	if model:
 		model.visible = not on
 
-func tick(_delta: float, speed: float, action: String) -> void:
-	var clip := "Armature|Idle"
-	var pace := 1.0
-	if action == "sit":
-		clip = "Armature|Sitting_Idle"
-	elif action == "crouch":
-		clip = "Armature|Crouch_Fwd" if speed > 0.2 else "Armature|Crouch_Idle"
-		if speed > 0.2:
-			pace = Move.anim_pace(speed)
-	elif speed > 0.2:
-		clip = "Armature|Walk"
-		pace = Move.anim_pace(speed)
-	elif action in ["talk", "teach", "pray", "eat"]:
-		clip = "Armature|Idle_Talking"
-	elif action in ["carve", "hammer", "hoe", "chop"]:
-		clip = "Armature|Interact"
-	elif action in ["weave", "bake", "tend", "kneel"]:
-		clip = "Armature|Fixing_Kneeling"
-	_play(clip)
+func set_lod(on: bool) -> void:
+	lod_on = on
+	if tree:
+		tree.active = on
+
+func tick(delta: float, speed: float, action: String, turn_rate: float = 0.0, air: String = "") -> void:
+	if not lod_on and air == "":
+		return
+	var turning := speed < 0.35 and turn_rate > 1.1 and air == "" and action != "crouch"
+	var clip := _clip_for(speed, action, air, turning)
+	var crouched := action == "crouch" and air == ""
+	var acting := air != "" or (speed < 0.35 and action in ["sit", "talk", "teach", "pray", "eat", "carve", "hammer", "hoe", "chop", "weave", "bake", "tend", "kneel", "open"])
+	if action == "open" and speed >= 0.35:
+		acting = true
+	var want_mix := 1.0 if acting else 0.0
+	if action == "open" and speed >= 0.35:
+		want_mix = 0.72
+	var want_stance := 1.0 if crouched else 0.0
+	_mix = lerpf(_mix, want_mix, 1.0 - exp(-12.0 * delta))
+	_stance = lerpf(_stance, want_stance, 1.0 - exp(-10.0 * delta))
+	blend_speed = 0.9 if turning else clampf(speed, 0.0, 5.5)
+	_clip = clip
 	if tool:
-		tool.visible = speed < 0.25 and action in ["carve", "hammer", "hoe", "chop", "weave", "bake", "tend", "kneel", "carry"]
-	if anim:
-		anim.speed_scale = pace
-	_plant_feet()
+		var working := action in ["carve", "hammer", "hoe", "chop", "weave", "bake", "tend", "kneel", "carry", "open"]
+		tool.visible = working and (action == "carry" or speed < 0.35)
+	if tree == null:
+		_play(clip)
+		if anim:
+			anim.speed_scale = _pace(speed, crouched, turning)
+		_plant_feet()
+		return
+	var root := tree.tree_root as AnimationNodeBlendTree
+	var act := root.get_node("actclip") as AnimationNodeAnimation
+	if act and act.animation != clip and acting:
+		act.animation = clip
+	elif act and not acting and act.animation != "Armature|Idle":
+		act.animation = "Armature|Idle"
+	tree.set("parameters/loco/blend_position", blend_speed)
+	tree.set("parameters/crouch/blend_position", clampf(speed, 0.0, 1.2))
+	tree.set("parameters/stance/blend_amount", _stance)
+	tree.set("parameters/pace/scale", _pace(speed, crouched, turning))
+	tree.set("parameters/act/scale", _action_pace(air, action))
+	tree.set("parameters/mix/blend_amount", _mix)
+	if tree.active:
+		tree.advance(delta)
+	if air == "":
+		_plant_feet()
+
+func _clip_for(speed: float, action: String, air: String, turning: bool) -> String:
+	if air == "start":
+		return "Armature|Jump_Start"
+	if air == "fall":
+		return "Armature|Jump"
+	if air == "land":
+		return "Armature|Jump_Land"
+	if action == "sit" and speed < 0.35:
+		return "Armature|Sitting_Idle"
+	if action == "crouch":
+		return "Armature|Crouch_Fwd" if speed > 0.2 else "Armature|Crouch_Idle"
+	if speed < 0.35 and action in ["talk", "teach", "pray", "eat"]:
+		return "Armature|Idle_Talking"
+	if speed < 0.35 and action in ["carve", "hammer", "hoe", "chop", "open"]:
+		return "Armature|Interact"
+	if speed < 0.35 and action in ["weave", "bake", "tend", "kneel"]:
+		return "Armature|Fixing_Kneeling"
+	if turning or (speed > 0.2 and speed < 3.3):
+		return "Armature|Walk"
+	if speed >= 4.7:
+		return "Armature|Sprint"
+	if speed >= 3.3:
+		return "Armature|Jog_Fwd"
+	return "Armature|Idle"
+
+func _pace(speed: float, crouched: bool, turning: bool) -> float:
+	if turning and speed < 0.35:
+		return 0.7
+	if speed < 0.2:
+		return 1.0
+	if crouched:
+		return clampf(speed / 1.05, 0.75, 1.45)
+	var authored := 1.28
+	if speed >= 4.7:
+		authored = 4.6
+	elif speed >= 3.3:
+		authored = lerpf(1.28, 3.3, clampf((speed - 2.2) / 2.5, 0.0, 1.0))
+	return clampf(speed / authored, 0.65, 2.1)
+
+func _action_pace(air: String, action: String) -> float:
+	if air == "start":
+		return 1.7
+	if air == "land":
+		return 1.8
+	if action in ["carve", "hammer", "hoe", "chop", "open"]:
+		return 1.2
+	return 1.0
 
 func sole_lift() -> float:
 	return lowest_foot_y() - global_position.y - ankle
@@ -94,6 +170,69 @@ func _bone_world(bone: String) -> Vector3:
 	if idx < 0:
 		return global_position
 	return skel.to_global(skel.get_bone_global_pose(idx).origin)
+
+func _build_tree() -> void:
+	if anim == null:
+		_play("Armature|Idle")
+		return
+	for clip in ["Armature|Idle", "Armature|Walk", "Armature|Jog_Fwd", "Armature|Sprint", "Armature|Crouch_Idle", "Armature|Crouch_Fwd", "Armature|Idle_Talking", "Armature|Sitting_Idle", "Armature|Interact", "Armature|Fixing_Kneeling", "Armature|Jump"]:
+		_set_loop(clip, Animation.LOOP_LINEAR)
+	for clip in ["Armature|Jump_Start", "Armature|Jump_Land"]:
+		_set_loop(clip, Animation.LOOP_NONE)
+	tree = AnimationTree.new()
+	tree.name = "Motion"
+	add_child(tree)
+	tree.anim_player = tree.get_path_to(anim)
+	var root := AnimationNodeBlendTree.new()
+	var loco := AnimationNodeBlendSpace1D.new()
+	loco.min_space = 0.0
+	loco.max_space = 5.5
+	_blend_point(loco, "Armature|Idle", 0.0)
+	_blend_point(loco, "Armature|Walk", 2.2)
+	_blend_point(loco, "Armature|Jog_Fwd", 3.8)
+	_blend_point(loco, "Armature|Sprint", 5.5)
+	var crouch := AnimationNodeBlendSpace1D.new()
+	crouch.min_space = 0.0
+	crouch.max_space = 1.2
+	_blend_point(crouch, "Armature|Crouch_Idle", 0.0)
+	_blend_point(crouch, "Armature|Crouch_Fwd", 1.2)
+	var stance := AnimationNodeBlend2.new()
+	var pace := AnimationNodeTimeScale.new()
+	var actclip := AnimationNodeAnimation.new()
+	actclip.animation = "Armature|Idle"
+	var act := AnimationNodeTimeScale.new()
+	var mix := AnimationNodeBlend2.new()
+	root.add_node("loco", loco)
+	root.add_node("crouch", crouch)
+	root.add_node("stance", stance)
+	root.add_node("pace", pace)
+	root.add_node("actclip", actclip)
+	root.add_node("act", act)
+	root.add_node("mix", mix)
+	root.connect_node("stance", 0, "loco")
+	root.connect_node("stance", 1, "crouch")
+	root.connect_node("pace", 0, "stance")
+	root.connect_node("act", 0, "actclip")
+	root.connect_node("mix", 0, "pace")
+	root.connect_node("mix", 1, "act")
+	root.connect_node("output", 0, "mix")
+	tree.tree_root = root
+	tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	tree.active = true
+	anim.active = false
+	_clip = "Armature|Idle"
+
+func _blend_point(space: AnimationNodeBlendSpace1D, clip: String, at: float) -> void:
+	var node := AnimationNodeAnimation.new()
+	node.animation = clip
+	space.add_blend_point(node, at, -1, clip)
+
+func _set_loop(clip: String, mode: Animation.LoopMode) -> void:
+	if anim == null or not anim.has_animation(clip):
+		return
+	var res := anim.get_animation(clip)
+	if res:
+		res.loop_mode = mode
 
 func _play(clip: String) -> void:
 	if anim == null or clip == _clip:
