@@ -339,8 +339,24 @@ static func make_house(style: int) -> Node3D:
 		_kit(node, "chimney.fbx", Vector3(0.85, 2.25, 0.4), Vector3(0.55, 0.75, 0.55), "stone")
 	_kit(node, "rock-wide.fbx", Vector3(-1.85, 0, -0.2), Vector3(1.05, 0.5, 0.85), "stone")
 	_kit(node, "wall-block.fbx", Vector3(-1.15, 0.1, -2.45), Vector3(2.3, 0.75, 0.26), "stone")
+	_climb_slab(node, Vector3(4.35, 0.16, 4.25), Vector3(0.05, 2.62, 0.0), "roof")
+	_climb_slab(node, Vector3(1.7, 0.14, 2.55), Vector3(2.15, 1.72, 0.15), "roof")
+	_climb_slab(node, Vector3(2.15, 0.16, 0.55), Vector3(-1.15, 0.58, -2.45), "ledge")
 	node.scale = Vector3(HOUSE_SCALE, HOUSE_SCALE, HOUSE_SCALE)
 	return node
+
+static func _climb_slab(parent: Node3D, size: Vector3, pos: Vector3, kind: String) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.add_to_group("climbable")
+	body.set_meta("climb", kind)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = pos
+	body.add_child(shape)
+	parent.add_child(body)
 
 static func _wall_shape(body: StaticBody3D, size: Vector3, pos: Vector3) -> void:
 	var shape := CollisionShape3D.new()

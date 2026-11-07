@@ -15,6 +15,11 @@ const GRAVITY := 22.0
 const JUMP_HEIGHT := 0.5
 const COYOTE := 0.12
 const JUMP_BUFFER := 0.12
+const MANTLE_MIN := 0.4
+const MANTLE_MAX := 4.0
+const DROP_MIN := 0.45
+const DROP_MAX := 3.7
+const GAP_MAX := 1.7
 const FLOOR_STICK := -2.0
 const FLOOR_SNAP := 0.3
 const SAFE_MARGIN := 0.08
@@ -48,6 +53,15 @@ static func jump_velocity() -> float:
 
 static func can_jump(recent_ground: bool, buffered: bool, already: bool, crouched: bool) -> bool:
 	return recent_ground and buffered and not already and not crouched
+
+static func mantle_ok(rise: float) -> bool:
+	return rise >= MANTLE_MIN and rise <= MANTLE_MAX
+
+static func drop_ok(drop: float, gap: float) -> bool:
+	return drop >= DROP_MIN and drop <= DROP_MAX and gap <= GAP_MAX
+
+static func cross_ok(rise: float, gap: float) -> bool:
+	return absf(rise) <= 1.05 and gap >= 0.55 and gap <= GAP_MAX
 
 static func stick_y(on_floor: bool, y: float, delta: float) -> float:
 	if on_floor:

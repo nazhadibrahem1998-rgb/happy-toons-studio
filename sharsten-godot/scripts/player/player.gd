@@ -25,6 +25,11 @@ var _jump_buffer := 0.0
 var _jumped := false
 var _jump_t := 0.0
 var _land_t := 0.0
+var _hoist := -1.0
+var _hoist_from := Vector3.ZERO
+var _hoist_to := Vector3.ZERO
+var _hoist_drop := false
+var _hoist_cool := 0.0
 var rig: HumanRig
 var camera: Camera3D
 var _arm: SpringArm3D
@@ -162,33 +167,45 @@ func _physics_process(delta: float) -> void:
 		dir = Vector3.ZERO
 	elif dir.length() > 0.001:
 		dir = dir.normalized()
-	velocity.x = dir.x * _planar
-	velocity.z = dir.z * _planar
-	var grounded := is_on_floor()
-	if grounded:
-		_coyote = Move.COYOTE
-		if _jumped:
-			_jumped = false
-			_land_t = 0.22
-	else:
-		_coyote = maxf(_coyote - delta, 0.0)
+	if _hoist_cool > 0.0:
+		_hoist_cool = maxf(_hoist_cool - delta, 0.0)
 	var focus := get_viewport().gui_get_focus_owner()
 	if not bot_override and Input.is_action_just_pressed("jump") and focus == null:
 		_jump_buffer = Move.JUMP_BUFFER
-	else:
+	elif _hoist < 0.0:
 		_jump_buffer = maxf(_jump_buffer - delta, 0.0)
-	var hopped := Move.can_jump(_coyote > 0.0, _jump_buffer > 0.0, _jumped, crouching) and _jump_headroom()
-	if hopped:
-		velocity.y = Move.jump_velocity()
-		_jumped = true
-		_coyote = 0.0
-		_jump_buffer = 0.0
-		_land_t = 0.0
-		_jump_t = 0.16
+	var sliding := true
+	if _hoist >= 0.0:
+		_advance_hoist(delta)
+		sliding = false
+	elif _try_hoist(dir, wish.y > 0.55, _jump_buffer > 0.0, crouching):
+		sliding = false
+	if sliding:
+		velocity.x = dir.x * _planar
+		velocity.z = dir.z * _planar
+		var grounded := is_on_floor()
+		if grounded:
+			_coyote = Move.COYOTE
+			if _jumped:
+				_jumped = false
+				_land_t = 0.22
+		else:
+			_coyote = maxf(_coyote - delta, 0.0)
+		var hopped := Move.can_jump(_coyote > 0.0, _jump_buffer > 0.0, _jumped, crouching) and _jump_headroom()
+		if hopped:
+			velocity.y = Move.jump_velocity()
+			_jumped = true
+			_coyote = 0.0
+			_jump_buffer = 0.0
+			_land_t = 0.0
+			_jump_t = 0.16
+		else:
+			velocity.y = Move.stick_y(grounded, velocity.y, delta)
+		floor_snap_length = 0.0 if velocity.y > 0.05 else Move.FLOOR_SNAP
+		move_and_slide()
 	else:
-		velocity.y = Move.stick_y(grounded, velocity.y, delta)
-	floor_snap_length = 0.0 if velocity.y > 0.05 else Move.FLOOR_SNAP
-	move_and_slide()
+		velocity = Vector3.ZERO
+		_planar = 0.0
 	if global_position.y < -1.2:
 		global_position = last_safe
 		velocity = Vector3.ZERO
@@ -197,7 +214,9 @@ func _physics_process(delta: float) -> void:
 		if global_position.y < 0.0:
 			global_position.y = 0.0
 		last_safe = global_position
-	if wish.length() > 0.2 and get_real_velocity().length() < 0.05 and is_on_floor():
+	if _hoist >= 0.0:
+		_stuck = 0.0
+	elif wish.length() > 0.2 and get_real_velocity().length() < 0.05 and is_on_floor():
 		_stuck += delta
 		if _stuck > 0.45:
 			global_position += Vector3(0, 0.2, 0) - dir * 0.6
@@ -214,12 +233,17 @@ func _physics_process(delta: float) -> void:
 	var flat := _planar
 	if _swing > 0.0:
 		_swing -= delta
+	var seated := _near_seat() and flat < 0.25 and not crouching and _hoist < 0.0
 	var act := "crouch" if crouching else (force_action if force_action != "" else ("walk" if flat > 0.2 else "idle"))
-	if _swing > 0.0 and flat < 0.2:
+	if seated:
+		act = "sit"
+	elif _swing > 0.0 and flat < 0.2:
 		act = "open" if prompt_kind == "door" else "carve"
 	var turn_rate := absf(angle_difference(body_yaw, prev_body)) / maxf(delta, 0.001)
 	var air := ""
-	if _jump_t > 0.0:
+	if _hoist >= 0.0:
+		air = "start" if _hoist < 0.32 else "land"
+	elif _jump_t > 0.0:
 		air = "start"
 		_jump_t = maxf(_jump_t - delta, 0.0)
 	elif not is_on_floor() and _jumped:
@@ -228,6 +252,7 @@ func _physics_process(delta: float) -> void:
 		air = "land"
 		_land_t = maxf(_land_t - delta, 0.0)
 	rig.tick(delta, flat if force_action == "" else 0.0, act, turn_rate, air)
+	_update_blend(running, seated)
 	_camera(delta)
 	_prompt()
 	GameState.poll_overhear(global_position)
@@ -292,6 +317,140 @@ func _maintain_cursor() -> void:
 
 func request_jump() -> void:
 	_jump_buffer = Move.JUMP_BUFFER
+
+func _try_hoist(dir: Vector3, holding_forward: bool, jumping: bool, crouched: bool) -> bool:
+	if crouched or _hoist_cool > 0.0 or dir.length() < 0.2:
+		return false
+	if not holding_forward and not jumping:
+		return false
+	var lip := _find_lip(dir)
+	if lip != Vector3.INF and Move.mantle_ok(lip.y - global_position.y):
+		_begin_hoist(lip, false)
+		_jump_buffer = 0.0
+		return true
+	if holding_forward:
+		var down := _find_drop(dir)
+		if down != Vector3.INF:
+			_begin_hoist(down, down.y < global_position.y - 0.3)
+			return true
+	return false
+
+func _begin_hoist(land: Vector3, drop: bool) -> void:
+	_hoist = 0.0
+	_hoist_from = global_position
+	_hoist_to = land
+	_hoist_drop = drop
+	_jumped = false
+	_jump_t = 0.0
+	velocity = Vector3.ZERO
+
+func _advance_hoist(delta: float) -> void:
+	_hoist += delta
+	var u := clampf(_hoist / 0.5, 0.0, 1.0)
+	global_position = _hoist_arc(u)
+	velocity = Vector3.ZERO
+	if u >= 1.0:
+		global_position = _hoist_to
+		_hoist = -1.0
+		_hoist_cool = 0.35
+		_land_t = 0.2
+		last_safe = global_position
+
+func _hoist_arc(u: float) -> Vector3:
+	var a := _hoist_from
+	var b := _hoist_to
+	if _hoist_drop:
+		var p := a.lerp(b, smoothstep(0.0, 1.0, u))
+		p.y = lerpf(a.y, b.y, smoothstep(0.15, 1.0, u))
+		return p
+	var lift := maxf(a.y, b.y) + 0.28
+	var y := lift
+	if u < 0.45:
+		y = lerpf(a.y, lift, u / 0.45)
+	else:
+		y = lerpf(lift, b.y, (u - 0.45) / 0.55)
+	var flat := a.lerp(b, smoothstep(0.28, 1.0, u))
+	return Vector3(flat.x, y, flat.z)
+
+func _find_lip(dir: Vector3) -> Vector3:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return Vector3.INF
+	var heights: Array = [0.4, 1.05, 1.8]
+	for height in heights:
+		var from: Vector3 = global_position + Vector3(0, float(height), 0)
+		var hit := _ray(space, from, from + dir * 0.95)
+		if hit.is_empty():
+			continue
+		var face: Vector3 = hit.position
+		var above := face + dir * 0.38 + Vector3(0, 3.5, 0)
+		var deck := _ray(space, above, above + Vector3(0, -4.3, 0))
+		if deck.is_empty() or not _is_climbable(deck.collider):
+			continue
+		var land: Vector3 = deck.position + Vector3(0, 0.04, 0)
+		if not Move.mantle_ok(land.y - global_position.y):
+			continue
+		if not _clear_above(space, land):
+			continue
+		return land
+	return Vector3.INF
+
+func _find_drop(dir: Vector3) -> Vector3:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return Vector3.INF
+	var under := _ray(space, global_position + Vector3(0, 0.25, 0), global_position + Vector3(0, -0.45, 0))
+	if under.is_empty() or not _is_climbable(under.collider):
+		return Vector3.INF
+	var reaches: Array = [0.8, 1.25, 1.6]
+	for dist in reaches:
+		var from: Vector3 = global_position + dir * float(dist) + Vector3(0, 0.55, 0)
+		var hit := _ray(space, from, from + Vector3(0, -4.6, 0))
+		if hit.is_empty() or hit.collider == under.collider:
+			continue
+		var land: Vector3 = hit.position + Vector3(0, 0.04, 0)
+		if not _clear_above(space, land):
+			continue
+		var rise := land.y - global_position.y
+		if _is_climbable(hit.collider) and Move.cross_ok(rise, dist):
+			return land
+		if Move.drop_ok(-rise, dist):
+			return land
+	return Vector3.INF
+
+func _clear_above(space: PhysicsDirectSpaceState3D, land: Vector3) -> bool:
+	var hit := _ray(space, land + Vector3(0, 0.35, 0), land + Vector3(0, 1.85, 0))
+	return hit.is_empty()
+
+func _ray(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
+	query.exclude = [self]
+	return space.intersect_ray(query)
+
+func _is_climbable(node: Object) -> bool:
+	var current: Object = node
+	while current is Node:
+		if (current as Node).is_in_group("climbable"):
+			return true
+		current = (current as Node).get_parent()
+	return false
+
+func _near_seat() -> bool:
+	var best := 1.2
+	for n in get_tree().get_nodes_in_group("seat"):
+		if n is Node3D and global_position.distance_to((n as Node3D).global_position) < best:
+			return true
+	return false
+
+func _update_blend(running: bool, seated: bool) -> void:
+	var crowd := 0
+	if not running and _planar > 0.35 and _planar <= Move.WALK + 0.15:
+		for v in get_tree().get_nodes_in_group("villager"):
+			if v is Node3D and global_position.distance_squared_to((v as Node3D).global_position) < 16.0:
+				crowd += 1
+				if crowd >= 2:
+					break
+	GameState.set_blended(seated or crowd >= 2)
 
 func _jump_headroom() -> bool:
 	var space := get_world_3d().direct_space_state
