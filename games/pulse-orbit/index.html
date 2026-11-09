@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05040f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Pulse Orbit - a one-tap neon score game. Flip between orbits, dodge the walls, chain combos and beat your best.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%2305040f%22/%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2220%22 fill=%22none%22 stroke=%22%23ff4fd8%22 stroke-width=%224%22/%3E%3Ccircle cx=%2246%22 cy=%2246%22 r=%227%22 fill=%22%2300f0ff%22/%3E%3C/svg%3E">
+<title>Pulse Orbit - Happy Toons Studio</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#05040f;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none;position:fixed;inset:0}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.ui{position:fixed;inset:0;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.hud{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 14px);text-align:center;transition:opacity .2s}
+.score{font-size:54px;font-weight:800;letter-spacing:1px;text-shadow:0 0 18px rgba(0,240,255,.7);font-variant-numeric:tabular-nums}
+.mult{font-size:17px;font-weight:700;color:#ffe45e;text-shadow:0 0 10px #ffb800;height:22px;opacity:0;transition:opacity .2s}
+.combo-bar{width:110px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);margin:6px auto 0;overflow:hidden;opacity:0;transition:opacity .2s}
+.combo-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffe45e,#ff4fd8)}
+.pw{margin-top:8px;font-size:13px;font-weight:700;letter-spacing:2px;height:18px}
+.topbtn{position:absolute;top:calc(env(safe-area-inset-top) + 12px);width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;font-size:18px;pointer-events:auto;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#mute{right:calc(env(safe-area-inset-right) + 12px)}
+#pause{left:calc(env(safe-area-inset-left) + 12px);display:none}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(env(safe-area-inset-top) + 60px) 22px calc(env(safe-area-inset-bottom) + 24px);pointer-events:none;opacity:0;transition:opacity .18s}
+.screen.on{opacity:1}
+#start{justify-content:flex-start;padding-top:calc(env(safe-area-inset-top) + 40px)}
+#start .tap{margin-top:auto;margin-bottom:4px}
+.screen.on .btn,.screen.on a,.screen.on .chip,.screen.on .chip,.screen.on .swatch{pointer-events:auto}
+h1{font-size:46px;line-height:.95;font-weight:900;letter-spacing:3px;background:linear-gradient(90deg,#00f0ff,#ff4fd8);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 14px rgba(255,79,216,.45))}
+.sub{margin-top:10px;font-size:14px;color:#b9b6e6;letter-spacing:1px}
+.tap{margin-top:auto;font-size:22px;font-weight:800;letter-spacing:4px;animation:blink 1.2s ease-in-out infinite;color:#fff;text-shadow:0 0 12px #00f0ff}
+@keyframes blink{50%{opacity:.35}}
+.best{margin-top:8px;font-size:14px;color:#9ea0d0}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.chip{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;border-radius:999px;padding:9px 15px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.5px}
+.chip.sel{border-color:#00f0ff;box-shadow:0 0 12px rgba(0,240,255,.5);background:rgba(0,240,255,.12)}
+.btn{display:block;text-align:center;width:min(300px,82vw);border:0;border-radius:18px;padding:18px;font-size:22px;font-weight:900;letter-spacing:2px;color:#05040f;background:linear-gradient(90deg,#00f0ff,#7cfffb);box-shadow:0 0 26px rgba(0,240,255,.55);cursor:pointer;margin-top:18px}
+.btn:active{transform:scale(.97)}
+.link{display:inline-block;margin-top:14px;color:#ff9cf0;font-weight:700;font-size:15px;text-decoration:none;padding:8px 14px;border:1px solid rgba(255,79,216,.45);border-radius:12px}
+.card{width:min(340px,88vw);background:rgba(10,8,30,.72);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:18px 16px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.final{font-size:64px;font-weight:900;line-height:1;text-shadow:0 0 22px rgba(0,240,255,.7);font-variant-numeric:tabular-nums}
+.lbl{font-size:12px;letter-spacing:3px;color:#9ea0d0;font-weight:700}
+.newbest{font-size:30px;font-weight:900;letter-spacing:2px;color:#ffe45e;text-shadow:0 0 18px #ffb800;display:none;margin-bottom:6px}
+.newbest.on{display:block;animation:pop .7s cubic-bezier(.2,1.6,.4,1) both, glow 1s ease-in-out .7s infinite alternate}
+@keyframes pop{0%{transform:scale(0) rotate(-12deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes glow{to{text-shadow:0 0 30px #ff4fd8,0 0 8px #fff}}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.stat{background:rgba(255,255,255,.05);border-radius:12px;padding:8px}
+.stat b{display:block;font-size:19px}
+.stat span{font-size:11px;color:#9ea0d0;letter-spacing:1px}
+.unlock{margin-top:10px;font-size:14px;color:#7cffb2;font-weight:700;min-height:18px}
+.hint{margin-top:10px;font-size:12px;color:#7f7cb0}
+.panel{position:absolute;inset:0;background:rgba(5,4,15,.985);display:none;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top) + 24px) 18px calc(env(safe-area-inset-bottom) + 20px);pointer-events:auto;overflow-y:auto;touch-action:pan-y}
+.panel.on{display:flex}
+.panel h2{font-size:24px;letter-spacing:3px;margin-bottom:14px}
+.swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:min(340px,90vw)}
+.swatch{aspect-ratio:1;border-radius:16px;border:2px solid rgba(255,255,255,.1);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#9ea0d0;cursor:pointer;background:rgba(255,255,255,.04)}
+.swatch i{width:26px;height:26px;border-radius:50%;margin-bottom:5px}
+.swatch.sel{border-color:#fff}
+.swatch.lock{opacity:.45}
+.ach{width:min(340px,90vw);margin-top:18px;text-align:left}
+.ach div{display:flex;justify-content:space-between;padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.04);margin-bottom:6px;font-size:13px}
+.ach div.done{background:rgba(124,255,178,.1);color:#7cffb2}
+.toast{position:absolute;z-index:5;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%) translateY(-10px);background:rgba(20,16,50,.92);border:1px solid #7cffb2;color:#7cffb2;font-weight:800;font-size:13px;padding:8px 14px;border-radius:999px;opacity:0;transition:all .25s;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.daily{color:#ffe45e}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="ui">
+  <div class="hud" id="hud" style="opacity:0">
+    <div class="score" id="score">0</div>
+    <div class="mult" id="mult">x1</div>
+    <div class="combo-bar" id="cbar"><i id="cfill"></i></div>
+    <div class="pw" id="pw"></div>
+  </div>
+  <button class="topbtn" id="mute" aria-label="Sound">&#9834;</button>
+
+  <div class="screen on" id="start">
+    <h1>PULSE<br>ORBIT</h1>
+    <div class="sub">Tap to flip orbits. Dodge. Chain. Survive.</div>
+    <div class="row">
+      <div class="chip sel" id="mClassic">Classic</div>
+      <div class="chip" id="mDaily">&#9733; Daily</div>
+    </div>
+    <div class="best" id="startBest">Best 0</div>
+    <div class="tap">TAP TO PLAY</div>
+    <div class="row">
+      <div class="chip" id="openSkins">Skins</div>
+      <div class="chip" id="openAch">Achievements</div>
+      <a class="chip" href="/games/" style="text-decoration:none;color:#ff9cf0;border-color:rgba(255,79,216,.45)">More games</a>
+    </div>
+  </div>
+
+  <div class="screen" id="over">
+    <div class="card">
+      <div class="newbest" id="newbest">NEW BEST!</div>
+      <div class="lbl" id="overLbl">SCORE</div>
+      <div class="final" id="final">0</div>
+      <div class="best" id="overBest">Best 0</div>
+      <div class="stats">
+        <div class="stat"><b id="sTime">0s</b><span>TIME</span></div>
+        <div class="stat"><b id="sNear">0</b><span>NEAR MISSES</span></div>
+        <div class="stat"><b id="sOrbs">0</b><span>ORBS</span></div>
+        <div class="stat"><b id="sCombo">x1</b><span>MAX MULTIPLIER</span></div>
+      </div>
+      <div class="unlock" id="unlock"></div>
+    </div>
+    <button class="btn" id="again">PLAY AGAIN</button>
+    <div class="row">
+      <div class="chip" id="oMode">&#9733; Daily</div>
+      <div class="chip" id="oSkins">Skins</div>
+      <div class="chip" id="oAch">Achievements</div>
+    </div>
+    <a class="link" href="/games/">More games</a>
+    <div class="hint">Tap anywhere to retry</div>
+  </div>
+
+  <div class="panel" id="skins">
+    <h2>SKINS</h2>
+    <div class="swatches" id="swatches"></div>
+    <div class="hint">Beat your best to unlock new colors</div>
+    <div class="btn" id="closeSkins" style="pointer-events:auto">DONE</div>
+  </div>
+  <div class="panel" id="achp">
+    <h2>ACHIEVEMENTS</h2>
+    <div class="ach" id="achList"></div>
+    <div class="btn" id="closeAch" style="pointer-events:auto">DONE</div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>

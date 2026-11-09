@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Pulse Orbit">
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05040f"/>
+      <stop offset="1" stop-color="#2a1048"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.4" stop-color="#00f0ff"/>
+      <stop offset="1" stop-color="#00f0ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#night)"/>
+  <circle cx="120" cy="70" r="3" fill="#fff"/>
+  <circle cx="210" cy="130" r="2" fill="#fff"/>
+  <circle cx="640" cy="80" r="2.5" fill="#fff"/>
+  <circle cx="700" cy="160" r="2" fill="#fff"/>
+  <circle cx="90" cy="320" r="2" fill="#fff"/>
+  <circle cx="720" cy="340" r="3" fill="#fff"/>
+  <circle cx="400" cy="225" r="132" fill="none" stroke="#ff4fd8" stroke-width="14"/>
+  <circle cx="400" cy="225" r="86" fill="none" stroke="#7a6cff" stroke-width="8" opacity=".85"/>
+  <circle cx="400" cy="225" r="36" fill="none" stroke="#00f0ff" stroke-width="5" opacity=".9"/>
+  <circle cx="532" cy="225" r="28" fill="url(#glow)"/>
+  <circle cx="532" cy="225" r="14" fill="#00f0ff" stroke="#fff" stroke-width="4"/>
+</svg>
