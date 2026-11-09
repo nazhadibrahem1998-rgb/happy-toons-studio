@@ -14,6 +14,7 @@
     { id: 'block-tower', name: 'Block Tower', path: 'block-tower', levels: [2, 3, 4, 5, 6] },
     { id: 'paddle-ball', name: 'Paddle Ball', path: 'games/paddle-ball', levels: [7, 11] },
     { id: 'sharsten', name: 'Sharsten Village', path: 'sharsten', levels: [1, 2, 3, 4] },
+    { id: 'hi-lo-hop', name: 'Hi-Lo Hop', path: 'games/hi-lo-hop', levels: [1, 2, 3] },
   ];
   var LEGACY = { toonblade: 'toonblade_best', 'block-tower': 'bt-highest' };
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -136,11 +137,17 @@
       for (i = 0; i < pts.length; i++) if (pts[i] <= level) out.push(pts[i]);
       return out.length ? out : [level];
     }
+    if (id === 'hi-lo-hop') {
+      if (level <= 1) return [10, 20];
+      if (level === 2) return [16, 32];
+      return [24, 44];
+    }
     return [level];
   }
 
   function levelLabel(id, level) {
     if (id === 'paddle-ball') return 'First to ' + level;
+    if (id === 'hi-lo-hop') return level <= 1 ? 'Easy' : level === 2 ? 'Normal' : 'Zippy';
     if (id === 'toonblade') return 'Wave ' + level;
     if (id === 'block-tower') return 'Floor ' + level;
     return 'Stage ' + level;
