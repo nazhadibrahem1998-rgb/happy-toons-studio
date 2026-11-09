@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Hi-Lo Hop">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fd4ff"/>
+      <stop offset="0.55" stop-color="#ffe7f6"/>
+      <stop offset="1" stop-color="#fff6c8"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#sky)"/>
+  <path d="M520 78 a70 70 0 0 1 70 0" fill="none" stroke="#ff8fab" stroke-width="8" stroke-linecap="round"/>
+  <path d="M508 78 a82 82 0 0 1 94 0" fill="none" stroke="#ffd23f" stroke-width="8" stroke-linecap="round"/>
+  <path d="M496 78 a94 94 0 0 1 118 0" fill="none" stroke="#7ec8ff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M0 392c140-36 250 8 390-16 150-26 260 18 410-8v82H0z" fill="#ffe3a3"/>
+  <path d="M0 424c160-22 280 16 460-6 120-14 220 10 340-12v44H0z" fill="#b7e48a"/>
+  <rect x="40" y="168" width="720" height="76" rx="38" fill="#f7fbff" stroke="#8ec9f5" stroke-width="6"/>
+  <rect x="40" y="292" width="720" height="76" rx="38" fill="#67c85a" stroke="#2f8d32" stroke-width="6"/>
+  <g fill="#fff">
+    <circle cx="150" cy="338" r="7"/><circle cx="300" cy="338" r="7"/><circle cx="450" cy="338" r="7"/><circle cx="600" cy="338" r="7"/>
+  </g>
+  <g fill="#ffd23f">
+    <circle cx="150" cy="338" r="3"/><circle cx="300" cy="338" r="3"/><circle cx="450" cy="338" r="3"/><circle cx="600" cy="338" r="3"/>
+  </g>
+  <g transform="translate(250 206)" stroke="#2b2350" stroke-width="5" stroke-linejoin="round">
+    <polygon points="0,-22 6,-7 22,-6 10,5 13,21 0,12 -13,21 -10,5 -22,-6 -6,-7" fill="#ffd23f"/>
+  </g>
+  <g transform="translate(560 206)">
+    <circle cx="-24" cy="10" r="20" fill="#f4f8ff" stroke="#2b2350" stroke-width="5"/>
+    <circle cx="26" cy="12" r="18" fill="#f4f8ff" stroke="#2b2350" stroke-width="5"/>
+    <circle cx="0" cy="-8" r="18" fill="#f4f8ff" stroke="#2b2350" stroke-width="5"/>
+    <circle cx="0" cy="6" r="26" fill="#f4f8ff" stroke="#2b2350" stroke-width="5"/>
+    <path d="M-14 2q7 7 14 0M6 2q7 7 14 0M-8 16q8 8 18 0" fill="none" stroke="#2b2350" stroke-width="4" stroke-linecap="round"/>
+    <text x="28" y="-16" fill="#6f97cc" font-family="Trebuchet MS, sans-serif" font-size="22" font-weight="700">z</text>
+  </g>
+  <g transform="translate(210 330)">
+    <g stroke="#ffb03a" stroke-width="10" stroke-linecap="round">
+      <path d="M0-58v16M0 42v16M-58 0h16M42 0h16M-40-40l12 12M30-40l12 12M-40 30l12 12M30 30l12 12"/>
+    </g>
+    <circle r="34" fill="#ffe14a" stroke="#2b2350" stroke-width="5"/>
+    <circle cx="-13" cy="6" r="6" fill="#ff9ec4"/>
+    <circle cx="13" cy="6" r="6" fill="#ff9ec4"/>
+    <circle cx="-9" cy="-3" r="4.2" fill="#2b2350"/>
+    <circle cx="10" cy="-3" r="4.2" fill="#2b2350"/>
+    <circle cx="-7.5" cy="-4.6" r="1.5" fill="#fff"/>
+    <circle cx="11.5" cy="-4.6" r="1.5" fill="#fff"/>
+    <path d="M-11 8q11 13 22 0" fill="none" stroke="#2b2350" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>
