@@ -12,12 +12,17 @@ var patrol_points: Array[Vector3] = []
 var health: int = 100
 var max_health: int = 100
 var alive: bool = true
-var hit_damage: int = 8
-var spread_deg: float = 4.8
-var vision_range: float = 32.0
-var hear_range: float = 42.0
-var fire_min: float = 0.42
-var fire_max: float = 0.72
+var hit_damage: int = 10
+var telegraph: float = 1.05
+var recover: float = 1.3
+var reach: float = 1.72
+var react: float = 1.05
+var phase: int = 0
+var phase_left: float = 0.0
+var shove: Vector3 = Vector3.ZERO
+static var turn_id: int = 0
+var vision_range: float = 28.0
+var hear_range: float = 18.0
 var walk_speed: float = 2.25
 var combat_speed: float = 3.5
 
@@ -38,8 +43,7 @@ var _ai_on: bool = false
 var _configured: bool = false
 
 var body_mats: Array[StandardMaterial3D] = []
-var muzzle: Marker3D
-var flash: OmniLight3D
+var _flinch_tween: Tween
 
 @onready var agent: NavigationAgent3D = $NavigationAgent3D
 @onready var visual: Node3D = $Visual
@@ -48,6 +52,8 @@ var flash: OmniLight3D
 
 
 func setup(kind: String, points: Array) -> void:
+	if kind == "rifleman":
+		kind = "soldier"
 	variant = kind
 	patrol_points.clear()
 	for p in points:
@@ -65,16 +71,14 @@ func _ready() -> void:
 	motion_mode = MOTION_MODE_GROUNDED
 	if not _configured:
 		_apply_stats()
-	body_mats = HumanoidFactory.build(visual, "commander" if variant == "commander" else "rifleman")
-	var gun := Node3D.new()
-	weapon_mount.add_child(gun)
-	muzzle = WeaponFactory.attach_m16(gun)
-	flash = OmniLight3D.new()
-	flash.light_color = Color(1.0, 0.75, 0.42)
-	flash.light_energy = 0.0
-	flash.omni_range = 3.2
-	flash.shadow_enabled = false
-	muzzle.add_child(flash)
+	var style := "commander" if variant == "commander" else "soldier"
+	body_mats = HumanoidFactory.build(visual, style)
+	var club := Node3D.new()
+	club.name = "Club"
+	weapon_mount.add_child(club)
+	WeaponFactory.attach_club(club)
+	if variant == "shield" or variant == "commander":
+		WeaponFactory.attach_shield(visual)
 	agent.path_desired_distance = 0.55
 	agent.target_desired_distance = 0.8
 	agent.radius = 0.4
@@ -84,26 +88,17 @@ func _ready() -> void:
 
 
 func _apply_stats() -> void:
-	if variant == "commander":
-		max_health = 170
-		hit_damage = 11
-		spread_deg = 2.3
-		vision_range = 40.0
-		hear_range = 48.0
-		fire_min = 0.55
-		fire_max = 0.9
-		walk_speed = 2.0
-		combat_speed = 3.05
-	else:
-		max_health = 100
-		hit_damage = 8
-		spread_deg = 4.6
-		vision_range = 32.0
-		hear_range = 42.0
-		fire_min = 0.4
-		fire_max = 0.7
-		walk_speed = 2.3
-		combat_speed = 3.55
+	var profile := GameConfig.enemy_profile(variant)
+	max_health = int(profile["health"])
+	hit_damage = int(profile["damage"])
+	telegraph = float(profile["telegraph"])
+	recover = float(profile["recover"])
+	reach = float(profile["reach"])
+	react = float(profile["react"])
+	vision_range = float(profile["vision"])
+	hear_range = 18.0
+	walk_speed = 1.85
+	combat_speed = 2.35 if variant != "commander" else 2.05
 	health = max_health
 
 
@@ -131,19 +126,31 @@ func kill() -> void:
 	_die()
 
 
-func apply_damage(amount: int, _from: Vector3) -> void:
+func apply_damage(amount: int, from: Vector3, _headshot: bool = false) -> void:
 	if not alive:
 		return
 	health -= amount
 	_hit_flash()
+	var away := global_position - from
+	away.y = 0.0
+	if away.length() > 0.05:
+		shove += away.normalized() * 2.8
+	if phase == 1:
+		phase = 3
+		phase_left = 0.9
+		_release_turn()
 	if health <= 0:
 		_die()
 		return
+	_flinch()
 	alert = true
 	if state != State.COMBAT:
 		var player := _player()
 		if player:
 			investigate_pos = player.global_position
+			state = State.INVESTIGATE
+		else:
+			investigate_pos = from
 			state = State.INVESTIGATE
 
 
@@ -168,6 +175,10 @@ func _physics_process(delta: float) -> void:
 		State.COMBAT:
 			_combat(delta)
 	_separate()
+	if shove.length() > 0.05:
+		velocity.x += shove.x
+		velocity.z += shove.z
+		shove = Vector3.ZERO
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	elif velocity.y < 0.0:
@@ -212,6 +223,8 @@ func _investigate(delta: float) -> void:
 func _combat(delta: float) -> void:
 	var player := _player()
 	if player == null or not bool(player.get("alive")):
+		_release_turn()
+		phase = 0
 		state = State.PATROL
 		return
 	var see := _can_see_player()
@@ -220,41 +233,59 @@ func _combat(delta: float) -> void:
 		last_seen = player.global_position
 	else:
 		lost_timer += delta
-		if lost_timer > 6.0:
+		if lost_timer > 4.5:
+			_release_turn()
+			phase = 0
 			state = State.INVESTIGATE
 			investigate_pos = last_seen
 			return
 	var flat := last_seen - global_position
 	flat.y = 0.0
 	var dist := flat.length()
-	_face_towards(last_seen, 1.0 - exp(-8.0 * delta))
-	cover_timer -= delta
-	if cover_timer <= 0.0:
-		cover_timer = randf_range(1.1, 2.1)
-		strafe_sign = -strafe_sign if randf() > 0.35 else strafe_sign
-		prefer_cover = randf() < 0.45
-		_pick_cover(player.global_position)
-	var dest := last_seen
-	var speed := combat_speed
-	if prefer_cover and has_cover and dist > 7.0:
-		dest = cached_cover
-	elif dist < 6.2:
-		var away := -flat.normalized() if dist > 0.2 else Vector3(0, 0, 1)
-		dest = global_position + away * 4.0
-	elif dist <= 18.0:
-		var side := Vector3(-flat.z, 0, flat.x).normalized() * strafe_sign
-		dest = global_position + side * 3.6
-	_move_to(dest, speed, delta, false)
-	if see and dist < 42.0:
-		shoot_cd -= delta
-		if shoot_cd <= 0.0:
-			_shoot()
-			shoot_cd = randf_range(fire_min, fire_max)
+	_face_towards(last_seen, 1.0 - exp(-6.0 * delta))
+	if not _ensure_turn():
+		phase = 0
+		_hold_back(last_seen, dist, delta)
+		_pose_weapon(0.1)
+		return
+	if phase == 0:
+		shoot_cd = maxf(0.0, shoot_cd - delta)
+		if dist > reach + 0.15:
+			_move_to(last_seen, combat_speed, delta, false)
+		else:
+			velocity.x = move_toward(velocity.x, 0.0, 7.0 * delta)
+			velocity.z = move_toward(velocity.z, 0.0, 7.0 * delta)
+		_pose_weapon(0.15)
+		if see and dist <= reach + 0.45 and shoot_cd <= 0.0 and _line_clear(player):
+			phase = 1
+			phase_left = telegraph
+	elif phase == 1:
+		velocity.x = move_toward(velocity.x, 0.0, 9.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 9.0 * delta)
+		var wind := 1.0 - clampf(phase_left / maxf(telegraph, 0.01), 0.0, 1.0)
+		_pose_weapon(lerpf(0.2, -1.2, wind))
+		phase_left -= delta
+		if dist > reach + 1.1 or not _line_clear(player):
+			phase = 0
+			shoot_cd = 0.45
+			return
+		if phase_left <= 0.0:
+			_melee_strike(player)
+			phase = 3
+			phase_left = recover
+	else:
+		var back := 1.0 - clampf(phase_left / maxf(recover, 0.01), 0.0, 1.0)
+		_pose_weapon(lerpf(0.55, 0.12, back))
+		phase_left -= delta
+		if phase_left <= 0.0:
+			phase = 0
+			shoot_cd = 0.4
+			_release_turn()
 
 
 func _enter_combat() -> void:
 	if state != State.COMBAT:
-		shoot_cd = randf_range(0.35, 0.75)
+		shoot_cd = react
 	state = State.COMBAT
 	alert = true
 	lost_timer = 0.0
@@ -279,44 +310,124 @@ func _can_see_player() -> bool:
 	if state == State.PATROL and not alert:
 		if forward.dot(to / dist) < cos(deg_to_rad(55.0)):
 			return false
-	var query := PhysicsRayQueryParameters3D.create(eye, target, 1 | 2)
-	query.exclude = [get_rid()]
+	# Same sample points as the shot, so they never fire at a hidden body.
+	return _visible_point(player).y > -100.0
+
+
+func _shot_origin() -> Vector3:
+	# Eyes, not the muzzle, so a rifle clipping a corner cannot start the ray
+	# on the player's side of a wall.
+	var forward := -global_transform.basis.z
+	return global_position + Vector3(0, 1.48, 0) + forward * 0.28
+
+
+func _visible_point(player: Node3D) -> Vector3:
+	var origin := _shot_origin()
+	var heights: Array[float] = [1.15, 0.82, 1.62]
+	if bool(player.call("is_crouching")):
+		heights = [0.72, 0.42, 1.02]
+	for h in heights:
+		var target := player.global_position + Vector3(0, h, 0)
+		if _ray_hits_player(origin, target, player):
+			return target
+	return Vector3(0, -9999, 0)
+
+
+func _ray_hits_player(origin: Vector3, target: Vector3, player: Node3D) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(origin, target, 1 | 2, [get_rid()])
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.hit_from_inside = false
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
-		return true
+		return false
 	return hit.collider == player
 
 
-func _shoot() -> void:
+func _ensure_turn() -> bool:
+	_refresh_turn()
+	if turn_id == get_instance_id():
+		return true
+	if turn_id != 0:
+		return false
 	var player := _player()
-	if player == null or muzzle == null:
+	if player == null:
+		return false
+	var best: EnemySoldier = null
+	var best_d := 1.0e9
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var other := node as EnemySoldier
+		if other == null or not other.alive or not other._can_see_player():
+			continue
+		var dist := other.global_position.distance_to(player.global_position)
+		if dist < best_d:
+			best_d = dist
+			best = other
+	if best == self:
+		turn_id = get_instance_id()
+		return true
+	return false
+
+
+func _refresh_turn() -> void:
+	if turn_id == 0:
 		return
-	var origin := muzzle.global_position
-	var aim := (player.global_position + Vector3(0, 1.25, 0) - origin).normalized()
-	var spread := deg_to_rad(spread_deg)
-	aim = aim.rotated(Vector3.UP, randf_range(-spread, spread))
-	var side := aim.cross(Vector3.UP)
-	if side.length() > 0.001:
-		aim = aim.rotated(side.normalized(), randf_range(-spread * 0.6, spread * 0.6))
-	aim = aim.normalized()
-	var end := origin + aim * 70.0
-	var query := PhysicsRayQueryParameters3D.create(origin, end, 1 | 2)
-	query.exclude = [get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	AudioDirector.play_3d("m16", origin, -3.0)
-	if flash:
-		flash.light_energy = 5.0
-		var tw := create_tween()
-		tw.tween_property(flash, "light_energy", 0.0, 0.04)
-	if not hit.is_empty():
-		end = hit.position
-		var collider: Object = hit.collider
-		if collider is Node and (collider as Node).is_in_group("player") and (collider as Node).has_method("apply_damage"):
-			(collider as Node).call("apply_damage", hit_damage, global_position)
-		else:
-			ImpactEffect.spawn(hit.position, hit.normal, "world")
-	ImpactEffect.tracer(origin, end, Color(1.0, 0.86, 0.62))
-	get_tree().call_group("enemy", "hear_noise", origin, 26.0)
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if node.get_instance_id() == turn_id and bool(node.get("alive")):
+			return
+	turn_id = 0
+
+
+func _release_turn() -> void:
+	if turn_id == get_instance_id():
+		turn_id = 0
+
+
+func _hold_back(target: Vector3, dist: float, delta: float) -> void:
+	if dist < 3.4:
+		var away := global_position - target
+		away.y = 0.0
+		if away.length() < 0.1:
+			away = Vector3(1, 0, 0)
+		_move_to(global_position + away.normalized() * 2.4, walk_speed, delta, false)
+	elif dist > 7.5:
+		_move_to(target, walk_speed, delta, false)
+	else:
+		var side := Vector3(-(target - global_position).z, 0, (target - global_position).x).normalized()
+		_move_to(global_position + side * strafe_sign * 2.0, walk_speed * 0.65, delta, false)
+
+
+func _line_clear(player: Node3D) -> bool:
+	var from := global_position + Vector3(0, 1.15, 0)
+	var to := player.global_position + Vector3(0, 1.15, 0)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
+	query.collide_with_areas = false
+	query.hit_from_inside = false
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _melee_strike(player: Node3D) -> void:
+	if not _line_clear(player):
+		return
+	var flat := player.global_position - global_position
+	flat.y = 0.0
+	if flat.length() > reach + 0.4:
+		return
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	if flat.length() > 0.05 and forward.normalized().dot(flat.normalized()) < 0.15:
+		return
+	AudioDirector.play_3d("swing", global_position, -8.0)
+	if player.has_method("receive_hit"):
+		var result := str(player.call("receive_hit", hit_damage, global_position))
+		if result == "parry":
+			phase_left = 1.4
+			_pose_weapon(0.2)
+
+
+func _pose_weapon(pitch: float) -> void:
+	if weapon_mount:
+		weapon_mount.rotation.x = pitch
 
 
 func _pick_cover(player_pos: Vector3) -> void:
@@ -407,13 +518,23 @@ func _player() -> Node3D:
 	return get_tree().get_first_node_in_group("player")
 
 
+func _flinch() -> void:
+	if visual == null:
+		return
+	if _flinch_tween and _flinch_tween.is_valid():
+		_flinch_tween.kill()
+	visual.rotation.x = -0.22
+	_flinch_tween = create_tween()
+	_flinch_tween.tween_property(visual, "rotation:x", 0.0, 0.16)
+
+
 func _hit_flash() -> void:
 	for mat in body_mats:
 		mat.emission_enabled = true
-		mat.emission = Color(0.45, 0.36, 0.26)
-		mat.emission_energy_multiplier = 0.55
+		mat.emission = Color(1.0, 0.86, 0.55)
+		mat.emission_energy_multiplier = 2.2
 	var tw := create_tween()
-	tw.tween_interval(0.07)
+	tw.tween_interval(0.09)
 	tw.tween_callback(_clear_flash)
 
 
@@ -425,6 +546,7 @@ func _clear_flash() -> void:
 func _die() -> void:
 	if not alive:
 		return
+	_release_turn()
 	alive = false
 	_ai_on = false
 	set_physics_process(false)

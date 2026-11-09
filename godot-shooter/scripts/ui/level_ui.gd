@@ -79,16 +79,18 @@ func set_health(current: int, maximum: int) -> void:
 	health_fill.color = Color(0.55, 0.16, 0.12) if current > 30 else Color(0.7, 0.12, 0.1)
 
 
-func set_ammo(mag: int, reserve: int, reloading: bool, ratio: float) -> void:
-	ammo_label.text = "%d" % mag
-	reserve_label.text = "/ %d" % reserve
-	reload_label.visible = reloading or mag <= 0
-	reload_fill.visible = reloading
-	if mag <= 0 and not reloading:
-		reload_label.text = GameConfig.STR["empty"]
-	elif reloading:
-		reload_label.text = GameConfig.STR["reloading"]
-		reload_fill.anchor_right = ratio
+func _show_weapon(player: PlayerBody) -> void:
+	ammo_label.text = player.weapon.display_name()
+	ammo_label.add_theme_font_size_override("font_size", 22)
+	var step := player.weapon.combo_step
+	reserve_label.text = "%s %d" % [GameConfig.STR["combo"], step] if step > 0 else ""
+	reload_fill.visible = false
+	if player.iframe_left > 0.0:
+		reload_label.visible = true
+		reload_label.text = GameConfig.STR["dodging"]
+	elif player.blocking:
+		reload_label.visible = true
+		reload_label.text = GameConfig.STR["blocking"]
 	else:
 		reload_label.visible = false
 
@@ -144,8 +146,8 @@ func show_soon(text: String) -> void:
 
 func _process(delta: float) -> void:
 	var player := get_tree().get_first_node_in_group("player") as PlayerBody
-	if player and player.rifle:
-		set_ammo(player.rifle.mag, player.rifle.reserve, player.rifle.reloading, player.rifle.reload_ratio())
+	if player and player.weapon:
+		_show_weapon(player)
 		set_health(player.health, player.max_health)
 		pain = maxf(0.0, pain - delta * 1.6)
 		crosshair.ads = player.ads_weight
@@ -236,7 +238,7 @@ func _build_hud() -> void:
 	reserve_label.text_direction = Control.TEXT_DIRECTION_LTR
 	reserve_label.text = "/ 90"
 	var ammo_name := _anchored_label(root, Control.PRESET_BOTTOM_LEFT, Vector2(24, -100), Vector2(240, -76))
-	ammo_name.text = GameConfig.STR["ammo"]
+	ammo_name.text = ""
 	reload_label = _anchored_label(root, Control.PRESET_CENTER_BOTTOM, Vector2(-220, -150), Vector2(220, -116))
 	reload_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	reload_label.hide()

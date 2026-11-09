@@ -191,16 +191,16 @@ func _spawn_enemies() -> void:
 	var packed: PackedScene = preload("res://scenes/enemies/soldier.tscn")
 	var parent := $Enemies
 	var spawns: Array = [
-		["rifleman", Vector3(0.8, 0.1, -1.0), [Vector3(0.8, 0.1, -1.0), Vector3(-1.2, 0.1, -12.0)]],
-		["rifleman", Vector3(-2.2, 0.1, -18.0), [Vector3(-2.2, 0.1, -18.0), Vector3(2.4, 0.1, -22.0)]],
-		["rifleman", Vector3(-15.0, 2.5, -3.0), [Vector3(-15.0, 2.5, -3.0), Vector3(-22.0, 2.5, -16.0)]],
-		["rifleman", Vector3(-20.0, 2.5, -24.0), [Vector3(-20.0, 2.5, -24.0), Vector3(-16.0, 2.5, -34.0)]],
-		["rifleman", Vector3(14.5, 3.2, -8.0), [Vector3(14.5, 3.2, -8.0), Vector3(22.0, 3.2, -18.0)]],
-		["rifleman", Vector3(19.0, 3.2, -26.0), [Vector3(19.0, 3.2, -26.0), Vector3(15.0, 3.2, -34.0)]],
-		["rifleman", Vector3(0.2, 0.1, -30.0), [Vector3(0.2, 0.1, -30.0), Vector3(-2.0, 0.1, -39.0)]],
-		["rifleman", Vector3(3.0, 0.1, -43.0), [Vector3(3.0, 0.1, -43.0), Vector3(-1.0, 0.1, -40.5)]],
+		["soldier", Vector3(0.8, 0.1, -1.0), [Vector3(0.8, 0.1, -1.0), Vector3(-1.2, 0.1, -12.0)]],
+		["soldier", Vector3(-2.2, 0.1, -18.0), [Vector3(-2.2, 0.1, -18.0), Vector3(2.4, 0.1, -22.0)]],
+		["shield", Vector3(-15.0, 2.5, -3.0), [Vector3(-15.0, 2.5, -3.0), Vector3(-22.0, 2.5, -16.0)]],
+		["soldier", Vector3(-20.0, 2.5, -24.0), [Vector3(-20.0, 2.5, -24.0), Vector3(-16.0, 2.5, -34.0)]],
+		["soldier", Vector3(14.5, 3.2, -8.0), [Vector3(14.5, 3.2, -8.0), Vector3(22.0, 3.2, -18.0)]],
+		["shield", Vector3(19.0, 3.2, -26.0), [Vector3(19.0, 3.2, -26.0), Vector3(15.0, 3.2, -34.0)]],
+		["soldier", Vector3(0.2, 0.1, -30.0), [Vector3(0.2, 0.1, -30.0), Vector3(-2.0, 0.1, -39.0)]],
+		["shield", Vector3(3.0, 0.1, -43.0), [Vector3(3.0, 0.1, -43.0), Vector3(-1.0, 0.1, -40.5)]],
 		["commander", Vector3(1.5, 1.55, -56.0), [Vector3(1.5, 1.55, -56.0), Vector3(-4.0, 1.55, -50.0)]],
-		["rifleman", Vector3(8.5, 1.55, -49.0), [Vector3(8.5, 1.55, -49.0), Vector3(4.0, 1.55, -58.0)]],
+		["soldier", Vector3(8.5, 1.55, -49.0), [Vector3(8.5, 1.55, -49.0), Vector3(4.0, 1.55, -58.0)]],
 	]
 	for entry in spawns:
 		var soldier := packed.instantiate() as EnemySoldier

@@ -13,9 +13,9 @@ func _ready() -> void:
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -320
-	panel.offset_top = -250
-	panel.offset_right = 320
-	panel.offset_bottom = 250
+	panel.offset_top = -310
+	panel.offset_right = 340
+	panel.offset_bottom = 310
 	add_child(panel)
 	SoraniTheme.apply(panel)
 	var box := VBoxContainer.new()
@@ -29,13 +29,13 @@ func _ready() -> void:
 	box.add_child(title)
 	var lines := [
 		["جوڵە", "W A S D"],
-		["سەیرکردن", "ماوس"],
-		["تەقە", "کلیکی چەپ"],
-		["نیشانکردن", "کلیکی ڕاست"],
-		["پڕکردنەوە", "R"],
-		["ڕاکردن", "Shift"],
+		["سەیرکردن", "ماوس / ڕاکێشان"],
+		["هێرشی سووک", "کلیکی چەپ"],
+		["هێرشی قورس", "F"],
+		["گرتن", "کلیکی ڕاست"],
+		["خۆلادان", "Q"],
+		["قوفڵی نەرم", "V"],
 		["بازدان", "Space"],
-		["چەمانەوە", "C"],
 		["وەستان", "Esc"],
 	]
 	for row in lines:
