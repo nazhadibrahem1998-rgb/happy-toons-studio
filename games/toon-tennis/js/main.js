@@ -9,6 +9,8 @@ const renderer = createRenderer(canvas);
 const audio = createAudio();
 
 const menu = document.getElementById('menu');
+const creditsPanel = document.getElementById('credits');
+let showCredits = false;
 const pausePanel = document.getElementById('pause');
 const matchPanel = document.getElementById('match');
 const hud = document.getElementById('hud');
@@ -141,7 +143,8 @@ function updateHud() {
   if (!matchPanel.hidden) {
     document.getElementById('match-title').textContent = text;
   }
-  menu.hidden = phase !== 'menu';
+  menu.hidden = phase !== 'menu' || showCredits;
+  creditsPanel.hidden = !(phase === 'menu' && showCredits);
   pausePanel.hidden = phase !== 'pause';
   touch.classList.toggle('is-on', playing && touchWanted());
   touch.setAttribute('aria-hidden', playing ? 'false' : 'true');
@@ -189,6 +192,7 @@ function restartMatch() {
 }
 
 function goMenu() {
+  showCredits = false;
   seed += 1;
   state = createMatchState({ mode: 'demo', difficulty: 'normal', seed });
   phase = 'menu';
@@ -205,7 +209,18 @@ function togglePause() {
 
 document.getElementById('play').addEventListener('click', () => {
   audio.unlock();
+  showCredits = false;
   startMatch();
+});
+document.getElementById('btn-credits').addEventListener('click', () => {
+  showCredits = true;
+  updateHud();
+  audio.play('ui');
+});
+document.getElementById('btn-credits-close').addEventListener('click', () => {
+  showCredits = false;
+  updateHud();
+  audio.play('ui');
 });
 document.querySelectorAll('[data-mode]').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -538,6 +553,7 @@ window.__TT = {
       sound: settings.sound,
       players: state.players.map((p) => ({ x: p.x, z: p.z, side: p.side })),
       ball: state.ball ? { x: state.ball.x, y: state.ball.y, z: state.ball.z, inPlay: state.ball.inPlay } : null,
+      message: state.message?.key || '',
       time: state.time,
     };
   },

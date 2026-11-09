@@ -465,7 +465,13 @@ function flyAndBounce(ball, dt) {
   let net = null;
   if (cross) {
     const wide = cross.z < -0.55 || cross.z > COURT.width + 0.55;
-    const kind = wide ? 'wide' : cross.y >= COURT.netHeight ? 'clear' : cross.y >= COURT.netHeight - 0.12 ? 'cord' : 'fail';
+    let kind = wide ? 'wide' : cross.y >= COURT.netHeight ? 'clear' : cross.y >= COURT.netHeight - 0.12 ? 'cord' : 'fail';
+    if (kind === 'cord') {
+      ball.cordHits = (ball.cordHits || 0) + 1;
+      if (ball.cordHits >= 2) kind = 'fail';
+    } else if (kind === 'clear' || kind === 'wide') {
+      ball.cordHits = 0;
+    }
     net = applyNet(ball, cross, kind);
     if (net === 'fail') {
       ball.sinceBounce += dt;
@@ -486,6 +492,8 @@ function flyAndBounce(ball, dt) {
     ball.spin *= 0.55;
     ball.bounceCount += 1;
     ball.sinceBounce = 0;
+    ball.cordHits = 0;
+    ball.stillT = 0;
     return { net, bounce: true };
   }
   ball.sinceBounce += dt;
@@ -855,6 +863,14 @@ export function step(state, inputs, dt) {
   if (state.hitCount > 48 && state.stage === 'play' && state.ball?.inPlay) {
     const hitter = state.ball.lastHitter;
     events.push(finishPoint(state, hitter === 0 ? 1 : 0, 'out'));
+  }
+
+  if (state.stage === 'play' && state.ball?.inPlay) {
+    const ball = state.ball;
+    const speed = Math.hypot(ball.vx || 0, ball.vy || 0, ball.vz || 0);
+    const dying = ball.y <= COURT.ballR + 0.04 && ball.bounceCount >= 1 && speed < 1.15;
+    ball.stillT = dying ? (ball.stillT || 0) + h : 0;
+    if (ball.stillT > 0.45) events.push(finishPoint(state, ball.lastHitter, 'point'));
   }
 
   if (state.message.timer > 0 && state.stage === 'play') state.message.timer -= h;
