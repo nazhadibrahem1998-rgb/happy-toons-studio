@@ -44,6 +44,7 @@
       <span id="goal" class="goal">7</span>
       <span id="games1" class="games">0</span>
       <span id="name1" class="who">CPU</span>
+      <span id="hudBest">Best: —</span>
     </div>
     <button id="btn-sound" type="button" data-sound>Sound</button>
   </header>
@@ -58,6 +59,8 @@
       <p class="studio" data-i18n="studio">Happy Toons Studio</p>
       <h1 id="title" data-i18n="title">Paddle Ball</h1>
       <p class="tag" data-i18n="tagline">Two paddles. One ball. Faster every hit.</p>
+      <p id="menuBest">Best: —</p>
+      <p id="dailyNote" hidden></p>
     </div>
     <div class="choices">
       <div class="row" role="group" aria-label="Mode">
@@ -109,12 +112,15 @@
 
   <div id="match" class="panel" role="dialog" aria-labelledby="match-title" hidden>
     <h1 id="match-title"></h1>
+    <div id="matchScore"></div>
     <button id="btn-again" class="go" type="button" data-i18n="playAgain">Play again</button>
+    <div id="matchTry"></div>
     <button id="btn-match-menu" type="button" data-i18n="menu">Main menu</button>
     <p class="credit">Made with AI-assisted development</p>
     <p class="owner">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</p>
   </div>
 </div>
+<script src="../../assets/js/game-scores.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

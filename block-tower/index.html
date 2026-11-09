@@ -56,6 +56,7 @@
     <div>
       <div id="floorLabel"><span data-i18n="floor">Floor</span> <b id="floorNum" dir="ltr">1 / 10</b></div>
       <div id="floorName"></div>
+      <div id="bestLive">Best: —</div>
       <div id="placeRow" hidden><span data-i18n="place">Place</span> <b id="placeNum">—</b></div>
     </div>
     <div class="hud-time">
@@ -112,6 +113,8 @@
       <div><span data-i18n="best">Best time</span> <b id="menuBest">—</b></div>
       <div><span data-i18n="highest">Highest floor</span> <b id="menuHighest">—</b></div>
     </div>
+    <p id="menuScoreBest">Best: —</p>
+    <p id="dailyNote" hidden></p>
     <div class="settings">
       <div class="set-row">
         <span>زمان · Language</span>
@@ -244,8 +247,10 @@
       <div><span data-i18n="best">Best time</span> <b id="finishBest">—</b></div>
       <div><span data-i18n="highest">Highest floor</span> <b id="finishHighest">—</b></div>
     </div>
+    <div id="finishScore"></div>
     <ol id="raceResults" hidden></ol>
-    <button type="button" id="finishAgain" class="btn" data-i18n="again">Again</button>
+    <button type="button" id="finishAgain" class="btn" data-i18n="again">Play again</button>
+    <div id="finishTry"></div>
     <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">Menu</button>
     <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
     <p class="owner">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</p>
@@ -321,6 +326,7 @@
   });
 })();
 </script>
+<script src="../assets/js/game-scores.js"></script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

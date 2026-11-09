@@ -355,15 +355,18 @@ html[dir="rtl"] #hudPop { right: auto; left: calc(8px + var(--safe-l)); }
 #stageBar ul { margin: 2px 0 0; padding: 0 1.1em 0 0; }
 #stagePop {
   position: fixed;
-  z-index: 13;
+  z-index: 30;
   left: 50%;
-  top: calc(120px + var(--safe-t));
+  top: max(12px, var(--safe-t));
   transform: translateX(-50%);
-  width: min(320px, calc(100% - 24px));
+  width: min(360px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
   background: #efe6c9;
   border: 3px solid #1c3a18;
   padding: 12px;
   text-align: center;
+  touch-action: pan-y;
 }
 #craftTrack { height: 8px; background: #ddd4bc; margin: 8px 0; }
 #craftBar { display: block; height: 100%; width: 0; background: #3d7a32; }

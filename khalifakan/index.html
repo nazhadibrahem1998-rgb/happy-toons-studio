@@ -19,9 +19,14 @@
 <script>
 (function () {
   function block(e) { if (e.cancelable) e.preventDefault(); }
-  ['gesturestart', 'gesturechange', 'gestureend', 'touchmove', 'dblclick'].forEach(function (type) {
+  ['gesturestart', 'gesturechange', 'gestureend', 'dblclick'].forEach(function (type) {
     document.addEventListener(type, block, { passive: false });
   });
+  document.addEventListener('touchmove', function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest('.panel, #end')) return;
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
   document.addEventListener('touchend', function (e) {
     var n = e.target && e.target.closest && e.target.closest('button');
     if (n && e.cancelable) e.preventDefault();
@@ -38,7 +43,7 @@
     <div class="bar hp"><div id="hpFill"></div></div>
     <div class="bar st"><div id="stFill"></div></div>
   </div>
-  <div id="stageBox"><div id="stageName">قۆناغی ١</div><div id="leftTxt"></div></div>
+  <div id="stageBox"><div id="stageName">قۆناغی ١</div><div id="leftTxt"></div><div id="bestHud" dir="ltr">Best: —</div></div>
   <div id="bossBar" class="hidden">
     <img id="bossImg" src="assets/miran_face.png" alt="">
     <div class="bb"><div id="bossName">میران — سەرۆکی خەلیفەکان</div><div id="bossTrack"><div id="bossFill"></div></div></div>
@@ -73,6 +78,8 @@
     <p class="pre">Happy Toons Studio پێشکەش دەکات</p>
     <h1>خەلیفەکان</h1>
     <p class="sub">گڕوت، پاڵەوانی چیاکان، دەبێت گوندەکەی لە دەستی خەلیفەکان ڕزگار بکات. دە جەنگاوەری خەلیفەکان و سەرۆکەکەیان <b>میران</b> چاوەڕێی دەکەن.</p>
+    <p id="sBest" class="sub" dir="ltr">Best: —</p>
+    <p id="dailyNote" class="sub" dir="ltr" hidden></p>
     <button type="button" id="playBtn" class="btn">▶ دەستپێکردن</button>
     <div class="controls">
       <div>مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن · ڕاکێشانی لای ڕاست بۆ کامێرا · دوگمەکان بۆ لێدان، لێدانی قورس، خۆلادان و بازدان</div>
@@ -96,7 +103,9 @@
     <h2 id="endTitle"></h2>
     <p id="endSub" class="sub"></p>
     <p id="endStats" class="sub"></p>
-    <button type="button" id="againBtn" class="btn">↻ دووبارە</button>
+    <div id="endScore"></div>
+    <button type="button" id="againBtn" class="btn">Play again</button>
+    <div id="endTry"></div>
     <button type="button" id="endMenuBtn" class="btn alt">⌂ مێنیو</button>
   </div>
 </div>
@@ -105,6 +114,7 @@
 
 <div id="rotate"><div class="ph">📱</div><p>تکایە مۆبایلەکەت بە پانی بسوڕێنە</p><p class="small">ئەم یارییە تەنها لە باری پانیدا کار دەکات</p></div>
 
+<script src="../assets/js/game-scores.js"></script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

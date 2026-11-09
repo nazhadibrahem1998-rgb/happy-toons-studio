@@ -502,11 +502,46 @@ function paintStage() {
       list.appendChild(li);
     });
   }
+  paintStageEnd(snap);
+  paintSharBest();
+}
+
+function paintSharBest() {
+  const HS = window.HappyScores;
+  const n = HS ? HS.getBest('sharsten') : 0;
+  const text = 'Best: ' + (n > 0 ? n : '—');
+  const menu = document.getElementById('menuBest');
+  const hud = document.getElementById('hudBest');
+  if (menu) menu.textContent = text;
+  if (hud) hud.textContent = text;
+  if (HS) HS.paintNote('sharsten', document.getElementById('dailyNote'));
+}
+
+function paintStageEnd(snap) {
   const pop = document.getElementById('stagePop');
-  if (pop) {
-    pop.hidden = !snap.notice;
-    const head = document.getElementById('stagePopTitle');
-    if (head) head.textContent = t(lang, 'stageDone');
+  if (!pop) return;
+  const notice = snap.notice || 0;
+  pop.hidden = !notice;
+  if (!notice) {
+    pop.dataset.notice = '';
+    return;
+  }
+  const head = document.getElementById('stagePopTitle');
+  if (head) head.textContent = t(lang, 'stageDone');
+  if (pop.dataset.notice === String(notice)) return;
+  pop.dataset.notice = String(notice);
+  const HS = window.HappyScores;
+  const result = HS ? HS.record('sharsten', notice, notice) : { best: notice, isNew: notice > 0 };
+  if (HS) {
+    HS.showEnd({
+      scoreEl: document.getElementById('stageScore'),
+      tryEl: document.getElementById('stageTry'),
+      id: 'sharsten',
+      from: 'sharsten',
+      score: notice,
+      best: result.best,
+      isNew: result.isNew && notice > 0,
+    });
   }
 }
 
@@ -869,6 +904,9 @@ document.getElementById('playBtn').addEventListener('click', () => {
   document.getElementById('menu').hidden = true;
   closePanels();
   faceMosque();
+  const cleared = state.stageClear || 0;
+  if (cleared && window.HappyScores) window.HappyScores.record('sharsten', cleared, cleared);
+  paintSharBest();
 });
 document.getElementById('freshBtn').addEventListener('click', () => {
   state = createState();
@@ -1036,10 +1074,14 @@ function settleFine(how) {
 }
 document.getElementById('fineBtn').addEventListener('click', () => settleFine('pay'));
 document.getElementById('elderDeed').addEventListener('click', () => settleFine('deed'));
-document.getElementById('stageOk').addEventListener('click', () => {
+function closeStage() {
   dismissStage(state);
+  const pop = document.getElementById('stagePop');
+  if (pop) pop.dataset.notice = '';
   paintStage();
-});
+}
+document.getElementById('stageOk').addEventListener('click', closeStage);
+document.getElementById('stageAgain').addEventListener('click', closeStage);
 document.getElementById('buildClose').addEventListener('click', closePanels);
 document.getElementById('detailClose').addEventListener('click', closePanels);
 document.getElementById('hudPause').addEventListener('click', () => { closeHud(); openPanel('pause'); });
@@ -1704,6 +1746,18 @@ window.__SV = {
     if (result.ok) persist();
     paint();
     return result;
+  },
+  showStageClear(n) {
+    const stage = Math.max(1, Math.min(6, Math.floor(Number(n) || 1)));
+    state.stageNotice = stage;
+    state.stageClear = Math.max(state.stageClear || 0, stage);
+    playing = true;
+    const menu = document.getElementById('menu');
+    if (menu) menu.hidden = true;
+    const pop = document.getElementById('stagePop');
+    if (pop) pop.dataset.notice = '';
+    paintStage();
+    return stageSnapshot(state);
   },
   projectCell(gx, gz) {
     if (state.mode === 'walk') view.lookAtWalk(player().gx, player().gz, walkCam.yaw, walkCam.pitch);

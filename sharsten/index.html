@@ -114,7 +114,10 @@
   </div>
 </div>
 <div id="stagePop" hidden>
-  <p id="stagePopTitle">مەرحەلە تەواو بوو</p>
+  <p id="stagePopTitle">Stage complete</p>
+  <div id="stageScore"></div>
+  <button type="button" id="stageAgain" class="btn">Play again</button>
+  <div id="stageTry"></div>
   <button type="button" id="stageOk" data-i18n="iosOk">باشە</button>
 </div>
 <div id="hud" hidden>
@@ -123,6 +126,7 @@
   <button type="button" id="hudMenu" class="chip" aria-expanded="false" aria-controls="hudPop" data-i18n="menu">مێنیو</button>
   <div id="repBar"><span>😠</span><i id="repFill"></i><span>😊</span><b data-i18n="deeds">چاکە</b> <b id="deedNum" dir="ltr">٠</b></div>
   <div class="clock chip tiny"><b id="clockTime" dir="ltr">08:00</b> <span id="clockMeta"></span></div>
+  <div class="clock chip tiny" id="hudBest" dir="ltr">Best: —</div>
   <div id="hudPop" hidden data-scroll-panel="hud">
     <button type="button" id="modeBtn" class="chip">دۆخی ڕۆیشتن</button>
     <button type="button" id="hudBuild" class="chip" data-i18n="build">Build</button>
@@ -175,6 +179,8 @@
     <p class="sub" id="subtitle">گوندی شارستێن</p>
     <p class="tag" data-i18n="tag">A calm village life in a green mountain valley. Build, farm, and walk with your neighbours.</p>
     <p class="age" data-i18n="age">For families and teens · no combat</p>
+    <p id="menuBest" class="tag">Best: —</p>
+    <p id="dailyNote" class="tag" hidden></p>
     <button type="button" id="playBtn" class="btn" data-i18n="play">Play</button>
     <div class="row">
       <button type="button" id="helpBtn" class="btn alt" data-i18n="help">Help</button>
@@ -329,6 +335,7 @@
     <p class="tips" data-i18n="tips"></p>
   </div>
 </div>
+<script src="../assets/js/game-scores.js"></script>
 <script type="module" src="game.js"></script>
 </body>
 </html>
