@@ -1,0 +1,8 @@
+{
+  "pieces": [
+    {"id": "fence", "name": "Wattle fence", "blurb": "A short panel of woven branches.", "cost": {"wood": 2, "fibre": 1}, "snap": 1.5, "yaw_steps": 4},
+    {"id": "wall", "name": "Mud wall", "blurb": "A length of sun-dried wall.", "cost": {"clay": 2, "stone": 1}, "snap": 1.5, "yaw_steps": 4},
+    {"id": "oven", "name": "Oven", "blurb": "A small clay oven for the lane.", "cost": {"clay": 3, "stone": 2, "wood": 1}, "snap": 1.5, "yaw_steps": 4},
+    {"id": "loom", "name": "Loom", "blurb": "A wooden loom frame.", "cost": {"wood": 4, "fibre": 2}, "snap": 1.5, "yaw_steps": 4}
+  ]
+}

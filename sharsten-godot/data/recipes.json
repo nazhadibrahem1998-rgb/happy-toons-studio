@@ -1,0 +1,26 @@
+{
+  "recipes": [
+    {"id": "mallet", "type": "craft", "station": "stump", "tier": 1, "cost": {"wood": 2}, "output": "mallet", "count": 1, "woodwork": true},
+    {"id": "stone_knife", "type": "craft", "station": "stump", "tier": 1, "cost": {"wood": 1, "stone": 2, "fibre": 1}, "output": "stone_knife", "count": 1},
+    {"id": "hook", "type": "craft", "station": "stump", "tier": 1, "cost": {"wood": 1, "fibre": 2}, "output": "hook", "count": 1, "woodwork": true},
+    {"id": "axe", "type": "craft", "station": "stump", "tier": 1, "cost": {"wood": 3, "stone": 2}, "output": "axe", "count": 1, "woodwork": true},
+    {"id": "pick", "type": "craft", "station": "stump", "tier": 1, "cost": {"wood": 2, "stone": 3}, "output": "pick", "count": 1, "woodwork": true},
+    {"id": "braid", "type": "craft", "station": "stump", "tier": 2, "cost": {"fibre": 4}, "output": "braid", "count": 1},
+    {"id": "satchel", "type": "craft", "station": "stump", "tier": 2, "cost": {"hide": 1, "fibre": 3}, "output": "satchel", "count": 1},
+    {"id": "lamp", "type": "craft", "station": "stone", "tier": 2, "cost": {"stone": 3, "fibre": 1}, "output": "lamp", "count": 1},
+    {"id": "millstone", "type": "craft", "station": "stone", "tier": 2, "cost": {"stone": 4}, "output": "millstone", "count": 1},
+    {"id": "clay_cup", "type": "craft", "station": "clay", "tier": 2, "cost": {"clay": 2}, "output": "clay_cup", "count": 1},
+    {"id": "clay_bowl", "type": "craft", "station": "clay", "tier": 2, "cost": {"clay": 3}, "output": "clay_bowl", "count": 1},
+    {"id": "water_jar", "type": "craft", "station": "clay", "tier": 2, "cost": {"clay": 4, "fibre": 1}, "output": "water_jar", "count": 1},
+    {"id": "spoon", "type": "craft", "station": "carpenter", "tier": 3, "cost": {"wood": 1}, "output": "spoon", "count": 1, "woodwork": true},
+    {"id": "spoon_mould", "type": "craft", "station": "carpenter", "tier": 3, "cost": {"wood": 2, "clay": 1}, "output": "spoon_mould", "count": 1, "woodwork": true},
+    {"id": "stool", "type": "craft", "station": "carpenter", "tier": 3, "cost": {"wood": 3}, "output": "stool", "count": 1, "woodwork": true},
+    {"id": "unmake_basket", "type": "salvage", "station": "any", "tier": 1, "input": "old_basket", "yield": {"fibre": 2, "wood": 1}},
+    {"id": "unmake_pot", "type": "salvage", "station": "any", "tier": 1, "input": "broken_pot", "yield": {"clay": 2}},
+    {"id": "unmake_rug", "type": "salvage", "station": "any", "tier": 1, "input": "worn_rug", "yield": {"fibre": 3}},
+    {"id": "unmake_jug", "type": "salvage", "station": "any", "tier": 1, "input": "cracked_jug", "yield": {"clay": 1, "fibre": 1}},
+    {"id": "windmill", "type": "craft", "station": "carpenter", "tier": 9, "locked": true, "part": 2, "cost": {"wood": 20, "stone": 12, "fibre": 6}, "output": "windmill", "count": 1},
+    {"id": "water_wheel", "type": "craft", "station": "carpenter", "tier": 9, "locked": true, "part": 2, "cost": {"wood": 16, "stone": 10}, "output": "water_wheel", "count": 1},
+    {"id": "rocket", "type": "craft", "station": "stone", "tier": 9, "locked": true, "part": 3, "cost": {"iron_ore": 4, "wood": 2, "fibre": 2}, "output": "rocket", "count": 1}
+  ]
+}
