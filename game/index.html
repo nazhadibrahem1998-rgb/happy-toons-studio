@@ -23,6 +23,7 @@
   <div class="stats">
     <div>WAVE <b id="wave">1</b></div>
     <div>SCORE <b id="score">0</b></div>
+    <div id="comboRow" class="combo hidden"><b id="combo">x2</b></div>
     <div id="bestLive">Best: —</div>
     <div>ENEMIES <b id="left">0</b></div>
   </div>
@@ -32,6 +33,7 @@
   </div>
   <div id="banner"></div>
   <div id="hint">WASD move · Mouse look · Click/J attack · Right-click/K block · Space dodge · P/Esc pause · M mute</div>
+  <div id="coach" class="hidden" aria-live="polite"></div>
   <div id="dmgFlash"></div>
 </div>
 
@@ -58,9 +60,10 @@
     <p id="sBestWrap" class="sub best">🏆 Best: <b id="sBest">—</b></p>
     <p id="dailyNote" class="sub" hidden></p>
     <button id="playBtn" class="btn">▶ PLAY</button>
+    <button id="tipsBtn" class="tips" type="button">Show tips</button>
     <div class="controls">
-      <div><b>Desktop:</b> WASD / Arrows move · Mouse look (Q/E also turn) · Click or J attack · Right‑click or K block · Space dodge · P/Esc pause · M mute</div>
-      <div><b>Phone:</b> left joystick move · drag right side to look · ⚔ attack · 🛡 block · ⤿ dodge · ⏸ pause · 🔊 sound</div>
+      <div><b>Desktop:</b> <span class="ctl">WASD / Arrows move ·</span> <span class="ctl">Mouse look (Q/E also turn) ·</span> <span class="ctl">Click or J attack ·</span> <span class="ctl">Right‑click or K block ·</span> <span class="ctl">Space dodge ·</span> <span class="ctl">P/Esc pause ·</span> <span class="ctl">M mute</span></div>
+      <div><b>Phone:</b> <span class="ctl">left joystick move ·</span> <span class="ctl">drag right side to look ·</span> <span class="ctl">⚔ attack ·</span> <span class="ctl">🛡 block ·</span> <span class="ctl">⤿ dodge ·</span> <span class="ctl">⏸ pause ·</span> <span class="ctl">🔊 sound</span></div>
     </div>
     <p class="ai">Made with AI-assisted tools</p>
     <p class="owner">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</p>
@@ -88,6 +91,7 @@
     <button id="resumeBtn" class="btn">▶ RESUME</button>
     <p class="sub">Click / tap, Esc or P to resume</p>
     <button id="pMute" class="btn small">🔊 Sound: On</button>
+    <button id="pShake" class="btn small" type="button" aria-pressed="true">Shake: On</button>
     <p class="ai">Made with AI-assisted tools</p>
     <p class="owner">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</p>
     <p class="copy">© 2026 Ayub Azizi – Happy Toons Studio. All rights reserved.</p>
