@@ -200,6 +200,9 @@ details p { margin: 6px 0; }
   .who { font-size: 0.8rem; }
 }
 
+body.hts-over { touch-action: pan-y; }
+#hudBest { font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
+
 @media (max-height: 480px) {
   h1 { font-size: 1.4rem; }
   .tag { display: none; }

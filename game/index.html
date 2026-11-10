@@ -24,6 +24,7 @@
     <div>WAVE <b id="wave">1</b></div>
     <div>SCORE <b id="score">0</b></div>
     <div id="comboRow" class="combo hidden"><b id="combo">x2</b></div>
+    <div id="bestLive">Best: —</div>
     <div>ENEMIES <b id="left">0</b></div>
   </div>
   <div id="bossBar" class="hidden">
@@ -56,7 +57,8 @@
     <p class="credit">by Happy Toons Studio</p>
     <p class="sub">Survive the waves of goblins and skeletons. Dodge the archers — every 10th wave, the Skeleton King arrives!</p>
     <p class="hero-intro">Play as <b>Lang</b></p>
-    <p id="sBestWrap" class="sub best hidden">🏆 Best: <b id="sBest">0</b></p>
+    <p id="sBestWrap" class="sub best">🏆 Best: <b id="sBest">—</b></p>
+    <p id="dailyNote" class="sub" hidden></p>
     <button id="playBtn" class="btn">▶ PLAY</button>
     <button id="tipsBtn" class="tips" type="button">Show tips</button>
     <div class="controls">
@@ -72,10 +74,10 @@
 <div id="over" class="screen hidden">
   <div class="panel">
     <h1 class="fallen">Lang has fallen</h1>
-    <p class="sub">Wave <b id="oWave">1</b> · Score <b id="oScore">0</b></p>
-    <p class="sub">Best: <b id="oBest">0</b></p>
-    <p id="oNew" class="newbest hidden">★ NEW BEST! ★</p>
-    <button id="againBtn" class="btn">↻ PLAY AGAIN</button>
+    <p class="sub">Wave <b id="oWave">1</b></p>
+    <div id="endScore"></div>
+    <button id="againBtn" class="btn">Play again</button>
+    <div id="endTry"></div>
     <p class="credit">by Happy Toons Studio</p>
     <p class="ai">Made with AI-assisted tools</p>
     <p class="owner">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</p>
@@ -97,6 +99,7 @@
 </div>
 
 <div id="loading">Loading…</div>
+<script src="../assets/js/game-scores.js"></script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

@@ -70,6 +70,7 @@ let touchJump = false;
 let touchDash = false;
 let gemMesh = null;
 let score = 0;
+let runFloorMark = 0;
 let toastTimer = 0;
 let holdRivals = false;
 let menuAng = 0.6;
@@ -729,7 +730,11 @@ function applyLang(next) {
     btn.classList.toggle('on', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
-  if (document.getElementById('finish') && !document.getElementById('finish').hidden) fillResults();
+  if (document.getElementById('finish') && !document.getElementById('finish').hidden) {
+    fillResults();
+    const again = document.getElementById('finishAgain');
+    if (again) again.textContent = 'Play again';
+  }
   if (ui.fbText && ui.fbCount) ui.fbCount.textContent = formatCount(ui.fbText.value.length);
   refreshRivalNames();
   refreshIosHint();
@@ -740,6 +745,12 @@ function updateRecords() {
   const high = highestRecord();
   ui.menuBest.textContent = best ? fmt(best / 1000) : '—';
   ui.menuHighest.textContent = high ? String(high) : '—';
+  const scoreBest = document.getElementById('menuScoreBest');
+  if (scoreBest) {
+    const n = window.HappyScores ? window.HappyScores.getBest('block-tower') : high;
+    scoreBest.textContent = 'Best: ' + (n > 0 ? n : '—');
+  }
+  if (window.HappyScores) window.HappyScores.paintNote('block-tower', document.getElementById('dailyNote'));
 }
 
 function updateHud() {
@@ -750,6 +761,11 @@ function updateHud() {
   ui.floorName.textContent = lang === 'en' ? name.en : name.ckb;
   ui.timer.textContent = fmt(world.playTime);
   ui.timerLabel.textContent = t(lang, 'time');
+  const bestLive = document.getElementById('bestLive');
+  if (bestLive) {
+    const n = window.HappyScores ? window.HappyScores.getBest('block-tower') : highestRecord();
+    bestLive.textContent = 'Best: ' + (n > 0 ? n : '—');
+  }
   const placeRow = document.getElementById('placeRow');
   if (placeRow) {
     const rivals = world.rivals || [];
@@ -835,7 +851,24 @@ function showFinish() {
   ui.finishBest.textContent = fmt(Number(localStorage.getItem('bt-best-ms')) / 1000);
   ui.finishHighest.textContent = String(Math.max(world.highest, highestRecord()));
   fillResults();
+  const HS = window.HappyScores;
+  const floorScore = world.highest;
+  if (HS) HS.record('block-tower', floorScore, floorScore);
+  const bestFloor = HS ? HS.getBest('block-tower') : floorScore;
+  if (HS) {
+    HS.showEnd({
+      scoreEl: document.getElementById('finishScore'),
+      tryEl: document.getElementById('finishTry'),
+      id: 'block-tower',
+      from: 'block-tower',
+      score: floorScore,
+      best: Math.max(bestFloor, floorScore),
+      isNew: floorScore > runFloorMark && floorScore > 0,
+    });
+  }
   setMode('finish');
+  const again = document.getElementById('finishAgain');
+  if (again) again.textContent = 'Play again';
   updateRecords();
 }
 
@@ -845,6 +878,7 @@ function poll() {
     updateRecords();
     renderSwatches();
   }
+  if (mode === 'play' && window.HappyScores) window.HappyScores.record('block-tower', world.highest, world.highest);
   if (world.checkpointSerial !== seenSerial) {
     seenSerial = world.checkpointSerial;
     if (mode === 'play') {
@@ -875,7 +909,12 @@ function poll() {
   }
 }
 
+function markRun() {
+  runFloorMark = window.HappyScores ? window.HappyScores.getBest('block-tower') : highestRecord();
+}
+
 function restart() {
+  markRun();
   world = createState();
   applyProgress(world, progress);
   world.rivals = createRivals(rivalMode, world);
@@ -1179,7 +1218,7 @@ function toggleMute() {
 }
 if (localStorage.getItem('bt-mute') === '1') setMuted(true);
 
-document.getElementById('playBtn').addEventListener('click', () => setMode('play'));
+document.getElementById('playBtn').addEventListener('click', () => { markRun(); setMode('play'); });
 document.getElementById('pauseBtn').addEventListener('click', () => setMode('pause'));
 document.getElementById('resumeBtn').addEventListener('click', () => setMode('play'));
 document.getElementById('restartBtn').addEventListener('click', restart);
@@ -1414,6 +1453,14 @@ async function installTestHook() {
     restart() {
       restart();
       paint();
+    },
+    showFinishNow(floor) {
+      markRun();
+      world.highest = Math.max(1, floor | 0);
+      world.won = true;
+      winHandled = true;
+      showFinish();
+      return snapshot(world);
     },
     stats() {
       paint();
