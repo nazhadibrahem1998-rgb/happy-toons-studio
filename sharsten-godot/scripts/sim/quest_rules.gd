@@ -36,8 +36,22 @@ static func measure(obj: Dictionary, state: Dictionary, spots: Dictionary) -> in
 		return n
 	return 0
 
+const STATION_SPOT := {
+	"stump": "stump",
+	"carpenter": "carpenter",
+	"clay": "clay_wheel",
+	"stone": "stone_bench",
+	"trade": "trade",
+	"any": "stump",
+}
+
 static func refresh(qdefs: Dictionary, state: Dictionary, spots: Dictionary) -> Array:
+	var done: Array = refresh_report(qdefs, state, spots)["done"]
+	return done
+
+static func refresh_report(qdefs: Dictionary, state: Dictionary, spots: Dictionary) -> Dictionary:
 	var done_now: Array = []
+	var steps: Array = []
 	var quests: Dictionary = state.get("quests", {})
 	for id in quests.keys():
 		var st: Dictionary = quests[id]
@@ -49,9 +63,14 @@ static func refresh(qdefs: Dictionary, state: Dictionary, spots: Dictionary) -> 
 		var all_ok := true
 		var progress: Dictionary = st.get("progress", {})
 		for obj in def.get("objectives", []):
+			var oid := str(obj.get("id", ""))
+			var need := int(obj.get("count", 1))
+			var prev := int(progress.get(oid, 0))
 			var have := measure(obj, state, spots)
-			progress[str(obj.get("id", ""))] = have
-			if have < int(obj.get("count", 1)):
+			progress[oid] = have
+			if have >= need and prev < need:
+				steps.append({"quest": str(id), "step": oid, "text": str(obj.get("text", ""))})
+			if have < need:
 				all_ok = false
 		st["progress"] = progress
 		if all_ok and def.get("objectives", []).size() > 0:
@@ -59,7 +78,7 @@ static func refresh(qdefs: Dictionary, state: Dictionary, spots: Dictionary) -> 
 			done_now.append(id)
 		quests[id] = st
 	state["quests"] = quests
-	return done_now
+	return {"done": done_now, "steps": steps}
 
 static func gate_ready(qdefs: Dictionary, state: Dictionary) -> bool:
 	var quests: Dictionary = state.get("quests", {})
@@ -71,9 +90,13 @@ static func gate_ready(qdefs: Dictionary, state: Dictionary) -> bool:
 	return true
 
 static func next_line(qdefs: Dictionary, order: Array, state: Dictionary) -> String:
+	return str(focus(qdefs, order, state, {}).get("text", ""))
+
+static func focus(qdefs: Dictionary, order: Array, state: Dictionary, ctx: Dictionary) -> Dictionary:
 	if str(state.get("phase", "dream")) == "woke":
-		return "The red seed woke you. Part 2 is still to come."
+		return {"text": "Part 2 is still to come.", "marked": false}
 	var quests: Dictionary = state.get("quests", {})
+	var spots: Dictionary = ctx.get("spots", {})
 	for id in order:
 		if not qdefs.has(id):
 			continue
@@ -84,14 +107,72 @@ static func next_line(qdefs: Dictionary, order: Array, state: Dictionary) -> Str
 		if str(st.get("status", "")) == "done":
 			continue
 		for obj in def.get("objectives", []):
-			var have := measure(obj, state, {})
+			var have := measure(obj, state, spots)
 			if quests.has(id):
 				have = int(st.get("progress", {}).get(str(obj.get("id", "")), have))
 			if have < int(obj.get("count", 1)):
-				return "%s — %s" % [def.get("title", id), obj.get("text", "")]
+				return _pack(obj, ctx)
 	if gate_ready(qdefs, state) or bool(state.get("gate_open", false)):
-		return "Go to the star spring. The red seed or the white stone is the choice."
-	return "Walk the lane. The next deed will show itself."
+		var altar := _spot_xy(spots, "altar")
+		if altar.is_empty():
+			return {"text": "Go to the star spring.", "marked": false}
+		return {"text": "Go to the star spring.", "marked": true, "x": altar["x"], "z": altar["z"]}
+	return {"text": "Walk the lane.", "marked": false}
+
+static func _pack(obj: Dictionary, ctx: Dictionary) -> Dictionary:
+	var text := str(obj.get("text", "Walk the lane."))
+	var at := _point(obj, ctx)
+	if at.is_empty():
+		return {"text": text, "marked": false}
+	return {"text": text, "marked": true, "x": at["x"], "z": at["z"]}
+
+static func _point(obj: Dictionary, ctx: Dictionary) -> Dictionary:
+	var spots: Dictionary = ctx.get("spots", {})
+	var spot_id := str(obj.get("spot", ""))
+	if spot_id != "":
+		var named := _spot_xy(spots, spot_id)
+		if not named.is_empty():
+			return named
+	var t := str(obj.get("type", ""))
+	if t == "flag":
+		var flag := str(obj.get("flag", ""))
+		for rune in ctx.get("runes", []):
+			if str(rune.get("flag", rune.get("id", ""))) == flag:
+				var at: Array = rune.get("at", [0, 0])
+				if at.size() >= 2:
+					return {"x": float(at[0]), "z": float(at[1])}
+		if flag.begins_with("money:"):
+			return _spot_xy(spots, "trade")
+		return {}
+	if t == "gather":
+		var item := str(obj.get("item", ""))
+		for node in ctx.get("nodes", []):
+			if str(node.get("item", "")) != item:
+				continue
+			var at2 = node.get("at", [])
+			if typeof(at2) == TYPE_ARRAY and at2.size() >= 2:
+				return {"x": float(at2[0]), "z": float(at2[1])}
+		return {}
+	if t == "craft":
+		var station := _station_of(str(obj.get("item", "")), ctx.get("recipes", []))
+		return _spot_xy(spots, str(STATION_SPOT.get(station, "stump")))
+	if t == "salvage":
+		return _spot_xy(spots, "stump")
+	return {}
+
+static func _station_of(item: String, recipes: Array) -> String:
+	for recipe in recipes:
+		if str(recipe.get("type", "craft")) != "craft":
+			continue
+		if str(recipe.get("output", "")) == item:
+			return str(recipe.get("station", "any"))
+	return "any"
+
+static func _spot_xy(spots: Dictionary, id: String) -> Dictionary:
+	var s = spots.get(id, null)
+	if typeof(s) != TYPE_DICTIONARY:
+		return {}
+	return {"x": float(s.get("x", 0.0)), "z": float(s.get("z", 0.0))}
 
 static func missing_titles(qdefs: Dictionary, state: Dictionary) -> Array:
 	var quests: Dictionary = state.get("quests", {})

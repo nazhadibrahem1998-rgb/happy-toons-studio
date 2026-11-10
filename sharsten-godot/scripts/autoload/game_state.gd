@@ -25,15 +25,37 @@ var save_path_override := ""
 var ignore_station := false
 var blended := false
 var _save_wait := 0.0
+var scene_id := ""
+var save_notice := 0.0
+var _autosave_clock := 0.0
+
+const AUTOSAVE_EVERY := 180.0
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	data = SaveFileS.blank(_start())
+	scene_id = "title"
+	_autosave_clock = 0.0
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and scene_id != "" and scene_id != "title":
+		save_now()
 
 func _process(delta: float) -> void:
+	if typeof(data) == TYPE_DICTIONARY and autosave_due(float(data.get("play_time", 0.0))):
+		autosave("time")
 	if _save_wait > 0.0:
 		_save_wait -= delta
 		if _save_wait <= 0.0:
 			save_now()
+	if save_notice > 0.0:
+		save_notice = maxf(0.0, save_notice - delta)
+
+func autosave_due(play_time: float) -> bool:
+	return _save_wait <= 0.0 and play_time - _autosave_clock >= AUTOSAVE_EVERY
+
+func saving_visible() -> bool:
+	return save_notice > 0.0
 
 func _start() -> Dictionary:
 	if is_instance_valid(ContentDB):
@@ -72,43 +94,81 @@ func start_new() -> void:
 	for qid in ContentDB.quest_order:
 		if bool(ContentDB.quests[qid].get("autostart", false)):
 			activate(qid)
+	scene_id = "title"
+	_autosave_clock = 0.0
+	_save_wait = 0.0
 	say_thought("I dreamed I woke already inside the dream. The lane smells of rain and bread.")
 	refreshed.emit()
 
 func has_save() -> bool:
-	return FileAccess.file_exists(save_path())
+	return SaveFileS.recoverable(save_path())
 
 func save_now() -> bool:
-	return SaveFileS.write_atomic(save_path(), data.duplicate(true))
+	_save_wait = 0.0
+	if typeof(data) != TYPE_DICTIONARY:
+		return false
+	var ok := SaveFileS.write_guarded(save_path(), data.duplicate(true))
+	if ok:
+		_autosave_clock = float(data.get("play_time", 0.0))
+		save_notice = 1.25
+	return ok
 
-func autosave() -> void:
-	_save_wait = 0.4
+func autosave(_reason: String = "") -> void:
+	save_notice = maxf(save_notice, 0.7)
+	if _save_wait <= 0.0:
+		_save_wait = 0.4
 
 func save_slot() -> bool:
-	return SaveFileS.write_atomic(slot_path(), data.duplicate(true))
+	return SaveFileS.write_guarded(slot_path(), data.duplicate(true))
 
 func has_slot() -> bool:
-	return FileAccess.file_exists(slot_path())
+	return SaveFileS.recoverable(slot_path())
 
 func load_slot() -> bool:
-	var loaded := SaveFileS.read(slot_path(), _start())
+	var loaded := SaveFileS.read_best(slot_path(), _start())
 	if loaded.is_empty():
 		return false
-	data = loaded
-	move_token += 1
-	moved.emit()
-	refreshed.emit()
+	_adopt(loaded)
 	return true
 
 func load_game() -> bool:
-	var loaded := SaveFileS.read(save_path(), _start())
+	var loaded := SaveFileS.read_best(save_path(), _start())
 	if loaded.is_empty():
 		return false
+	_adopt(loaded)
+	return true
+
+func _adopt(loaded: Dictionary) -> void:
 	data = loaded
+	scene_id = str(data.get("scene", "lane"))
+	_autosave_clock = float(data.get("play_time", 0.0))
+	_save_wait = 0.0
 	move_token += 1
 	moved.emit()
 	refreshed.emit()
-	return true
+
+func note_scene(id: String) -> void:
+	if id == "" or id == scene_id:
+		return
+	var prior := scene_id
+	scene_id = id
+	if typeof(data) == TYPE_DICTIONARY:
+		data["scene"] = id
+	if prior == "":
+		return
+	autosave("scene")
+
+func sleep_here() -> void:
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+	if str(data.get("phase", "dream")) != "dream":
+		say_thought("Sleep will not come in this light.")
+		return
+	data["play_time"] = float(data.get("play_time", 0.0)) + 50.0 * 7.0
+	data["flags"]["slept"] = int(data.get("flags", {}).get("slept", 0)) + 1
+	_autosave_clock = float(data["play_time"])
+	say_thought("The house is quiet. I sleep, and the lane is pale when I wake.")
+	autosave("sleep")
 
 func activate(qid: String) -> void:
 	if not ContentDB.quests.has(qid):
@@ -391,6 +451,8 @@ func poll_overhear(pos: Vector3) -> void:
 
 func choose(color: String) -> Dictionary:
 	data = EndingS.apply(data, color, _final())
+	scene_id = "waking" if str(data.get("phase", "")) == "woke" else "lane"
+	data["scene"] = scene_id
 	if str(data.get("thought", "")) != "":
 		say_thought(str(data["thought"]))
 	move_token += 1
@@ -401,18 +463,30 @@ func choose(color: String) -> Dictionary:
 	return {"result": data.get("result", ""), "banner": data.get("banner", "")}
 
 func _after_rules() -> void:
-	var done: Array = QuestRulesS.refresh(ContentDB.quests, data, _spots())
+	var report: Dictionary = QuestRulesS.refresh_report(ContentDB.quests, data, _spots())
+	var done: Array = report.get("done", [])
 	if done.has("first_steps"):
 		say_thought("The mallet sits right in the hand. Voices carry from the spoon stall. Papers wait on the mosque step, by the pasture, and on a basket in the lane.")
 	_advance_chain()
 	_check_gate()
-	autosave()
+	var steps: Array = report.get("steps", [])
+	if steps.size() > 0 or done.size() > 0:
+		autosave("quest")
 	refreshed.emit()
 
 func objective_line() -> String:
+	return str(objective_focus().get("text", ""))
+
+func objective_focus() -> Dictionary:
 	if not is_instance_valid(ContentDB):
-		return ""
-	return QuestRulesS.next_line(ContentDB.quests, ContentDB.quest_order, data)
+		return {"text": "", "marked": false}
+	var ctx := {
+		"spots": ContentDB.layout.get("spots", {}),
+		"nodes": ContentDB.layout.get("nodes", []),
+		"runes": ContentDB.layout.get("runes", []),
+		"recipes": ContentDB.recipes,
+	}
+	return QuestRulesS.focus(ContentDB.quests, ContentDB.quest_order, data, ctx)
 
 func _advance_chain() -> void:
 	var ready := true

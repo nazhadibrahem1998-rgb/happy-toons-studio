@@ -213,6 +213,19 @@ func _houses() -> void:
 			hinge.set_meta("id", "door_%s" % resident)
 			hinge.set_meta("resident", resident)
 			_door_for[resident] = hinge
+		var interior := node.get_node_or_null("Interior")
+		if interior:
+			var bed = load("res://scripts/world/interactable.gd").new()
+			var bid := "bed_%s" % resident if resident != "" else "bed_%d" % i
+			bed.configure({"kind": "bed", "id": bid, "at": [0.35, 0.42]})
+			bed.remove_from_group("ground_prop")
+			interior.add_child(bed)
+			for child in bed.get_children():
+				if child is GeometryInstance3D:
+					child.visibility_range_end = 9.0
+					child.visibility_range_end_margin = 1.0
+					child.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+					child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 static func spread_points(points: Array, min_gap: float) -> Array:
 	var pts: Array = []
@@ -1377,10 +1390,6 @@ func _process(delta: float) -> void:
 	_ghost()
 	if player and str(GameState.data.get("phase", "")) == "dream":
 		GameState.data["play_time"] = float(GameState.data.get("play_time", 0.0)) + delta
-		if int(GameState.data["play_time"]) % 45 == 0 and delta > 0.0:
-			pass
-	if player and fmod(float(GameState.data.get("play_time", 0.0)), 45.0) < delta:
-		GameState.autosave()
 
 func _sync_placed() -> void:
 	var placed: Array = GameState.data.get("placed", [])

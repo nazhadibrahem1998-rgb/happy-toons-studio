@@ -72,6 +72,9 @@ func _meta() -> void:
 	elif kind == "fragment":
 		set_meta("kind", "fragment")
 		set_meta("verb", "Take the fragment")
+	elif kind == "bed":
+		set_meta("kind", "bed")
+		set_meta("verb", "Sleep")
 	elif kind == "ore" or locked:
 		set_meta("kind", "resource")
 		set_meta("verb", "Look at the ore")
@@ -120,6 +123,10 @@ func _visual() -> void:
 			MeshLib.part(self, MeshLib.box(2.2, 0.12, 0.12), MeshLib.mat("6a3a2a", 0.5, 0.45), Vector3(0, 2.0, 0))
 		"fragment":
 			MeshLib.part(self, MeshLib.box(0.22, 0.06, 0.16), MeshLib.mat("8a8e92", 0.45, 0.5), Vector3(0, 0.12, 0))
+		"bed":
+			MeshLib.part(self, MeshLib.box(1.15, 0.18, 0.62), MeshLib.mat("6b4226"), Vector3(0, 0.14, 0))
+			MeshLib.part(self, MeshLib.box(1.02, 0.08, 0.5), MeshLib.mat("e7d3a8"), Vector3(0, 0.26, 0))
+			MeshLib.part(self, MeshLib.box(0.28, 0.08, 0.4), MeshLib.mat("f4efe4"), Vector3(-0.32, 0.32, 0))
 		_:
 			MeshLib.part(self, MeshLib.box(0.3, 0.3, 0.3), MeshLib.mat("888888"), Vector3(0, 0.2, 0))
 
@@ -172,6 +179,9 @@ func _puff() -> void:
 	tw.finished.connect(puff.queue_free)
 
 func use(_player: Node) -> void:
+	if kind == "bed":
+		GameState.sleep_here()
+		return
 	if kind == "station":
 		get_tree().call_group("ui", "open_station", station)
 		return

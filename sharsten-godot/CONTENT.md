@@ -8,13 +8,15 @@ Keyboard and mouse only. There is no touch interface.
 
 WASD or the arrow keys walk. The mouse looks. The vertical axis is not inverted unless Settings says so. Shift runs. The hint line at the bottom of the screen shows the current keys.
 
-- `[E]` gather, read, or use what is in front of you
+- `[E]` gather, read, sleep in a house, or use what is in front of you
 - `[Tab]` opens the leather diary (quests, bag, map sketch, overheard lines, skills)
+- `[M]` opens the valley map. Press it again to return to the small map in the corner
+- `[H]` shows the current deed again after it has faded
 - `[V]` switches between third person and first person
 - `[B]` raises a fence, wall, oven, or loom while you stand at a workbench
 - `[R]` turns the piece
 - Left click places. Right click leaves building
-- `[Esc]` pauses
+- `[Esc]` pauses, or closes the valley map
 
 People never speak to Azad. They speak to each other. Walk close and the line appears as a subtitle and in the diary. Quests also come from papers on the ground and from Azad's italic thoughts. Trading at the red cloth is a panel of piles, with no conversation.
 
@@ -80,7 +82,9 @@ A new bonus key does nothing until `scripts/sim/skill_rules.gd` and the caller i
 
 ## Save files
 
-The save is `user://sharsten_save.json`. `version` is `1`. `scripts/sim/save_file.gd` migrates an older file (including a version-0 `bag`) up to the current fields. Bump `SaveFile.VERSION` and extend `migrate()` when the shape changes. Do not discard unknown future fields if you can help it.
+The save is `user://sharsten_save.json`. `version` is `2`. `scripts/sim/save_file.gd` migrates an older file (including a version-0 `bag`) up to the current fields. Bump `SaveFile.VERSION` and extend `migrate()` when the shape changes. Do not discard unknown future fields if you can help it.
+
+The game writes that file when a quest step finishes, when Azad changes place (the lane, a house, the waking), when he sleeps in a house, and every three minutes of play. The write goes to a temp file first. The previous good save rotates into `user://sharsten_save.bak`. Continue on the title reads the newest file that still parses, so a crash mid-write does not lose the dream. A small "Saving..." mark shows while that happens. The pause menu can still write the spare slot, `user://sharsten_slot.json`.
 
 The age gate writes only `{"passed": true}` to `user://sharsten_age.json`. It does not store a birth year.
 

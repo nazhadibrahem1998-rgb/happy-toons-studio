@@ -729,6 +729,8 @@ func _save_roundtrip() -> void:
 	GameState.ignore_station = true
 	GameState.save_path_override = "/tmp/sharsten-roundtrip.json"
 	DirAccess.remove_absolute(GameState.save_path_override)
+	DirAccess.remove_absolute(GameState.save_path_override + ".bak")
+	DirAccess.remove_absolute(GameState.save_path_override + ".tmp")
 	GameState.start_new()
 	GameState.gather("stone", 2)
 	GameState.data["player"]["x"] = 33.0
@@ -738,6 +740,16 @@ func _save_roundtrip() -> void:
 	_check(GameState.load_game(), "load reads")
 	_check(int(GameState.data["inventory"].get("stone", 0)) == stone, "inventory restored")
 	_check(absf(float(GameState.data["player"].get("x", 0)) - 33.0) < 0.01, "position restored")
+	GameState.data["inventory"]["stone"] = stone + 4
+	_check(GameState.save_now(), "second save rotates the backup")
+	var torn := FileAccess.open(GameState.save_path(), FileAccess.WRITE)
+	_check(torn != null, "the live save can be opened")
+	if torn:
+		torn.store_string("torn-save")
+		torn.close()
+	_check(GameState.has_save(), "a torn save still leaves the backup")
+	_check(GameState.load_game(), "load falls back to the backup")
+	_check(int(GameState.data["inventory"].get("stone", 0)) == stone, "backup keeps the earlier inventory")
 
 func _ending() -> void:
 	var start: Dictionary = ContentDB.layout.get("start", {})

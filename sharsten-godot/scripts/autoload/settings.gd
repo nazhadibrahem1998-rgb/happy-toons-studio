@@ -24,6 +24,7 @@ const ACTIONS := {
 	"page_quests": KEY_J,
 	"page_overheard": KEY_O,
 	"page_map": KEY_M,
+	"show_deed": KEY_H,
 	"page_skills": KEY_K,
 	"slot_1": KEY_1,
 	"slot_2": KEY_2,
