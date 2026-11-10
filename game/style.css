@@ -4,7 +4,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 .hidden{display:none!important}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;background:#0d0a1a;z-index:50}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:5;touch-action:none}
-.bars{position:absolute;top:max(12px,env(safe-area-inset-top));left:14px;width:min(320px,46vw)}
+.bars{position:absolute;top:max(12px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));width:min(320px,46vw)}
 .hero-hud{margin:0 0 3px 2px;font-size:13px;font-weight:800;letter-spacing:1.4px;line-height:1;color:#ffd45e;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.65)}
 .bar{position:relative;height:18px;background:rgba(0,0,0,.55);border:2px solid #e8c25a;border-radius:10px;overflow:hidden;margin-bottom:6px}
 .bar.st{height:10px;border-width:1px;border-color:#9fd6ff}
@@ -13,7 +13,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 #stFill{background:linear-gradient(90deg,#3aa0ff,#9fe3ff)}
 .bar span{position:absolute;left:8px;top:0;font-size:11px;font-weight:800;line-height:15px;text-shadow:0 1px 2px #000}
 .bar.st span{display:none}
-.stats{position:absolute;top:max(12px,env(safe-area-inset-top));right:14px;text-align:right;font-size:14px;font-weight:700;text-shadow:0 2px 3px #000;line-height:1.5}
+.stats{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));text-align:right;font-size:14px;font-weight:700;text-shadow:0 2px 3px #000;line-height:1.5}
 .stats b{color:#ffd45e;font-size:18px}
 #banner{position:absolute;top:22%;width:100%;text-align:center;font-size:clamp(28px,6vw,56px);font-weight:900;color:#ffd45e;text-shadow:0 4px 0 #7a4a00,0 6px 16px #000;opacity:0;transform:scale(.8);transition:opacity .35s ease,transform .45s cubic-bezier(.2,1.6,.4,1);letter-spacing:2px;will-change:transform,opacity}
 #banner.show{opacity:1;transform:scale(1)}
@@ -23,9 +23,9 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 #bossName{font-size:clamp(13px,2.4vw,18px);font-weight:900;letter-spacing:2px;color:#ffd45e;text-shadow:0 2px 0 #6a3a00,0 3px 8px #000;margin-bottom:4px}
 #bossTrack{height:18px;background:rgba(0,0,0,.62);border:3px solid #ffd45e;border-radius:12px;overflow:hidden;box-shadow:0 4px 0 rgba(80,20,90,.45)}
 #bossFill{height:100%;width:100%;background:linear-gradient(90deg,#7a2cff,#e86bff);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
-#hint{position:absolute;bottom:10px;width:100%;text-align:center;font-size:12px;opacity:.7;text-shadow:0 1px 2px #000}
+#hint{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));width:100%;text-align:center;font-size:12px;opacity:.7;text-shadow:0 1px 2px #000}
 #dmgFlash{position:absolute;inset:0;box-shadow:inset 0 0 120px rgba(255,0,0,.9);opacity:0;transition:opacity .25s}
-.screen{position:fixed;inset:0;display:flex;align-items:center;align-items:safe center;justify-content:center;background:radial-gradient(ellipse at center,rgba(40,20,70,.55),rgba(5,3,12,.9));z-index:20;padding:16px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
+.screen{position:fixed;inset:0;display:flex;align-items:center;align-items:safe center;justify-content:center;background:radial-gradient(ellipse at center,rgba(40,20,70,.55),rgba(5,3,12,.9));z-index:20;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
 .panel{text-align:center;max-width:620px}
 .panel h1{font-size:clamp(40px,10vw,84px);font-weight:900;letter-spacing:3px;color:#ffd45e;text-shadow:0 5px 0 #8a5200,0 10px 30px rgba(0,0,0,.8);line-height:1}
 .credit{margin-top:8px;font-size:15px;color:#ffb7e0;letter-spacing:1px}
@@ -38,7 +38,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 #stick{position:absolute;left:max(24px,env(safe-area-inset-left));bottom:max(28px,env(safe-area-inset-bottom));width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.25);pointer-events:auto}
 #knob{position:absolute;left:45px;top:45px;width:50px;height:50px;border-radius:50%;background:rgba(255,212,94,.75);box-shadow:0 2px 8px rgba(0,0,0,.5)}
 #btns{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(26px,env(safe-area-inset-bottom));width:190px;height:180px;pointer-events:none}
-.tb{position:absolute;pointer-events:auto;width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(20,10,40,.55);color:#fff;font-size:28px}
+.tb{position:absolute;pointer-events:auto;width:64px;height:64px;min-width:48px;min-height:48px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(20,10,40,.55);color:#fff;font-size:28px}
 .tb.big{width:88px;height:88px;right:0;bottom:0;font-size:38px;background:rgba(200,40,40,.6)}
 #bBlock{right:100px;bottom:0;background:rgba(40,90,200,.55)}
 #bDodge{right:10px;bottom:100px;background:rgba(40,160,90,.55)}
@@ -55,22 +55,27 @@ body.touch #hint{display:none}
 .stats b.pop{animation:pop .3s ease-out}
 @keyframes pop{0%{transform:scale(1.45);color:#fff}100%{transform:scale(1)}}
 #topBtns{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none}
-.tb.sm{position:static;width:46px;height:46px;min-width:44px;min-height:44px;font-size:20px}
+.tb.sm{position:static;width:48px;height:48px;min-width:48px;min-height:48px;font-size:20px}
 /* Keep the centred pause/mute cluster off the HP bar and the score column. */
-body.touch .bars,
-body.touch .stats{--hud-gap:calc(14px + 8px + (46px * 2 + 10px) / 2)}
-body.touch .bars{width:min(320px,calc(50% - var(--hud-gap)))}
-body.touch .stats{max-width:calc(50% - var(--hud-gap))}
-.btn.small{font-size:15px;padding:8px 22px;margin:6px 0;box-shadow:0 4px 0 #8a5200}
+body.touch .bars{width:min(320px,calc(50% - max(14px,env(safe-area-inset-left)) - 8px - (48px * 2 + 10px) / 2))}
+body.touch .stats{max-width:calc(50% - max(14px,env(safe-area-inset-right)) - 8px - (48px * 2 + 10px) / 2)}
+.btn.small{font-size:15px;padding:10px 22px;min-width:44px;min-height:44px;margin:6px 0;box-shadow:0 4px 0 #8a5200}
+.tips{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;margin:2px 0 8px;padding:8px 16px;min-width:44px;min-height:44px;font:700 14px/1 system-ui,sans-serif;color:#ffd45e;background:transparent;border:1px solid rgba(255,212,94,.55);border-radius:999px;cursor:pointer}
+.combo b{color:#fff6d0}
+#coach{position:absolute;left:50%;bottom:max(36px,calc(env(safe-area-inset-bottom) + 28px));transform:translateX(-50%);max-width:calc(100% - 28px);padding:8px 14px;border-radius:16px;background:rgba(13,10,26,.62);border:2px solid rgba(255,212,94,.75);color:#ffd45e;font-size:clamp(15px,4.2vw,22px);font-weight:800;letter-spacing:.3px;text-align:center;text-shadow:0 2px 0 #5a3a00;white-space:nowrap;pointer-events:none;opacity:1;transition:opacity .35s linear}
+body.touch #coach{bottom:max(206px,calc(env(safe-area-inset-bottom) + 196px))}
+#coach.fade{opacity:0}
 #pause{cursor:pointer}
 .ai{margin-top:12px;font-size:12px;color:#bfe3ff;opacity:.85}
 .newbest{margin:6px 0;font-size:20px;font-weight:900;color:#ffd45e;animation:glow .8s ease-in-out infinite alternate}
 @keyframes glow{from{transform:scale(1);text-shadow:0 0 0 #f29a0e}to{transform:scale(1.08);text-shadow:0 0 14px #f29a0e}}
 .best b{color:#ffd45e}
-@media (prefers-reduced-motion:reduce){.newbest,.stats b.pop{animation:none}#banner{transition:opacity .3s}}
+@media (prefers-reduced-motion:reduce){.newbest,.stats b.pop{animation:none}#banner,#coach{transition:none}}
 /* Short landscape viewports: the start/pause/over panel is taller than the screen. */
 @media (max-height:500px){
-  .screen{padding:6px 12px}
+  .screen{padding:max(6px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+  .tips{margin:1px 0 2px;padding:6px 12px;font-size:13px}
+  body.touch #coach{bottom:max(168px,calc(env(safe-area-inset-bottom) + 158px));font-size:15px}
   .pre{font-size:13px;letter-spacing:3px;margin-bottom:1px}
   .panel h1{font-size:clamp(28px,10vh,46px);letter-spacing:1px;text-shadow:0 3px 0 #8a5200,0 6px 14px rgba(0,0,0,.8)}
   #over h1.fallen{font-size:clamp(24px,8vh,40px);letter-spacing:.5px}

@@ -10,7 +10,7 @@ if (isTouch) document.body.classList.add('touch');
 // ---------- Renderer / scene ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
-const maxDPR = isTouch ? 1.5 : 2;
+const maxDPR = Math.min(2, isTouch ? 1.5 : 2);
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, maxDPR));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
@@ -571,6 +571,31 @@ const pickups = [];
 let state = 'menu', score = 0, wave = 0, waveTimer = 0, toSpawn = 0, spawnCd = 0, best = +(localStorage.getItem('toonblade_best') || 0);
 let archersThisWave = 0, skipNextClearBonus = false, debugFreeze = false;
 let shake = 0, hitStop = 0, runStartBest = best, newBestShown = false, bestPending = false;
+let scoreCombo = 0, scoreComboT = 0;
+let tutorialReplay = false;
+const reduceMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let reduceMotion = reduceMotionQuery.matches;
+let shakeOff = false;
+try { shakeOff = localStorage.getItem('toonblade_shake') === '0'; } catch (_) {}
+function shakeAllowed() { return !shakeOff && !reduceMotion; }
+function updateShakeUI() {
+  const btn = $('pShake');
+  if (!btn) return;
+  const on = shakeAllowed();
+  btn.textContent = on ? 'Shake: On' : 'Shake: Off';
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+function setShakeOff(off) {
+  shakeOff = !!off;
+  if (!shakeAllowed()) shake = 0;
+  try { localStorage.setItem('toonblade_shake', shakeOff ? '0' : '1'); } catch (_) {}
+  updateShakeUI();
+}
+reduceMotionQuery.addEventListener('change', () => {
+  reduceMotion = reduceMotionQuery.matches;
+  if (!shakeAllowed()) shake = 0;
+  updateShakeUI();
+});
 const camYawPitch = { yaw: Math.PI, pitch: 0.42, dist: 8.5, distT: 8.5 };
 function saveBest() { try { localStorage.setItem('toonblade_best', best); } catch (_) {} }
 function checkBest() {
@@ -815,6 +840,72 @@ function updateMuteUI() {
 }
 function showStartBest() { if (best > 0) { $('sBest').textContent = best; $('sBestWrap').classList.remove('hidden'); } }
 
+function breakScoreCombo() {
+  scoreCombo = 0; scoreComboT = 0;
+  const row = $('comboRow');
+  if (row) row.classList.add('hidden');
+}
+function noteScoreCombo() {
+  scoreCombo = scoreComboT > 0 ? scoreCombo + 1 : 1;
+  scoreComboT = 1.5;
+  if (scoreCombo < 2) return;
+  score += scoreCombo;
+  checkBest();
+  const row = $('comboRow'), el = $('combo');
+  if (!row || !el) return;
+  el.textContent = 'x' + scoreCombo;
+  row.classList.remove('hidden');
+  pop(el);
+}
+
+let coachOn = false, coachT = 0, coachStep = -1;
+function coachLines() {
+  return touchUI ? ['Move with the stick', 'Tap ⚔ to attack'] : ['Move with WASD', 'Click to attack'];
+}
+function endCoach() {
+  coachOn = false; coachT = 0; coachStep = -1;
+  const el = $('coach');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.classList.remove('fade');
+  el.textContent = '';
+}
+function maybeStartTutorial() {
+  let again = tutorialReplay;
+  try { if (localStorage.getItem('toonblade_tutorial_again') === '1') again = true; } catch (_) {}
+  let seen = false;
+  try { seen = localStorage.getItem('toonblade_tutorial') === '1'; } catch (_) {}
+  if (seen && !again) { endCoach(); return; }
+  tutorialReplay = false;
+  try {
+    localStorage.setItem('toonblade_tutorial', '1');
+    localStorage.removeItem('toonblade_tutorial_again');
+  } catch (_) {}
+  const tips = $('tipsBtn');
+  if (tips) tips.textContent = 'Show tips';
+  coachOn = true; coachT = 0; coachStep = 0;
+  const el = $('coach');
+  if (!el) return;
+  el.textContent = coachLines()[0];
+  el.classList.remove('hidden', 'fade');
+}
+function updateCoach(dt) {
+  if (!coachOn) return;
+  const el = $('coach');
+  if (!el) return;
+  coachT += dt;
+  let step = -1, fade = false;
+  if (coachT < 1.5) { step = 0; fade = coachT > 1.15; }
+  else if (coachT < 3) { step = 1; fade = coachT > 2.6; }
+  else { endCoach(); return; }
+  if (step !== coachStep) {
+    coachStep = step;
+    el.textContent = coachLines()[step];
+    el.classList.remove('fade');
+  }
+  el.classList.toggle('fade', fade);
+}
+
 function resetFx() {
   for (let i = 0; i < ARROW_N; i++) killArrow(arrows[i]);
   for (let i = 0; i < WARN_N; i++) { warns[i].alive = false; warns[i].g.visible = false; }
@@ -829,6 +920,7 @@ function resetGame() {
   player.pos.set(0, 0, 0); player.vel.set(0, 0, 0); W.root.rotation.set(0, 0, 0); W.body.rotation.set(0, 0, 0); W.body.position.set(0, 0, 0);
   visFacing = 0;
   score = 0; wave = 0; toSpawn = 0; waveTimer = 1.0; archersThisWave = 0; skipNextClearBonus = false;
+  breakScoreCombo();
   camYawPitch.yaw = Math.PI;
   uiHp = uiSt = uiWave = uiScore = uiLeft = -1;
   runStartBest = best; newBestShown = false; bestPending = false;
@@ -862,12 +954,14 @@ function startGame() {
   $('hud').classList.remove('hidden');
   if (touchUI) $('touch').classList.remove('hidden');
   else requestLock();
+  maybeStartTutorial();
 }
 function gameOver() {
   state = 'over'; best = Math.max(best, score); saveBest();
   $('oWave').textContent = wave; $('oScore').textContent = score; $('oBest').textContent = best;
   $('oNew').classList.toggle('hidden', !(score > runStartBest && score > 0));
   $('over').classList.remove('hidden'); $('touch').classList.add('hidden');
+  endCoach();
   clearHeld();
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
 }
@@ -886,9 +980,16 @@ $('againBtn').addEventListener('click', startGame);
 // click / tap anywhere on the pause screen (incl. RESUME) resumes
 $('pause').addEventListener('click', () => { if (state === 'pause' && performance.now() - pausedAt > 150) togglePause(); });
 $('pMute').addEventListener('click', e => { e.stopPropagation(); audio(); setMuted(!muted); });
+$('pShake').addEventListener('click', e => { e.stopPropagation(); if (reduceMotion) return; setShakeOff(!shakeOff); });
+$('tipsBtn').addEventListener('click', () => {
+  tutorialReplay = true;
+  try { localStorage.setItem('toonblade_tutorial_again', '1'); } catch (_) {}
+  $('tipsBtn').textContent = 'Tips on next play';
+});
 document.addEventListener('visibilitychange', () => { if (document.hidden) { saveBest(); if (state === 'play') togglePause(); } });
 addEventListener('pagehide', saveBest);
-updateMuteUI(); showStartBest();
+updateMuteUI(); updateShakeUI(); showStartBest();
+try { if (localStorage.getItem('toonblade_tutorial_again') === '1') { tutorialReplay = true; $('tipsBtn').textContent = 'Tips on next play'; } } catch (_) {}
 
 // ---------- Update ----------
 const tmpV = new THREE.Vector3(), fwd = new THREE.Vector3(), right = new THREE.Vector3();
@@ -915,7 +1016,7 @@ function damagePlayer(dmg, fromPos) {
       dmg *= 0.5; // guard broken
     }
   }
-  player.hp -= dmg; player.hurtT = 0.3; sfx.hurt(); shake = Math.max(shake, 0.35);
+  player.hp -= dmg; player.hurtT = 0.3; sfx.hurt(); shake = Math.max(shake, 0.35); breakScoreCombo();
   dmgFlash.style.opacity = 1; setTimeout(() => dmgFlash.style.opacity = 0, 120);
   burst(tmpV.set(player.pos.x, 1.3, player.pos.z), 0xff3344, 10, 5);
   if (player.hp <= 0) { player.hp = 0; player.dead = true; player.deadT = 0; sfx.die(); }
@@ -1031,6 +1132,7 @@ function puffColor(type) {
   return 0xfff07a;
 }
 function hitEnemy(e, dmg, nx, nz) {
+  noteScoreCombo();
   e.hp -= dmg; e.flash = 0.12;
   const heavy = e.type === 'brute' || e.type === 'king';
   e.kb.set(nx, 0, nz).multiplyScalar(e.type === 'king' ? 2.2 : heavy ? 3 : e.type === 'archer' ? 8 : 9);
@@ -1343,7 +1445,13 @@ function updateCamera(dt) {
   camBase.lerp(camGoal, damp(12, dt));
   camLook.lerp(camTgt, damp(20, dt));
   camera.position.copy(camBase);
-  if (shake > 0) { camera.position.x += rand(-1, 1) * shake * 0.4; camera.position.y += rand(-1, 1) * shake * 0.4; shake = Math.max(0, shake - dt * 1.8); }
+  if (!shakeAllowed()) shake = 0;
+  else if (shake > 0) {
+    const amp = shake * 0.4;
+    camera.position.x += rand(-1, 1) * amp;
+    camera.position.y += rand(-1, 1) * amp;
+    shake = Math.max(0, shake - dt * 1.8);
+  }
   camera.lookAt(camLook);
   // keep shadow camera around player, snapped to whole shadow-map texels
   const texel = SHADOW_SPAN / SM;
@@ -1376,7 +1484,7 @@ function trackFps(dt) {
   lowFpsTime = fps < 45 ? lowFpsTime + 1 : 0;
   if (lowFpsTime >= 3 && quality > 0) {
     quality--; lowFpsTime = 0;
-    if (quality === 1) { renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1)); resize(); }
+    if (quality === 1) { renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1, 2)); resize(); }
     else { SM = Math.max(512, SM / 2); sun.shadow.mapSize.set(SM, SM); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   }
 }
@@ -1400,6 +1508,10 @@ function update(dt) {
 
   if (state === 'menu') { updateMenu(dt); }
   else if (state === 'play' || state === 'over') {
+    if (state === 'play') {
+      updateCoach(dt);
+      if (scoreComboT > 0) { scoreComboT -= dt; if (scoreComboT <= 0) breakScoreCombo(); }
+    }
     if (hitStop > 0) { hitStop -= dt; dt *= 0.15; }
     if (state === 'play') {
       const moving = (Math.abs(input.tx || 0) + Math.abs(input.tz || 0) > 0.1) || keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight;
