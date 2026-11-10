@@ -27,7 +27,16 @@
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preload" href="../assets/fonts/baloo2-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../assets/css/site.css">
-<style>.hub-card .game-art{background:#2b2350}.hub-soon{max-width:520px;margin:0 auto}.hub-ai{margin-top:40px}.hub-ai p{margin:0 0 8px}</style>
+<style>
+.hub-card .game-art{background:#2b2350}.hub-soon{max-width:520px;margin:0 auto}.hub-ai{margin-top:40px}.hub-ai p{margin:0 0 8px}
+.daily-card{max-width:720px;margin:0 auto 28px;padding:18px 18px 16px;border:3px solid var(--ink);border-radius:24px;background:#fff8e8;box-shadow:0 8px 0 #f1e3cc}
+.daily-card h2{font-size:clamp(1.6rem,4vw,2rem);margin:4px 0 8px}
+.daily-card p{margin:0 0 6px}
+.hub-best{font-weight:800;color:var(--ink);margin:8px 0 0}
+.daily-card .hts-done,.daily-card .hts-wait{display:inline-block;border:2px solid var(--ink);border-radius:999px;padding:2px 10px;font-weight:800}
+.daily-card .hts-done{background:#dcf7ec}
+.daily-card .hts-wait{background:#fff1c9}
+</style>
 <script>document.documentElement.className='js'</script>
 <!-- ANALYTICS -->
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2702d2b8fa2345dea871b1550548be7a"}'></script><!-- End Cloudflare Web Analytics -->
@@ -65,6 +74,17 @@
 <section class="white" id="play">
   <div class="wrap">
     <div class="sec-head"><div class="kicker">Play now</div><h2>Pick a game</h2><p>Check the age note on each game. Grown-ups, please see which one suits your child.</p></div>
+    <aside id="daily" class="daily-card" aria-labelledby="daily-title">
+      <div class="kicker">Come back tomorrow</div>
+      <h2 id="daily-title">Daily Challenge</h2>
+      <p id="daily-when">A new game and target every day.</p>
+      <p id="daily-game">Today's game is picked from the games on this page.</p>
+      <p id="daily-goal">Reach the target score on that level.</p>
+      <p id="daily-status" class="hts-wait">Not done yet. You can do it!</p>
+      <p id="daily-streak">Day streak: 0</p>
+      <p id="daily-save" class="fine">Saved on this device. No account.</p>
+      <a id="daily-play" class="btn btn-main btn-sm" href="paddle-ball/">Play today's game</a>
+    </aside>
     <div class="grid">
       <article class="card hub-card">
         <div class="game-art g-tb"><img src="../assets/img/toonblade.jpg" alt="Toonblade title screen: the hero Lang in a stone arena with a Play button" width="800" height="450" loading="lazy" decoding="async"></div>
@@ -73,6 +93,7 @@
         <p>A 3D cartoon arena game. Play as Lang, survive waves of goblins and skeletons and face the Skeleton King every 10th wave.</p>
         <p class="meta">Phone and computer · No download, no account, no ads</p>
         <p class="parent-note">👪 Parents: cartoon sword combat, best for older kids.</p>
+        <p class="hub-best" data-best-for="toonblade">Best: —</p>
         <div class="actions"><a class="btn btn-main btn-sm" href="../game/">▶ Play free</a><a class="btn btn-ghost btn-sm" href="https://happytoonsstudio.itch.io/happy-toons-toonblade" target="_blank" rel="noopener">itch.io page</a></div>
       </article>
       <article class="card hub-card">
@@ -82,6 +103,7 @@
         <p>A 3D adventure in Kurdish (Sorani). The hero of the mountains must free his village from the Khalifakan and their leader Miran.</p>
         <p class="meta">Phone and computer · Can be added to your home screen</p>
         <p class="parent-note">👪 Parents: cartoon sword combat, best for older kids.</p>
+        <p class="hub-best" data-best-for="khalifakan">Best: —</p>
         <div class="actions"><a class="btn btn-main btn-sm" href="../khalifakan/">▶ Play free</a></div>
       </article>
       <article class="card hub-card">
@@ -91,6 +113,7 @@
         <p>A night-time 3D tower climb. Jump across gaps, moving platforms and neon beams. Ten floors, checkpoints, and a best time saved on your device.</p>
         <p class="meta">Phone (landscape) and computer · No account, no chat</p>
         <p class="parent-note">For teens 15–18. Dark city, hazard obstacles, no violence against characters.</p>
+        <p class="hub-best" data-best-for="block-tower">Best: —</p>
         <div class="actions"><a class="btn btn-main btn-sm" href="../block-tower/">▶ Play free</a></div>
       </article>
       <article class="card hub-card">
@@ -100,6 +123,7 @@
         <p>Two paddles and one ball. Keep the rally going. Every hit makes it faster. Play the computer or take a half of the screen each.</p>
         <p class="meta">Phone and computer · English and Sorani · No account, no ads</p>
         <p class="parent-note">👪 No combat. Fine for kids.</p>
+        <p class="hub-best" data-best-for="paddle-ball">Best: —</p>
         <div class="actions"><a class="btn btn-main btn-sm" href="paddle-ball/">▶ Play free</a></div>
       </article>
       <article class="card hub-card">
@@ -119,6 +143,7 @@
         <p class="meta">Phone and computer · No account · Progress stays on your device</p>
         <p class="parent-note" dir="rtl" lang="ckb">ئاگاداری: ئەم یارییە هێشتا تەواو نەکراوە و لە ژێر دروستکردندایە، هەڵە و گۆڕانکاری چاوەڕوان بکە</p>
         <p class="parent-note">Warning: this game is still unfinished and in development, so expect bugs and changes.</p>
+        <p class="hub-best" data-best-for="sharsten">Best: —</p>
         <div class="actions"><a class="btn btn-main btn-sm" href="../sharsten/">▶ Play free</a></div>
       </article>
     </div>
@@ -142,6 +167,7 @@
       <details><summary>How do I play on a computer?</summary><p>Click <b>Play free</b>. Move with <b>WASD</b> or the arrow keys and use the mouse. Each game shows its own controls on the start screen. Press <b>Esc</b> or <b>P</b> to pause.</p></details>
       <details><summary>Is it really free?</summary><p>Yes. These games are free to play, with no ads and nothing to buy inside them.</p></details>
       <details><summary>Do I need to sign up?</summary><p>No. There are no accounts, no chat and no sign-up. Your best score or settings stay on your own device.</p></details>
+      <details><summary>What is the Daily Challenge?</summary><p>Each day we pick one game, a level, and a target score. The pick follows the date, so it stays the same all day and changes tomorrow. Reach the target and this device remembers it, plus your day streak. There is no account.</p></details>
       <details><summary>Can I buy things?</summary><p>Nothing in these games costs money. If you ever see something to buy anywhere online, <b>always ask a parent or carer first</b>.</p></details>
       <details><summary>A game is slow or won't start</summary><p>Close other apps and tabs, then reload the page. Use an up-to-date browser such as Chrome, Safari, Edge or Firefox. Older phones may run 3D games slowly.</p></details>
       <details><summary>Who can I contact?</summary><p>Grown-ups can email <a href="mailto:hello@happytoonsstudio.com">hello@happytoonsstudio.com</a>. Kids, please ask a parent or carer to write for you.</p></details>
@@ -178,6 +204,8 @@
     <p class="legal"><a href="../privacy.html">Privacy &amp; Children</a> · <a href="../terms.html">Terms of Use</a> · <a href="../contact.html">Contact</a><br>© 2026 Ayub Azizi – Happy Toons Studio. All rights reserved.<br>No ads, no cookies, no personal tracking. Only anonymous visit counts.<br><span class="owner-credit">© 2026 Ayub Azizi — Creator &amp; owner of Happy Toons Studio</span></p>
   </div>
 </footer>
+<script src="../assets/js/game-scores.js"></script>
+<script>HappyScores.mountHub('games');</script>
 <script src="../assets/js/site.js" defer></script>
 <script src="../assets/js/online-now.js" defer></script>
 </body>

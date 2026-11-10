@@ -78,4 +78,9 @@ body:not(.touch) #stickZone{display:none}
 #rotate .small{font-size:15px;color:#c8b596}
 @keyframes rot{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
 @media (orientation:portrait) and (pointer:coarse){#rotate{display:flex}}
+body.hts-over #rotate{display:none !important}
+body.hts-over,body.hts-over #end{touch-action:pan-y}
+#end{z-index:60;overflow:auto}
+#end .panel{max-height:none;margin:auto}
+#bestHud{font-size:clamp(11px,3vh,15px);color:#fff3dc;font-weight:800;margin-top:2px}
 body.forcePortrait #rotate{display:flex}

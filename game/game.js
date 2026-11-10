@@ -568,11 +568,22 @@ const player = {
 const ATTACK_DUR = 0.42;
 const enemies = [];
 const pickups = [];
-let state = 'menu', score = 0, wave = 0, waveTimer = 0, toSpawn = 0, spawnCd = 0, best = +(localStorage.getItem('toonblade_best') || 0);
+function bootBest() {
+  try {
+    if (window.HappyScores) return window.HappyScores.getBest('toonblade');
+    return Math.max(0, Math.floor(+(localStorage.getItem('toonblade_best') || 0)) || 0);
+  } catch (e) { return 0; }
+}
+let state = 'menu', score = 0, wave = 0, waveTimer = 0, toSpawn = 0, spawnCd = 0, best = bootBest();
 let archersThisWave = 0, skipNextClearBonus = false, debugFreeze = false;
 let shake = 0, hitStop = 0, runStartBest = best, newBestShown = false, bestPending = false;
 const camYawPitch = { yaw: Math.PI, pitch: 0.42, dist: 8.5, distT: 8.5 };
-function saveBest() { try { localStorage.setItem('toonblade_best', best); } catch (_) {} }
+function saveBest() {
+  const HS = window.HappyScores;
+  if (!HS) return;
+  const result = HS.record('toonblade', score, wave);
+  if (result.best > best) best = result.best;
+}
 function checkBest() {
   if (score <= best) return;
   best = score; saveBest(); // save the moment a record is beaten
@@ -806,6 +817,9 @@ function updateUI(dt) {
   if (wave !== uiWave) { if (uiWave >= 0) pop(elWave); uiWave = wave; elWave.textContent = wave; }
   if (score !== uiScore) { if (uiScore >= 0 && score > uiScore) pop(elScore); uiScore = score; elScore.textContent = score; }
   if (left !== uiLeft) { uiLeft = left; elLeft.textContent = left; }
+  const live = $('bestLive');
+  if (live) live.textContent = 'Best: ' + (best > 0 ? best : '—');
+  if (state === 'play') saveBest();
   updateBossUI(dt || 0);
 }
 function updateMuteUI() {
@@ -813,7 +827,13 @@ function updateMuteUI() {
   $('bMute').textContent = icon;
   $('pMute').textContent = icon + (muted ? ' Sound: Off' : ' Sound: On');
 }
-function showStartBest() { if (best > 0) { $('sBest').textContent = best; $('sBestWrap').classList.remove('hidden'); } }
+function showStartBest() {
+  const el = $('sBest');
+  if (el) el.textContent = best > 0 ? String(best) : '—';
+  const live = $('bestLive');
+  if (live) live.textContent = 'Best: ' + (best > 0 ? best : '—');
+  if (window.HappyScores) window.HappyScores.paintNote('toonblade', $('dailyNote'));
+}
 
 function resetFx() {
   for (let i = 0; i < ARROW_N; i++) killArrow(arrows[i]);
@@ -856,6 +876,7 @@ function countHit(key) {
 function startGame() {
   countHit('toonblade-plays');
   audio(); resetGame(); state = 'play';
+  document.body.classList.remove('hts-over');
   const jump = readDebugWave();
   if (jump > 1) { wave = jump - 1; waveTimer = 0.08; skipNextClearBonus = true; }
   $('start').classList.add('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden');
@@ -864,10 +885,24 @@ function startGame() {
   else requestLock();
 }
 function gameOver() {
-  state = 'over'; best = Math.max(best, score); saveBest();
-  $('oWave').textContent = wave; $('oScore').textContent = score; $('oBest').textContent = best;
-  $('oNew').classList.toggle('hidden', !(score > runStartBest && score > 0));
+  state = 'over';
+  const result = window.HappyScores ? window.HappyScores.record('toonblade', score, wave) : { best: Math.max(best, score) };
+  best = result.best;
+  $('oWave').textContent = wave;
+  if (window.HappyScores) {
+    window.HappyScores.showEnd({
+      scoreEl: $('endScore'),
+      tryEl: $('endTry'),
+      id: 'toonblade',
+      from: 'game',
+      score: score,
+      best: best,
+      isNew: score > runStartBest && score > 0,
+    });
+  }
   $('over').classList.remove('hidden'); $('touch').classList.add('hidden');
+  document.body.classList.add('hts-over');
+  showStartBest();
   clearHeld();
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
 }
@@ -1437,7 +1472,9 @@ window.__game = {
   renderer, scene, camera,
   get state() { return state; }, get best() { return best; }, get muted() { return muted; },
   togglePause, setMuted,
-  get score() { return score; }, get wave() { return wave; }, set wave(v) { wave = v; },
+  get score() { return score; }, setScore(n) { score = Math.max(0, n | 0); },
+  get wave() { return wave; }, set wave(v) { wave = v; },
+  gameOver,
   get enemies() { return enemies.length; }, roster: enemies, arrows, warns,
   player, startGame, input, keys,
   step(n, dt = 1 / 60) { for (let i = 0; i < n; i++) update(dt); },

@@ -62,3 +62,6 @@ body.touch #hint{display:none}
 @keyframes glow{from{transform:scale(1);text-shadow:0 0 0 #f29a0e}to{transform:scale(1.08);text-shadow:0 0 14px #f29a0e}}
 .best b{color:#ffd45e}
 @media (prefers-reduced-motion:reduce){.newbest,.stats b.pop{animation:none}#banner{transition:opacity .3s}}
+body.hts-over,body.hts-over #over{touch-action:pan-y}
+#over{overflow:auto}
+#over .panel{margin:auto;width:min(620px,100%)}

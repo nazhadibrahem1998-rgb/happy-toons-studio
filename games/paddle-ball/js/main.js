@@ -34,6 +34,20 @@ function loadSettings() {
 }
 
 let settings = loadSettings();
+
+function applyDailyLaunch() {
+  const HS = window.HappyScores;
+  if (!HS) return;
+  let daily = false;
+  try { daily = new URLSearchParams(location.search).has('daily'); } catch (err) { daily = false; }
+  if (!daily) return;
+  const ch = HS.challenge();
+  if (ch.id !== 'paddle-ball') return;
+  if (ch.level === 7 || ch.level === 11) settings.target = ch.level;
+  saveSettings();
+}
+applyDailyLaunch();
+
 let phase = 'menu';
 let seed = 4;
 let state = createMatchState({ mode: 'demo', difficulty: 'normal', target: 7, seed });
@@ -63,6 +77,47 @@ function applyLang() {
   ku.textContent = t('ckb', 'creditKu');
   syncButtons();
   updateHud();
+  if (window.HappyScores) window.HappyScores.paintNote('paddle-ball', document.getElementById('dailyNote'));
+  paintPaddleBest();
+}
+
+function paintPaddleBest() {
+  const n = window.HappyScores ? window.HappyScores.getBest('paddle-ball') : 0;
+  const text = 'Best: ' + (n > 0 ? n : '—');
+  const menu = document.getElementById('menuBest');
+  const hud = document.getElementById('hudBest');
+  if (menu) menu.textContent = text;
+  if (hud) hud.textContent = text;
+}
+
+let endShown = false;
+let endIsNew = false;
+let notedPoints = -1;
+
+function syncPaddleScore() {
+  const HS = window.HappyScores;
+  if (!HS || (phase !== 'play' && phase !== 'pause')) return;
+  const points = state.score.points[0];
+  const atEnd = state.stage === 'match';
+  if (points !== notedPoints) {
+    notedPoints = points;
+    const result = HS.record('paddle-ball', points, state.score.goal);
+    if (result.isNew && points > 0) endIsNew = true;
+    paintPaddleBest();
+  }
+  if (atEnd && !endShown && phase === 'play') {
+    endShown = true;
+    const best = HS.getBest('paddle-ball');
+    HS.showEnd({
+      scoreEl: document.getElementById('matchScore'),
+      tryEl: document.getElementById('matchTry'),
+      id: 'paddle-ball',
+      from: 'games/paddle-ball',
+      score: points,
+      best: Math.max(best, points),
+      isNew: endIsNew,
+    });
+  }
 }
 
 function syncButtons() {
@@ -112,7 +167,11 @@ function updateHud() {
   document.getElementById('goal').textContent = `${t(settings.lang, 'to')} ${digits(settings.lang, state.score.goal)}`;
   let text = '';
   if (playing) {
-    if (state.stage === 'match') text = `${names()[state.score.winner] || ''} ${t(settings.lang, 'wins')}`.trim();
+    if (state.stage === 'match') {
+      const who = names()[state.score.winner] || '';
+      const youWon = settings.lang === 'en' && settings.mode !== 'local' && state.score.winner === 0;
+      text = youWon ? 'You win!' : `${who} ${t(settings.lang, 'wins')}`.trim();
+    }
     else if (state.message?.timer > 0 && state.message.key) {
       text = state.message.key === 'serve'
         ? `${names()[state.message.winner]} ${t(settings.lang, 'serve')}`
@@ -123,9 +182,11 @@ function updateHud() {
   banner.textContent = text;
   matchPanel.hidden = !(phase === 'play' && state.stage === 'match');
   if (!matchPanel.hidden) document.getElementById('match-title').textContent = text;
+  document.body.classList.toggle('hts-over', !matchPanel.hidden);
+  syncPaddleScore();
   menu.hidden = phase !== 'menu';
   pausePanel.hidden = phase !== 'pause';
-  const showTouch = playing && touchWanted();
+  const showTouch = playing && matchPanel.hidden && touchWanted();
   touch.classList.toggle('is-on', showTouch);
   touch.setAttribute('aria-hidden', showTouch ? 'false' : 'true');
 }
@@ -157,6 +218,9 @@ function startMatch() {
     seed,
   });
   phase = 'play';
+  endShown = false;
+  endIsNew = false;
+  notedPoints = -1;
   goto[0] = null;
   goto[1] = null;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();

@@ -1095,6 +1095,15 @@ function updateUI(dt) {
   const alive = enemies.filter(e => !e.dead).length + game.spawnQ.length;
   $('leftTxt').textContent = STAGES[game.stage].boss ? '' : 'دوژمن: ' + kn(alive);
   if (boss) $('bossFill').style.width = (Math.max(0, boss.hp) / boss.maxHp * 100).toFixed(1) + '%';
+  paintKhBest();
+}
+function paintKhBest() {
+  const HS = window.HappyScores;
+  const n = HS ? HS.getBest('khalifakan') : 0;
+  const text = 'Best: ' + (n > 0 ? n : '—');
+  if ($('sBest')) $('sBest').textContent = text;
+  if ($('bestHud')) $('bestHud').textContent = text;
+  if (HS) HS.paintNote('khalifakan', $('dailyNote'));
 }
 
 // ---------- flow ----------
@@ -1109,6 +1118,7 @@ function startGame(stage = 0) {
   Audio.init(); Audio.ui(); clearAll(); player.reset();
   Object.assign(game, { time: 0, kills: 0, maxCombo: 0, combo: 0, stageClearT: -1, winT: 0, slowmo: 0, hitStop: 0 });
   ['start', 'end', 'pause'].forEach(id => $(id).classList.add('hidden')); $('hud').classList.remove('hidden'); $('touch').classList.remove('hidden'); $('bossBar').classList.add('hidden');
+  document.body.classList.remove('hts-over');
   cam.yaw = Math.PI; cam.pitch = 0.32; cam.tgt.set(0, 1.4, 6);
   game.state = 'play'; Audio.music(true);
   startStage(stage);
@@ -1137,13 +1147,29 @@ function endGame(win) {
   $('endSub').textContent = win ? 'گڕوت میرانی تێکشکاند و گوندەکەی ڕزگار کرد.' : 'خەلیفەکان ئەمجارە بردیانەوە. دووبارە هەوڵ بدەرەوە!';
   const tm = Math.floor(game.time), mm = Math.floor(tm / 60), ss = String(tm % 60).padStart(2, '0');
   $('endStats').textContent = `دوژمنی تێکشکاو: ${kn(game.kills)} · زۆرترین زنجیرە: ${kn(game.maxCombo)} · کات: ${kn(mm)}:${kn(ss)}`;
+  const HS = window.HappyScores;
+  const result = HS ? HS.record('khalifakan', game.kills, game.stage + 1) : { best: game.kills, isNew: game.kills > 0 };
+  if (HS) {
+    HS.showEnd({
+      scoreEl: $('endScore'),
+      tryEl: $('endTry'),
+      id: 'khalifakan',
+      from: 'khalifakan',
+      score: game.kills,
+      best: result.best,
+      isNew: result.isNew && game.kills > 0,
+    });
+  }
+  if ($('againBtn')) $('againBtn').textContent = 'Play again';
   $('end').classList.remove('hidden'); $('touch').classList.add('hidden');
+  document.body.classList.add('hts-over');
+  paintKhBest();
 }
 function togglePause(force) {
   if (game.state === 'play' || game.state === 'cine') { game.prev = game.state; game.state = 'paused'; $('pause').classList.remove('hidden'); if (document.pointerLockElement) document.exitPointerLock(); }
   else if (game.state === 'paused' && force !== true) { game.state = game.prev; $('pause').classList.add('hidden'); }
 }
-function toMenu() { clearAll(); player.reset(); player.pos.set(0, 0, 0); game.state = 'menu'; Audio.music(false); applyLook(0); ['end', 'pause', 'hud', 'touch'].forEach(id => $(id).classList.add('hidden')); $('start').classList.remove('hidden'); }
+function toMenu() { clearAll(); player.reset(); player.pos.set(0, 0, 0); game.state = 'menu'; Audio.music(false); applyLook(0); ['end', 'pause', 'hud', 'touch'].forEach(id => $(id).classList.add('hidden')); $('start').classList.remove('hidden'); document.body.classList.remove('hts-over'); paintKhBest(); }
 async function goFull() {
   if (!fullscreenSupported() || Q.has('nofs')) return;
   const el = document.documentElement;
@@ -1321,6 +1347,7 @@ function frame(now) {
   applyLook(0);
   $('loading').classList.add('hidden');
   game.state = 'menu';
+  paintKhBest();
   requestAnimationFrame(frame);
   if (Q.has('autostart')) startGame(+(Q.get('stage') || 0));
 })();
