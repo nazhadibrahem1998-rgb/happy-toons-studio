@@ -25,7 +25,10 @@ a.hub{display:inline-flex;align-items:center;justify-content:center;min-height:4
 .stats b{color:#ffd45e;font-size:18px}
 #banner{position:absolute;top:22%;width:100%;text-align:center;font-size:clamp(28px,6vw,56px);font-weight:900;color:#ffd45e;text-shadow:0 4px 0 #7a4a00,0 6px 16px #000;opacity:0;transform:scale(.8);transition:opacity .35s ease,transform .45s cubic-bezier(.2,1.6,.4,1);letter-spacing:2px;will-change:transform,opacity}
 #banner.show{opacity:1;transform:scale(1)}
-#banner.win{top:14%;font-size:clamp(22px,4.6vw,40px)}
+#banner.win{top:16%;font-size:clamp(20px,4.2vw,34px)}
+@media (max-height:500px){
+  #banner.win{top:auto;bottom:118px;font-size:22px}
+}
 #banner.boss{color:#ffb6ff;text-shadow:0 4px 0 #6a2088,0 6px 16px #000}
 #banner.win{color:#b8ff9a;text-shadow:0 4px 0 #1e6a20,0 6px 16px #000}
 #bossBar{position:absolute;top:max(76px,calc(env(safe-area-inset-top) + 64px));left:50%;transform:translateX(-50%);width:min(480px,86vw);text-align:center;pointer-events:none}
@@ -69,6 +72,7 @@ body.touch #hint{display:none}
 /* Keep the centred pause/mute cluster off the HP bar and the score column. */
 body.touch .bars{width:min(320px,calc(50% - max(14px,env(safe-area-inset-left)) - 8px - (48px * 2 + 10px) / 2))}
 body.touch .stats{max-width:calc(50% - max(14px,env(safe-area-inset-right)) - 8px - (48px * 2 + 10px) / 2)}
+body.touch .stats b{font-size:16px}
 body.touch #bossBar{top:max(118px,calc(env(safe-area-inset-top) + 106px));width:min(420px,calc(100vw - 28px))}
 @media (max-height:500px){
   body.touch #bossBar{top:max(74px,calc(env(safe-area-inset-top) + 66px));width:min(340px,48vw)}
