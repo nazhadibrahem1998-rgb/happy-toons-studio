@@ -116,6 +116,10 @@ body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 .newbest{margin:6px 0;font-size:20px;font-weight:900;color:#ffd45e;animation:glow .8s ease-in-out infinite alternate}
 @keyframes glow{from{transform:scale(1);text-shadow:0 0 0 #f29a0e}to{transform:scale(1.08);text-shadow:0 0 14px #f29a0e}}
 .best b{color:#ffd45e}
+.ach{list-style:none;margin:2px 0 8px;padding:0;font-size:13px;line-height:1.4;color:#b7b3c9}
+.ach li::before{content:'○ '}
+.ach li.on{color:#ffd45e;font-weight:800}
+.ach li.on::before{content:'✓ '}
 .run-note{font-weight:800;color:#ffe9a8}
 @media (prefers-reduced-motion:reduce){.newbest,.stats b.pop,.bar.hp.low{animation:none}#banner,#coach,#bossFill{transition:none}}
 body.hts-over,body.hts-over #over{touch-action:pan-y}
@@ -141,6 +145,7 @@ body.hts-over,body.hts-over #over{touch-action:pan-y}
   .credit{margin-top:2px;font-size:12px}
   .sub{margin:2px 0;font-size:13px;line-height:1.25}
   .hero-intro{margin:0 0 2px;font-size:14px}
+  .ach{font-size:12px;line-height:1.25;margin:1px 0 2px}
   .btn{margin:3px 0;font-size:18px;line-height:1;padding:10px 28px;min-height:44px}
   .controls{font-size:12px;line-height:1.3;margin-top:2px}
   .ai{margin-top:2px;font-size:11px}

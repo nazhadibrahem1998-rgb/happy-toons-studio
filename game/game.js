@@ -587,21 +587,23 @@ function makeHeroNameTag(text) {
 function buildEnemy(type) {
   const root = new THREE.Group(); const body = new THREE.Group(); root.add(body);
   let parts = {};
-  if (type === 'goblin' || type === 'brute' || type === 'archer' || type === 'dasher' || type === 'thrower' || type === 'chief') {
+  if (type === 'goblin' || type === 'brute' || type === 'archer' || type === 'dasher' || type === 'thrower' || type === 'chief' || type === 'guard' || type === 'gold') {
     const archer = type === 'archer';
     const dasher = type === 'dasher';
     const thrower = type === 'thrower';
     const chief = type === 'chief';
-    const skinC = type === 'brute' ? 0x7a5aa8 : archer ? 0x2f9d62 : dasher ? 0xf08a3a : thrower ? 0x3d8fd4 : chief ? 0x3f9a45 : 0x6cbf3a;
-    const skin = mat(skinC, { roughness: 0.7 });
-    const rag = mat(type === 'brute' ? 0x3a2a20 : archer ? 0x8a4e2c : dasher ? 0x6a2348 : thrower ? 0x4a3568 : chief ? 0x8a4e14 : 0x7a4a2a);
+    const guard = type === 'guard';
+    const gold = type === 'gold';
+    const skinC = gold ? 0xf2c04a : guard ? 0x8aa0b8 : type === 'brute' ? 0x7a5aa8 : archer ? 0x2f9d62 : dasher ? 0xf08a3a : thrower ? 0x3d8fd4 : chief ? 0x3f9a45 : 0x6cbf3a;
+    const skin = mat(skinC, gold ? { roughness: 0.4, emissive: 0x886600 } : { roughness: 0.7 });
+    const rag = mat(gold ? 0xffe14a : guard ? 0x3a4a62 : type === 'brute' ? 0x3a2a20 : archer ? 0x8a4e2c : dasher ? 0x6a2348 : thrower ? 0x4a3568 : chief ? 0x8a4e14 : 0x7a4a2a, gold ? { emissive: 0xaa7700 } : {});
     const legs = [];
     for (const sx of [-0.18, 0.18]) { const hip = new THREE.Group(); hip.position.set(sx, 0.55, 0); body.add(hip); mesh(new THREE.CapsuleGeometry(0.11, 0.3, 4, 6), skin, 0, -0.25, 0, hip); legs.push(hip); }
     mesh(new THREE.SphereGeometry(0.42, 10, 8), rag, 0, 0.85, 0, body).scale.set(1, 1.05, 0.85);
     const head = new THREE.Group(); head.position.y = 1.45; body.add(head);
     mesh(new THREE.SphereGeometry(0.34, 12, 10), skin, 0, 0, 0, head);
     for (const sx of [-1, 1]) { const ear = mesh(new THREE.ConeGeometry(0.1, 0.45, 5), skin, sx * 0.38, 0.05, 0, head); ear.rotation.z = -sx * 1.3; }
-    const eyeM = mat(archer ? 0x9af6ff : chief ? 0xffe14a : dasher ? 0xfff0c0 : 0xffee33, { emissive: archer ? 0x22dddd : chief ? 0xffb000 : dasher ? 0xff7700 : 0xffaa00 }).clone();
+    const eyeM = mat(gold ? 0xfff6c8 : archer ? 0x9af6ff : chief ? 0xffe14a : dasher ? 0xfff0c0 : 0xffee33, { emissive: gold ? 0xffcc44 : archer ? 0x22dddd : chief ? 0xffb000 : dasher ? 0xff7700 : 0xffaa00 }).clone();
     for (const sx of [-0.12, 0.12]) mesh(new THREE.SphereGeometry(0.06, 6, 6), eyeM, sx, 0.05, 0.29, head);
     mesh(new THREE.ConeGeometry(0.06, 0.18, 5), skin, 0, -0.05, 0.36, head).rotation.x = Math.PI / 2;
     let nock = null, bow = null;
@@ -641,6 +643,13 @@ function buildEnemy(type) {
       mesh(new THREE.SphereGeometry(0.22, 8, 6), mat(0x6b4a32), 0.08, 0.95, -0.38, body);
       mesh(new THREE.DodecahedronGeometry(0.16, 0), mat(0xb7aa9a, { flatShading: true }), 0, -0.48, 0.16, arm);
       mesh(new THREE.TorusGeometry(0.16, 0.035, 5, 10), mat(0xc9842a), 0.08, 0.95, -0.38, body).rotation.x = Math.PI / 2;
+    } else if (guard) {
+      const shield = new THREE.Group(); shield.position.set(0.15, 1.02, 0.48); body.add(shield);
+      mesh(new THREE.BoxGeometry(0.7, 0.86, 0.08), mat(0xc5d4e4, { metalness: 0.55, roughness: 0.32 }), 0, 0, 0, shield);
+      mesh(new THREE.TorusGeometry(0.16, 0.045, 6, 12), mat(0xf2c04a, { metalness: 0.7, roughness: 0.3 }), 0, 0.02, 0.06, shield);
+    } else if (gold) {
+      mesh(new THREE.ConeGeometry(0.07, 0.26, 5), mat(0xfff0a0, { emissive: 0xaa7700 }), 0, 0.4, 0, head);
+      mesh(new THREE.SphereGeometry(0.08, 6, 6), mat(0xfff6c8, { emissive: 0xffcc44 }), 0.2, 1.15, 0.2, body);
     } else if (dasher) {
       const fin = mesh(new THREE.ConeGeometry(0.07, 0.4, 4), mat(0xffe08a, { emissive: 0x664400 }), 0, 0.34, -0.02, head);
       fin.rotation.x = 0.55;
@@ -753,8 +762,9 @@ function bootBest() {
   } catch (e) { return 0; }
 }
 let state = 'menu', score = 0, wave = 0, waveTimer = 0, toSpawn = 0, spawnCd = 0, best = bootBest();
-let archersThisWave = 0, dashersThisWave = 0, throwersThisWave = 0, brutesThisWave = 0, skipNextClearBonus = false, debugFreeze = false;
-let choosingUpgrade = false, upgradePicks = 0, resumeState = 'play';
+let archersThisWave = 0, dashersThisWave = 0, throwersThisWave = 0, brutesThisWave = 0, guardsThisWave = 0, goldThisWave = 0, skipNextClearBonus = false, debugFreeze = false;
+let choosingUpgrade = false, bonusMode = false, upgradePicks = 0, resumeState = 'play';
+let guardTold = false;
 const upgrades = { reach: 0, haste: 0, speed: 0, combo: 0, heal: 0, heavy: 0 };
 const UPGRADE_DEFS = [
   { id: 'reach', name: 'Long Sword', desc: 'The blade grows longer.', cap: 5, icon: '⚔' },
@@ -828,12 +838,16 @@ const ETYPES = {
   archer: { hp: 30, speed: 3.45, dmg: 8, range: 8.4, windup: 0.8, cd: 2.45, score: 18, r: 0.48 },
   dasher: { hp: 24, speed: 5.5, dmg: 10, range: 1.35, windup: 0.74, cd: 1.2, score: 16, r: 0.42 },
   thrower: { hp: 32, speed: 3.05, dmg: 9, range: 7.2, windup: 0.82, cd: 2.15, score: 18, r: 0.5 },
+  // Front light swings clang off the shield. A heavy hit, or a swing from behind, gets through.
+  guard: { hp: 46, speed: 3.05, dmg: 10, range: 1.55, windup: 0.64, cd: 1.4, score: 26, r: 0.55 },
+  // Rare runner. Low health, flees, and leaves a bonus card.
+  gold: { hp: 18, speed: 4.6, dmg: 6, range: 1.15, windup: 0.8, cd: 1.8, score: 36, r: 0.42 },
   // Wave 5 chief is a readable fight. Later chiefs scale gently, like the king.
   chief: { hp: 200, speed: 2.05, dmg: 12, range: 2.5, windup: 1.1, cd: 1.4, score: 120, r: 1.05 },
   // First king (wave 10) is a long fight, not a stat wall. Later kings scale gently.
   king: { hp: 420, speed: 2.05, dmg: 16, range: 3.4, windup: 1.25, cd: 1.7, score: 250, r: 1.2 },
 };
-const enemyPool = { goblin: [], skeleton: [], brute: [], archer: [], dasher: [], thrower: [], chief: [], king: [] };
+const enemyPool = { goblin: [], skeleton: [], brute: [], archer: [], dasher: [], thrower: [], guard: [], gold: [], chief: [], king: [] };
 const spawnV = new THREE.Vector3();
 function isBossType(type) { return type === 'king' || type === 'chief'; }
 function isBossWave(w) { return w > 0 && w % 5 === 0; }
@@ -841,6 +855,8 @@ function enemyScale(type) {
   if (type === 'brute') return 1.7;
   if (type === 'king') return 2.2;
   if (type === 'chief') return 2.12;
+  if (type === 'guard') return 1.05;
+  if (type === 'gold') return 0.9;
   if (type === 'dasher') return 0.92;
   if (type === 'thrower') return 1.12;
   return 1;
@@ -933,8 +949,9 @@ function crowdFor(w) {
 }
 function startWave() {
   wave++;
-  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0; brutesThisWave = 0;
+  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0; brutesThisWave = 0; guardsThisWave = 0; goldThisWave = 0;
   noteBestWave();
+  if (wave >= 10) unlockAch('wave10');
   if (isBossWave(wave)) {
     toSpawn = 1; spawnCd = 0.45;
     showBanner(bossBanner()); sfx.boss();
@@ -973,6 +990,8 @@ function lateMix() {
   else if (theme === 2) picked = pickFromCaps(1, 1, 1, wave >= 18 ? 2 : 1);
   else picked = pickFromCaps(2, 2, 2, wave >= 16 && toSpawn === 1 ? 1 : 0);
   if (picked) return picked;
+  if (wave >= 8 && !goldThisWave && toSpawn === 4 && Math.random() < 0.5) { goldThisWave = 1; return 'gold'; }
+  if (wave >= 8 && guardsThisWave < 1 && toSpawn === 2) { guardsThisWave++; return 'guard'; }
   if (theme === 3 && Math.random() < 0.55) return 'skeleton';
   if (Math.random() < 0.34) return 'skeleton';
   return 'goblin';
@@ -1279,6 +1298,36 @@ function updateMuteUI() {
   $('bMute').textContent = icon;
   $('pMute').textContent = icon + (muted ? ' Sound: Off' : ' Sound: On');
 }
+const ACH_KEY = 'toonblade_ach';
+const ACH_LIST = [
+  { id: 'wave10', name: 'Reach wave 10' },
+  { id: 'warlord', name: 'Beat the warlord' },
+  { id: 'kills50', name: '50 kills in one run' },
+];
+function loadAch() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ACH_KEY) || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch (e) { return {}; }
+}
+let ach = loadAch();
+function paintAch() {
+  const list = $('achList');
+  if (!list) return;
+  list.replaceChildren();
+  for (let i = 0; i < ACH_LIST.length; i++) {
+    const row = document.createElement('li');
+    row.textContent = ACH_LIST[i].name;
+    if (ach[ACH_LIST[i].id]) row.className = 'on';
+    list.appendChild(row);
+  }
+}
+function unlockAch(id) {
+  if (ach[id]) return;
+  ach[id] = 1;
+  try { localStorage.setItem(ACH_KEY, JSON.stringify(ach)); } catch (_) {}
+  paintAch();
+}
 function showStartBest() {
   const el = $('sBest');
   if (el) el.textContent = best > 0 ? String(best) : '—';
@@ -1382,7 +1431,7 @@ function resetGame() {
   player.pos.set(0, 0, 0); player.vel.set(0, 0, 0); W.root.rotation.set(0, 0, 0); W.body.rotation.set(0, 0, 0); W.body.position.set(0, 0, 0);
   visFacing = 0;
   score = 0; wave = 0; toSpawn = 0; waveTimer = 1.0;
-  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0; brutesThisWave = 0; skipNextClearBonus = false;
+  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0; brutesThisWave = 0; guardsThisWave = 0; goldThisWave = 0; skipNextClearBonus = false;
   upgrades.reach = upgrades.haste = upgrades.speed = upgrades.combo = upgrades.heal = upgrades.heavy = 0;
   upgradePicks = 0; closeUpgrade();
   breakScoreCombo();
@@ -1391,6 +1440,11 @@ function resetGame() {
   runStartBest = best; newBestShown = false; bestPending = false;
   runStartBestWave = bestWave; waveRecordShown = false; bestWavePending = false;
   runT = 0; kills = 0; bestComboReached = 0; firstKill = true;
+  bonusMode = false; guardTold = false;
+  const upTitle = $('upTitle');
+  if (upTitle) upTitle.textContent = 'Choose an upgrade';
+  const upSub = document.querySelector('#upgrade .sub');
+  if (upSub) upSub.textContent = 'Pick one to start the next wave.';
   audioGen++;
   savedKey = '0:0';
   clearHeld();
@@ -1493,14 +1547,48 @@ function chooseUpgrade(index) {
   if (state !== 'upgrade') return;
   const def = upgradeOffer[index];
   if (!def) return;
+  const bonus = bonusMode;
   applyUpgrade(def.id);
   upgradePicks++;
+  bonusMode = false;
+  const upTitle = $('upTitle');
+  if (upTitle) upTitle.textContent = 'Choose an upgrade';
+  const upSub = document.querySelector('#upgrade .sub');
+  if (upSub) upSub.textContent = 'Pick one to start the next wave.';
   closeUpgrade();
   state = 'play';
+  if (bonus) {
+    if (touchUI) $('touch').classList.remove('hidden');
+    else requestLock();
+    return;
+  }
   startWave();
   waveTimer = 2.5;
   if (touchUI) $('touch').classList.remove('hidden');
   else requestLock();
+}
+function openBonus() {
+  if (bonusMode || choosingUpgrade || state !== 'play' || player.dead) return;
+  const pool = UPGRADE_DEFS.filter(d => (upgrades[d.id] || 0) < d.cap && (d.id !== 'heavy' || wave >= 5));
+  const pick = pool.length ? pool[(Math.random() * pool.length) | 0] : UPGRADE_DEFS.find(d => d.id === 'heal');
+  upgradeOffer = [pick];
+  bonusMode = true;
+  const upTitle = $('upTitle');
+  if (upTitle) upTitle.textContent = 'Bonus card';
+  const upSub = document.querySelector('#upgrade .sub');
+  if (upSub) upSub.textContent = 'The golden foe dropped this.';
+  renderUpgradeCards();
+  choosingUpgrade = true;
+  state = 'upgrade';
+  shake = 0;
+  clearHeld();
+  const el = $('upgrade');
+  if (el) el.classList.remove('hidden');
+  const hud = $('hud');
+  if (hud) hud.classList.add('hidden');
+  if (banner) { banner.classList.remove('show'); bannerT = 0; }
+  if (touchUI) $('touch').classList.add('hidden');
+  if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
 }
 function attackDur() {
   if (player.heavy) return HEAVY_DUR;
@@ -1597,7 +1685,7 @@ $('tipsBtn').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => { if (document.hidden) { saveBest(); if (state === 'play' || state === 'upgrade') togglePause(); } });
 addEventListener('popstate', () => { backArmed = false; if (state === 'play' || state === 'upgrade') togglePause(); });
 addEventListener('pagehide', saveBest);
-updateMuteUI(); updateShakeUI(); showStartBest();
+updateMuteUI(); updateShakeUI(); showStartBest(); paintAch();
 addEventListener('pointerdown', () => { audio(); }, { passive: true });
 try { if (localStorage.getItem('toonblade_tutorial_again') === '1') { tutorialReplay = true; $('tipsBtn').textContent = 'Tips on next play'; } } catch (_) {}
 
@@ -1838,6 +1926,8 @@ function puffColor(type) {
   if (type === 'dasher') return 0xffb06a;
   if (type === 'thrower') return 0x8fd4ff;
   if (type === 'chief') return 0x8dff7a;
+  if (type === 'guard') return 0xd5e4f2;
+  if (type === 'gold') return 0xffe14a;
   return 0xfff07a;
 }
 function deathColor(type) {
@@ -1847,7 +1937,14 @@ function deathColor(type) {
   if (type === 'dasher') return 0xf08a3a;
   if (type === 'thrower') return 0x3d8fd4;
   if (type === 'chief') return 0x3f9a45;
+  if (type === 'guard') return 0x8aa0b8;
+  if (type === 'gold') return 0xf2c04a;
   return 0x6cbf3a;
+}
+function shieldBlocks(e) {
+  if (e.type !== 'guard' || player.heavy) return false;
+  const dx = player.pos.x - e.g.root.position.x, dz = player.pos.z - e.g.root.position.z;
+  return Math.abs(angDiff(e.facing, Math.atan2(dx, dz))) < 1.15;
 }
 // Push along the blade: sideways for a side swing, back for an overhead or a heavy cleave.
 function impactDir(e) {
@@ -1876,6 +1973,14 @@ function impactDir(e) {
   return [sx / m, sz / m];
 }
 function hitEnemy(e, dmg, nx, nz, power) {
+  if (shieldBlocks(e)) {
+    e.flash = 0.08;
+    sfx.clang();
+    shake = Math.max(shake, 0.1);
+    burst(tmpV.set(e.g.root.position.x, 1.15, e.g.root.position.z), 0xe4eef8, 6, 4);
+    if (!guardTold) { guardTold = true; showBanner('HEAVY OR BEHIND'); }
+    return;
+  }
   noteScoreCombo();
   e.hp -= dmg; e.flash = 0.12;
   const boss = e.type === 'king' || e.type === 'chief';
@@ -1896,6 +2001,7 @@ function hitEnemy(e, dmg, nx, nz, power) {
   burst(tmpV, 0xffffff, 4, 8);
   if (e.hp <= 0) {
     e.dead = true; e.deadT = 0; kills++;
+    if (kills >= 50) unlockAch('kills50');
     if (e.warn) releaseWarn(e);
     releaseLane(e);
     let pts = ETYPES[e.type].score * (1 + Math.floor(wave / 3));
@@ -1922,6 +2028,8 @@ function hitEnemy(e, dmg, nx, nz, power) {
     const sure = e.type === 'brute' || e.type === 'king' || e.type === 'chief';
     const rare = e.type === 'archer' || e.type === 'thrower' || e.type === 'dasher';
     if (Math.random() < (sure ? 1 : rare ? 0.16 : 0.14)) dropPotion(ep);
+    if (e.type === 'gold') openBonus();
+    if (e.type === 'chief' && wave >= 15) unlockAch('warlord');
   }
 }
 
@@ -2143,7 +2251,14 @@ function updateEnemies(dt) {
       else if (chief) moving = updateChief(e, T, p, d, toP, dt);
       else if (dasher) moving = updateDasher(e, T, p, d, toP, dt);
       else if (thrower) moving = updateThrower(e, T, p, d, toP, dt);
-      else {
+      else if (e.type === 'gold') {
+        const away = d < 8;
+        const aim = away ? toP + Math.PI : toP;
+        e.facing += angDiff(e.facing, aim) * damp(9, dt);
+        const sp = T.speed * speedScale();
+        p.x += Math.sin(e.facing) * sp * dt; p.z += Math.cos(e.facing) * sp * dt; moving = true;
+        if (e.cd <= 0 && d < 1.35) { e.state = 'windup'; e.t = 0; }
+      } else {
         e.facing += angDiff(e.facing, toP) * damp(8, dt);
         if (d > T.range * 0.9) {
           const sp = T.speed * speedScale();
