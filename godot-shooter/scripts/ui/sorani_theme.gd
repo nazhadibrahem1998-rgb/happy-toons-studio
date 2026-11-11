@@ -13,6 +13,20 @@ static func bold() -> Font:
 	return BOLD
 
 
+static func fit_center(panel: Control, half_w: float, half_h: float) -> void:
+	var view := panel.get_viewport()
+	if view == null:
+		return
+	var size := view.get_visible_rect().size
+	var hw := minf(half_w, maxf(140.0, size.x * 0.5 - 16.0))
+	var hh := minf(half_h, maxf(100.0, size.y * 0.5 - 16.0))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -hw
+	panel.offset_top = -hh
+	panel.offset_right = hw
+	panel.offset_bottom = hh
+
+
 static func make() -> Theme:
 	var theme := Theme.new()
 	theme.default_font = REGULAR

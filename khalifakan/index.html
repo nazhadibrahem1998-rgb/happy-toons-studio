@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- خەلیفەکان (Khalifakan) — © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance. Three.js (vendor/) © three.js authors, MIT. Font: Noto Sans Arabic, SIL OFL 1.1. -->
+<!-- خەلیفەکان (Khalifakan) — © 2026 Ayub Azizi – Happy Toons Studio. Three.js (vendor/) © three.js authors, MIT. Font: Noto Sans Arabic, SIL OFL 1.1. -->
 <html lang="ckb" dir="rtl">
 <head>
 <meta charset="utf-8">
@@ -24,7 +24,7 @@
   });
   document.addEventListener('touchmove', function (e) {
     var t = e.target;
-    if (t && t.closest && t.closest('.panel, #end')) return;
+    if (t && t.closest && t.closest('.panel, #end, #tips')) return;
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
   document.addEventListener('touchend', function (e) {
@@ -40,6 +40,7 @@
 <div id="hud" class="hidden">
   <div id="pbox">
     <div class="pname">گڕوت</div>
+    <div id="scoreHud">خاڵ ٠</div>
     <div class="bar hp"><div id="hpFill"></div></div>
     <div class="bar st"><div id="stFill"></div></div>
   </div>
@@ -86,7 +87,7 @@
       <div>مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن · ڕاکێشانی لای ڕاست بۆ کامێرا · دوگمەکان بۆ لێدان، لێدانی قورس، خۆلادان و بازدان</div>
       <div class="kb">کیبۆرد: WASD ڕۆیشتن · ماوس کامێرا · J لێدان · K قورس · Shift خۆلادان · Space بازدان · P وەستان</div>
     </div>
-    <p class="credit">© ٢٠٢٦ Happy Toons Studio · دروستکراو بە یارمەتی AI</p>
+    <p class="credit">© ٢٠٢٦ Happy Toons Studio</p>
   </div>
 </div>
 
@@ -112,10 +113,47 @@
   </div>
 </div>
 
+<div id="tips" class="screen hidden" dir="rtl" lang="ckb">
+  <div class="panel">
+    <h2>ئامۆژگاری</h2>
+    <p id="tipsBody" class="sub"></p>
+    <button type="button" id="tipsOk" class="btn">باشە</button>
+  </div>
+</div>
+
 <div id="loading" class="screen hidden"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
 
 <div id="rotate"><div class="ph">📱</div><p>تکایە مۆبایلەکەت بە پانی بسوڕێنە</p><p class="small">ئەم یارییە تەنها لە باری پانیدا کار دەکات</p></div>
 
+<script>
+/* Tips are plain HTML so the 3D engine stays unloaded until the first Play tap. */
+(function () {
+  var KEY = 'khalifakan-tips-seen';
+  var tips = document.getElementById('tips');
+  var body = document.getElementById('tipsBody');
+  var ok = document.getElementById('tipsOk');
+  var play = document.getElementById('playBtn');
+  function seen() {
+    try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+  }
+  function dismiss() {
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    if (tips) tips.classList.add('hidden');
+  }
+  if (ok) ok.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dismiss();
+  });
+  if (play) play.addEventListener('click', dismiss, true);
+  if (!tips || !body || seen() || /[?&]autostart(?:=|&|$)/.test(location.search)) return;
+  var touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  body.textContent = touch
+    ? 'جۆیستیکی چەپ بۆ ڕۆیشتن. لای ڕاست ڕابکێشە بۆ کامێرا. دوگمەی شمشێر بۆ لێدان.'
+    : 'WASD بۆ ڕۆیشتن. ماوس بۆ کامێرا. J بۆ لێدان. P بۆ وەستان.';
+  tips.classList.remove('hidden');
+})();
+</script>
 <script>
 (function () {
   var btn = document.getElementById('playBtn');

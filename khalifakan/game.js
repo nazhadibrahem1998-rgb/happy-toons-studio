@@ -1,4 +1,4 @@
-// خەلیفەکان (Khalifakan) — © 2026 Nazhad Ibrahem – Happy Toons Studio. Made with AI assistance.
+// خەلیفەکان (Khalifakan) — © 2026 Nazhad Ibrahem – Happy Toons Studio.
 import * as THREE from './vendor/three.module.min.js';
 
 const $ = id => document.getElementById(id);
@@ -14,9 +14,14 @@ function fullscreenSupported() {
 // Pinch / double-tap zoom. iOS Safari still zooms buttons when user-scalable=no.
 (function installZoomLock() {
   const block = (e) => { if (e.cancelable) e.preventDefault(); };
-  for (const type of ['gesturestart', 'gesturechange', 'gestureend', 'touchmove', 'dblclick']) {
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {
     document.addEventListener(type, block, { passive: false });
   }
+  document.addEventListener('touchmove', (e) => {
+    const t = e.target;
+    if (t && t.closest && t.closest('.panel, #end, #tips')) return;
+    block(e);
+  }, { passive: false });
   document.addEventListener('touchend', (e) => {
     const t = e.target;
     if (t && t.closest && t.closest('button') && e.cancelable) e.preventDefault();
@@ -62,7 +67,7 @@ const srand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 21
 // ---------- renderer ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance', stencil: false });
-const DPR = Math.min(devicePixelRatio || 1, isTouch ? 1.5 : 2);
+const DPR = Math.min(devicePixelRatio || 1, 2, isTouch ? 1.5 : 2);
 // Title screen draws one still at 1x. Full resolution starts with play.
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = false;
@@ -722,7 +727,10 @@ function uniqueMats(root) { const map = new Map(); root.traverse(m => { if (m.is
 
 function dirTo(a, b) { return Math.atan2(b.pos.x - a.pos.x, b.pos.z - a.pos.z); }
 function distTo(a, b) { return Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z); }
-function shake(v) { game.trauma = Math.min(1, game.trauma + v); }
+const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let reduceMotion = motionQuery.matches;
+motionQuery.addEventListener('change', () => { reduceMotion = motionQuery.matches; if (reduceMotion) game.trauma = 0; });
+function shake(v) { if (reduceMotion) { game.trauma = 0; return; } game.trauma = Math.min(1, game.trauma + v); }
 function hitStop(t) { game.hitStop = Math.max(game.hitStop, t); }
 function weaponTipWorld(f, out) { out.set(0, 0, f.tipLen || 0.9); f.rig.weapon.localToWorld(out); return out; }
 
@@ -877,6 +885,9 @@ class Enemy extends Fighter {
   die() {
     this.hp = 0; this.dead = true; this.state = 'dead'; this.release(); this.deadT = 0; game.kills++; Audio.death();
     this.kb.multiplyScalar(1.6); this.label.visible = false;
+    FX.ring(this.pos, 0.25, 2.4, 0.42, 0xffd080);
+    FX.burst(V.set(this.pos.x, 1.15 * this.scale, this.pos.z), 20, 0xffe2a4, 5.5, 0.85, 8, 0.5);
+    shake(0.18);
     if (Math.random() < 0.55) dropPickup(this.pos.x, this.pos.z);
   }
   think(dt) {
@@ -1096,6 +1107,11 @@ let bannerT = 0;
 function banner(title, sub, dur = 2.4) { $('bTitle').textContent = title; $('bSub').textContent = sub; $('banner').classList.add('show'); bannerT = dur; }
 let comboT = 0; function showCombo(t) { const c = $('combo'); c.textContent = t; c.classList.add('show'); comboT = 1.1; }
 let flashT = 0; function dmgFlash() { $('dmgFlash').style.opacity = 1; flashT = 0.15; }
+let shownKills = 0;
+function popEl(el) {
+  if (!el || reduceMotion) return;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+}
 function updateUI(dt) {
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').classList.remove('show'); }
   if (comboT > 0) { comboT -= dt; if (comboT <= 0) $('combo').classList.remove('show'); }
@@ -1104,6 +1120,12 @@ function updateUI(dt) {
   $('stFill').style.width = player.st.toFixed(0) + '%';
   const alive = enemies.filter(e => !e.dead).length + game.spawnQ.length;
   $('leftTxt').textContent = STAGES[game.stage].boss ? '' : 'دوژمن: ' + kn(alive);
+  const scoreEl = $('scoreHud');
+  if (scoreEl) {
+    if (game.kills > shownKills && (game.state === 'play' || game.state === 'over')) popEl(scoreEl);
+    shownKills = game.kills;
+    scoreEl.textContent = 'خاڵ ' + kn(game.kills);
+  }
   if (boss) $('bossFill').style.width = (Math.max(0, boss.hp) / boss.maxHp * 100).toFixed(1) + '%';
   paintKhBest();
 }
@@ -1137,7 +1159,7 @@ function startGame(stage = 0) {
     return;
   }
   if (backArmed === false) armBack();
-  Audio.init(); Audio.ui(); clearAll(); player.reset();
+  Audio.init(); Audio.ui(); clearAll(); player.reset(); shownKills = 0;
   Object.assign(game, { time: 0, kills: 0, maxCombo: 0, combo: 0, stageClearT: -1, winT: 0, slowmo: 0, hitStop: 0 });
   ['start', 'end', 'pause'].forEach(id => $(id).classList.add('hidden')); $('hud').classList.remove('hidden'); $('touch').classList.remove('hidden'); $('bossBar').classList.add('hidden');
   document.body.classList.remove('hts-over');
@@ -1241,7 +1263,23 @@ function onTap(el, fn) {
   });
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); run(); } });
 }
-onTap($('playBtn'), () => { goFull(); startGame(+(Q.get('stage') || 0)); });
+const TIPS_KEY = 'khalifakan-tips-seen';
+function maybeShowTips() {
+  if (Q.has('autostart')) return;
+  let seen = false;
+  try { seen = localStorage.getItem(TIPS_KEY) === '1'; } catch (err) {}
+  if (seen || !$('tips')) return;
+  $('tipsBody').textContent = isTouch
+    ? 'جۆیستیکی چەپ بۆ ڕۆیشتن. لای ڕاست ڕابکێشە بۆ کامێرا. دوگمەی شمشێر بۆ لێدان.'
+    : 'WASD بۆ ڕۆیشتن. ماوس بۆ کامێرا. J بۆ لێدان. P بۆ وەستان.';
+  $('tips').classList.remove('hidden');
+}
+function dismissTips() {
+  try { localStorage.setItem(TIPS_KEY, '1'); } catch (err) {}
+  if ($('tips')) $('tips').classList.add('hidden');
+}
+onTap($('tipsOk'), dismissTips);
+onTap($('playBtn'), () => { dismissTips(); goFull(); startGame(+(Q.get('stage') || 0)); });
 onTap($('resumeBtn'), () => togglePause());
 onTap($('restartBtn'), () => startGame(0));
 onTap($('menuBtn'), () => toMenu());
@@ -1251,7 +1289,11 @@ onTap($('bFull'), () => toggleFull());
 document.addEventListener('fullscreenchange', syncFullBtn);
 document.addEventListener('webkitfullscreenchange', syncFullBtn);
 const portrait = () => { if (!isTouch) return false; const box = viewBox(); return box.h > box.w; };
-document.addEventListener('visibilitychange', () => { if (document.hidden && (game.state === 'play' || game.state === 'cine')) togglePause(); });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  if (game.state === 'play' || game.state === 'cine') togglePause();
+  Audio.hold(true);
+});
 addEventListener('blur', () => { if (game.state === 'play' || game.state === 'cine') togglePause(); });
 addEventListener('popstate', () => { backArmed = false; if (game.state === 'play' || game.state === 'cine') togglePause(); });
 
@@ -1288,6 +1330,7 @@ function updateCamera(dt, t) {
   if (camPos.y < 0.35) camPos.y = 0.35;
   lookAt.copy(cam.tgt);
   if (boss && !boss.dead) lookAt.lerp(V.set(boss.pos.x, 1.6, boss.pos.z), 0.12);
+  if (reduceMotion) game.trauma = 0;
   game.trauma = Math.max(0, game.trauma - dt * 1.7); const s = game.trauma * game.trauma;
   shakeO.set(Math.sin(t * 61) * 0.3, Math.sin(t * 47 + 1) * 0.25, Math.sin(t * 53 + 2) * 0.3).multiplyScalar(s);
   camera.position.copy(camPos).add(shakeO); camera.lookAt(lookAt);
@@ -1429,6 +1472,9 @@ function paintTitleStill() {
   paintKhBest();
   window.__khReady = true;
   if (window.__khWant || Q.has('autostart')) startGame(+(Q.get('stage') || 0));
-  else paintTitleStill();
+  else {
+    maybeShowTips();
+    paintTitleStill();
+  }
 })();
 window.KH = { game, input, get player() { return player; }, enemies, get boss() { return boss; }, startGame, startStage, cam, endGame, ROSTER };
