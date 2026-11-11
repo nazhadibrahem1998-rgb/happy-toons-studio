@@ -48,6 +48,9 @@ var hot_i := 0
 var aiming := false
 var _stuck := 0.0
 var _swing := 0.0
+var _place := ""
+var _place_hold := ""
+var _place_age := 0.0
 var _planar := 0.0
 var health := 100.0
 var health_max := 100.0
@@ -349,6 +352,7 @@ func _physics_process(delta: float) -> void:
 		_toggle_build()
 	if build_mode and Input.is_action_just_pressed("rotate_piece"):
 		build_yaw += PI * 0.5
+	_watch_place(delta)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
@@ -841,6 +845,29 @@ func _interact() -> void:
 		if str(n.get_meta("id", "")) == prompt_id and n.has_method("use"):
 			n.use(self)
 			return
+
+func _watch_place(delta: float) -> void:
+	var place := "lane"
+	if str(GameState.data.get("phase", "dream")) == "woke":
+		place = "waking"
+	else:
+		var here := Vector2(global_position.x, global_position.z)
+		for house in get_tree().get_nodes_in_group("house_block"):
+			if not house.has_meta("min_xz"):
+				continue
+			var mn: Vector2 = house.get_meta("min_xz")
+			var mx: Vector2 = house.get_meta("max_xz")
+			if here.x > mn.x and here.x < mx.x and here.y > mn.y and here.y < mx.y:
+				place = "house:" + str(house.get_meta("resident", "house"))
+				break
+	if place == _place_hold:
+		_place_age += delta
+	else:
+		_place_hold = place
+		_place_age = 0.0
+	if _place_age >= 0.4 and place != _place:
+		_place = place
+		GameState.note_scene(place)
 
 func _store_player() -> void:
 	var p: Dictionary = GameState.data["player"]

@@ -133,16 +133,22 @@ func _title() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
+	var waiting := GameState.has_save()
 	box.add_child(Desk.label("Sharsten", 40, Color("f6edd8")))
 	box.add_child(Desk.label("Part 1 — The Dream", 20, Color("f0e2c4")))
-	box.add_child(Desk.label("A handmade valley. People talk to each other. You overhear them.", 15, Color("f0e2c4")))
+	var blurb := "A dream is already written down." if waiting else "A handmade valley. People talk to each other. You overhear them."
+	box.add_child(Desk.label(blurb, 15, Color("f0e2c4")))
 	var new_b := Desk.button("New dream")
 	new_b.pressed.connect(_confirm_new)
-	box.add_child(new_b)
 	var cont := Desk.button("Continue")
-	cont.disabled = not GameState.has_save()
+	cont.disabled = not waiting
 	cont.pressed.connect(_continue)
-	box.add_child(cont)
+	if waiting:
+		box.add_child(cont)
+		box.add_child(new_b)
+	else:
+		box.add_child(new_b)
+		box.add_child(cont)
 	var slot := Desk.button("Load slot")
 	slot.disabled = not GameState.has_slot()
 	slot.pressed.connect(_load_slot)
@@ -220,6 +226,7 @@ func _enter() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _back_to_title() -> void:
+	GameState.save_now()
 	for c in get_children():
 		c.queue_free()
 	_ready()

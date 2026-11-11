@@ -22,6 +22,10 @@ var vignette: TextureRect
 var health_back: ColorRect
 var health_fill: ColorRect
 var objective_label: Label
+var deeds = null
+var valley: Control
+var map_dim: ColorRect
+var save_chip: Control
 var crack_t := -1.0
 var note_panel: Control
 var diary: Control
@@ -37,6 +41,7 @@ func _ready() -> void:
 	screen = "play"
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("ui")
+	deeds = load("res://scripts/sim/deed_watch.gd").new()
 	_hud()
 	GameState.thought_changed.connect(func(): pass)
 	GameState.refreshed.connect(_on_refresh)
@@ -64,16 +69,24 @@ func _hud() -> void:
 	health_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(health_fill)
 	objective_label = Label.new()
-	objective_label.position = Vector2(28, 52)
-	objective_label.custom_minimum_size = Vector2(900, 28)
-	objective_label.add_theme_font_size_override("font_size", 18)
-	objective_label.add_theme_color_override("font_color", Color("f6edd8"))
+	objective_label.name = "DeedLine"
+	objective_label.position = Vector2(28, 50)
+	objective_label.custom_minimum_size = Vector2(520, 26)
 	objective_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	objective_label.clip_text = true
+	objective_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var deed_style := LabelSettings.new()
+	deed_style.font_size = 18
+	deed_style.font_color = Color("f6edd8")
+	deed_style.outline_size = 5
+	deed_style.outline_color = Color(0.07, 0.05, 0.04, 0.88)
+	objective_label.label_settings = deed_style
 	add_child(objective_label)
 	thought_label = RichTextLabel.new()
 	thought_label.bbcode_enabled = true
 	thought_label.fit_content = true
 	thought_label.scroll_active = false
+	thought_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	thought_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	thought_label.offset_left = 360
 	thought_label.offset_top = 28
@@ -83,8 +96,8 @@ func _hud() -> void:
 	thought_label.add_theme_font_size_override("normal_font_size", 20)
 	add_child(thought_label)
 	sub_box = VBoxContainer.new()
-	sub_box.position = Vector2(360, 96)
-	sub_box.custom_minimum_size = Vector2(1200, 80)
+	sub_box.position = Vector2(300, 96)
+	sub_box.custom_minimum_size = Vector2(900, 80)
 	sub_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sub_box)
 	hint_label = Desk.label("", 16, Color("f6edd8"))
@@ -114,11 +127,31 @@ func _hud() -> void:
 	key_hud.add_theme_font_size_override("font_size", 15)
 	key_hud.add_theme_color_override("font_color", Color("f4efe4"))
 	key_hud.autowrap_mode = TextServer.AUTOWRAP_OFF
+	key_hud.clip_text = true
+	key_hud.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	add_child(key_hud)
+	map_dim = ColorRect.new()
+	map_dim.name = "MapDim"
+	map_dim.color = Color(0.07, 0.05, 0.04, 0.58)
+	map_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	map_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	map_dim.visible = false
+	map_dim.gui_input.connect(_map_dim_input)
+	add_child(map_dim)
+	valley = load("res://scripts/ui/valley_map.gd").new()
+	valley.name = "ValleyMap"
+	add_child(valley)
+	save_chip = load("res://scripts/ui/save_chip.gd").new()
+	save_chip.name = "SaveChip"
+	add_child(save_chip)
+	move_child(objective_label, get_child_count() - 1)
 
 func _process(delta: float) -> void:
 	var cine := bool(GameState.data.get("cinematic", false))
 	if hint_label:
+		var vp_hint := get_viewport().get_visible_rect().size
+		hint_label.position = Vector2(vp_hint.x * 0.14, vp_hint.y - 58.0)
+		hint_label.custom_minimum_size = Vector2(maxf(240.0, vp_hint.x * 0.72), 28)
 		hint_label.visible = not cine
 	if key_hud:
 		var vp := get_viewport().get_visible_rect().size
@@ -128,14 +161,23 @@ func _process(delta: float) -> void:
 		var player := get_tree().get_first_node_in_group("player")
 		if player and player.get("HOTBAR") != null:
 			tool = str(player.HOTBAR[player.hot_i])
-		key_hud.text = "1-8 %s    %s run    Hold %s: look around    Hold %s: crouch    %s diary    %s view" % [
-			tool, Settings.key_label("sprint"), Settings.key_label("free_look"), Settings.key_label("crouch"), Settings.key_label("diary"), Settings.key_label("view")
+		key_hud.custom_minimum_size = Vector2(maxf(200.0, vp.x - 32.0), 22)
+		key_hud.text = "1-8 %s   %s run   %s look   %s crouch   %s diary   %s view   %s map   %s deed" % [
+			tool, Settings.key_label("sprint"), Settings.key_label("free_look"), Settings.key_label("crouch"), Settings.key_label("diary"), Settings.key_label("view"), Settings.key_label("page_map"), Settings.key_label("show_deed")
 		]
 	var now := Time.get_ticks_msec() / 1000.0
 	if thought_label:
 		var show := GameState.thought != "" and now < GameState.thought_until
 		thought_label.visible = show and screen == "play" and not cine
 		if show:
+			var vp_thought := get_viewport().get_visible_rect().size
+			var side := 160.0
+			if valley and valley.has_method("corner_side"):
+				side = valley.corner_side(vp_thought)
+			thought_label.offset_left = 300
+			thought_label.offset_top = 28
+			thought_label.offset_right = vp_thought.x - side - 36.0
+			thought_label.offset_bottom = 88
 			thought_label.text = "[i]%s[/i]" % GameState.thought
 			thought_label.add_theme_font_size_override("normal_font_size", Settings.subtitle_px())
 	_subs(now)
@@ -150,9 +192,31 @@ func _process(delta: float) -> void:
 		health_fill.size.x = 216.0 * ratio
 		health_back.visible = screen == "play" and not cine
 		health_fill.visible = health_back.visible
-	if objective_label:
-		objective_label.visible = screen == "play" and not cine
-		objective_label.text = GameState.objective_line()
+	if deeds:
+		deeds.push(GameState.objective_line())
+		if not get_tree().paused:
+			deeds.tick(delta)
+	if objective_label and deeds:
+		var vp2 := get_viewport().get_visible_rect().size
+		var map_side := 160.0
+		if valley and valley.has_method("corner_side"):
+			map_side = valley.corner_side(vp2)
+		var room := maxf(220.0, vp2.x - map_side - 72.0)
+		objective_label.position = Vector2(28, 50)
+		objective_label.size = Vector2(minf(640.0, room), 28)
+		objective_label.custom_minimum_size = objective_label.size
+		objective_label.text = deeds.text
+		objective_label.modulate.a = deeds.alpha
+		var show_deed: bool = (screen == "play" or screen == "map") and not cine and float(deeds.alpha) > 0.03 and str(deeds.text) != ""
+		objective_label.visible = show_deed
+	if save_chip and valley:
+		var vp3 := get_viewport().get_visible_rect().size
+		if valley.mode == "large":
+			save_chip.position = Vector2(maxf(8.0, vp3.x - 128.0), 16.0)
+		else:
+			var chip_x := clampf(valley.position.x, 8.0, maxf(8.0, vp3.x - 124.0))
+			save_chip.position = Vector2(chip_x, valley.position.y + valley.size.y + 6.0)
+		save_chip.visible = GameState.saving_visible() and (screen == "play" or screen == "map") and not cine
 	if crack_t >= 0.0:
 		crack_t += delta
 		crack.color.a = clampf(crack_t / 1.4, 0.0, 1.0)
@@ -175,6 +239,12 @@ func _blend_vignette() -> ImageTexture:
 func _subs(now: float) -> void:
 	if sub_box == null:
 		return
+	var vp_sub := get_viewport().get_visible_rect().size
+	var side_sub := 160.0
+	if valley and valley.has_method("corner_side"):
+		side_sub = valley.corner_side(vp_sub)
+	sub_box.position = Vector2(300, 96)
+	sub_box.custom_minimum_size = Vector2(maxf(280.0, vp_sub.x - 300.0 - side_sub - 28.0), 80)
 	var sig := ""
 	var show := now <= GameState.subtitle_until and screen == "play"
 	if show:
@@ -195,7 +265,8 @@ func _subs(now: float) -> void:
 		l.bbcode_enabled = true
 		l.fit_content = true
 		l.scroll_active = false
-		l.custom_minimum_size = Vector2(1100, 0)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(sub_box.custom_minimum_size.x, 0)
 		l.add_theme_font_size_override("normal_font_size", Settings.subtitle_px())
 		l.add_theme_color_override("default_color", Color("f6edd8"))
 		var prefix := str(line.get("name", ""))
@@ -213,7 +284,10 @@ func _hints() -> void:
 	var tab := Settings.key_label("diary")
 	var v := Settings.key_label("view")
 	var b := Settings.key_label("build_mode")
-	if screen != "play":
+	if screen == "map":
+		hint_label.text = "[M] or [Esc] closes the map"
+		_build_card(false)
+	elif screen != "play":
 		hint_label.text = "[Esc] Close"
 	elif player and player.build_mode:
 		hint_label.text = "Left click places  ·  Right click cancels  ·  [%s] Turn  ·  [%s] Leave building" % [Settings.key_label("rotate_piece"), b]
@@ -269,6 +343,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		_esc()
 		get_viewport().set_input_as_handled()
 		return
+	if event.is_action_pressed("page_map") and (screen == "play" or screen == "map"):
+		_toggle_map()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("show_deed") and (screen == "play" or screen == "map"):
+		if deeds:
+			deeds.reveal()
+		get_viewport().set_input_as_handled()
+		return
 	if screen != "play":
 		return
 	if event.is_action_pressed("diary"):
@@ -279,12 +362,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		open_diary("quests")
 	elif event.is_action_pressed("page_overheard"):
 		open_diary("overheard")
-	elif event.is_action_pressed("page_map"):
-		open_diary("map")
 	elif event.is_action_pressed("page_skills"):
 		open_diary("skills")
 
 func _esc() -> void:
+	if screen == "map":
+		_close_map()
+		return
 	if get_node_or_null("SettingsRoot"):
 		_close_settings()
 		return
@@ -310,6 +394,33 @@ func _esc() -> void:
 		player.set_build(false)
 		return
 	_open_pause()
+
+func _map_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and screen == "map":
+		_close_map()
+
+func _toggle_map() -> void:
+	if valley == null:
+		return
+	if valley.mode == "large":
+		_close_map()
+		return
+	if screen != "play":
+		return
+	valley.mode = "large"
+	screen = "map"
+	if map_dim:
+		map_dim.visible = true
+	_pause_game(true)
+
+func _close_map() -> void:
+	if valley:
+		valley.mode = "corner"
+	if map_dim:
+		map_dim.visible = false
+	if screen == "map":
+		screen = "play"
+		_pause_game(false)
 
 func _pause_game(p: bool) -> void:
 	get_tree().paused = p

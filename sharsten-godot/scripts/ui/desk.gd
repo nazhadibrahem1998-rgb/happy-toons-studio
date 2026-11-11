@@ -313,8 +313,9 @@ static func _option(title: String, values: Array, current: String, cb: Callable)
 	return row
 
 static func _bind_rows(grid: GridContainer, actions: Array) -> void:
+	var titles := {"page_map": "Valley map", "show_deed": "Show the deed"}
 	for action in actions:
-		var title := str(action).replace("_", " ")
+		var title := str(titles.get(str(action), str(action).replace("_", " ")))
 		var name := plain(title.capitalize(), 16)
 		name.custom_minimum_size = Vector2(240, 36)
 		grid.add_child(name)

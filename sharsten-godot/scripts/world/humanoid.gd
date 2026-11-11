@@ -21,6 +21,14 @@ var lod_on := true
 var clothing: Array = []
 var tool: MeshInstance3D
 
+func _exit_tree() -> void:
+	if anim:
+		anim.stop()
+		anim = null
+	if tree:
+		tree.active = false
+		tree = null
+
 func setup(spec: Dictionary) -> void:
 	height_mul = float(spec.get("height", 1.0))
 	scale = Vector3.ONE * height_mul
@@ -35,7 +43,7 @@ func setup(spec: Dictionary) -> void:
 	_make_tool(spec)
 	_build_tree()
 	_measure_ankle()
-	if OS.has_feature("headless"):
+	if GameState.headless():
 		visible = false
 
 func show_weapon(id: String) -> void:

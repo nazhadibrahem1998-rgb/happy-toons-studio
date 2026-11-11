@@ -17,8 +17,8 @@ func setup(spec: Dictionary, entry: Dictionary, loop: Array) -> void:
 	npc_id = str(spec.get("id", ""))
 	name = npc_id
 	add_to_group("villager")
-	collision_layer = 0 if OS.has_feature("headless") else 4
-	collision_mask = 0 if OS.has_feature("headless") else 1
+	collision_layer = 0 if GameState.headless() else 4
+	collision_mask = 0 if GameState.headless() else 1
 	floor_snap_length = 0.2
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
@@ -45,14 +45,16 @@ func setup(spec: Dictionary, entry: Dictionary, loop: Array) -> void:
 	agent.target_desired_distance = 0.5
 	agent.radius = 0.4
 	agent.height = 1.6
-	agent.avoidance_enabled = not OS.has_feature("headless")
+	agent.avoidance_enabled = not GameState.headless()
 	agent.max_speed = 1.1
 	add_child(agent)
-	if not OS.has_feature("headless"):
+	if not GameState.headless():
 		rig = HumanRig.new()
 		add_child(rig)
 		rig.setup(spec)
 	call_deferred("_set_target")
+	if is_inside_tree() and _inside_house():
+		global_position = _escape_house()
 
 func _set_target() -> void:
 	if agent == null:
@@ -121,7 +123,7 @@ func _physics_process(delta: float) -> void:
 	var meal := hour == 8 or hour == 18
 	_touch_door(phase)
 	var next := global_position
-	if OS.has_feature("headless"):
+	if GameState.headless():
 		next = _goal()
 		if walking and not night and route.size() > 1 and global_position.distance_to(next) < 0.6:
 			route_i = (route_i + 1) % route.size()
@@ -150,17 +152,15 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
-	if OS.has_feature("headless"):
-		global_position += Vector3(velocity.x, 0, velocity.z) * delta
-		if _inside_house():
-			global_position = _escape_house()
+	if GameState.headless():
+		_step_around_houses(delta)
 		return
 	if not is_on_floor():
 		velocity.y -= 20.0 * delta
 	else:
 		velocity.y = -2.0
 	move_and_slide()
-	# Never remain inside a house. Step back out along the last slide.
+	# The door is a gap in the walls. Do not remain in the interior.
 	if _inside_house():
 		global_position = _escape_house()
 		velocity = Vector3.ZERO
@@ -296,28 +296,103 @@ func _inside_group(group: String) -> bool:
 			return true
 	return false
 
-func _escape_house() -> Vector3:
-	var p := Vector2(global_position.x, global_position.z)
-	var best := global_position
-	var best_d := 9999.0
+func _step_around_houses(delta: float) -> void:
+	var wish := Vector3(velocity.x, 0.0, velocity.z) * delta
+	if wish.length() > 0.0001:
+		var ahead := global_position + wish
+		if not _forbidden(ahead):
+			global_position = ahead
+		else:
+			var along_x := global_position + Vector3(wish.x, 0.0, 0.0)
+			var along_z := global_position + Vector3(0.0, 0.0, wish.z)
+			if not _forbidden(along_x):
+				global_position = along_x
+			elif not _forbidden(along_z):
+				global_position = along_z
+	if _inside_house():
+		global_position = _escape_house()
+		velocity = Vector3.ZERO
+
+func _forbidden(at: Vector3) -> bool:
+	var p := Vector2(at.x, at.z)
+	var phase := phase_for(GameState.hour())
+	for h in get_tree().get_nodes_in_group("house_block"):
+		if not _point_in_box(p, h, 0.0):
+			continue
+		if phase == "home" and str(h.get_meta("resident", "")) == npc_id:
+			continue
+		return true
+	return false
+
+func _point_in_box(p: Vector2, h: Node, inset: float) -> bool:
+	if not h.has_meta("min_xz") or not h.has_meta("max_xz"):
+		return false
+	var mn: Vector2 = h.get_meta("min_xz")
+	var mx: Vector2 = h.get_meta("max_xz")
+	return p.x > mn.x + inset and p.x < mx.x - inset and p.y > mn.y + inset and p.y < mx.y - inset
+
+func _face_exits(h: Node, p: Vector2, margin: float) -> Array:
+	var mn: Vector2 = h.get_meta("min_xz")
+	var mx: Vector2 = h.get_meta("max_xz")
+	var exits: Array = [
+		Vector2(mn.x - margin, p.y),
+		Vector2(mx.x + margin, p.y),
+		Vector2(p.x, mn.y - margin),
+		Vector2(p.x, mx.y + margin),
+	]
+	exits.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.distance_squared_to(p) < b.distance_squared_to(p))
+	return exits
+
+func _box_blocks(h: Node, p: Vector2) -> bool:
+	if not _point_in_box(p, h, 0.0):
+		return false
+	if str(h.get_meta("resident", "")) == npc_id and phase_for(GameState.hour()) == "home":
+		return false
+	return true
+
+func _standing_blocked(p: Vector2) -> bool:
 	for h in _solid_nodes():
-		var mn: Vector2 = h.get_meta("min_xz")
-		var mx: Vector2 = h.get_meta("max_xz")
-		if p.x > mn.x and p.x < mx.x and p.y > mn.y and p.y < mx.y:
-			var cx := (mn.x + mx.x) * 0.5
-			var cz := (mn.y + mx.y) * 0.5
-			var out := Vector2(p.x - cx, p.y - cz)
-			if out.length() < 0.01:
-				out = Vector2(1, 0)
-			out = out.normalized()
-			var edge := Vector2(mx.x - mn.x, mx.y - mn.y) * 0.5
-			var dist := maxf(edge.x, edge.y) + 0.8
-			var cand := Vector3(cx + out.x * dist, 0.05, cz + out.y * dist)
-			var d := cand.distance_to(global_position)
-			if d < best_d:
-				best_d = d
-				best = cand
-	return best
+		if _box_blocks(h, p):
+			return true
+	return false
+
+func _escape_house() -> Vector3:
+	# Leave by a face that is actually outside every footprint.
+	# A push toward the centre stops short of a corner, and the nearest face
+	# can open straight into the next house.
+	var pos := global_position
+	var margin := 0.55
+	for _round in 6:
+		var p := Vector2(pos.x, pos.z)
+		var hits: Array = []
+		for h in _solid_nodes():
+			if _box_blocks(h, p):
+				hits.append(h)
+		if hits.is_empty():
+			return Vector3(p.x, pos.y, p.y)
+		var placed := false
+		for h in hits:
+			for opt in _face_exits(h, p, margin):
+				var spot: Vector2 = opt
+				if not _standing_blocked(spot):
+					pos = Vector3(spot.x, pos.y, spot.y)
+					placed = true
+					break
+			if placed:
+				break
+		if not placed:
+			var fallback: Vector2 = _face_exits(hits[0], p, margin + 3.0)[0]
+			pos = Vector3(fallback.x, pos.y, fallback.y)
+		margin += 0.5
+	var left := Vector2(pos.x, pos.z)
+	var hop := 0
+	while _standing_blocked(left) and hop < 16:
+		left.x += 1.4
+		if not _standing_blocked(left):
+			break
+		left.y += 1.4
+		hop += 1
+	return Vector3(left.x, pos.y, left.y)
 
 func _near_seat() -> bool:
 	if _speed > 0.2:

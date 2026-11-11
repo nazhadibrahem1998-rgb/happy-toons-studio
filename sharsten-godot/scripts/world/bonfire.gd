@@ -8,6 +8,15 @@ var light: OmniLight3D
 var music: AudioStreamPlayer3D
 var _time := 0.0
 
+func _exit_tree() -> void:
+	for node in find_children("*", "AudioStreamPlayer3D", true, false):
+		node.stop()
+		node.stream = null
+	if music:
+		music.stop()
+		music.stream = null
+		music = null
+
 func setup(low: bool) -> void:
 	name = "NewrozFire"
 	add_to_group("bonfire")
@@ -34,14 +43,14 @@ func setup(low: bool) -> void:
 	crackle.stream = fire
 	_place_voice(crackle, -8.0, "SFX", 2.5, 14.0)
 	add_child(crackle)
-	if not OS.has_feature("headless"):
+	if not GameState.headless():
 		crackle.play()
 	music = AudioStreamPlayer3D.new()
 	music.name = "Tune"
 	music.stream = load("res://scripts/world/ambience.gd").folk_loop()
 	_place_voice(music, -10.0, "Music", 3.0, 20.0)
 	add_child(music)
-	if not OS.has_feature("headless"):
+	if not GameState.headless():
 		music.play()
 
 func _place_voice(voice: AudioStreamPlayer3D, db: float, bus_name: String, unit: float, reach: float) -> void:
