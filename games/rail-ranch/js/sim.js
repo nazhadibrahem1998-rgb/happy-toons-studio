@@ -1,5 +1,22 @@
 /* Rail Ranch economy. The train loops a rail, picks up goods, and sells them
    at the market. Pure rules live here so a bot can fast-forward them. */
+import {
+  attachCraft,
+  tickCraft,
+  routeSale,
+  noteGoods,
+  readCraft,
+  writeCraft,
+  craftSummary,
+  catalog,
+  preview,
+  place,
+  claimDaily,
+  dailyInfo,
+  railSlots,
+} from './craft.js';
+
+export { catalog, preview, place, claimDaily, dailyInfo, railSlots };
 const WORLD_W = 1500;
 const WORLD_H = 1000;
 const BASE_SPEED = 196;
@@ -386,6 +403,7 @@ export function createState() {
     _world: null,
   };
   placeTrain(state);
+  attachCraft(state);
   return state;
 }
 
@@ -465,8 +483,15 @@ function sell(state, station, events) {
   const goods = Object.keys(state.cargo);
   for (let i = 0; i < goods.length; i++) {
     const id = goods[i];
-    const n = state.cargo[id] || 0;
-    if (n > 0 && DEF[id]) sum += n * unitPrice(state, id);
+    let n = state.cargo[id] || 0;
+    if (n > 0 && DEF[id]) {
+      const kept = n - routeSale(state, id, DEF[id].good, n);
+      n -= kept;
+      if (n > 0) {
+        sum += n * unitPrice(state, id);
+        noteGoods(state, DEF[id].good, n, events);
+      }
+    }
     state.cargo[id] = 0;
   }
   state.load = 0;
@@ -555,7 +580,9 @@ function stepOnce(state, dt, events) {
   }
   truckTick(state, dt, events);
   moveTrain(state, dt, events);
+  state.clock = (state.clock || 0) + dt;
   const goals = checkGoals(state);
+  tickCraft(state, dt, events);
   if (events) {
     for (let i = 0; i < goals.length; i++) {
       events.push({ type: 'goal', text: goals[i].text, reward: goals[i].reward, x: LAYOUT.market.x, y: LAYOUT.market.y - 40 });
@@ -898,6 +925,11 @@ export function summary(state) {
     goal: g.text,
     goalRatio: Math.round(g.ratio * 1000) / 1000,
     goalId: g.id,
+    level: state.level || 1,
+    xp: state.xp || 0,
+    orders: craftSummary(state).orders,
+    warehouseUsed: craftSummary(state).warehouseUsed,
+    warehouseCap: state.warehouseCap || 40,
   };
 }
 
@@ -1013,6 +1045,8 @@ export function view(state) {
     goods,
     prestige: state.prestige,
     tut: state.tut,
+    placed: state.placed || [],
+    level: state.level || 1,
   };
 }
 
@@ -1108,8 +1142,8 @@ export function serialize(state) {
       timer: st.timer,
     };
   }
-  return {
-    v: 1,
+  return Object.assign({
+    v: 2,
     cash: state.cash,
     totalEarned: state.totalEarned,
     lifetime: state.lifetime,
@@ -1125,12 +1159,12 @@ export function serialize(state) {
     goals: state.goals,
     tut: state.tut,
     producers,
-  };
+  }, writeCraft(state));
 }
 
 export function hydrate(data) {
   const state = createState();
-  if (!data || data.v !== 1) return state;
+  if (!data || (data.v !== 1 && data.v !== 2)) return state;
   state.cash = clamp(Math.round(finite(data.cash, 8)), 0, 1e9);
   state.totalEarned = clamp(Math.round(finite(data.totalEarned, 0)), 0, 1e9);
   state.lifetime = clamp(Math.round(finite(data.lifetime, state.totalEarned)), state.totalEarned, 1e9);
@@ -1173,6 +1207,7 @@ export function hydrate(data) {
   }
   state._world = null;
   state.rev += 1;
+  readCraft(data, state);
   ensureWorld(state);
   return state;
 }

@@ -128,6 +128,17 @@ test('phone screenshots of the tutorial, a busy ranch, and upgrades', async ({ p
   fs.mkdirSync(shots, { recursive: true });
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(shots, 'rail-ranch-start.png') });
+  await page.locator('#buildBtn').click();
+  await page.locator('#buildList button').first().click();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: path.join(shots, 'rail-ranch-build.png') });
+  await page.locator('#buildCancel').click();
+  await page.locator('#ordersBtn').click();
+  await expect(page.locator('#orderList .order').first()).toBeVisible();
+  await expect(page.locator('#orderList')).not.toContainText('undefined');
+  await expect(page.locator('#orderList .order').first()).toContainText(/Milk|Eggs/);
+  await page.screenshot({ path: path.join(shots, 'rail-ranch-orders.png') });
+  await page.locator('#ordersClose').click();
   await page.evaluate(() => {
     RR.autoplay(240);
     for (let i = 0; i < 70; i++) {

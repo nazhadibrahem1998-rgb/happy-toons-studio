@@ -220,6 +220,53 @@
   .row { display: flex; gap: 8px; }
   .row .go { flex: 1; }
   [hidden] { display: none !important; }
+  .tools {
+    position: fixed;
+    z-index: 4;
+    left: calc(env(safe-area-inset-left) + 10px);
+    right: calc(env(safe-area-inset-right) + 10px);
+    bottom: calc(env(safe-area-inset-bottom) + 12px);
+    display: flex;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .tools button, #buildbar button, #orders button { pointer-events: auto; }
+  .tools button {
+    min-height: 48px;
+    padding: 0 14px;
+    border-radius: 16px;
+    border: 2px solid #145c22;
+    background: #fffaf0;
+    color: #17331a;
+    font-weight: 800;
+  }
+  #buildbar, #orders {
+    position: fixed;
+    z-index: 5;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fffaf0;
+    border-radius: 22px 22px 0 0;
+    padding: 14px 14px calc(env(safe-area-inset-bottom) + 14px);
+    max-height: 48vh;
+    overflow: auto;
+    touch-action: pan-y;
+  }
+  .build-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .build-grid button, .order {
+    min-height: 64px;
+    border-radius: 14px;
+    border: 2px solid #1d4a28;
+    background: #e7efe4;
+    font-weight: 800;
+    text-align: left;
+    padding: 8px 10px;
+  }
+  .build-grid button small, .order small { display: block; font-weight: 700; color: #3d5340; }
+  .build-grid button:disabled { opacity: 0.45; }
+  .order { margin: 6px 0; background: #fff; }
+
 </style>
 </head>
 <body>
@@ -241,6 +288,24 @@
     <div id="goalBar"><i id="goalFill"></i></div>
     <span id="goalLabel">Sell goods at the market</span>
   </div>
+</div>
+<div class="tools">
+  <button id="buildBtn" type="button">Build</button>
+  <button id="ordersBtn" type="button">Orders</button>
+  <button id="dailyBtn" type="button">Daily</button>
+</div>
+<div id="buildbar" hidden>
+  <div class="row">
+    <button id="buildRotate" class="buy" type="button">Rotate</button>
+    <button id="buildCancel" class="go" type="button">Done</button>
+  </div>
+  <div id="buildList" class="build-grid"></div>
+</div>
+<div id="orders" hidden>
+  <h2>Orders</h2>
+  <p id="orderMeta"></p>
+  <div id="orderList"></div>
+  <button id="ordersClose" class="go" type="button">Close</button>
 </div>
 <div id="toast" hidden></div>
 <div id="sheet" hidden>

@@ -9,6 +9,11 @@ import {
   goalView,
   hitTest,
   hydrate,
+  catalog as craftCatalog,
+  preview,
+  place,
+  claimDaily,
+  dailyInfo,
   offers,
   serialize,
   step,
@@ -39,6 +44,9 @@ const offlineNote = document.getElementById('offlineNote');
 
 const audio = createAudio();
 let world = null;
+let buildId = null;
+let buildRot = 0;
+let ghost = null;
 const floats = [];
 const coins = [];
 const confetti = [];
@@ -81,7 +89,7 @@ function readSave() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (!data || data.v !== 1) return null;
+    if (!data || (data.v !== 1 && data.v !== 2)) return null;
     return data;
   } catch (err) {
     return null;
@@ -162,7 +170,8 @@ function syncHud(quiet) {
     }
   }
   const goal = goalView(state);
-  goalLabel.textContent = goal.text;
+  const snap = summary(state);
+  goalLabel.textContent = 'Lv ' + snap.level + ' · ' + goal.text;
   goalFill.style.width = Math.round(goal.ratio * 100) + '%';
   const best = Math.max(bestMem, window.HappyScores ? HappyScores.getBest('rail-ranch') : 0);
   let label = best > 0 ? 'Best $' + money(best) : 'Best —';
@@ -244,7 +253,11 @@ function handleEvents(events) {
       spawnCoins(e.x, e.y - 10);
     } else if (e.type === 'pickup') picked = true;
     else if (e.type === 'goal') goal = e;
-    else if (e.type === 'truck') {
+    else if (e.type === 'order') {
+      toast('Order filled +$' + money(e.reward));
+      audio.play('goal');
+      spawnConfetti();
+    } else if (e.type === 'truck') {
       trucks += e.amount;
       truckX = e.x;
       truckY = e.y;
@@ -440,6 +453,11 @@ function onMove(e) {
     pinch.dist = dist;
     return;
   }
+  if (buildId && world) {
+    const spot = world.groundAt(p.x, p.y, cam);
+    const plan = preview(state, buildId, spot.x, spot.y);
+    ghost = { x: plan.x, y: plan.y, ok: plan.ok, rot: buildRot };
+  }
   if (p.moved && world) {
     const a = world.groundAt(prevX, prevY, cam);
     const b = world.groundAt(p.x, p.y, cam);
@@ -454,6 +472,18 @@ function onUp(e) {
   ptrs.delete(e.pointerId);
   if (ptrs.size < 2) pinch = null;
   if (!p || p.moved || ptrs.size > 0 || e.type === 'pointercancel') return;
+  if (buildId) {
+    const spot = toWorld(e.clientX, e.clientY);
+    const res = place(state, buildId, spot.x, spot.y, buildRot);
+    if (!res.ok) {
+      audio.play('deny');
+      toast(res.reason === 'cash' ? 'Need $' + money(res.cost) : 'Can’t build there');
+    } else {
+      afterBuy(res);
+      if (res.extended) toast('Track extended');
+    }
+    return;
+  }
   handleTap(e.clientX, e.clientY);
 }
 
@@ -467,7 +497,7 @@ function fitCam() {
 }
 
 function resize() {
-  dprNow = Math.min(window.innerWidth < 900 ? 1.5 : 2, window.devicePixelRatio || 1);
+  dprNow = Math.min(3, window.devicePixelRatio || 1);
   viewW = window.innerWidth;
   viewH = window.innerHeight;
   if (!camReady) {
@@ -545,9 +575,11 @@ function frame(now) {
     h: viewH,
     dpr: dprNow,
     time: now / 1000,
+    dt,
     floats,
     shake,
     selected,
+    ghost,
     coins,
     confetti,
     pops,
@@ -595,7 +627,88 @@ canvas.addEventListener('touchmove', (e) => {
   }, { passive: false });
 });
 
+const buildbar = document.getElementById('buildbar');
+const buildList = document.getElementById('buildList');
+const ordersBox = document.getElementById('orders');
+
+function todayIso() {
+  const d = new Date();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+
+function paintBuild() {
+  buildList.replaceChildren();
+  craftCatalog(state).forEach((item) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.disabled = item.locked || item.done;
+    const name = document.createElement('span');
+    name.textContent = item.name + '  $' + item.cost;
+    const small = document.createElement('small');
+    small.textContent = item.locked ? 'Unlocks at level ' + item.level : item.blurb;
+    btn.append(name, small);
+    press(btn, () => {
+      if (item.locked) return;
+      buildId = item.id;
+      toast('Tap a tile to place ' + item.name);
+    });
+    buildList.appendChild(btn);
+  });
+}
+
+function paintOrders() {
+  const info = summary(state);
+  document.getElementById('orderMeta').textContent = 'Level ' + info.level + ' · Storage ' + info.warehouseUsed + '/' + info.warehouseCap;
+  const box = document.getElementById('orderList');
+  box.replaceChildren();
+  const goodNames = { milk: 'Milk', eggs: 'Eggs', wheat: 'Wheat', flour: 'Flour', cheese: 'Cheese', bread: 'Bread' };
+  info.orders.forEach((order) => {
+    const row = document.createElement('div');
+    row.className = 'order';
+    const name = goodNames[order.good] || 'Goods';
+    row.textContent = name + '  ' + order.have + '/' + order.need + '   +$' + order.reward + '   ' + order.left + 's';
+    box.appendChild(row);
+  });
+}
+
 press(muteBtn, toggleMute);
+press(document.getElementById('buildBtn'), () => {
+  buildbar.hidden = !buildbar.hidden;
+  ordersBox.hidden = true;
+  if (buildbar.hidden) {
+    buildId = null;
+    ghost = null;
+  } else paintBuild();
+});
+press(document.getElementById('buildCancel'), () => {
+  buildbar.hidden = true;
+  buildId = null;
+  ghost = null;
+});
+press(document.getElementById('buildRotate'), () => {
+  buildRot = (buildRot + 1) % 4;
+});
+press(document.getElementById('ordersBtn'), () => {
+  ordersBox.hidden = !ordersBox.hidden;
+  buildbar.hidden = true;
+  buildId = null;
+  ghost = null;
+  if (!ordersBox.hidden) paintOrders();
+});
+press(document.getElementById('ordersClose'), () => { ordersBox.hidden = true; });
+press(document.getElementById('dailyBtn'), () => {
+  const res = claimDaily(state, todayIso());
+  if (!res.ok) toast('Already claimed today');
+  else {
+    toast('Daily +$' + res.reward);
+    audio.play('goal');
+    spawnConfetti();
+    syncHud(false);
+    saveNow();
+  }
+});
 press(document.getElementById('sheetClose'), closeSheet);
 press(document.getElementById('dim'), closeSheet);
 press(document.getElementById('offlineOk'), () => { offlineBox.hidden = true; });

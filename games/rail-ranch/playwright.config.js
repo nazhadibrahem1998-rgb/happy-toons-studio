@@ -44,5 +44,16 @@ export default defineConfig({
       },
     },
     { name: 'iphone', use: iphone },
+    {
+      name: 'android',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 393, height: 851 },
+        isMobile: true,
+        hasTouch: true,
+        deviceScaleFactor: 2.75,
+        userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+      },
+    },
   ],
 });

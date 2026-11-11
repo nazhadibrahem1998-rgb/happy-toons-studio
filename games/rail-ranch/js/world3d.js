@@ -3,7 +3,7 @@ import { LAYOUT, blocked } from './sim.js';
 
 const ELEV = 40 * Math.PI / 180;
 const AZIM = Math.PI / 4;
-const GRASS = 0x7dce54;
+const GRASS = 0x9be85c;
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -17,9 +17,9 @@ function mulberry32(seed) {
 
 function makeGradient() {
   const data = new Uint8Array([
-    70, 70, 78, 255,
-    130, 130, 140, 255,
-    190, 190, 198, 255,
+    198, 198, 204, 255,
+    226, 226, 230, 255,
+    246, 246, 248, 255,
     255, 255, 255, 255,
   ]);
   const tex = new THREE.DataTexture(data, 4, 1);
@@ -34,7 +34,7 @@ function grassTexture() {
   c.width = 512;
   c.height = 512;
   const g = c.getContext('2d');
-  g.fillStyle = '#7dce54';
+  g.fillStyle = '#9BE85C';
   g.fillRect(0, 0, 512, 512);
   const rnd = mulberry32(11);
   for (let i = 0; i < 90; i++) {
@@ -62,7 +62,7 @@ function shingleTexture() {
   c.width = 64;
   c.height = 64;
   const g = c.getContext('2d');
-  g.fillStyle = '#2a9d92';
+  g.fillStyle = '#3ad4c8';
   g.fillRect(0, 0, 64, 64);
   g.strokeStyle = '#17685f';
   g.lineWidth = 2;
@@ -83,22 +83,25 @@ function shingleTexture() {
 
 function priceTexture(label) {
   const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 128;
+  c.width = 512;
+  c.height = 256;
   const g = c.getContext('2d');
-  g.clearRect(0, 0, 256, 128);
-  g.fillStyle = '#3cba4e';
+  g.clearRect(0, 0, 512, 256);
+  g.fillStyle = '#3ddc58';
   g.beginPath();
-  g.roundRect(16, 34, 56, 60, 16);
+  g.roundRect(28, 48, 150, 160, 28);
   g.fill();
+  g.strokeStyle = '#f3ffe8';
+  g.lineWidth = 8;
+  g.strokeRect(52, 78, 104, 84);
   g.fillStyle = '#ffffff';
-  g.font = '800 34px sans-serif';
+  g.font = '800 78px sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText('$', 44, 66);
-  g.font = '800 64px sans-serif';
+  g.fillText('$', 104, 128);
+  g.font = '800 120px sans-serif';
   g.textAlign = 'left';
-  g.fillText(String(label).replace('$', ''), 84, 68);
+  g.fillText(String(label).replace('$', ''), 200, 136);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -146,9 +149,11 @@ export function createWorld(canvas, fx) {
     powerPreference: 'high-performance',
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.32;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(GRASS, 1);
+  renderer.setClearColor(0xb6f56e, 1);
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(GRASS, 900, 2200);
@@ -160,11 +165,14 @@ export function createWorld(canvas, fx) {
   const hitPoint = new THREE.Vector3();
   const proj = new THREE.Vector3();
 
-  const hemi = new THREE.HemisphereLight(0xfff4d2, 0x6aaa48, 0.72);
+  const hemi = new THREE.HemisphereLight(0xfffaf0, 0x9ed86a, 1.05);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff1cc, 1.45);
+  const sun = new THREE.DirectionalLight(0xfff6df, 1.85);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(2048, 2048);
+  const rim = new THREE.DirectionalLight(0xfff1c2, 0.45);
+  rim.position.set(-180, 120, -140);
+  scene.add(rim);
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 1.2;
   sun.shadow.camera.near = 10;
@@ -180,14 +188,14 @@ export function createWorld(canvas, fx) {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  const sand = new THREE.Mesh(new THREE.CircleGeometry(210, 28), toon(0xe7c56a));
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(210, 28), toon(0xf6d35a));
   sand.rotation.x = -Math.PI / 2;
   sand.position.set(980, 0.15, 210);
   sand.scale.set(1.3, 0.85, 1);
   sand.receiveShadow = true;
   scene.add(sand);
 
-  const road = new THREE.Mesh(new THREE.BoxGeometry(LAYOUT.road.w, 1.6, 46), toon(0xb7bdc6));
+  const road = new THREE.Mesh(new THREE.BoxGeometry(LAYOUT.road.w, 1.6, 46), toon(0xe7e4dc));
   road.position.set(LAYOUT.road.x + LAYOUT.road.w / 2, 0.7, LAYOUT.road.y + 16);
   road.receiveShadow = true;
   scene.add(road);
@@ -215,12 +223,14 @@ export function createWorld(canvas, fx) {
 
   const trunkGeo = new THREE.CylinderGeometry(3.1, 4.2, 16, 7);
   trunkGeo.translate(0, 8, 0);
-  const puffGeo = new THREE.SphereGeometry(12, 12, 9);
-  puffGeo.translate(0, 22, 0);
-  const puff2 = new THREE.SphereGeometry(8.5, 10, 8);
-  puff2.translate(-7, 28, 2);
-  const puff3 = new THREE.SphereGeometry(7.2, 10, 8);
-  puff3.translate(6, 26, -3);
+  const puffGeo = new THREE.SphereGeometry(15, 14, 10);
+  puffGeo.translate(0, 24, 0);
+  const puff2 = new THREE.SphereGeometry(11, 12, 9);
+  puff2.translate(-9, 32, 3);
+  const puff3 = new THREE.SphereGeometry(10, 12, 9);
+  puff3.translate(8, 30, -4);
+  const puffHi = new THREE.SphereGeometry(6.4, 10, 8);
+  puffHi.translate(3, 36, 5);
   const pineGeo = new THREE.ConeGeometry(11, 28, 7);
   pineGeo.translate(0, 22, 0);
   const shadowGeo = new THREE.CircleGeometry(13, 12);
@@ -228,10 +238,10 @@ export function createWorld(canvas, fx) {
   shadowGeo.translate(0, 0.35, 0);
 
   const trunkMat = toon(0x8a5a34);
-  const leafMat = toon(0x2f9a45);
-  const leafMat2 = toon(0x49c05a);
+  const leafMat = toon(0x3ad24a);
+  const leafMat2 = toon(0xc8f56e);
   const pineMat = toon(0x1f7a3c);
-  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x1c3a18, transparent: true, opacity: 0.22, depthWrite: false });
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x143014, transparent: true, opacity: 0.3, depthWrite: false });
 
   function instances(geo, mat, n) {
     const mesh = new THREE.InstancedMesh(geo, mat, n);
@@ -249,12 +259,14 @@ export function createWorld(canvas, fx) {
   const leavesA = instances(puffGeo, leafMat, nTrees);
   const leavesB = instances(puff2, leafMat2, nTrees);
   const leavesC = instances(puff3, leafMat, nTrees);
+  const leavesHi = instances(puffHi, leafMat2, nTrees);
   const pines = instances(pineGeo, pineMat, nTrees);
   const shades = instances(shadowGeo, shadowMat, nTrees);
   trunks.castShadow = false;
   leavesA.castShadow = false;
   leavesB.castShadow = false;
   leavesC.castShadow = false;
+  leavesHi.castShadow = false;
   pines.castShadow = false;
   for (let i = 0; i < nTrees; i++) {
     const t = trees[i];
@@ -271,10 +283,12 @@ export function createWorld(canvas, fx) {
       leavesA.setMatrixAt(i, dummy.matrix);
       leavesB.setMatrixAt(i, dummy.matrix);
       leavesC.setMatrixAt(i, dummy.matrix);
+      leavesHi.setMatrixAt(i, dummy.matrix);
     } else {
       leavesA.setMatrixAt(i, dummy.matrix);
       leavesB.setMatrixAt(i, dummy.matrix);
       leavesC.setMatrixAt(i, dummy.matrix);
+      leavesHi.setMatrixAt(i, dummy.matrix);
       dummy.scale.set(0.001, 0.001, 0.001);
       dummy.updateMatrix();
       pines.setMatrixAt(i, dummy.matrix);
@@ -284,6 +298,7 @@ export function createWorld(canvas, fx) {
   leavesA.instanceMatrix.needsUpdate = true;
   leavesB.instanceMatrix.needsUpdate = true;
   leavesC.instanceMatrix.needsUpdate = true;
+  leavesHi.instanceMatrix.needsUpdate = true;
   pines.instanceMatrix.needsUpdate = true;
   shades.instanceMatrix.needsUpdate = true;
 
@@ -360,11 +375,14 @@ export function createWorld(canvas, fx) {
   gable.lineTo(30, 0);
   const roofGeo = new THREE.ExtrudeGeometry(gable, { depth: 48, bevelEnabled: false });
   roofGeo.translate(0, 0, -24);
-  const roof = addMesh(roofGeo, toon(0x2a9d92, { map: shingleTexture() }), 0, 34, 0, barn);
+  const roof = addMesh(roofGeo, toon(0x3ad4c8, { map: shingleTexture() }), 0, 34, 0, barn);
   roof.rotation.y = 0;
-  addMesh(new THREE.BoxGeometry(16, 20, 2), toon(0xf7f1e6), 0, 11, 22, barn);
-  addMesh(new THREE.BoxGeometry(1.2, 16, 1.2), toon(0xe23b3b), 0, 11, 23.2, barn);
-  addMesh(new THREE.BoxGeometry(12, 1.2, 1.2), toon(0xe23b3b), 0, 11, 23.2, barn);
+  addMesh(new THREE.BoxGeometry(18, 22, 1.4), toon(0xfffaf2), 0, 12, 21.2, barn);
+  addMesh(new THREE.BoxGeometry(14, 18, 1.2), toon(0xc62828), 0, 11, 22.2, barn);
+  const x1 = addMesh(new THREE.BoxGeometry(16, 2.4, 1.4), toon(0xffffff), 0, 12, 23.2, barn);
+  x1.rotation.z = 0.78;
+  const x2 = addMesh(new THREE.BoxGeometry(16, 2.4, 1.4), toon(0xffffff), 0, 12, 23.5, barn);
+  x2.rotation.z = -0.78;
   addMesh(new THREE.BoxGeometry(8, 8, 2), toon(0x1b1b1b), 0, 40, 8, barn);
   addMesh(new THREE.BoxGeometry(5, 5, 1.5), toon(0xffe7a0), 0, 40, 9.2, barn);
   placeBuilding('barn', 555, 392, barn);
@@ -448,8 +466,8 @@ export function createWorld(canvas, fx) {
 
   const sleeperGeo = new THREE.BoxGeometry(7, 2.4, 20);
   const railGeo = new THREE.BoxGeometry(16, 1.8, 2.6);
-  const sleepers = new THREE.InstancedMesh(sleeperGeo, toon(0x9a5c32), 700);
-  const rails = new THREE.InstancedMesh(railGeo, toon(0xf4f7fb), 1400);
+  const sleepers = new THREE.InstancedMesh(sleeperGeo, toon(0xe07a32), 700);
+  const rails = new THREE.InstancedMesh(railGeo, toon(0xd5dbe3), 1400);
   sleepers.castShadow = true;
   sleepers.receiveShadow = true;
   rails.castShadow = true;
@@ -526,9 +544,10 @@ export function createWorld(canvas, fx) {
 
   function makeTruck() {
     const g = new THREE.Group();
-    addMesh(new THREE.BoxGeometry(16, 10, 12), toon(0xd23a32), 4, 8, 0, g);
-    addMesh(new THREE.BoxGeometry(12, 8, 12), toon(0xb87333), -10, 7, 0, g);
-    addMesh(new THREE.BoxGeometry(6, 5, 2), toon(0xd7f0ff), 6, 10, 6.2, g);
+    addMesh(new THREE.BoxGeometry(18, 12, 14), toon(0xe23b3b), 6, 9, 0, g);
+    addMesh(new THREE.BoxGeometry(14, 9, 14), toon(0xc47a3a), -10, 8, 0, g);
+    addMesh(new THREE.BoxGeometry(7, 5, 1.4), toon(0xd7f0ff), 8, 11, 7.2, g);
+    addMesh(new THREE.BoxGeometry(4, 3, 14.2), toon(0xf2d23a), 2, 6, 0, g);
     const wheel = new THREE.CylinderGeometry(2.4, 2.4, 2, 8);
     wheel.rotateX(Math.PI / 2);
     addMesh(wheel, toon(0x222222), -8, 2.4, 6, g);
@@ -544,6 +563,32 @@ export function createWorld(canvas, fx) {
     t.rotation.y = -Math.PI / 5;
     scene.add(t);
     parked.push(t);
+  }
+
+  const placedRoot = new THREE.Group();
+  scene.add(placedRoot);
+  let placedKey = '';
+  const ghost = new THREE.Mesh(
+    new THREE.BoxGeometry(42, 16, 42),
+    new THREE.MeshToonMaterial({ color: 0x7cff6b, transparent: true, opacity: 0.5, gradientMap: gradient }),
+  );
+  ghost.visible = false;
+  ghost.position.y = 8;
+  scene.add(ghost);
+
+  function structure(kind) {
+    const g = new THREE.Group();
+    const colors = { warehouse: 0xd7d2c4, mill: 0xc47a3a, cheese: 0xf6d35a, bakery: 0xf2c14e, rail: 0xe07a32 };
+    if (kind === 'rail') {
+      addMesh(new THREE.BoxGeometry(36, 2.2, 16), toon(0xe07a32), 0, 1.2, 0, g);
+      addMesh(new THREE.BoxGeometry(36, 1.4, 2.2), toon(0xd5dbe3), 0, 2.6, -4, g);
+      addMesh(new THREE.BoxGeometry(36, 1.4, 2.2), toon(0xd5dbe3), 0, 2.6, 4, g);
+      return g;
+    }
+    addMesh(new THREE.BoxGeometry(30, 18, 24), toon(colors[kind] || 0xdddddd), 0, 9, 0, g);
+    const top = addMesh(new THREE.ConeGeometry(20, 12, 4), toon(kind === 'bakery' ? 0xd4533c : 0x2a9d92), 0, 22, 0, g);
+    top.rotation.y = Math.PI / 4;
+    return g;
   }
 
   const hand = new THREE.Group();
@@ -673,19 +718,31 @@ export function createWorld(canvas, fx) {
   let viewW = 1;
   let viewH = 1;
   let sized = '';
+  let ratioCap = 3;
+  let slowTime = 0;
   let camState = { x: LAYOUT.focus.x, y: LAYOUT.focus.y, z: 0.8 };
 
-  function resize(w, h, dpr) {
-    const key = w + 'x' + h + '@' + dpr;
+  function resize(w, h, dpr, dt) {
+    if (dt && dt < 0.08) {
+      if (dt > 1 / 45) slowTime += dt;
+      else slowTime = Math.max(0, slowTime - dt);
+      if (slowTime > 3 && ratioCap > 1) {
+        ratioCap = Math.max(1, ratioCap - 0.5);
+        slowTime = 0;
+        sized = '';
+      }
+    }
+    const ratio = Math.min(dpr || 1, ratioCap);
+    const key = w + 'x' + h + '@' + ratio;
     if (key === sized) return;
     sized = key;
     viewW = w;
     viewH = h;
-    renderer.setPixelRatio(dpr);
+    renderer.setPixelRatio(ratio);
     renderer.setSize(w, h, false);
     if (fx) {
-      fx.width = Math.max(1, Math.round(w * dpr));
-      fx.height = Math.max(1, Math.round(h * dpr));
+      fx.width = Math.max(1, Math.round(w * ratio));
+      fx.height = Math.max(1, Math.round(h * ratio));
     }
   }
 
@@ -808,7 +865,7 @@ export function createWorld(canvas, fx) {
   function draw(env) {
     const view = env.view;
     camState = env.cam;
-    resize(env.w, env.h, env.dpr);
+    resize(env.w, env.h, env.dpr, env.dt || 0);
     syncCamera();
     if (view.rev !== railRev && view.poly) {
       rebuildRails(view.poly);
@@ -903,6 +960,25 @@ export function createWorld(canvas, fx) {
       const k = 1 + Math.sin(Math.min(1, u) * Math.PI) * 0.16;
       node.scale.set(k, k, k);
     }
+
+    const placed = view.placed || [];
+    const key = placed.map((p) => p.id + ':' + p.rot).join('|');
+    if (key !== placedKey) {
+      placedKey = key;
+      while (placedRoot.children.length) placedRoot.remove(placedRoot.children[0]);
+      for (let i = 0; i < placed.length; i++) {
+        const item = structure(placed[i].kind);
+        item.position.set(placed[i].x, 0, placed[i].y);
+        item.rotation.y = (placed[i].rot || 0) * Math.PI / 2;
+        placedRoot.add(item);
+      }
+    }
+    if (env.ghost) {
+      ghost.visible = true;
+      ghost.position.set(env.ghost.x, 8, env.ghost.y);
+      ghost.material.color.set(env.ghost.ok ? 0x7cff6b : 0xff5b4a);
+      ghost.rotation.y = (env.ghost.rot || 0) * Math.PI / 2;
+    } else ghost.visible = false;
 
     renderer.render(scene, camera);
     drawFx(env);

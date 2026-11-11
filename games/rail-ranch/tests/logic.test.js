@@ -11,6 +11,9 @@ import {
   debugLayout,
   incomeOf,
   OFFLINE_CAP,
+  place,
+  preview,
+  railSlots,
 } from '../js/sim.js';
 
 test('layout puts every stop on the rail', () => {
@@ -95,4 +98,37 @@ test('save data round-trips', () => {
   assert.equal(copy.producers.coop.owned, state.producers.coop.owned);
   assert.equal(copy.lifetime, state.lifetime);
   assert.equal(buy(copy, 'p:coop').ok, false);
+  assert.equal(copy.placed.length, state.placed.length);
+});
+
+test('old saves migrate and chains stay behind a warehouse cap', () => {
+  const migrated = hydrate({ v: 1, cash: 800, wagons: 2, lifetime: 800, totalEarned: 800 });
+  assert.equal(migrated.cash, 800);
+  assert.equal(migrated.wagons, 2);
+  assert.equal(migrated.level, 1);
+  assert.equal(preview(migrated, 'mill', 240, 180).reason, 'level');
+  migrated.level = 3;
+  migrated.xp = 300;
+  migrated.cash = 5000;
+  let built = null;
+  for (let x = 80; x < 1400 && !built; x += 48) {
+    for (let y = 80; y < 700 && !built; y += 48) {
+      if (preview(migrated, 'mill', x, y).ok && preview(migrated, 'bakery', x + 80, y).ok) {
+        assert.equal(place(migrated, 'mill', x, y, 0).ok, true);
+        assert.equal(place(migrated, 'bakery', x + 80, y, 1).ok, true);
+        built = true;
+      }
+    }
+  }
+  assert.ok(built);
+  migrated.warehouse.wheat = 6;
+  const earned = migrated.totalEarned;
+  for (let i = 0; i < 4; i++) step(migrated, 2, false);
+  assert.ok((migrated.warehouse.flour || 0) > 0 || migrated.warehouse.wheat < 6 || migrated.totalEarned > earned);
+  const slot = railSlots(0)[0];
+  const rail = place(migrated, 'rail', slot.gx * 48 + 24, slot.gy * 48 + 24, 0);
+  assert.equal(rail.ok, true);
+  const again = hydrate(serialize(migrated));
+  assert.equal(again.placed.length, migrated.placed.length);
+  assert.equal(again.warehouse.flour || 0, migrated.warehouse.flour || 0);
 });
