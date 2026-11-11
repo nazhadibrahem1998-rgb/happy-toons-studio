@@ -104,7 +104,7 @@ function newRun(){
   G.prevBest=mode==='daily'?(S.daily[G.daySeed]||0):S.best;
   while(G.spawnA<G.th+TAU-1.0)spawnPattern();
 }
-var lastStart=0;
+var lastStart=-1000;
 function startRun(){var now=performance.now();if(now-lastStart<350)return;lastStart=now;initAudio();if(AC&&AC.state==='suspended')AC.resume();newRun();state='play';paused=false;armBack();
   if(AC){nextBeat=AC.currentTime+0.05;beatN=0;}
   show('start',false);show('over',false);$('hud').style.opacity=1;$('unlock').textContent='';$('coach').hidden=false;syncPauseBtn();}
@@ -154,7 +154,7 @@ function panelOpen(){return $('skins').classList.contains('on')||$('achp').class
 function setMode(m){mode=m;$('mClassic').classList.toggle('sel',m==='classic');$('mDaily').classList.toggle('sel',m==='daily');refreshStart();}
 function refreshStart(){$('startBest').innerHTML=mode==='daily'?'<span class="daily">Daily run &middot; same course for everyone today</span><br>Today\'s best '+(S.daily[today()]||0):'Best '+S.best;}
 function bind(id,fn){
-  var el=$(id),arm=false,sx=0,sy=0,moved=false,last=0;
+  var el=$(id),arm=false,sx=0,sy=0,moved=false,last=-1000;
   function go(){var n=performance.now();if(n-last<400)return;last=n;fn();}
   el.addEventListener('pointerdown',function(e){e.stopPropagation();if(e.pointerType==='mouse'&&e.button!==0)return;arm=true;sx=e.clientX;sy=e.clientY;moved=false;});
   el.addEventListener('pointermove',function(e){if(Math.hypot(e.clientX-sx,e.clientY-sy)>12)moved=true;});
@@ -162,13 +162,19 @@ function bind(id,fn){
   el.addEventListener('pointercancel',function(){arm=false;});
   el.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();go();});
 }
-function onScreenTap(el){
+function onScreenTap(el, immediate){
   var sx=0,sy=0,moved=false,arm=false;
-  el.addEventListener('pointerdown',function(e){if(e.target.closest&&e.target.closest('button,a,.chip,.swatch,.btn'))return;arm=true;sx=e.clientX;sy=e.clientY;moved=false;});
-  el.addEventListener('pointermove',function(e){if(Math.hypot(e.clientX-sx,e.clientY-sy)>12)moved=true;});
-  el.addEventListener('pointerup',function(e){if(!arm||moved){arm=false;return;}arm=false;if(e.target.closest&&e.target.closest('button,a,.chip,.swatch,.btn'))return;tapGame();});
+  function control(e){return e.target.closest&&e.target.closest('button,a,.chip,.swatch,.btn');}
+  el.addEventListener('pointerdown',function(e){
+    if(control(e))return;
+    if(immediate){if(e.cancelable)e.preventDefault();tapGame();return;}
+    arm=true;sx=e.clientX;sy=e.clientY;moved=false;
+  });
+  el.addEventListener('pointermove',function(e){if(Math.hypot(e.clientX-sx,e.clientY-sy)>24)moved=true;});
+  el.addEventListener('pointerup',function(e){if(!arm||moved||control(e)){arm=false;return;}arm=false;tapGame();});
+  el.addEventListener('pointercancel',function(){arm=false;});
 }
-onScreenTap($('start'));onScreenTap($('over'));
+onScreenTap($('start'),true);onScreenTap($('over'),false);
 bind('mute',function(){initAudio();setMute(!S.muted);});
 bind('pause',function(){setPaused(!paused);});
 bind('mClassic',function(){setMode('classic')});bind('mDaily',function(){setMode('daily')});

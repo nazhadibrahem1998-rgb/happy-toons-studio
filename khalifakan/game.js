@@ -107,6 +107,7 @@ const Audio = (() => {
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    if (ctx.state === 'suspended') ctx.resume();
     master = ctx.createGain(); master.gain.value = muted ? 0 : 0.32;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -18; comp.knee.value = 14; comp.ratio.value = 10; comp.attack.value = 0.003; comp.release.value = 0.18;
@@ -1275,7 +1276,7 @@ function syncFullBtn() {
 }
 function onTap(el, fn) {
   if (!el) return;
-  let lock = 0;
+  let lock = -1000;
   const run = () => { const now = performance.now(); if (now - lock < 400) return; lock = now; fn(); };
   el.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;

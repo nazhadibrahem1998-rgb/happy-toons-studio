@@ -336,12 +336,20 @@
   var booted = false;
   var pending = false;
   var timer = setTimeout(function () { if (!booted && el) el.hidden = false; }, 300);
-  if (btn) btn.addEventListener('click', function (e) {
+  function arm(e) {
     if (booted) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     pending = true;
-    if (e.cancelable) e.preventDefault();
-    e.stopImmediatePropagation();
-  }, true);
+  }
+  if (btn) {
+    btn.addEventListener('pointerdown', arm, true);
+    btn.addEventListener('click', function (e) {
+      if (booted) return;
+      pending = true;
+      if (e.cancelable) e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
+  }
   window.__htsBoot = function (start) {
     booted = true;
     clearTimeout(timer);

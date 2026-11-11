@@ -255,7 +255,7 @@ function armBack() {
 }
 function guarded(el, fn) {
   if (!el) return;
-  let last = 0;
+  let last = -1000;
   let sx = 0;
   let sy = 0;
   let moved = false;
@@ -274,7 +274,7 @@ function guarded(el, fn) {
     moved = false;
   });
   el.addEventListener('pointermove', (event) => {
-    if (Math.hypot(event.clientX - sx, event.clientY - sy) > 16) moved = true;
+    if (Math.hypot(event.clientX - sx, event.clientY - sy) > 28) moved = true;
   });
   el.addEventListener('pointerup', (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
