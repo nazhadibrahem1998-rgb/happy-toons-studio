@@ -58,24 +58,24 @@ const GATES = [
 export const LAYOUT = {
   worldW: WORLD_W,
   worldH: WORLD_H,
-  market: { x: 555, y: 628 },
-  wagon: { x: 545, y: 755 },
-  engine: { x: 730, y: 705 },
-  truck: { x: 390, y: 775 },
-  focus: { x: 520, y: 560 },
-  road: { x: 170, y: 812, w: 760, h: 42 },
-  fence: { x: 478, y: 318, w: 156, h: 128 },
+  market: { x: 590, y: 530 },
+  wagon: { x: 690, y: 505 },
+  engine: { x: 745, y: 455 },
+  truck: { x: 625, y: 535 },
+  focus: { x: 555, y: 400 },
+  road: { x: 500, y: 590, x2: 820, y2: 490, w: 340, h: 42 },
+  fence: { x: 470, y: 308, w: 172, h: 148 },
   park: [
-    { x: 250, y: 828 },
-    { x: 318, y: 828 },
-    { x: 386, y: 828 },
-    { x: 454, y: 828 },
+    { x: 545, y: 575 },
+    { x: 700, y: 545 },
+    { x: 790, y: 500 },
+    { x: 860, y: 470 },
   ],
 };
 
 const PRODUCERS = [
   { id: 'barn', name: 'Red Barn', good: 'milk', noun: 'Milk', x: 555, y: 392, interval: 1.75, price: 5, cap: 12, up: 44, track: 0, owned: true },
-  { id: 'coop', name: 'Hen House', good: 'eggs', noun: 'Eggs', x: 430, y: 688, interval: 1.35, price: 4, cap: 14, up: 62, track: 0, cost: 46 },
+  { id: 'coop', name: 'Hen House', good: 'eggs', noun: 'Eggs', x: 500, y: 500, interval: 1.35, price: 4, cap: 14, up: 62, track: 0, cost: 46 },
   { id: 'wheat', name: 'Wheat Field', good: 'wheat', noun: 'Wheat', x: 990, y: 248, interval: 2.15, price: 8, cap: 12, up: 130, track: 1, cost: 210 },
   { id: 'sheep', name: 'Sheep Pen', good: 'wool', noun: 'Wool', x: 1088, y: 455, interval: 2.5, price: 13, cap: 10, up: 230, track: 1, cost: 620 },
   { id: 'orchard', name: 'Apple Orchard', good: 'apples', noun: 'Apples', x: 240, y: 155, interval: 2.0, price: 11, cap: 12, up: 400, track: 2, cost: 1450 },
@@ -376,7 +376,7 @@ function freshProducers() {
 function placeTrain(state) {
   const world = ensureWorld(state);
   const barn = world.stations.find((s) => s.id === 'barn');
-  state.trainDist = barn ? (barn.at - 32 + world.length) % world.length : 0;
+  state.trainDist = barn ? (barn.at - 110 + world.length) % world.length : 0;
 }
 
 export function createState() {
@@ -972,7 +972,7 @@ export function mapSigns(state) {
 export function hitTest(state, x, y) {
   const signs = mapSigns(state);
   let best = null;
-  let bestD = 48;
+  let bestD = 72;
   for (let i = 0; i < signs.length; i++) {
     const s = signs[i];
     const d = Math.hypot(s.x - x, s.y - y);
@@ -997,7 +997,7 @@ export function hitTest(state, x, y) {
 export function view(state) {
   const world = ensureWorld(state);
   const poses = [];
-  const gap = 36;
+  const gap = 58;
   for (let i = state.wagons; i >= 1; i--) {
     const p = samplePoly(world, state.trainDist - gap * i - 8);
     poses.push({ x: p.x, y: p.y, ang: p.ang, engine: false, index: i });
@@ -1014,8 +1014,8 @@ export function view(state) {
     piles.push({
       id: p.id,
       good: p.good,
-      x: p.x + (p.id === 'barn' ? 46 : 34),
-      y: p.y + (p.id === 'barn' ? 48 : 16),
+      x: p.x + (p.id === 'barn' ? 58 : 34),
+      y: p.y + (p.id === 'barn' ? -28 : 16),
       n: st.stock,
       cap: capOf(state, p.id),
     });

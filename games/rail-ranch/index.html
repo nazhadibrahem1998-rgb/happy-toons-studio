@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#7dce54">
+<meta name="theme-color" content="#6ed63a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="Rail Ranch — run a looping train around your ranch, sell milk, eggs, wheat and wool, and grow the farm.">
@@ -15,7 +15,7 @@
     margin: 0;
     height: 100%;
     overflow: hidden;
-    background: #7dce54;
+    background: #6ed63a;
     color: #1c3314;
     font-family: "ui-rounded", "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
     overscroll-behavior: none;
@@ -38,9 +38,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #7dce54;
+    background: #6ed63a;
     color: #17331a;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 900;
     letter-spacing: 0.5px;
   }
@@ -75,32 +75,38 @@
   #money {
     position: absolute;
     right: calc(env(safe-area-inset-right) + 10px);
-    top: calc(env(safe-area-inset-top) + 10px);
+    top: calc(env(safe-area-inset-top) + 8px);
     display: flex;
     align-items: center;
-    gap: 6px;
-    min-width: 92px;
-    padding: 6px 12px 6px 6px;
-    border-radius: 999px;
-    background: linear-gradient(#8ee07a, #2f9a45 46%, #1c7a32);
+    gap: 10px;
+    min-width: 128px;
+    min-height: 58px;
+    padding: 6px 18px 6px 8px;
+    border-radius: 30px;
+    background: linear-gradient(#9aef72, #2f9a45 42%, #187a32);
     color: white;
-    border: 3px solid #0f5a22;
-    box-shadow: inset 0 2px 0 rgba(255,255,255,.45), 0 3px 0 #145c22, 0 8px 16px rgba(20, 60, 20, .25);
-    font-weight: 800;
-    font-size: 20px;
+    border: 4px solid #0c4e1c;
+    box-shadow: inset 0 3px 0 rgba(255,255,255,.5), 0 4px 0 #0e5a20, 0 10px 18px rgba(20, 60, 20, .28);
+    font-weight: 900;
+    font-size: 34px;
+    letter-spacing: -0.5px;
     font-variant-numeric: tabular-nums;
+    font-family: "ui-rounded", "Arial Rounded MT Bold", "Nunito", system-ui, sans-serif;
   }
-  .coin {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: #ffe56a;
-    color: #6a4a00;
+  .bill {
+    width: 48px;
+    height: 32px;
+    border-radius: 6px;
+    background: linear-gradient(#b6ff78, #2fbe4a);
+    color: white;
+    border: 2px solid #f4ffe8;
+    box-shadow: inset 0 0 0 2px rgba(12, 90, 30, .25);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 15px;
+    font-size: 18px;
     font-weight: 900;
+    flex: none;
   }
   #cash.pop { animation: pop .28s ease; }
   @keyframes pop { 50% { transform: scale(1.12); } }
@@ -147,8 +153,8 @@
   #goalLabel {
     display: block;
     margin-top: 4px;
-    font-size: 13px;
-    font-weight: 800;
+    font-size: 16px;
+    font-weight: 900;
     color: #1c3314;
     text-shadow: 0 1px 0 rgba(255,255,255,.75);
   }
@@ -276,7 +282,7 @@
 <div id="hud">
   <a class="all" href="../">All games</a>
   <p id="best">Best —</p>
-  <div id="money" aria-live="polite"><span class="coin">$</span><b id="cash">0</b></div>
+  <div id="money" aria-live="polite"><span class="bill">$</span><b id="cash">0</b></div>
   <button id="mute" type="button" aria-label="Sound" aria-pressed="false">
     <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
       <path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/>

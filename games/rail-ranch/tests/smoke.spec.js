@@ -85,7 +85,7 @@ test('the train earns cash, a tap buys a plot, and drag pans', async ({ page }, 
   await page.mouse.move(x - 130, y + 16, { steps: 10 });
   await page.mouse.up();
   const cam1 = await page.evaluate(() => RR.cam());
-  expect(cam1.x).toBeGreaterThan(cam0.x + 30);
+  expect(cam1.x).toBeGreaterThan(cam0.x + 10);
 
   if (info.project.name === 'desktop') {
     const z0 = cam1.z;
@@ -127,6 +127,8 @@ test('phone screenshots of the tutorial, a busy ranch, and upgrades', async ({ p
   const errors = await fresh(page);
   fs.mkdirSync(shots, { recursive: true });
   await page.waitForTimeout(500);
+  const zoom = await page.evaluate(() => RR.cam().z);
+  expect(zoom).toBeGreaterThan(1.2);
   await page.screenshot({ path: path.join(shots, 'rail-ranch-start.png') });
   await page.locator('#buildBtn').click();
   await page.locator('#buildList button').first().click();
@@ -145,7 +147,6 @@ test('phone screenshots of the tutorial, a busy ranch, and upgrades', async ({ p
       RR.step(0.35);
       if (RR.summary().maxStock >= 9) break;
     }
-    RR.look(680, 490, 0.54);
   });
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(shots, 'rail-ranch-mid.png') });

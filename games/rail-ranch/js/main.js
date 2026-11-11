@@ -391,7 +391,7 @@ function toWorld(clientX, clientY) {
 
 function zoomAt(clientX, clientY, factor) {
   const before = toWorld(clientX, clientY);
-  cam.z = Math.max(0.45, Math.min(2.1, cam.z * factor));
+  cam.z = Math.max(0.36, Math.min(3.1, cam.z * factor));
   const after = toWorld(clientX, clientY);
   cam.x += before.x - after.x;
   cam.y += before.y - after.y;
@@ -401,7 +401,7 @@ function zoomAt(clientX, clientY, factor) {
 function clampCam() {
   cam.x = Math.max(20, Math.min(LAYOUT.worldW - 20, cam.x));
   cam.y = Math.max(20, Math.min(LAYOUT.worldH - 20, cam.y));
-  cam.z = Math.max(0.45, Math.min(2.1, cam.z));
+  cam.z = Math.max(0.36, Math.min(3.1, cam.z));
 }
 
 function handleTap(clientX, clientY) {
@@ -491,8 +491,8 @@ function fitCam() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const z = w < 800
-    ? Math.max(0.55, Math.min(0.92, (w - 16) / 640))
-    : Math.max(0.85, Math.min(1.45, Math.min((w - 32) / 860, (h - 32) / 680)));
+    ? Math.max(1.35, Math.min(2.05, (w - 16) / 256))
+    : Math.max(1.15, Math.min(1.9, Math.min((w - 32) / 520, (h - 32) / 420)));
   return { x: LAYOUT.focus.x, y: LAYOUT.focus.y, z };
 }
 
