@@ -249,9 +249,9 @@
       <div><span data-i18n="best">Best time</span> <b id="finishBest">—</b></div>
       <div><span data-i18n="highest">Highest floor</span> <b id="finishHighest">—</b></div>
     </div>
+    <button type="button" id="finishAgain" class="btn" data-i18n="playAgain">One more try</button>
     <div id="finishScore"></div>
     <ol id="raceResults" hidden></ol>
-    <button type="button" id="finishAgain" class="btn" data-i18n="playAgain">Play again</button>
     <div id="finishTry"></div>
     <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">Menu</button>
     <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
@@ -359,6 +359,19 @@
 })();
 </script>
 <script src="../assets/js/game-scores.js" defer></script>
-<script type="module" src="game.js"></script>
+<script type="module">
+/* The 3D engine stays off the menu. The first Play tap starts the download. */
+(function () {
+  var started = false;
+  function load() {
+    if (started) return;
+    started = true;
+    import('./game.js');
+  }
+  var play = document.getElementById('playBtn');
+  if (play) play.addEventListener('pointerdown', load, true);
+  if (/[?&]autostart(?:=|&|$)/.test(location.search) || /[?&]test(?:=|&|$)/.test(location.search)) load();
+})();
+</script>
 </body>
 </html>

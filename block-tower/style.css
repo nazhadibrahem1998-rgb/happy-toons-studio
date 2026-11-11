@@ -419,6 +419,12 @@ textarea {
   opacity: 0;
 }
 #toast.on { opacity: 1; }
+body.juicy #c { animation: juicy 0.18s ease-out; }
+@keyframes juicy {
+  0% { transform: scale(1.02); }
+  50% { transform: translate(3px, -2px); }
+  100% { transform: none; }
+}
 #glLost {
   position: fixed;
   z-index: 30;

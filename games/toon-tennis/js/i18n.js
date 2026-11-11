@@ -53,7 +53,7 @@ export const STR = {
   drag: { en: 'Drag', ckb: 'ڕاکێشە' },
   rotate: { en: 'Turn your phone sideways', ckb: 'مۆبایلەکەت بخە بە ئاسۆیی' },
   creditKu: { en: '', ckb: 'دروستکراوە بە یارمەتی زیرەکی دەستکرد' },
-  playAgain: { en: 'Play again', ckb: 'دووبارە یاری بکە' },
+  playAgain: { en: 'One more try', ckb: 'جارێکی تر' },
   paused: { en: 'Paused', ckb: 'وەستاوە' },
 };
 

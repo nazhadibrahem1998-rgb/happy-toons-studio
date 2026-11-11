@@ -137,6 +137,12 @@ canvas {
   pointer-events: none;
 }
 #coach[hidden] { display: none !important; }
+body.juicy #app { animation: juicy 0.16s ease-out; }
+@keyframes juicy {
+  0% { transform: scale(1.012); }
+  40% { transform: translate(-2px, 1px); }
+  100% { transform: none; }
+}
 #banner {
   position: absolute;
   z-index: 4;

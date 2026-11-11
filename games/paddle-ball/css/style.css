@@ -253,6 +253,12 @@ a.hub {
   #hudBest { font-size: 0.68rem; }
 }
 
+body.juicy #app { animation: juicy 0.16s ease-out; }
+@keyframes juicy {
+  0% { transform: scale(1.015); }
+  45% { transform: translate(2px, -1px); }
+  100% { transform: none; }
+}
 body.hts-over { touch-action: pan-y; }
 #hudBest { font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
 

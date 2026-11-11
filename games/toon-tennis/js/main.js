@@ -538,6 +538,12 @@ const SOUND_EVENTS = new Set([
   'hit', 'bounce', 'net', 'fault', 'doublefault', 'let', 'out', 'point', 'game', 'match', 'deuce', 'adv', 'serve-in',
 ]);
 
+function juice() {
+  document.body.classList.remove('juicy');
+  void document.body.offsetWidth;
+  document.body.classList.add('juicy');
+}
+
 function tick(dt) {
   if (phase === 'pause') return;
   if (phase === 'menu') {
@@ -551,6 +557,7 @@ function tick(dt) {
   const events = step(state, readInputs(), dt);
   for (const name of events) {
     if (SOUND_EVENTS.has(name)) audio.play(name);
+    if (name === 'hit') juice();
   }
   if (state.stage === 'match') matchPanel.hidden = false;
 }

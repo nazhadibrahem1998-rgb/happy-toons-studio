@@ -528,6 +528,12 @@ function placeSnapped() {
   }
 }
 
+function juice() {
+  document.body.classList.remove('juicy');
+  void document.body.offsetWidth;
+  document.body.classList.add('juicy');
+}
+
 function tick(dt) {
   if (phase === 'pause') return;
   if (phase === 'menu') {
@@ -543,6 +549,7 @@ function tick(dt) {
   for (const name of events) {
     if (name === 'hit' || name === 'wall' || name === 'point' || name === 'match' || name === 'serve') {
       audio.play(name, rally);
+      if (name === 'hit') juice();
     }
   }
 }

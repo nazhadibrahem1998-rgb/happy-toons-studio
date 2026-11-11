@@ -818,6 +818,7 @@ function fillResults() {
 
 let backArmed = false;
 let coached = false;
+let jumpedOnce = false;
 function armBack() {
   if (backArmed) return;
   try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (err) {}
@@ -858,6 +859,12 @@ function flash() {
   ui.flash.classList.add('on');
   clearTimeout(flashHandle);
   flashHandle = setTimeout(() => ui.flash.classList.remove('on'), 120);
+}
+
+function pop() {
+  document.body.classList.remove('juicy');
+  void document.body.offsetWidth;
+  document.body.classList.add('juicy');
 }
 
 function showFinish() {
@@ -935,6 +942,7 @@ function markRun() {
 
 function restart() {
   coached = false;
+  jumpedOnce = false;
   markRun();
   world = createState();
   applyProgress(world, progress);
@@ -1438,7 +1446,13 @@ function frame(now) {
     if (!holdRivals) decideRivals(world, dt);
     step(world, input, dt);
     if (!holdRivals) stepRivals(world, dt);
-    if (input.jump && world.player.vy > beforeY + 1) playJump();
+    if (input.jump && world.player.vy > beforeY + 1) {
+      playJump();
+      if (!jumpedOnce) {
+        jumpedOnce = true;
+        pop();
+      }
+    }
     collectGems();
     poll();
   }
