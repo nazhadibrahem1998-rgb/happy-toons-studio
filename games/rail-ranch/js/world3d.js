@@ -568,12 +568,12 @@ export function createWorld(canvas, fx) {
     scene.add(mesh);
     return mesh;
   }
-  const bottle = new THREE.CapsuleGeometry(2.5, 7.6, 4, 10);
-  bottle.translate(0, 6.4, 0);
-  const band = new THREE.CylinderGeometry(2.7, 2.7, 2.6, 10);
-  band.translate(0, 6.6, 0);
-  const cap = new THREE.CylinderGeometry(1.55, 1.55, 2.2, 10);
-  cap.translate(0, 11.4, 0);
+  const bottle = new THREE.CapsuleGeometry(3.75, 11.4, 4, 10);
+  bottle.translate(0, 9.6, 0);
+  const band = new THREE.CylinderGeometry(4.05, 4.05, 3.9, 10);
+  band.translate(0, 9.9, 0);
+  const cap = new THREE.CylinderGeometry(2.3, 2.3, 3.3, 10);
+  cap.translate(0, 17.1, 0);
   const piles = {
     milk: pileMesh(bottle, 0xf7fbff),
     milkBand: pileMesh(band, 0x2f7de1),
@@ -736,46 +736,6 @@ export function createWorld(canvas, fx) {
     return g;
   }
 
-  function gloveTexture() {
-    const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 256;
-    const g = c.getContext('2d');
-    g.lineJoin = 'round';
-    g.lineCap = 'round';
-    g.strokeStyle = '#214018';
-    g.lineWidth = 12;
-    g.fillStyle = '#ffffff';
-    g.beginPath();
-    g.ellipse(108, 78, 58, 46, 0, 0, Math.PI * 2);
-    g.fill();
-    g.stroke();
-    g.beginPath();
-    g.ellipse(52, 96, 20, 30, -0.7, 0, Math.PI * 2);
-    g.fill();
-    g.stroke();
-    g.beginPath();
-    g.roundRect(148, 70, 38, 130, 18);
-    g.fill();
-    g.stroke();
-    g.beginPath();
-    g.arc(167, 214, 22, 0, Math.PI * 2);
-    g.fill();
-    g.stroke();
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }
-  const hand = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: gloveTexture(),
-    transparent: true,
-    depthWrite: false,
-  }));
-  hand.center.set(0.65, 0.16);
-  hand.material.rotation = 0.15;
-  hand.renderOrder = 6;
-  scene.add(hand);
-
   const signRoot = new THREE.Group();
   scene.add(signRoot);
   const signById = new Map();
@@ -831,7 +791,7 @@ export function createWorld(canvas, fx) {
       for (let i = 0; i < wide && index < MAX_PILE; i++) {
         dummy.position.set(
           origin.x + (i - (wide - 1) / 2) * spread,
-          row * 8.4,
+          row * 12.6,
           origin.y,
         );
         dummy.rotation.set(0, 0, 0);
@@ -1039,9 +999,9 @@ export function createWorld(canvas, fx) {
       const pile = view.piles[i];
       const shown = pile.n <= 0 ? 0 : Math.min(MAX_PILE, pile.good === 'milk' ? pile.n * 2 : pile.n);
       if (pile.good === 'milk') {
-        layoutPile(piles.milk, null, pile, shown, 7.4);
-        layoutPile(piles.milkBand, null, pile, shown, 7.4);
-        layoutPile(piles.milkCap, null, pile, shown, 7.4);
+        layoutPile(piles.milk, null, pile, shown, 11.1);
+        layoutPile(piles.milkBand, null, pile, shown, 11.1);
+        layoutPile(piles.milkCap, null, pile, shown, 11.1);
       }
       else if (piles[pile.good]) layoutPile(piles[pile.good], null, pile, shown, 5.4);
     }
@@ -1100,14 +1060,6 @@ export function createWorld(canvas, fx) {
       );
       mover.rotation.y = -Math.atan2(LAYOUT.road.y2 - LAYOUT.road.y, LAYOUT.road.x2 - LAYOUT.road.x);
     }
-
-    const bob = Math.sin(env.time * 5) * 6;
-    if (view.hand) {
-      hand.visible = true;
-      const pulse = 74 + Math.sin(env.time * 5) * 8;
-      hand.position.set(view.hand.x + 4, 40, view.hand.y - 26);
-      hand.scale.set(pulse, pulse, 1);
-    } else hand.visible = false;
 
     cow.visible = !!owned.barn;
     cow.position.set(530 + Math.sin(env.time * 0.35) * 10, 0, 360 + Math.cos(env.time * 0.28) * 6);

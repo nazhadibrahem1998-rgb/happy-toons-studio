@@ -41,6 +41,7 @@ const confirmBox = document.getElementById('confirm');
 const offlineBox = document.getElementById('offline');
 const offlineAmount = document.getElementById('offlineAmount');
 const offlineNote = document.getElementById('offlineNote');
+const hint = document.getElementById('hint');
 
 const audio = createAudio();
 let world = null;
@@ -568,8 +569,10 @@ function frame(now) {
     saveStamp = 0;
     saveNow();
   }
+  const snap = view(state);
+  placeHint(snap);
   if (world) world.draw({
-    view: view(state),
+    view: snap,
     cam,
     w: viewW,
     h: viewH,
@@ -596,6 +599,18 @@ function resume() {
   state.wall = Date.now();
   saveNow();
   syncHud(true);
+}
+
+function placeHint(snap) {
+  if (!hint) return;
+  if (!world || !snap || !snap.hand) {
+    hint.hidden = true;
+    return;
+  }
+  const p = world.project(snap.hand.x, snap.hand.y, 6, cam);
+  hint.hidden = false;
+  hint.style.left = (p.x + 4) + 'px';
+  hint.style.top = (p.y - 34) + 'px';
 }
 
 function worldToClient(x, y) {
