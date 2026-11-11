@@ -436,8 +436,9 @@ export function createWorld(canvas, fx) {
       const steps = Math.floor(len / (dash + gap));
       for (let i = 0; i < steps; i++) {
         const t = (i * (dash + gap) + dash / 2) / len;
-        const piece = new THREE.Mesh(new THREE.BoxGeometry(dash, 2.2, 4.4), mat);
-        piece.position.set(x0 + (x1 - x0) * t, 2.2, z0 + (z1 - z0) * t);
+        const piece = new THREE.Mesh(new THREE.BoxGeometry(dash, 1.2, 3.2), mat);
+        piece.position.set(x0 + (x1 - x0) * t, 0.8, z0 + (z1 - z0) * t);
+        piece.renderOrder = 0;
         piece.rotation.y = -ang;
         scene.add(piece);
       }
@@ -567,13 +568,16 @@ export function createWorld(canvas, fx) {
     scene.add(mesh);
     return mesh;
   }
-  const bottle = new THREE.CapsuleGeometry(3.8, 9.4, 4, 8);
-  bottle.translate(0, 8, 0);
-  const cap = new THREE.CylinderGeometry(1.5, 1.5, 2.1, 8);
-  cap.translate(0, 11, 0);
+  const bottle = new THREE.CapsuleGeometry(2.5, 7.6, 4, 10);
+  bottle.translate(0, 6.4, 0);
+  const band = new THREE.CylinderGeometry(2.7, 2.7, 2.6, 10);
+  band.translate(0, 6.6, 0);
+  const cap = new THREE.CylinderGeometry(1.55, 1.55, 2.2, 10);
+  cap.translate(0, 11.4, 0);
   const piles = {
     milk: pileMesh(bottle, 0xf7fbff),
-    milkCap: pileMesh(cap, 0x4aa3e8),
+    milkBand: pileMesh(band, 0x2f7de1),
+    milkCap: pileMesh(cap, 0x1d4eaa),
     eggs: pileMesh(new THREE.SphereGeometry(2.8, 8, 6), 0xfff6e4),
     wheat: pileMesh(new THREE.BoxGeometry(5, 4, 4), 0xf0c14a),
     wool: pileMesh(new THREE.SphereGeometry(3.2, 8, 6), 0xffffff),
@@ -743,19 +747,19 @@ export function createWorld(canvas, fx) {
     g.lineWidth = 12;
     g.fillStyle = '#ffffff';
     g.beginPath();
-    g.ellipse(118, 150, 62, 48, 0, 0, Math.PI * 2);
+    g.ellipse(108, 78, 58, 46, 0, 0, Math.PI * 2);
     g.fill();
     g.stroke();
     g.beginPath();
-    g.ellipse(58, 168, 22, 34, -0.8, 0, Math.PI * 2);
+    g.ellipse(52, 96, 20, 30, -0.7, 0, Math.PI * 2);
     g.fill();
     g.stroke();
     g.beginPath();
-    g.roundRect(150, 28, 40, 130, 20);
+    g.roundRect(148, 70, 38, 130, 18);
     g.fill();
     g.stroke();
     g.beginPath();
-    g.arc(170, 36, 22, 0, Math.PI * 2);
+    g.arc(167, 214, 22, 0, Math.PI * 2);
     g.fill();
     g.stroke();
     const tex = new THREE.CanvasTexture(c);
@@ -767,8 +771,9 @@ export function createWorld(canvas, fx) {
     transparent: true,
     depthWrite: false,
   }));
-  hand.center.set(0.5, 0.5);
-  hand.material.rotation = -0.55;
+  hand.center.set(0.65, 0.16);
+  hand.material.rotation = 0.15;
+  hand.renderOrder = 6;
   scene.add(hand);
 
   const signRoot = new THREE.Group();
@@ -793,20 +798,8 @@ export function createWorld(canvas, fx) {
       node.userData.labelMesh = label;
       node.userData.pad = pad;
       node.userData.text = '';
-      if (sign.kind === 'plot') {
-        const pts = [
-          new THREE.Vector3(-48, 1.4, -30),
-          new THREE.Vector3(48, 1.4, -30),
-          new THREE.Vector3(48, 1.4, 30),
-          new THREE.Vector3(-48, 1.4, 30),
-        ];
-        const line = new THREE.LineLoop(
-          new THREE.BufferGeometry().setFromPoints(pts),
-          new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 3.5, gapSize: 2.2 }),
-        );
-        line.computeLineDistances();
-        node.add(line);
-      }
+      pad.renderOrder = 3;
+      label.renderOrder = 4;
       signRoot.add(node);
       signById.set(sign.buyId, node);
     }
@@ -838,10 +831,10 @@ export function createWorld(canvas, fx) {
       for (let i = 0; i < wide && index < MAX_PILE; i++) {
         dummy.position.set(
           origin.x + (i - (wide - 1) / 2) * spread,
-          row * spread * 0.82,
-          origin.y + ((i + row) % 2) * 1.4,
+          row * 8.4,
+          origin.y,
         );
-        dummy.rotation.set(0, (i + row) * 0.4, 0);
+        dummy.rotation.set(0, 0, 0);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         mesh.setMatrixAt(index, dummy.matrix);
@@ -1045,11 +1038,16 @@ export function createWorld(canvas, fx) {
     for (let i = 0; i < view.piles.length; i++) {
       const pile = view.piles[i];
       const shown = pile.n <= 0 ? 0 : Math.min(MAX_PILE, pile.good === 'milk' ? pile.n * 2 : pile.n);
-      if (pile.good === 'milk') layoutPile(piles.milk, piles.milkCap, pile, shown, 6.4);
+      if (pile.good === 'milk') {
+        layoutPile(piles.milk, null, pile, shown, 7.4);
+        layoutPile(piles.milkBand, null, pile, shown, 7.4);
+        layoutPile(piles.milkCap, null, pile, shown, 7.4);
+      }
       else if (piles[pile.good]) layoutPile(piles[pile.good], null, pile, shown, 5.4);
     }
     if (!view.piles.some((p) => p.good === 'milk')) {
       piles.milk.count = 0;
+      piles.milkBand.count = 0;
       piles.milkCap.count = 0;
     }
 
@@ -1106,8 +1104,8 @@ export function createWorld(canvas, fx) {
     const bob = Math.sin(env.time * 5) * 6;
     if (view.hand) {
       hand.visible = true;
-      const pulse = 36 + Math.sin(env.time * 5) * 4;
-      hand.position.set(view.hand.x - 40, 30, view.hand.y - 4);
+      const pulse = 74 + Math.sin(env.time * 5) * 8;
+      hand.position.set(view.hand.x + 4, 40, view.hand.y - 26);
       hand.scale.set(pulse, pulse, 1);
     } else hand.visible = false;
 
