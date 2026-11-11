@@ -45,7 +45,7 @@ export const LAYOUT = {
   wagon: { x: 545, y: 755 },
   engine: { x: 730, y: 705 },
   truck: { x: 390, y: 775 },
-  focus: { x: 590, y: 490 },
+  focus: { x: 520, y: 560 },
   road: { x: 170, y: 812, w: 760, h: 42 },
   fence: { x: 478, y: 318, w: 156, h: 128 },
   park: [
@@ -982,8 +982,8 @@ export function view(state) {
     piles.push({
       id: p.id,
       good: p.good,
-      x: p.x + (p.id === 'barn' ? 70 : 36),
-      y: p.y + (p.id === 'barn' ? 16 : 14),
+      x: p.x + (p.id === 'barn' ? 46 : 34),
+      y: p.y + (p.id === 'barn' ? 48 : 16),
       n: st.stock,
       cap: capOf(state, p.id),
     });

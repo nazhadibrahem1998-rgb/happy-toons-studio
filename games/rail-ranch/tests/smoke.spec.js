@@ -143,5 +143,20 @@ test('phone screenshots of the tutorial, a busy ranch, and upgrades', async ({ p
   await expect(page.locator('#sheet')).toBeVisible();
   await expect(page.locator('#sheetTitle')).toHaveText('Red Barn');
   await page.screenshot({ path: path.join(shots, 'rail-ranch-upgrade.png') });
+  await page.evaluate(() => {
+    const sheet = document.getElementById('sheet');
+    if (sheet) sheet.hidden = true;
+    let pos = RR.trainPos();
+    for (let i = 0; i < 90; i++) {
+      const dx = pos.x - 620;
+      const dy = pos.y - 340;
+      if (Math.hypot(dx, dy) < 110 && RR.summary().maxStock >= 4) break;
+      RR.step(0.2);
+      pos = RR.trainPos();
+    }
+    RR.look(600, 390, 1.65);
+  });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(shots, 'rail-ranch-close.png') });
   assertClean(errors);
 });

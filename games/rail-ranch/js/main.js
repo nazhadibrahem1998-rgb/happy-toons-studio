@@ -1,4 +1,3 @@
-import { createRenderer } from './draw.js';
 import { createAudio } from './audio.js';
 import {
   LAYOUT,
@@ -21,7 +20,7 @@ const SAVE_KEY = 'rail-ranch-v1';
 const MUTE_KEY = 'rail-ranch-mute';
 
 const canvas = document.getElementById('view');
-const ctx = canvas.getContext('2d', { alpha: false });
+const fx = document.getElementById('fx');
 const cashEl = document.getElementById('cash');
 const bestEl = document.getElementById('best');
 const goalLabel = document.getElementById('goalLabel');
@@ -39,7 +38,7 @@ const offlineAmount = document.getElementById('offlineAmount');
 const offlineNote = document.getElementById('offlineNote');
 
 const audio = createAudio();
-const renderer = createRenderer();
+let world = null;
 const floats = [];
 const coins = [];
 const confetti = [];
@@ -373,21 +372,16 @@ function showOffline(amount, away) {
 }
 
 function toWorld(clientX, clientY) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: (clientX - rect.left - rect.width / 2) / cam.z + cam.x,
-    y: (clientY - rect.top - rect.height / 2) / cam.z + cam.y,
-  };
+  if (!world) return { x: cam.x, y: cam.y };
+  return world.groundAt(clientX, clientY, cam);
 }
 
 function zoomAt(clientX, clientY, factor) {
   const before = toWorld(clientX, clientY);
   cam.z = Math.max(0.45, Math.min(2.1, cam.z * factor));
-  const rect = canvas.getBoundingClientRect();
-  const ox = clientX - rect.left - rect.width / 2;
-  const oy = clientY - rect.top - rect.height / 2;
-  cam.x = before.x - ox / cam.z;
-  cam.y = before.y - oy / cam.z;
+  const after = toWorld(clientX, clientY);
+  cam.x += before.x - after.x;
+  cam.y += before.y - after.y;
   clampCam();
 }
 
@@ -432,8 +426,8 @@ function onMove(e) {
   const p = ptrs.get(e.pointerId);
   if (!p) return;
   if (e.cancelable) e.preventDefault();
-  const dx = e.clientX - p.x;
-  const dy = e.clientY - p.y;
+  const prevX = p.x;
+  const prevY = p.y;
   p.x = e.clientX;
   p.y = e.clientY;
   if (Math.hypot(p.x - p.ox, p.y - p.oy) > 12) p.moved = true;
@@ -446,9 +440,11 @@ function onMove(e) {
     pinch.dist = dist;
     return;
   }
-  if (p.moved) {
-    cam.x -= dx / cam.z;
-    cam.y -= dy / cam.z;
+  if (p.moved && world) {
+    const a = world.groundAt(prevX, prevY, cam);
+    const b = world.groundAt(p.x, p.y, cam);
+    cam.x -= b.x - a.x;
+    cam.y -= b.y - a.y;
     clampCam();
   }
 }
@@ -465,17 +461,15 @@ function fitCam() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const z = w < 800
-    ? Math.max(0.56, Math.min(0.84, (w - 16) / 560))
-    : Math.max(0.72, Math.min(1.25, Math.min((w - 32) / 980, (h - 32) / 760)));
+    ? Math.max(0.55, Math.min(0.92, (w - 16) / 640))
+    : Math.max(0.85, Math.min(1.45, Math.min((w - 32) / 860, (h - 32) / 680)));
   return { x: LAYOUT.focus.x, y: LAYOUT.focus.y, z };
 }
 
 function resize() {
-  dprNow = Math.min(2, window.devicePixelRatio || 1);
+  dprNow = Math.min(window.innerWidth < 900 ? 1.5 : 2, window.devicePixelRatio || 1);
   viewW = window.innerWidth;
   viewH = window.innerHeight;
-  canvas.width = Math.max(1, Math.round(viewW * dprNow));
-  canvas.height = Math.max(1, Math.round(viewH * dprNow));
   if (!camReady) {
     const fit = fitCam();
     if (savedCam && Number.isFinite(savedCam.x) && Number.isFinite(savedCam.y) && Number.isFinite(savedCam.z)) {
@@ -544,7 +538,7 @@ function frame(now) {
     saveStamp = 0;
     saveNow();
   }
-  renderer.draw(ctx, {
+  if (world) world.draw({
     view: view(state),
     cam,
     w: viewW,
@@ -573,11 +567,14 @@ function resume() {
 }
 
 function worldToClient(x, y) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: rect.left + rect.width / 2 + (x - cam.x) * cam.z,
-    y: rect.top + rect.height / 2 + (y - cam.y) * cam.z,
-  };
+  if (!world) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2 + (x - cam.x) * cam.z,
+      y: rect.top + rect.height / 2 + (y - cam.y) * cam.z,
+    };
+  }
+  return world.project(x, y, 6, cam);
 }
 
 canvas.addEventListener('pointerdown', onDown, { passive: false });
@@ -648,7 +645,19 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', resi
 
 boot();
 resize();
-requestAnimationFrame(frame);
+
+import('./world3d.js').then(({ createWorld }) => {
+  world = createWorld(canvas, fx);
+  resize();
+  requestAnimationFrame(frame);
+  const loading = document.getElementById('loading');
+  if (loading) loading.hidden = true;
+  document.body.dataset.ready = '1';
+}).catch((err) => {
+  console.error(err);
+  const loading = document.getElementById('loading');
+  if (loading) loading.textContent = 'Could not start the ranch.';
+});
 
 window.RR = {
   summary: () => summary(state),
@@ -698,6 +707,11 @@ window.RR = {
     clampCam();
     ease = null;
   },
+  trainPos() {
+    const poses = view(state).poses;
+    const head = poses[poses.length - 1];
+    return head ? { x: head.x, y: head.y } : { x: cam.x, y: cam.y };
+  },
   wipe() {
     skipSave = true;
     try {
@@ -706,5 +720,3 @@ window.RR = {
     } catch (err) { /* ignore */ }
   },
 };
-
-document.body.dataset.ready = '1';
