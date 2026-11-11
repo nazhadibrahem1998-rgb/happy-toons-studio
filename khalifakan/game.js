@@ -63,8 +63,9 @@ const srand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 21
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance', stencil: false });
 const DPR = Math.min(devicePixelRatio || 1, isTouch ? 1.5 : 2);
-renderer.setPixelRatio(DPR);
-renderer.shadowMap.enabled = true;
+// Title screen draws one still at 1x. Full resolution starts with play.
+renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -607,8 +608,10 @@ const FX = (() => {
     n.s.position.set(p.x + rand(-0.3, 0.3), p.y, p.z + rand(-0.3, 0.3)); n.s.visible = true; n.t = 0.8; n.vy = 2.2; n.s.scale.set(big ? 1.2 : 0.9, big ? 0.6 : 0.45, 1);
   }
   function update(dt) {
+    let dirty = false;
     for (let i = 0; i < N; i++) {
       if (life[i] <= 0) continue;
+      dirty = true;
       life[i] -= dt; const k = Math.max(0, life[i] / max[i]);
       vel[i * 3 + 1] -= grav[i] * dt;
       pos[i * 3] += vel[i * 3] * dt; pos[i * 3 + 1] += vel[i * 3 + 1] * dt; pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
@@ -616,7 +619,7 @@ const FX = (() => {
       col[i * 3] = base[i * 3] * k; col[i * 3 + 1] = base[i * 3 + 1] * k; col[i * 3 + 2] = base[i * 3 + 2] * k;
       if (life[i] <= 0) pos[i * 3 + 1] = -100;
     }
-    geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
+    if (dirty) { geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true; }
     for (const R of rings) if (R.t > 0) { R.t -= dt; const k = 1 - R.t / R.life, r = lerp(R.r0, R.r1, easeOut(k)); R.m.scale.set(r, 1, r); R.m.material.opacity = (1 - k) * 0.9; if (R.t <= 0) R.m.visible = false; }
     for (const n of nums) if (n.t > 0) { n.t -= dt; n.s.position.y += n.vy * dt; n.vy *= 0.92; n.s.material.opacity = Math.min(1, n.t * 3); if (n.t <= 0) n.s.visible = false; }
   }
@@ -1121,7 +1124,18 @@ function clearAll() {
   enemies.length = 0; game.used = 0; game.waves.length = 0; game.spawnQ.length = 0; boss = null;
   for (const p of pickups) scene.remove(p.m); pickups.length = 0;
 }
+function startLoop() {
+  if (loopOn) return;
+  loopOn = true;
+  last = performance.now();
+  requestAnimationFrame(frame);
+}
 function startGame(stage = 0) {
+  if (!worldBuilt) {
+    pendingStage = stage;
+    if (!building) ensureWorld();
+    return;
+  }
   if (backArmed === false) armBack();
   Audio.init(); Audio.ui(); clearAll(); player.reset();
   Object.assign(game, { time: 0, kills: 0, maxCombo: 0, combo: 0, stageClearT: -1, winT: 0, slowmo: 0, hitStop: 0 });
@@ -1129,6 +1143,10 @@ function startGame(stage = 0) {
   document.body.classList.remove('hts-over');
   cam.yaw = Math.PI; cam.pitch = 0.32; cam.tgt.set(0, 1.4, 6);
   game.state = 'play'; Audio.music(true);
+  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(DPR);
+  resize();
+  startLoop();
   startStage(stage);
 }
 function startStage(i) {
@@ -1299,7 +1317,9 @@ if (window.visualViewport) {
   visualViewport.addEventListener('scroll', resize);
 }
 let last = performance.now(), perfAcc = 0, perfN = 0, perfLevel = 0, uiAcc = 0;
+let loopOn = false;
 function frame(now) {
+  if (!loopOn) return;
   requestAnimationFrame(frame);
   const realDt = Math.min(0.05, (now - last) / 1000); last = now;
   // adaptive quality for slower phones
@@ -1357,25 +1377,58 @@ function frame(now) {
 }
 
 // ---------- boot ----------
-function loadFace(url) {
-  return new Promise(res => new THREE.TextureLoader().load(url, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t); }, undefined, () => res(null)));
-}
-(async function boot() {
-  resize();
-  // The portrait is only needed for the boss, so it must not hold the title screen.
-  const faceReady = loadFace('assets/miran_face.webp').then(t => t || loadFace('assets/miran_face.png'));
-  faceReady.then(t => {
+let worldBuilt = false;
+let building = false;
+let pendingStage = null;
+let faceKick = false;
+function kickFace() {
+  if (faceKick) return;
+  faceKick = true;
+  loadFace('assets/miran_face.webp').then(t => t || loadFace('assets/miran_face.png')).then(t => {
     faceTex = t;
     if (t && boss && boss.faceMesh) { boss.faceMesh.material.map = t; boss.faceMesh.material.emissiveMap = t; boss.faceMesh.material.needsUpdate = true; }
   });
-  try { await Promise.race([document.fonts.load('700 34px KFont'), new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
-  buildWorld();
-  player = new Player(); player.reset(); player.pos.set(0, 0, 0);
-  applyLook(0);
-  $('loading').classList.add('hidden');
+}
+function loadFace(url) {
+  return new Promise(res => new THREE.TextureLoader().load(url, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t); }, undefined, () => res(null)));
+}
+function ensureWorld() {
+  building = true;
+  const timer = setTimeout(() => { const el = $('loading'); if (el) el.classList.remove('hidden'); }, 300);
+  requestAnimationFrame(() => {
+    try {
+      buildWorld();
+      player = new Player();
+      player.reset();
+      player.pos.set(0, 0, 0);
+      applyLook(0);
+      kickFace();
+      worldBuilt = true;
+      building = false;
+      clearTimeout(timer);
+      if (window.__khClearLoad) window.__khClearLoad();
+      else { const el = $('loading'); if (el) el.classList.add('hidden'); }
+      const stage = pendingStage;
+      pendingStage = null;
+      if (stage != null) startGame(stage);
+    } catch (err) { console.error(err); }
+  });
+}
+function paintTitleStill() {
+  game.state = 'menu';
+  cam.menuA = 1.2;
+  updateCamera(0, 0);
+  sky.position.copy(camera.position);
+  renderer.render(scene, camera);
+}
+(function boot() {
+  resize();
+  const el = $('loading');
+  if (el) el.classList.add('hidden');
   game.state = 'menu';
   paintKhBest();
-  requestAnimationFrame(frame);
-  if (Q.has('autostart')) startGame(+(Q.get('stage') || 0));
+  window.__khReady = true;
+  if (window.__khWant || Q.has('autostart')) startGame(+(Q.get('stage') || 0));
+  else paintTitleStill();
 })();
 window.KH = { game, input, get player() { return player; }, enemies, get boss() { return boss; }, startGame, startStage, cam, endGame, ROSTER };

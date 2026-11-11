@@ -112,11 +112,45 @@
   </div>
 </div>
 
-<div id="loading" class="screen"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
+<div id="loading" class="screen hidden"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
 
 <div id="rotate"><div class="ph">📱</div><p>تکایە مۆبایلەکەت بە پانی بسوڕێنە</p><p class="small">ئەم یارییە تەنها لە باری پانیدا کار دەکات</p></div>
 
+<script>
+(function () {
+  var btn = document.getElementById('playBtn');
+  var loading = document.getElementById('loading');
+  var timer = 0;
+  if (btn) btn.addEventListener('click', function (e) {
+    if (window.__khReady) return;
+    window.__khWant = true;
+    if (e.cancelable) e.preventDefault();
+    e.stopImmediatePropagation();
+    clearTimeout(timer);
+    timer = setTimeout(function () { if (!window.__khReady && loading) loading.classList.remove('hidden'); }, 300);
+  }, true);
+  window.__khClearLoad = function () {
+    clearTimeout(timer);
+    if (loading) loading.classList.add('hidden');
+  };
+})();
+</script>
 <script src="../assets/js/game-scores.js" defer></script>
-<script type="module" src="game.js"></script>
+<script type="module">
+/* Download the 3D engine on the first tap so the title can paint on a slow phone. */
+(function () {
+  var started = false;
+  function load() {
+    if (started) return;
+    started = true;
+    import('./game.js');
+  }
+  var play = document.getElementById('playBtn');
+  if (play) play.addEventListener('pointerdown', load, true);
+  var again = document.getElementById('againBtn');
+  if (again) again.addEventListener('pointerdown', load, true);
+  if (/[?&]autostart(?:=|&|$)/.test(location.search)) load();
+})();
+</script>
 </body>
 </html>
