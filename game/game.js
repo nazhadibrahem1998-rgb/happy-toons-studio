@@ -3,14 +3,15 @@ import * as THREE from './vendor/three.module.min.js';
 
 const $ = id => document.getElementById(id);
 // Primary input is touch (phones/tablets). Hybrid laptops start in mouse mode and switch per event.
-const isTouch = matchMedia('(pointer: coarse)').matches;
+const isTouch = matchMedia('(pointer: coarse)').matches
+  || (navigator.maxTouchPoints > 0 && matchMedia('(hover: none)').matches);
 let touchUI = isTouch;
 if (isTouch) document.body.classList.add('touch');
 
 // ---------- Renderer / scene ----------
 const canvas = $('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
-const maxDPR = Math.min(2, isTouch ? 1.5 : 2);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+const maxDPR = Math.min(devicePixelRatio || 1, isTouch ? 1.25 : 1.75);
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, maxDPR));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
@@ -29,7 +30,7 @@ scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffe2b0, 2.2);
 sun.position.set(14, 26, 10);
 sun.castShadow = true;
-let SM = isTouch ? 1024 : 2048;
+let SM = isTouch ? 512 : 1024;
 sun.shadow.mapSize.set(SM, SM);
 const SHADOW_SPAN = 60; // ortho shadow camera width (left..right)
 const sc = sun.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 70;
@@ -140,7 +141,8 @@ const particles = [];
 const pMats = {};
 function pMat(c) { return pMats[c] || (pMats[c] = new THREE.MeshBasicMaterial({ color: c })); }
 for (let i = 0; i < PCOUNT; i++) {
-  const m = new THREE.Mesh(pGeo, pMat(0xffffff)); m.visible = false; scene.add(m);
+  const m = new THREE.Mesh(pGeo, pMat(0xffffff));
+  m.visible = false; m.castShadow = false; m.receiveShadow = false; scene.add(m);
   particles.push({ m, v: new THREE.Vector3(), life: 0 });
 }
 let pIdx = 0;
@@ -165,7 +167,7 @@ function updateParticles(dt) {
 // slash trail arc
 const slashMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
 const slash = new THREE.Mesh(new THREE.RingGeometry(1.2, 2.5, 24, 1, -Math.PI * 0.45, Math.PI * 0.9), slashMat);
-slash.rotation.x = -Math.PI / 2; scene.add(slash);
+slash.rotation.x = -Math.PI / 2; slash.castShadow = false; slash.receiveShadow = false; scene.add(slash);
 
 // Pooled cartoon arrows (chunky and bright so they read on grass and can be dodged).
 const ARROW_N = 16;
@@ -261,7 +263,7 @@ for (let i = 0; i < WARN_N; i++) {
 }
 function acquireWarn() {
   for (let i = 0; i < WARN_N; i++) if (!warns[i].alive) return warns[i];
-  return warns[0];
+  return null;
 }
 function releaseWarn(e) {
   if (!e || !e.warn) return;
@@ -269,7 +271,9 @@ function releaseWarn(e) {
 }
 function beginWarn(e, x, z, radius, maxT) {
   releaseWarn(e);
+  e.slamX = x; e.slamZ = z;
   const w = acquireWarn();
+  if (!w) return;
   w.alive = true; w.g.visible = true; w.life = 0; w.max = maxT;
   w.x = x; w.z = z; w.radius = radius;
   w.g.position.set(x, 0, z); w.g.scale.setScalar(radius);
@@ -305,7 +309,7 @@ for (let i = 0; i < LANE_N; i++) {
 }
 function acquireLane() {
   for (let i = 0; i < LANE_N; i++) if (!lanes[i].alive) return lanes[i];
-  return lanes[0];
+  return null;
 }
 function releaseLane(e) {
   if (!e || !e.lane) return;
@@ -314,6 +318,7 @@ function releaseLane(e) {
 function beginLane(e, length, width) {
   releaseLane(e);
   const lane = acquireLane();
+  if (!lane) return;
   lane.alive = true; lane.g.visible = true; lane.life = 0;
   lane.length = length; lane.width = width;
   e.lane = lane;
@@ -393,10 +398,32 @@ function updateRocks(dt) {
 // ---------- Audio ----------
 let actx = null, master = null;
 let muted = false; try { muted = localStorage.getItem('toonblade_muted') === '1'; } catch (_) {}
+let audioGen = 0;
 function audio() {
-  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = muted ? 0 : 0.42; master.connect(actx.destination); } catch (e) { actx = null; } }
-  if (actx && actx.state === 'suspended') actx.resume();
+  if (!actx) {
+    try {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      master = actx.createGain();
+      master.gain.value = muted ? 0 : 0.32;
+      const comp = actx.createDynamicsCompressor();
+      comp.threshold.value = -18;
+      comp.knee.value = 10;
+      comp.ratio.value = 8;
+      comp.attack.value = 0.004;
+      comp.release.value = 0.16;
+      master.connect(comp);
+      comp.connect(actx.destination);
+    } catch (e) { actx = null; }
+  }
+  if (actx && actx.state === 'suspended') {
+    const pending = actx.resume();
+    if (pending && pending.catch) pending.catch(() => {});
+  }
   return actx;
+}
+function later(ms, fn) {
+  const gen = audioGen;
+  setTimeout(() => { if (gen === audioGen) fn(); }, ms);
 }
 function setMuted(m) {
   muted = m;
@@ -407,40 +434,44 @@ function setMuted(m) {
 let noiseBuf = null;
 function noise(dur, f0, f1, vol = 0.3, type = 'bandpass') {
   const a = actx; if (!a || muted) return;
-  if (!noiseBuf) { noiseBuf = a.createBuffer(1, a.sampleRate, a.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
-  const s = a.createBufferSource(); s.buffer = noiseBuf;
-  const f = a.createBiquadFilter(); f.type = type; f.Q.value = 1.2;
-  f.frequency.setValueAtTime(f0, a.currentTime); f.frequency.exponentialRampToValueAtTime(f1, a.currentTime + dur);
-  const g = a.createGain(); g.gain.setValueAtTime(vol, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
-  s.connect(f).connect(g).connect(master); s.start(); s.stop(a.currentTime + dur);
+  try {
+    if (!noiseBuf) { noiseBuf = a.createBuffer(1, a.sampleRate, a.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const s = a.createBufferSource(); s.buffer = noiseBuf;
+    const f = a.createBiquadFilter(); f.type = type; f.Q.value = 1.2;
+    f.frequency.setValueAtTime(Math.max(20, f0), a.currentTime); f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), a.currentTime + dur);
+    const g = a.createGain(); g.gain.setValueAtTime(vol, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+    s.connect(f).connect(g).connect(master); s.start(); s.stop(a.currentTime + dur);
+  } catch (_) {}
 }
 function tone(dur, f0, f1, vol = 0.2, type = 'square') {
   const a = actx; if (!a || muted) return;
-  const o = a.createOscillator(); o.type = type;
-  o.frequency.setValueAtTime(f0, a.currentTime); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), a.currentTime + dur);
-  const g = a.createGain(); g.gain.setValueAtTime(vol, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
-  o.connect(g).connect(master); o.start(); o.stop(a.currentTime + dur);
+  try {
+    const o = a.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(Math.max(20, f0), a.currentTime); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), a.currentTime + dur);
+    const g = a.createGain(); g.gain.setValueAtTime(vol, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+    o.connect(g).connect(master); o.start(); o.stop(a.currentTime + dur);
+  } catch (_) {}
 }
 const sfx = {
-  swing: () => noise(0.18, 600, 3000, 0.25),
-  hit: () => { noise(0.12, 900, 200, 0.4, 'lowpass'); tone(0.12, 180, 60, 0.25, 'triangle'); },
-  clang: () => { tone(0.25, 1400, 1200, 0.12, 'square'); tone(0.3, 2100, 1900, 0.08, 'sine'); },
-  hurt: () => tone(0.25, 300, 90, 0.2, 'sawtooth'),
-  dodge: () => noise(0.22, 300, 1200, 0.18),
-  heavy: () => { noise(0.24, 360, 70, 0.36, 'lowpass'); tone(0.2, 108, 40, 0.22, 'triangle'); tone(0.14, 68, 34, 0.16, 'sine'); },
-  dry: () => tone(0.09, 168, 92, 0.08, 'square'),
-  die: () => tone(0.4, 400, 50, 0.18, 'square'),
-  wave: () => { tone(0.15, 440, 440, 0.12, 'square'); setTimeout(() => tone(0.3, 660, 660, 0.12, 'square'), 150); },
-  heal: () => { tone(0.12, 600, 900, 0.12, 'sine'); setTimeout(() => tone(0.2, 900, 1300, 0.12, 'sine'), 100); },
-  shoot: () => noise(0.14, 700, 2400, 0.16),
-  lob: () => noise(0.12, 480, 180, 0.16, 'lowpass'),
-  lobLand: () => noise(0.14, 220, 70, 0.2, 'lowpass'),
-  dash: () => noise(0.16, 240, 1100, 0.16),
-  pick: () => { tone(0.08, 520, 780, 0.11, 'square'); setTimeout(() => tone(0.12, 780, 1040, 0.1, 'square'), 80); },
-  slam: () => { noise(0.28, 180, 45, 0.32, 'lowpass'); tone(0.22, 110, 40, 0.16, 'sine'); },
-  summon: () => { tone(0.18, 330, 620, 0.12, 'triangle'); setTimeout(() => tone(0.22, 520, 880, 0.1, 'triangle'), 120); },
-  boss: () => { tone(0.18, 196, 196, 0.14, 'square'); setTimeout(() => tone(0.18, 247, 247, 0.14, 'square'), 160); setTimeout(() => tone(0.4, 330, 330, 0.16, 'square'), 320); },
-  victory: () => { tone(0.12, 523, 523, 0.12, 'square'); setTimeout(() => tone(0.12, 659, 659, 0.12, 'square'), 130); setTimeout(() => tone(0.32, 784, 784, 0.15, 'square'), 260); },
+  swing: () => noise(0.18, 600, 3000, 0.22),
+  hit: () => { noise(0.12, 900, 200, 0.32, 'lowpass'); tone(0.12, 180, 60, 0.18, 'triangle'); },
+  clang: () => { tone(0.25, 1400, 1200, 0.1, 'square'); tone(0.3, 2100, 1900, 0.06, 'sine'); },
+  hurt: () => tone(0.25, 300, 90, 0.16, 'sawtooth'),
+  dodge: () => noise(0.22, 300, 1200, 0.14),
+  heavy: () => { noise(0.24, 360, 70, 0.28, 'lowpass'); tone(0.2, 108, 40, 0.16, 'triangle'); tone(0.14, 68, 34, 0.12, 'sine'); },
+  dry: () => tone(0.09, 168, 92, 0.07, 'square'),
+  die: () => tone(0.4, 400, 50, 0.16, 'square'),
+  wave: () => { tone(0.15, 440, 440, 0.1, 'square'); later(150, () => tone(0.3, 660, 660, 0.1, 'square')); },
+  heal: () => { tone(0.12, 600, 900, 0.1, 'sine'); later(100, () => tone(0.2, 900, 1300, 0.1, 'sine')); },
+  shoot: () => noise(0.14, 700, 2400, 0.13),
+  lob: () => noise(0.12, 480, 180, 0.13, 'lowpass'),
+  lobLand: () => noise(0.14, 220, 70, 0.16, 'lowpass'),
+  dash: () => noise(0.16, 240, 1100, 0.13),
+  pick: () => { tone(0.08, 520, 780, 0.09, 'square'); later(80, () => tone(0.12, 780, 1040, 0.08, 'square')); },
+  slam: () => { noise(0.28, 180, 45, 0.26, 'lowpass'); tone(0.22, 110, 40, 0.12, 'sine'); },
+  summon: () => { tone(0.18, 330, 620, 0.1, 'triangle'); later(120, () => tone(0.22, 520, 880, 0.08, 'triangle')); },
+  boss: () => { tone(0.18, 196, 196, 0.11, 'square'); later(160, () => tone(0.18, 247, 247, 0.11, 'square')); later(320, () => tone(0.4, 330, 330, 0.12, 'square')); },
+  victory: () => { tone(0.12, 523, 523, 0.1, 'square'); later(130, () => tone(0.12, 659, 659, 0.1, 'square')); later(260, () => tone(0.32, 784, 784, 0.12, 'square')); },
 };
 
 // ---------- Characters ----------
@@ -708,7 +739,7 @@ const HEAVY_DUR = 0.78;
 const HEAVY_COST = 36;
 const ROLL_COST = 14;
 const ROLL_TIME = 0.42;
-const ROLL_IFRAME = 0.26;
+const ROLL_IFRAME = 0.34;
 const enemies = [];
 const pickups = [];
 function bootBest() {
@@ -756,11 +787,23 @@ reduceMotionQuery.addEventListener('change', () => {
   updateShakeUI();
 });
 const camYawPitch = { yaw: Math.PI, pitch: 0.42, dist: 8.5, distT: 8.5 };
+let savedKey = '';
 function saveBest() {
+  const key = score + ':' + wave;
+  if (key === savedKey) return;
   const HS = window.HappyScores;
-  if (!HS) return;
-  const result = HS.record('toonblade', score, wave);
-  if (result.best > best) best = result.best;
+  if (HS) {
+    const result = HS.record('toonblade', score, wave);
+    if (result && result.best > best) best = result.best;
+    savedKey = key;
+    return;
+  }
+  try {
+    const prev = Math.max(0, Math.floor(+(localStorage.getItem('toonblade_best') || 0)) || 0);
+    if (score > prev) localStorage.setItem('toonblade_best', String(Math.floor(score)));
+    if (score > best) best = score;
+    savedKey = key;
+  } catch (_) {}
 }
 function checkBest() {
   if (score <= best) return;
@@ -900,13 +943,29 @@ function readDebugWave() {
 // ---------- Input ----------
 const keys = {};
 const input = { mx: 0, mz: 0, tx: 0, tz: 0, attack: false, heavy: false, dodge: false, dodgeSide: 0 };
+const buf = { attack: 0, heavy: 0, dodge: 0, dodgeSide: 0 };
+let attackHeld = false, mouseAttack = false;
+let stickId = null, lookId = null;
 let pausedAt = 0, lastTouchT = -1e9, hadLock = false;
 let stWarnT = 0;
 function requestLock() {
   if (document.pointerLockElement === canvas || !canvas.requestPointerLock) return;
   try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {}
 }
-function clearHeld() { for (const k in keys) keys[k] = false; input.attack = input.heavy = input.dodge = false; input.dodgeSide = 0; }
+function clearHeld() {
+  for (const k in keys) keys[k] = false;
+  input.attack = input.heavy = input.dodge = false;
+  input.dodgeSide = 0;
+  input.tx = input.tz = 0;
+  buf.attack = buf.heavy = buf.dodge = 0;
+  buf.dodgeSide = 0;
+  attackHeld = false;
+  mouseAttack = false;
+  stickId = null;
+  lookId = null;
+  if (knob) knob.style.transform = '';
+  document.querySelectorAll('#touch .tb.on').forEach((el) => el.classList.remove('on'));
+}
 // switch on-screen controls per event (hybrid touch laptops can use both)
 function noteTouch() {
   lastTouchT = performance.now();
@@ -945,9 +1004,10 @@ const isSynthMouse = e => (e.sourceCapabilities && e.sourceCapabilities.firesTou
 canvas.addEventListener('mousedown', e => {
   if (state !== 'play' || isSynthMouse(e)) return;
   noteMouse(); audio(); requestLock();
-  if (e.button === 0) input.attack = true;
+  if (e.button === 0) { mouseAttack = true; input.attack = true; }
   if (e.button === 2) input.heavy = true;
 });
+addEventListener('mouseup', (e) => { if (e.button === 0) mouseAttack = false; });
 addEventListener('mousemove', e => {
   if (state !== 'play') return;
   if (document.pointerLockElement === canvas) {
@@ -963,13 +1023,23 @@ addEventListener('wheel', e => { if (state !== 'play') return; camYawPitch.distT
 
 // touch: joystick + look + buttons
 const stick = $('stick'), knob = $('knob');
-let stickId = null, stickC = { x: 0, y: 0 }, lookId = null, lookLast = { x: 0, y: 0 };
+let stickC = { x: 0, y: 0 }, lookLast = { x: 0, y: 0 };
 function bindBtn(el, down, up) {
   el.addEventListener('touchstart', e => { e.preventDefault(); noteTouch(); audio(); el.classList.add('on'); down(); }, { passive: false });
   const end = e => { e.preventDefault(); el.classList.remove('on'); up && up(); };
   el.addEventListener('touchend', end, { passive: false }); el.addEventListener('touchcancel', end, { passive: false });
+  // Mouse and pen, for hybrid devices. Real touches are handled above (pointerType touch is ignored).
+  el.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') return;
+    e.preventDefault(); noteTouch(); audio(); el.classList.add('on');
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    down();
+  });
+  const pend = e => { if (e.pointerType === 'touch') return; el.classList.remove('on'); up && up(); };
+  el.addEventListener('pointerup', pend);
+  el.addEventListener('pointercancel', pend);
 }
-bindBtn($('bAttack'), () => input.attack = true);
+bindBtn($('bAttack'), () => { attackHeld = true; input.attack = true; }, () => { attackHeld = false; });
 bindBtn($('bHeavy'), () => input.heavy = true);
 // Roll on release so a sideways swipe on the button can pick left or right.
 {
@@ -991,6 +1061,21 @@ bindBtn($('bHeavy'), () => input.heavy = true);
   };
   bDodge.addEventListener('touchend', dodgeEnd, { passive: false });
   bDodge.addEventListener('touchcancel', e => { e.preventDefault(); bDodge.classList.remove('on'); dodgeSwipe = 0; }, { passive: false });
+  bDodge.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') return;
+    e.preventDefault(); noteTouch(); audio(); bDodge.classList.add('on');
+    dodgeTouchX = e.clientX; dodgeSwipe = 0;
+    try { bDodge.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  bDodge.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch') return;
+    const dx = e.clientX - dodgeTouchX;
+    if (Math.abs(dx) > 22) dodgeSwipe = Math.sign(dx);
+  });
+  bDodge.addEventListener('pointerup', e => {
+    if (e.pointerType === 'touch') return;
+    dodgeEnd(e);
+  });
 }
 bindBtn($('bPause'), () => { if (state === 'play' || state === 'upgrade') togglePause(); });
 bindBtn($('bMute'), () => setMuted(!muted));
@@ -1000,6 +1085,23 @@ stick.addEventListener('touchstart', e => {
   const r = stick.getBoundingClientRect(); stickC = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   moveStick(t);
 }, { passive: false });
+stick.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch' || stickId !== null) return;
+  e.preventDefault(); noteTouch(); audio();
+  stickId = e.pointerId;
+  const r = stick.getBoundingClientRect(); stickC = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  moveStick(e);
+  try { stick.setPointerCapture(e.pointerId); } catch (_) {}
+});
+stick.addEventListener('pointermove', e => { if (e.pointerType !== 'touch' && e.pointerId === stickId) moveStick(e); });
+stick.addEventListener('pointerup', e => {
+  if (e.pointerType === 'touch' || e.pointerId !== stickId) return;
+  stickId = null; input.tx = input.tz = 0; knob.style.transform = '';
+});
+stick.addEventListener('pointercancel', e => {
+  if (e.pointerId !== stickId) return;
+  stickId = null; input.tx = input.tz = 0; knob.style.transform = '';
+});
 function moveStick(t) {
   let dx = t.clientX - stickC.x, dy = t.clientY - stickC.y; const d = Math.hypot(dx, dy), m = 55;
   if (d > m) { dx *= m / d; dy *= m / d; }
@@ -1013,6 +1115,18 @@ addEventListener('touchstart', e => {
     if (t.target === canvas && t.clientX > innerWidth * 0.35 && lookId === null) { lookId = t.identifier; lookLast.x = t.clientX; lookLast.y = t.clientY; }
   }
 }, { passive: true });
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch' || !touchUI || state !== 'play') return;
+  if (e.clientX > innerWidth * 0.35 && lookId === null) { lookId = e.pointerId; lookLast.x = e.clientX; lookLast.y = e.clientY; }
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch' || e.pointerId !== lookId || state !== 'play') return;
+  camYawPitch.yaw -= (e.clientX - lookLast.x) * 0.006;
+  camYawPitch.pitch = clamp(camYawPitch.pitch + (e.clientY - lookLast.y) * 0.004, 0.1, 1.1);
+  lookLast.x = e.clientX; lookLast.y = e.clientY;
+});
+addEventListener('pointerup', e => { if (e.pointerType !== 'touch' && e.pointerId === lookId) lookId = null; });
+addEventListener('pointercancel', e => { if (e.pointerId === lookId) lookId = null; });
 addEventListener('touchmove', e => {
   for (const t of e.changedTouches) {
     if (t.identifier === stickId) moveStick(t);
@@ -1068,10 +1182,16 @@ function updateUI(dt) {
   if (wave !== uiWave) { if (uiWave >= 0) pop(elWave); uiWave = wave; elWave.textContent = wave; }
   if (score !== uiScore) { if (uiScore >= 0 && score > uiScore) pop(elScore); uiScore = score; elScore.textContent = score; }
   if (left !== uiLeft) { uiLeft = left; elLeft.textContent = left; }
-  const live = $('bestLive');
-  if (live) live.textContent = 'Best: ' + (best > 0 ? best : '—');
+  paintLiveBest();
   if (state === 'play') saveBest();
   updateBossUI(dt || 0);
+}
+let liveBestShown = -2;
+function paintLiveBest() {
+  const live = $('bestLive');
+  if (!live || liveBestShown === best) return;
+  liveBestShown = best;
+  live.textContent = 'Best: ' + (best > 0 ? best : '—');
 }
 function updateMuteUI() {
   const icon = muted ? '🔇' : '🔊';
@@ -1081,8 +1201,8 @@ function updateMuteUI() {
 function showStartBest() {
   const el = $('sBest');
   if (el) el.textContent = best > 0 ? String(best) : '—';
-  const live = $('bestLive');
-  if (live) live.textContent = 'Best: ' + (best > 0 ? best : '—');
+  liveBestShown = -2;
+  paintLiveBest();
   if (window.HappyScores) window.HappyScores.paintNote('toonblade', $('dailyNote'));
 }
 
@@ -1175,6 +1295,8 @@ function resetGame() {
   camYawPitch.yaw = Math.PI;
   uiHp = uiSt = uiWave = uiScore = uiLeft = -1;
   runStartBest = best; newBestShown = false; bestPending = false;
+  audioGen++;
+  savedKey = '0:0';
   clearHeld();
   camBase.copy(camera.position); camLook.set(0, 1.4, 0); // smooth glide from menu/death camera
 }
@@ -1252,6 +1374,7 @@ function openUpgrade() {
   clearHeld();
   const el = $('upgrade');
   if (el) el.classList.remove('hidden');
+  if (touchUI) $('touch').classList.add('hidden');
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
 }
 function applyUpgrade(id) {
@@ -1380,6 +1503,25 @@ function collide(pos, r) {
   const d = Math.hypot(pos.x, pos.z), lim = ARENA_R - 1 - r;
   if (d > lim) { pos.x *= lim / d; pos.z *= lim / d; }
 }
+function slideBody(pos, vx, vz, dt, r) {
+  const x0 = pos.x, z0 = pos.z;
+  pos.x += vx * dt; pos.z += vz * dt;
+  collide(pos, r);
+  const want = Math.hypot(vx, vz) * dt;
+  const moved = Math.hypot(pos.x - x0, pos.z - z0);
+  if (want < 0.03 || moved >= want * 0.45) return;
+  const len = Math.hypot(vx, vz) || 1;
+  const nx = vx / len, nz = vz / len;
+  let bestX = pos.x, bestZ = pos.z, best = moved;
+  for (const s of [1, -1]) {
+    pos.x = x0 - nz * s * want;
+    pos.z = z0 + nx * s * want;
+    collide(pos, r);
+    const got = Math.hypot(pos.x - x0, pos.z - z0);
+    if (got > best) { best = got; bestX = pos.x; bestZ = pos.z; }
+  }
+  pos.x = bestX; pos.z = bestZ;
+}
 
 function denyStamina() {
   if (stWarnT > 0.45) return;
@@ -1387,17 +1529,56 @@ function denyStamina() {
   sfx.dry();
   const bar = $('stBar');
   if (bar) bar.classList.add('deny');
+  const warn = $('stWarn');
+  if (warn) warn.classList.remove('hidden');
 }
+let flashTimer = 0;
 function damagePlayer(dmg, fromPos) {
   if (player.dead || (player.dodgeT >= 0 && player.dodgeT < ROLL_IFRAME)) return false;
   player.hp -= dmg; player.hurtT = 0.3; sfx.hurt(); shake = Math.max(shake, 0.35); breakScoreCombo();
-  dmgFlash.style.opacity = 1; setTimeout(() => dmgFlash.style.opacity = 0, 120);
+  if (fromPos) {
+    const kx = player.pos.x - fromPos.x, kz = player.pos.z - fromPos.z;
+    const kl = Math.hypot(kx, kz);
+    if (kl > 0.05) {
+      const push = Math.min(1.05, 0.42 + dmg * 0.018);
+      player.pos.x += kx / kl * push;
+      player.pos.z += kz / kl * push;
+      collide(player.pos, 0.5);
+    }
+  }
+  dmgFlash.style.opacity = 1;
+  flashTimer++;
+  const flashMark = flashTimer;
+  setTimeout(() => { if (flashMark === flashTimer) dmgFlash.style.opacity = 0; }, 120);
   burst(tmpV.set(player.pos.x, 1.3, player.pos.z), 0xff3344, 10, 5);
   if (player.hp <= 0) { player.hp = 0; player.dead = true; player.deadT = 0; sfx.die(); }
   return true;
 }
 
+function aimEnemy(maxDist, maxAng) {
+  let best = null, bd = maxDist;
+  for (const e of enemies) {
+    if (e.dead) continue;
+    const dx = e.g.root.position.x - player.pos.x, dz = e.g.root.position.z - player.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d >= bd) continue;
+    if (maxAng != null && Math.abs(angDiff(player.facing, Math.atan2(dx, dz))) > maxAng) continue;
+    bd = d; best = e;
+  }
+  return best;
+}
+function faceEnemy(maxDist, maxAng, move) {
+  const best = aimEnemy(maxDist, maxAng);
+  if (best) player.facing = Math.atan2(best.g.root.position.x - player.pos.x, best.g.root.position.z - player.pos.z);
+  else if (move.lengthSq() > 0.01) player.facing = Math.atan2(move.x, move.z);
+}
 function updatePlayer(dt) {
+  if (attackHeld || mouseAttack) input.attack = true;
+  if (input.attack) buf.attack = 0.18;
+  if (input.heavy) buf.heavy = 0.18;
+  if (input.dodge) { buf.dodge = 0.18; buf.dodgeSide = input.dodgeSide; }
+  input.attack = input.heavy = input.dodge = false;
+  input.dodgeSide = 0;
   // movement input
   let mx = 0, mz = 0;
   if (keys.KeyW || keys.ArrowUp) mz -= 1;
@@ -1417,13 +1598,14 @@ function updatePlayer(dt) {
   player.dodgeCd -= dt; player.comboWindow -= dt;
   const sideX = Math.cos(player.facing), sideZ = -Math.sin(player.facing);
 
-  if (input.dodge && player.dodgeT < 0 && player.dodgeCd <= 0) {
+  if (buf.dodge > 0 && player.dodgeT < 0 && player.dodgeCd <= 0) {
+    buf.dodge = 0;
     if (player.st < ROLL_COST) denyStamina();
     else {
       player.dodgeT = 0; player.dodgeCd = 0.72; player.st -= ROLL_COST; player.attackT = -1; player.heavy = false;
       if (touchUI) {
         // Phone: roll along the stick's left/right, or the swipe on the roll button.
-        let side = input.dodgeSide;
+        let side = buf.dodgeSide;
         if (!side && Math.abs(input.tx) > 0.18) side = Math.sign(input.tx);
         if (!side) { player.rollSide = -(player.rollSide || -1); side = player.rollSide; }
         else player.rollSide = side;
@@ -1442,30 +1624,31 @@ function updatePlayer(dt) {
     }
   }
   const atkCost = Math.max(5, 8 - (upgrades.haste || 0));
-  if (input.heavy && player.attackT < 0 && player.dodgeT < 0) {
+  if (buf.heavy > 0 && player.attackT < 0 && player.dodgeT < 0) {
+    buf.heavy = 0;
     if (player.st < HEAVY_COST) denyStamina();
     else {
       player.heavy = true; player.attackT = 0; player.st -= HEAVY_COST; player.hitSet.clear();
       player.swingSide = -1; player.heavyVoiced = false;
-      let best = null, bd = bladeReach() + 0.8;
-      for (const e of enemies) { if (e.dead) continue; const d = e.g.root.position.distanceTo(player.pos); if (d < bd) { bd = d; best = e; } }
-      if (best) player.facing = Math.atan2(best.g.root.position.x - player.pos.x, best.g.root.position.z - player.pos.z);
-      else if (move.lengthSq() > 0.01) player.facing = Math.atan2(move.x, move.z);
+      buf.attack = 0;
+      faceEnemy(bladeReach() + 0.8, 2.25, move);
       noise(0.16, 200, 80, 0.16, 'lowpass');
     }
-  } else if (input.attack && player.attackT < 0 && player.dodgeT < 0 && player.st >= atkCost) {
-    player.heavy = false; player.attackT = 0; player.st -= atkCost; player.hitSet.clear();
-    player.combo = player.comboWindow > 0 ? (player.combo + 1) % 3 : 0;
-    player.swingSide = player.combo === 1 ? 1 : player.combo === 2 ? 0 : -1;
-    player.heavyVoiced = false;
-    // auto-aim toward nearest enemy in front-ish
-    let best = null, bd = 3.2 + (upgrades.reach || 0) * 0.45;
-    for (const e of enemies) { if (e.dead) continue; const d = e.g.root.position.distanceTo(player.pos); if (d < bd) { bd = d; best = e; } }
-    if (best) player.facing = Math.atan2(best.g.root.position.x - player.pos.x, best.g.root.position.z - player.pos.z);
-    else if (move.lengthSq() > 0.01) player.facing = Math.atan2(move.x, move.z);
-    sfx.swing();
+  } else if (buf.attack > 0 && player.attackT < 0 && player.dodgeT < 0) {
+    buf.attack = 0;
+    if (player.st < atkCost) denyStamina();
+    else {
+      player.heavy = false; player.attackT = 0; player.st -= atkCost; player.hitSet.clear();
+      player.combo = player.comboWindow > 0 ? (player.combo + 1) % 3 : 0;
+      player.swingSide = player.combo === 1 ? 1 : player.combo === 2 ? 0 : -1;
+      player.heavyVoiced = false;
+      faceEnemy(3.2 + (upgrades.reach || 0) * 0.45, 2.15, move);
+      sfx.swing();
+    }
   }
-  input.attack = input.heavy = input.dodge = false; input.dodgeSide = 0;
+  if (player.attackT < 0) buf.attack = Math.max(0, buf.attack - dt);
+  if (player.attackT < 0 && player.dodgeT < 0) buf.heavy = Math.max(0, buf.heavy - dt);
+  buf.dodge = Math.max(0, buf.dodge - dt);
 
   let speed = runSpeed();
   if (player.heavy && player.attackT >= 0) speed = 0.85;
@@ -1473,14 +1656,15 @@ function updatePlayer(dt) {
   if (player.dodgeT >= 0) {
     player.dodgeT += dt;
     const k = 1 - player.dodgeT / ROLL_TIME;
-    player.pos.addScaledVector(player.dodgeDir, 13 * Math.max(0.25, k) * dt);
+    const spd = 13 * Math.max(0.25, k);
+    slideBody(player.pos, player.dodgeDir.x * spd, player.dodgeDir.z * spd, dt, 0.5);
     if (player.dodgeT > ROLL_TIME) player.dodgeT = -1;
     player.vel.set(0, 0, 0);
   } else {
     // short acceleration ramp (~55 ms) instead of instant start/stop
     const ka = damp(18, dt);
     player.vel.x += (move.x * speed - player.vel.x) * ka; player.vel.z += (move.z * speed - player.vel.z) * ka;
-    player.pos.addScaledVector(player.vel, dt);
+    slideBody(player.pos, player.vel.x, player.vel.z, dt, 0.5);
     if (move.lengthSq() > 0.01 && player.attackT < 0) {
       const target = Math.atan2(move.x, move.z);
       player.facing += angDiff(player.facing, target) * damp(14, dt);
@@ -1510,7 +1694,7 @@ function updatePlayer(dt) {
         if (e.dead || player.hitSet.has(e)) continue;
         const ep = e.g.root.position; const dx = ep.x - player.pos.x, dz = ep.z - player.pos.z;
         const d = Math.hypot(dx, dz);
-        if (d < reach + ETYPES[e.type].r * 0.5 && Math.abs(angDiff(player.facing, Math.atan2(dx, dz))) < arc) {
+        if (d < reach + ETYPES[e.type].r * 0.82 && Math.abs(angDiff(player.facing, Math.atan2(dx, dz))) < arc) {
           player.hitSet.add(e);
           const dir = impactDir(e);
           hitEnemy(e, player.heavy ? 34 : player.combo === 2 ? 22 : 15, dir[0], dir[1], player.heavy ? 2 : 1);
@@ -1566,8 +1750,8 @@ function impactDir(e) {
   const lat = ox * rx + oz * rz;
   let sx, sz;
   if (player.heavy) {
-    sx = -rx * 0.8 + fx * 0.45 + rx * lat * 0.5;
-    sz = -rz * 0.8 + fz * 0.45 + rz * lat * 0.5;
+    sx = fx * 0.82 - rx * 0.38 + rx * lat * 0.25;
+    sz = fz * 0.82 - rz * 0.38 + rz * lat * 0.25;
   } else if (player.swingSide === 0) {
     sx = fx + rx * lat * 0.7;
     sz = fz + rz * lat * 0.7;
@@ -1832,6 +2016,7 @@ function updateEnemies(dt) {
     // knockback
     if (e.kb.lengthSq() > 0.01) { p.addScaledVector(e.kb, dt); e.kb.multiplyScalar(Math.pow(0.012, dt)); }
     let moving = false;
+    const x0 = p.x, z0 = p.z;
     if (player.dead) { if (e.warn) releaseWarn(e); releaseLane(e); e.state = 'idle'; }
     else if (e.state === 'chase') {
       if (archer) moving = updateArcher(e, T, p, d, toP, dt);
@@ -1889,6 +2074,27 @@ function updateEnemies(dt) {
       if (sd < m && sd > 1e-4) { p.x += sx / sd * (m - sd) * 0.5; p.z += sz / sd * (m - sd) * 0.5; }
     }
     collide(p, T.r);
+    if (moving && e.state === 'chase' && !charging && d > T.range * 1.05) {
+      const moved = Math.hypot(p.x - x0, p.z - z0);
+      const sp = T.speed * speedScale() * dt;
+      if (sp > 0.02 && moved < sp * 0.35) {
+        const nx = dx / (d || 1), nz = dz / (d || 1);
+        let bestS = 1, bestClear = -1;
+        for (const s of [1, -1]) {
+          const tx = p.x - nz * s * 0.9, tz = p.z + nx * s * 0.9;
+          let clear = 99;
+          for (let oi = 0; oi < obstacles.length; oi++) {
+            const o = obstacles[oi];
+            const cd = Math.hypot(tx - o.x, tz - o.z) - o.r;
+            if (cd < clear) clear = cd;
+          }
+          if (clear > bestClear) { bestClear = clear; bestS = s; }
+        }
+        p.x += -nz * bestS * sp;
+        p.z += nx * bestS * sp;
+        collide(p, T.r);
+      }
+    }
     // animation
     g.root.rotation.y = e.facing;
     if (moving) e.walk += dt * T.speed * 2.6;
@@ -2048,6 +2254,7 @@ function updateCamera(dt) {
   const { yaw, pitch, dist } = camYawPitch;
   camTgt.set(player.pos.x, 1.6, player.pos.z);
   camGoal.set(camTgt.x + Math.sin(yaw) * Math.cos(pitch) * dist, camTgt.y + Math.sin(pitch) * dist, camTgt.z + Math.cos(yaw) * Math.cos(pitch) * dist);
+  clearCamera(camGoal);
   // exponential smoothing (same feel at 30/60/144 fps); shake is applied on top, not fed back into the follow
   camBase.lerp(camGoal, damp(12, dt));
   camLook.lerp(camTgt, damp(20, dt));
@@ -2081,19 +2288,46 @@ function updateMenu(dt) {
 
 // ---------- Main loop ----------
 const clock = new THREE.Clock();
-let fpsAcc = 0, fpsN = 0, fps = 60, lowFpsTime = 0, quality = 2;
+let fpsAcc = 0, fpsN = 0, fps = 60, quality = 2, slowBudget = 0;
+function degradeQuality() {
+  if (quality <= -1) return;
+  quality--;
+  if (quality === 1) { renderer.setPixelRatio(1); resize(); }
+  else if (quality === 0) {
+    renderer.shadowMap.enabled = false;
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  } else { renderer.setPixelRatio(0.7); resize(); }
+}
 function trackFps(dt) {
   fpsAcc += dt; fpsN++;
-  if (fpsAcc < 1) return;
-  fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps;
+  if (fpsAcc >= 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps; }
   if (state !== 'play' || document.hidden) return;
-  // adaptive quality: needs 3 *consecutive* slow seconds (old counter never reset)
-  lowFpsTime = fps < 45 ? lowFpsTime + 1 : 0;
-  if (lowFpsTime >= 3 && quality > 0) {
-    quality--; lowFpsTime = 0;
-    if (quality === 1) { renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1, 2)); resize(); }
-    else { SM = Math.max(512, SM / 2); sun.shadow.mapSize.set(SM, SM); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  if (dt > 0.12) slowBudget += 0.5;
+  else if (dt > 0.045) slowBudget += dt;
+  else slowBudget = Math.max(0, slowBudget - dt * 2);
+  if (slowBudget > 1 && quality > -1) {
+    degradeQuality();
+    slowBudget = 0;
   }
+}
+function clearCamera(dest) {
+  const ox = player.pos.x, oz = player.pos.z;
+  const dx = dest.x - ox, dz = dest.z - oz;
+  const a = dx * dx + dz * dz;
+  if (a < 1e-4) return;
+  let scale = 1;
+  for (let i = 0; i < obstacles.length; i++) {
+    const o = obstacles[i];
+    const fx = ox - o.x, fz = oz - o.z;
+    const rr = o.r + 0.45;
+    const b = 2 * (fx * dx + fz * dz);
+    const c = fx * fx + fz * fz - rr * rr;
+    const disc = b * b - 4 * a * c;
+    if (disc < 0) continue;
+    const t = (-b - Math.sqrt(disc)) / (2 * a);
+    if (t > 0.18 && t < scale) scale = t;
+  }
+  if (scale < 1) { dest.x = ox + dx * scale; dest.z = oz + dz * scale; }
 }
 const STEP = 1 / 30;
 let looping = false;

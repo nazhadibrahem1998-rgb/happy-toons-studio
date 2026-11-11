@@ -40,6 +40,7 @@ a.hub{display:inline-flex;align-items:center;justify-content:center;min-height:4
 .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #8a5200}
 .controls{font-size:13px;opacity:.75;line-height:1.7;margin-top:8px}
 .controls .ctl{white-space:nowrap}
+@media (max-width:720px){.controls .ctl{white-space:normal}}
 #touch{position:fixed;inset:0;z-index:6;pointer-events:none;touch-action:none}
 #stick{position:absolute;left:max(24px,env(safe-area-inset-left));bottom:max(28px,env(safe-area-inset-bottom));width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.25);pointer-events:auto}
 #knob{position:absolute;left:45px;top:45px;width:50px;height:50px;border-radius:50%;background:rgba(255,212,94,.75);box-shadow:0 2px 8px rgba(0,0,0,.5)}
@@ -65,10 +66,16 @@ body.touch #hint{display:none}
 /* Keep the centred pause/mute cluster off the HP bar and the score column. */
 body.touch .bars{width:min(320px,calc(50% - max(14px,env(safe-area-inset-left)) - 8px - (48px * 2 + 10px) / 2))}
 body.touch .stats{max-width:calc(50% - max(14px,env(safe-area-inset-right)) - 8px - (48px * 2 + 10px) / 2)}
+body.touch #bossBar{top:max(118px,calc(env(safe-area-inset-top) + 106px));width:min(420px,calc(100vw - 28px))}
+@media (max-height:500px){
+  body.touch #bossBar{top:max(74px,calc(env(safe-area-inset-top) + 66px));width:min(340px,48vw)}
+  body.touch #bossTrack{height:12px;border-width:2px}
+  body.touch #bossName{margin-bottom:1px;font-size:13px}
+}
 .btn.small{font-size:15px;padding:10px 22px;min-width:44px;min-height:44px;margin:6px 0;box-shadow:0 4px 0 #8a5200}
 .tips{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;margin:2px 0 8px;padding:8px 16px;min-width:44px;min-height:44px;font:700 14px/1 system-ui,sans-serif;color:#ffd45e;background:transparent;border:1px solid rgba(255,212,94,.55);border-radius:999px;cursor:pointer}
 .combo b{color:#fff6d0}
-#coach{position:absolute;left:50%;bottom:max(36px,calc(env(safe-area-inset-bottom) + 28px));transform:translateX(-50%);max-width:calc(100% - 28px);padding:8px 14px;border-radius:16px;background:rgba(13,10,26,.62);border:2px solid rgba(255,212,94,.75);color:#ffd45e;font-size:clamp(15px,4.2vw,22px);font-weight:800;letter-spacing:.3px;text-align:center;text-shadow:0 2px 0 #5a3a00;white-space:nowrap;pointer-events:none;opacity:1;transition:opacity .35s linear}
+#coach{position:absolute;left:50%;bottom:max(36px,calc(env(safe-area-inset-bottom) + 28px));transform:translateX(-50%);max-width:min(440px,calc(100% - 28px));padding:8px 14px;border-radius:16px;background:rgba(13,10,26,.62);border:2px solid rgba(255,212,94,.75);color:#ffd45e;font-size:clamp(15px,4.2vw,22px);font-weight:800;letter-spacing:.3px;text-align:center;text-shadow:0 2px 0 #5a3a00;white-space:normal;pointer-events:none;opacity:1;transition:opacity .35s linear}
 body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 #coach.fade{opacity:0}
 #pause{cursor:pointer;z-index:24}
@@ -77,7 +84,7 @@ body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 .up-panel h2{margin:0;font-size:clamp(26px,5vw,44px);font-weight:900;letter-spacing:1px;line-height:1.05;color:#ffd45e;text-shadow:0 3px 0 #8a5200,0 8px 18px rgba(0,0,0,.65)}
 .up-cards{display:flex;flex-direction:row;gap:12px;justify-content:center;align-items:stretch;margin-top:8px}
 .up-card{pointer-events:auto;touch-action:manipulation;flex:1 1 0;min-width:0;max-width:300px;min-height:168px;padding:16px 14px 14px;border-radius:22px;border:3px solid #e8c25a;background:linear-gradient(180deg,#4a3880,#22183c);color:#fff;text-align:center;cursor:pointer;box-shadow:0 6px 0 #8a5200,0 10px 20px rgba(0,0,0,.35);font:800 16px/1.25 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.up-card:active{transform:translateY(4px);box-shadow:0 2px 0 #8a5200}
+.up-card:active{filter:brightness(1.18);box-shadow:0 3px 0 #8a5200}
 .up-ico{display:block;font-size:36px;line-height:1;margin-bottom:6px}
 .up-name{display:block;color:#ffd45e;font-size:clamp(16px,2.1vw,22px);margin-bottom:4px}
 .up-desc{display:block;font-weight:650;font-size:clamp(14px,1.7vw,17px);line-height:1.25}
@@ -91,13 +98,13 @@ body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
   .up-panel h2{font-size:22px}
   .up-panel .sub{margin:2px 0 4px}
   .up-cards{flex-direction:row;gap:8px;margin-top:2px;width:100%}
-  .up-card{max-width:none;min-height:min(188px,calc(100dvh - 92px));padding:8px 8px 8px;border-radius:16px;box-shadow:0 3px 0 #8a5200}
+  .up-card{max-width:none;min-height:0;max-height:calc(100dvh - 86px);padding:8px 8px 8px;border-radius:16px;box-shadow:0 3px 0 #8a5200;overflow:hidden}
   .up-ico{font-size:26px;margin-bottom:2px}
   .up-name{font-size:16px;margin-bottom:2px}
   .up-desc{font-size:13px}
   .up-rank{margin-top:4px;font-size:11px}
 }
-@media (prefers-reduced-motion:reduce){.up-card,.up-card:active{transition:none;transform:none}}
+@media (prefers-reduced-motion:reduce){.up-card,.up-card:active{transition:none;filter:none}}
 .ai{margin-top:12px;font-size:12px;color:#bfe3ff;opacity:.85}
 .newbest{margin:6px 0;font-size:20px;font-weight:900;color:#ffd45e;animation:glow .8s ease-in-out infinite alternate}
 @keyframes glow{from{transform:scale(1);text-shadow:0 0 0 #f29a0e}to{transform:scale(1.08);text-shadow:0 0 14px #f29a0e}}
