@@ -140,12 +140,22 @@
     try { localStorage.setItem(KEY, '1'); } catch (e) {}
     if (tips) tips.classList.add('hidden');
   }
-  if (ok) ok.addEventListener('click', function (e) {
-    e.preventDefault();
+  /* iOS Safari drops the click after touchend.preventDefault (zoom lock), so act on pointerdown too.
+     Do not stopImmediatePropagation here: Play's loader is a later pointerdown listener. */
+  function okTap(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.cancelable) e.preventDefault();
     e.stopPropagation();
     dismiss();
-  });
-  if (play) play.addEventListener('click', dismiss, true);
+  }
+  if (ok) {
+    ok.addEventListener('pointerdown', okTap);
+    ok.addEventListener('click', okTap);
+  }
+  if (play) {
+    play.addEventListener('pointerdown', dismiss, true);
+    play.addEventListener('click', dismiss, true);
+  }
   if (!tips || !body || seen() || /[?&]autostart(?:=|&|$)/.test(location.search)) return;
   var touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
   body.textContent = touch
@@ -159,14 +169,21 @@
   var btn = document.getElementById('playBtn');
   var loading = document.getElementById('loading');
   var timer = 0;
-  if (btn) btn.addEventListener('click', function (e) {
+  function want(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (window.__khReady) return;
     window.__khWant = true;
     if (e.cancelable) e.preventDefault();
-    e.stopImmediatePropagation();
+    /* Click may still reach a handler registered for the title screen. Pointerdown must
+       not stopImmediatePropagation, or it blocks the game loader on the same button. */
+    if (e.type === 'click') e.stopImmediatePropagation();
     clearTimeout(timer);
     timer = setTimeout(function () { if (!window.__khReady && loading) loading.classList.remove('hidden'); }, 300);
-  }, true);
+  }
+  if (btn) {
+    btn.addEventListener('pointerdown', want, true);
+    btn.addEventListener('click', want, true);
+  }
   window.__khClearLoad = function () {
     clearTimeout(timer);
     if (loading) loading.classList.add('hidden');
