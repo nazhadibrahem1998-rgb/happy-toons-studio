@@ -749,19 +749,25 @@ function bootBest() {
   } catch (e) { return 0; }
 }
 let state = 'menu', score = 0, wave = 0, waveTimer = 0, toSpawn = 0, spawnCd = 0, best = bootBest();
-let archersThisWave = 0, dashersThisWave = 0, throwersThisWave = 0, skipNextClearBonus = false, debugFreeze = false;
+let archersThisWave = 0, dashersThisWave = 0, throwersThisWave = 0, brutesThisWave = 0, skipNextClearBonus = false, debugFreeze = false;
 let choosingUpgrade = false, upgradePicks = 0, resumeState = 'play';
-const upgrades = { reach: 0, haste: 0, speed: 0, combo: 0, heal: 0 };
+const upgrades = { reach: 0, haste: 0, speed: 0, combo: 0, heal: 0, heavy: 0 };
 const UPGRADE_DEFS = [
-  { id: 'reach', name: 'Long Sword', desc: 'The blade grows longer.', cap: 4, icon: '⚔' },
-  { id: 'haste', name: 'Quick Cuts', desc: 'Attack a little faster.', cap: 4, icon: '⚡' },
-  { id: 'speed', name: 'Swift Boots', desc: 'Run faster.', cap: 4, icon: '💨' },
+  { id: 'reach', name: 'Long Sword', desc: 'The blade grows longer.', cap: 5, icon: '⚔' },
+  { id: 'haste', name: 'Quick Cuts', desc: 'Attack a little faster.', cap: 5, icon: '⚡' },
+  { id: 'speed', name: 'Swift Boots', desc: 'Run faster.', cap: 5, icon: '💨' },
   { id: 'heal', name: 'Small Heal', desc: 'Restore 28 health now.', cap: 99, icon: '💚' },
-  { id: 'combo', name: 'Combo Rhythm', desc: 'More time to chain swings.', cap: 4, icon: '✨' },
+  { id: 'combo', name: 'Combo Rhythm', desc: 'More time to chain swings.', cap: 5, icon: '✨' },
+  { id: 'heavy', name: 'Heavy Hands', desc: 'Heavy strikes hit harder.', cap: 4, icon: '✦' },
 ];
 let upgradeOffer = [];
 let shake = 0, hitStop = 0, runStartBest = best, newBestShown = false, bestPending = false;
 let scoreCombo = 0, scoreComboT = 0;
+function bootBestWave() {
+  try { return Math.max(0, Math.floor(+(localStorage.getItem('toonblade_best_wave') || 0)) || 0); } catch (e) { return 0; }
+}
+let bestWave = bootBestWave(), runStartBestWave = bestWave, bestWavePending = false, waveRecordShown = false;
+let runT = 0, kills = 0, bestComboReached = 0;
 let tutorialReplay = false;
 const reduceMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 let reduceMotion = reduceMotionQuery.matches;
@@ -836,12 +842,38 @@ function enemyScale(type) {
   return 1;
 }
 function hpScaleFor(type) {
-  if (type === 'king') return 1 + Math.max(0, wave - 10) * 0.08;
-  if (type === 'chief') return 1 + Math.max(0, wave - 5) * 0.08;
-  // Waves 1–3 stay at base health so a new player can learn the swing.
-  return 1 + Math.max(0, wave - 3) * 0.08;
+  if (type === 'king') return 1 + Math.max(0, wave - 10) * 0.055;
+  if (type === 'chief') return 1 + Math.max(0, wave - 5) * 0.055;
+  // Waves 1–3 stay at base health. Waves 4–8 keep the old curve. After that, health grows slower so fights do not turn into a sponge.
+  const early = 1 + Math.max(0, Math.min(wave, 8) - 3) * 0.08;
+  if (wave <= 8) return early;
+  return early + (wave - 8) * 0.04;
 }
-function speedScale() { return 1 + Math.max(0, wave - 3) * 0.02; }
+function speedScale() { return 1 + Math.min(0.2, Math.max(0, wave - 3) * 0.02); }
+function hurtAmount(dmg) {
+  if (wave < 8) return dmg;
+  return Math.max(1, Math.round(dmg * (1 + (wave - 7) * 0.022)));
+}
+function heavyDamage() { return 34 + (upgrades.heavy || 0) * 6; }
+function bossLabel(type) {
+  if (type === 'king') return wave >= 20 ? '★ SKELETON EMPEROR ★' : '★ SKELETON KING ★';
+  return wave >= 15 ? '★ GOBLIN WARLORD ★' : '★ GOBLIN CHIEF ★';
+}
+function bossBanner() {
+  if (wave % 10 === 0) return wave > 10 ? 'KING RETURNS' : 'BOSS WAVE';
+  return wave > 5 ? 'CHIEF RETURNS' : 'BOSS WAVE';
+}
+function noteBestWave() {
+  if (wave <= bestWave) return;
+  bestWave = wave;
+  try { localStorage.setItem('toonblade_best_wave', String(bestWave)); } catch (_) {}
+  showStartBest();
+  // Once per run: the first time you pass the wave you started with. A first run waits until wave 5 so the lesson stays quiet.
+  if (!waveRecordShown && wave > runStartBestWave && (runStartBestWave > 0 || wave >= 5)) {
+    waveRecordShown = true;
+    bestWavePending = true;
+  }
+}
 function spawnEnemy(type) {
   let e = enemyPool[type].pop();
   if (!e) { e = { type, g: buildEnemy(type), warn: null, lane: null }; }
@@ -870,10 +902,10 @@ function spawnEnemy(type) {
   if (isBossType(type)) {
     bossRef = e; bossHpUi = -1; bossHideT = 0; shake = Math.max(shake, type === 'king' ? 0.28 : 0.22);
     const name = $('bossName');
-    if (name) name.textContent = type === 'king' ? '★ SKELETON KING ★' : '★ GOBLIN CHIEF ★';
+    if (name) name.textContent = bossLabel(type);
     if (bossFill) bossFill.style.background = type === 'king'
-      ? 'linear-gradient(90deg,#7a2cff,#e86bff)'
-      : 'linear-gradient(90deg,#e2b000,#7dff6a)';
+      ? (wave >= 20 ? 'linear-gradient(90deg,#ffb000,#e86bff)' : 'linear-gradient(90deg,#7a2cff,#e86bff)')
+      : (wave >= 15 ? 'linear-gradient(90deg,#ff7a18,#ffe14a)' : 'linear-gradient(90deg,#e2b000,#7dff6a)');
   }
 }
 function removeEnemy(e) {
@@ -897,10 +929,11 @@ function crowdFor(w) {
 }
 function startWave() {
   wave++;
-  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0;
+  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0; brutesThisWave = 0;
+  noteBestWave();
   if (isBossWave(wave)) {
     toSpawn = 1; spawnCd = 0.45;
-    showBanner('BOSS WAVE'); sfx.boss();
+    showBanner(bossBanner()); sfx.boss();
   } else {
     toSpawn = crowdFor(wave); spawnCd = wave <= 3 ? 0.85 : 0.5;
     showBanner('WAVE ' + wave); sfx.wave();
@@ -908,9 +941,41 @@ function startWave() {
 }
 // Boss every 5th wave: Goblin Chief, and the Skeleton King when the wave is also a multiple of 10.
 // Dashers from wave 4, throwers from wave 6, archers from wave 4. Waves 1–3 are goblins, plus a rare skeleton.
+function takeSpecial(kind) {
+  if (kind === 'dasher') dashersThisWave++;
+  else if (kind === 'thrower') throwersThisWave++;
+  else if (kind === 'archer') archersThisWave++;
+  else if (kind === 'brute') brutesThisWave++;
+}
+function pickFromCaps(dasherCap, archerCap, throwerCap, bruteCap) {
+  const pending = [];
+  if (brutesThisWave < bruteCap) pending.push('brute');
+  if (dashersThisWave < dasherCap) pending.push('dasher');
+  if (throwersThisWave < throwerCap) pending.push('thrower');
+  if (archersThisWave < archerCap) pending.push('archer');
+  if (pending.length && (toSpawn <= pending.length || Math.random() < 0.45)) {
+    const pick = pending[(Math.random() * pending.length) | 0];
+    takeSpecial(pick);
+    return pick;
+  }
+  return '';
+}
+// Waves 6+ change flavour every three waves: rush, volley, brutes, then a mixed skirmish.
+function lateMix() {
+  const theme = Math.floor((wave - 6) / 3) % 4;
+  let picked = '';
+  if (theme === 0) picked = pickFromCaps(wave >= 12 ? 3 : 2, 1, 1, 0);
+  else if (theme === 1) picked = pickFromCaps(1, wave >= 12 ? 3 : 2, 2, 0);
+  else if (theme === 2) picked = pickFromCaps(1, 1, 1, wave >= 18 ? 2 : 1);
+  else picked = pickFromCaps(2, 2, 2, wave >= 16 && toSpawn === 1 ? 1 : 0);
+  if (picked) return picked;
+  if (theme === 3 && Math.random() < 0.55) return 'skeleton';
+  if (Math.random() < 0.34) return 'skeleton';
+  return 'goblin';
+}
 function waveMix() {
   if (isBossWave(wave)) return wave % 10 === 0 ? 'king' : 'chief';
-  if (wave >= 8 && wave % 2 === 0 && toSpawn === 1) return 'brute';
+  if (wave >= 6) return lateMix();
   const archerCap = wave >= 9 ? 2 : wave >= 4 ? 1 : 0;
   const dasherCap = wave >= 8 ? 2 : wave >= 4 ? 1 : 0;
   const throwerCap = wave >= 9 ? 2 : wave >= 6 ? 1 : 0;
@@ -1152,8 +1217,9 @@ const bossBar = $('bossBar'), bossFill = $('bossFill');
 let bannerT = 0, bossRef = null, bossShown = false, bossHpUi = -1, bossHideT = 0;
 function showBanner(text) {
   banner.textContent = text;
-  const win = text === 'KING DEFEATED!' || text === 'CHIEF DEFEATED!';
-  banner.classList.toggle('boss', text === 'BOSS WAVE');
+  const win = text === 'KING DEFEATED!' || text === 'CHIEF DEFEATED!' || text === 'EMPEROR DEFEATED!' || text === 'WARLORD DEFEATED!' || text === 'NEW BEST WAVE' || text === 'NEW BEST!';
+  const boss = text === 'BOSS WAVE' || text === 'CHIEF RETURNS' || text === 'KING RETURNS';
+  banner.classList.toggle('boss', boss);
   banner.classList.toggle('win', win);
   banner.classList.add('show');
   bannerT = win ? 2.3 : 1.8;
@@ -1201,9 +1267,21 @@ function updateMuteUI() {
 function showStartBest() {
   const el = $('sBest');
   if (el) el.textContent = best > 0 ? String(best) : '—';
+  const waveEl = $('sBestWave');
+  if (waveEl) waveEl.textContent = bestWave > 0 ? String(bestWave) : '—';
   liveBestShown = -2;
   paintLiveBest();
   if (window.HappyScores) window.HappyScores.paintNote('toonblade', $('dailyNote'));
+}
+function paintRunNote() {
+  const el = $('runNote');
+  if (!el) return;
+  const s = Math.max(0, Math.floor(runT));
+  const mm = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  const combo = bestComboReached >= 2 ? 'x' + bestComboReached : '—';
+  const fresh = wave > runStartBestWave && wave > 0;
+  el.textContent = 'Wave ' + wave + ' · ' + kills + ' kills · Best combo ' + combo + ' · ' + mm + ':' + ss + (fresh ? ' · New best wave!' : '');
 }
 
 function breakScoreCombo() {
@@ -1214,6 +1292,7 @@ function breakScoreCombo() {
 function noteScoreCombo() {
   scoreCombo = scoreComboT > 0 ? scoreCombo + 1 : 1;
   scoreComboT = 1.5;
+  if (scoreCombo > bestComboReached) bestComboReached = scoreCombo;
   if (scoreCombo < 2) return;
   score += scoreCombo;
   checkBest();
@@ -1288,13 +1367,15 @@ function resetGame() {
   player.pos.set(0, 0, 0); player.vel.set(0, 0, 0); W.root.rotation.set(0, 0, 0); W.body.rotation.set(0, 0, 0); W.body.position.set(0, 0, 0);
   visFacing = 0;
   score = 0; wave = 0; toSpawn = 0; waveTimer = 1.0;
-  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0; skipNextClearBonus = false;
-  upgrades.reach = upgrades.haste = upgrades.speed = upgrades.combo = upgrades.heal = 0;
+  archersThisWave = 0; dashersThisWave = 0; throwersThisWave = 0; brutesThisWave = 0; skipNextClearBonus = false;
+  upgrades.reach = upgrades.haste = upgrades.speed = upgrades.combo = upgrades.heal = upgrades.heavy = 0;
   upgradePicks = 0; closeUpgrade();
   breakScoreCombo();
   camYawPitch.yaw = Math.PI;
   uiHp = uiSt = uiWave = uiScore = uiLeft = -1;
   runStartBest = best; newBestShown = false; bestPending = false;
+  runStartBestWave = bestWave; waveRecordShown = false; bestWavePending = false;
+  runT = 0; kills = 0; bestComboReached = 0;
   audioGen++;
   savedKey = '0:0';
   clearHeld();
@@ -1325,7 +1406,7 @@ function armBack() {
   try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (e) {}
 }
 function rollUpgrades() {
-  const pool = UPGRADE_DEFS.filter(d => (upgrades[d.id] || 0) < d.cap);
+  const pool = UPGRADE_DEFS.filter(d => (upgrades[d.id] || 0) < d.cap && (d.id !== 'heavy' || wave >= 5));
   for (let i = pool.length - 1; i > 0; i--) {
     const j = (Math.random() * (i + 1)) | 0;
     const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
@@ -1439,7 +1520,9 @@ function gameOver() {
   closeUpgrade();
   const result = window.HappyScores ? window.HappyScores.record('toonblade', score, wave) : { best: Math.max(best, score) };
   best = result.best;
+  if (wave > bestWave) noteBestWave();
   $('oWave').textContent = wave;
+  paintRunNote();
   if (window.HappyScores) {
     window.HappyScores.showEnd({
       scoreEl: $('endScore'),
@@ -1535,6 +1618,7 @@ function denyStamina() {
 let flashTimer = 0;
 function damagePlayer(dmg, fromPos) {
   if (player.dead || (player.dodgeT >= 0 && player.dodgeT < ROLL_IFRAME)) return false;
+  dmg = hurtAmount(dmg);
   player.hp -= dmg; player.hurtT = 0.3; sfx.hurt(); shake = Math.max(shake, 0.35); breakScoreCombo();
   if (fromPos) {
     const kx = player.pos.x - fromPos.x, kz = player.pos.z - fromPos.z;
@@ -1697,7 +1781,7 @@ function updatePlayer(dt) {
         if (d < reach + ETYPES[e.type].r * 0.82 && Math.abs(angDiff(player.facing, Math.atan2(dx, dz))) < arc) {
           player.hitSet.add(e);
           const dir = impactDir(e);
-          hitEnemy(e, player.heavy ? 34 : player.combo === 2 ? 22 : 15, dir[0], dir[1], player.heavy ? 2 : 1);
+          hitEnemy(e, player.heavy ? heavyDamage() : player.combo === 2 ? 22 : 15, dir[0], dir[1], player.heavy ? 2 : 1);
         }
       }
       slashMat.opacity = Math.sin((p - p0) / (p1 - p0) * Math.PI) * (player.heavy ? 0.92 : 0.78);
@@ -1784,13 +1868,13 @@ function hitEnemy(e, dmg, nx, nz, power) {
   burst(tmpV.set(ep.x - nx * 0.3, 1.1, ep.z - nz * 0.3), puffColor(e.type), 10, 6);
   burst(tmpV, 0xffffff, 4, 8);
   if (e.hp <= 0) {
-    e.dead = true; e.deadT = 0;
+    e.dead = true; e.deadT = 0; kills++;
     if (e.warn) releaseWarn(e);
     releaseLane(e);
     let pts = ETYPES[e.type].score * (1 + Math.floor(wave / 3));
     if (e.type === 'king' || e.type === 'chief') {
       pts += e.type === 'king' ? 200 : 150;
-      showBanner(e.type === 'king' ? 'KING DEFEATED!' : 'CHIEF DEFEATED!');
+      showBanner(e.type === 'king' ? (wave >= 20 ? 'EMPEROR DEFEATED!' : 'KING DEFEATED!') : (wave >= 15 ? 'WARLORD DEFEATED!' : 'CHIEF DEFEATED!'));
       sfx.victory();
       player.hp = Math.min(player.maxHp, player.hp + (e.type === 'king' ? 30 : 24));
       bossHideT = 1.6;
@@ -1821,8 +1905,8 @@ function placeSweepWarn(e) {
 }
 function startKingAttack(e, d) {
   if (e.summonCd <= 0 && countMinions() < 3 && e.spawnT > 2.5) {
-    e.atk = 'summon'; e.summonCd = 11;
-  } else if (d < 4.3 && Math.random() < 0.45) {
+    e.atk = 'summon'; e.summonCd = wave >= 20 ? 14 : 11;
+  } else if (d < 4.3 && Math.random() < (wave >= 20 ? 0.62 : 0.45)) {
     e.atk = 'sweep';
   } else e.atk = 'slam';
   e.state = 'windup'; e.t = 0;
@@ -1942,7 +2026,7 @@ function updateChief(e, T, p, d, toP, dt) {
     p.x += Math.sin(e.facing) * sp * dt; p.z += Math.cos(e.facing) * sp * dt; moving = true;
   }
   if (e.cd <= 0 && e.spawnT > 0.65 && d < 13) {
-    e.atk = d < 3.8 && Math.random() < 0.58 ? 'slam' : 'charge';
+    e.atk = d < 3.8 && Math.random() < (wave >= 15 ? 0.4 : 0.58) ? 'slam' : 'charge';
     e.state = 'windup'; e.t = 0; e.lockFace = null;
     if (e.atk === 'slam') beginWarn(e, p.x, p.z, 2.55, 1.1);
     else beginLane(e, 8.4, 2.2);
@@ -2352,7 +2436,9 @@ function update(dt) {
     if (warn) warn.classList.toggle('hidden', stWarnT <= 0);
     if (stWarnT <= 0 && bar) bar.classList.remove('deny');
   }
-  if (bestPending && bannerT <= 0 && state === 'play') { bestPending = false; showBanner('NEW BEST!'); sfx.heal(); }
+  if ((state === 'play' || state === 'upgrade') && !player.dead) runT += dt;
+  if (bestWavePending && bannerT <= 0 && state === 'play') { bestWavePending = false; showBanner('NEW BEST WAVE'); sfx.heal(); }
+  else if (bestPending && bannerT <= 0 && state === 'play') { bestPending = false; showBanner('NEW BEST!'); sfx.heal(); }
 
   if (state === 'menu') { updateMenu(dt); }
   else if (state === 'play' || state === 'over') {

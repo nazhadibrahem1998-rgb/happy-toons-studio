@@ -109,6 +109,7 @@ body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 .newbest{margin:6px 0;font-size:20px;font-weight:900;color:#ffd45e;animation:glow .8s ease-in-out infinite alternate}
 @keyframes glow{from{transform:scale(1);text-shadow:0 0 0 #f29a0e}to{transform:scale(1.08);text-shadow:0 0 14px #f29a0e}}
 .best b{color:#ffd45e}
+.run-note{font-weight:800;color:#ffe9a8}
 @media (prefers-reduced-motion:reduce){.newbest,.stats b.pop{animation:none}#banner,#coach{transition:none}}
 body.hts-over,body.hts-over #over{touch-action:pan-y}
 #over{overflow-x:hidden;overflow-y:auto}
