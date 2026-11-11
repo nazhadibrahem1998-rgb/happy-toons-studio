@@ -7,12 +7,15 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 .bars{position:absolute;top:max(12px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));width:min(320px,46vw)}
 .hero-hud{margin:0 0 3px 2px;font-size:13px;font-weight:800;letter-spacing:1.4px;line-height:1;color:#ffd45e;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.65)}
 .bar{position:relative;height:18px;background:rgba(0,0,0,.55);border:2px solid #e8c25a;border-radius:10px;overflow:hidden;margin-bottom:6px}
-.bar.st{height:10px;border-width:1px;border-color:#9fd6ff}
+.bar.st{height:16px;border-width:2px;border-color:#7ec8ff}
+.bar.st.deny{border-color:#ffb020}
+.bar.st.deny #stFill{background:linear-gradient(90deg,#ff9a1f,#ffe08a)}
+.st-warn{position:absolute;left:max(14px,env(safe-area-inset-left));top:max(78px,calc(env(safe-area-inset-top) + 70px));margin:0;font-size:13px;font-weight:800;color:#ffe08a;text-shadow:0 1px 2px #000;pointer-events:none}
 .bar>div{height:100%;width:100%;transition:width .18s ease-out}
 #hpFill{background:linear-gradient(90deg,#d9262f,#ff6a4a)}
 #stFill{background:linear-gradient(90deg,#3aa0ff,#9fe3ff)}
 .bar span{position:absolute;left:8px;top:0;font-size:11px;font-weight:800;line-height:15px;text-shadow:0 1px 2px #000}
-.bar.st span{display:none}
+.bar.st span{display:block;line-height:13px;font-size:10px;letter-spacing:.5px}
 .stats{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));text-align:right;font-size:14px;font-weight:700;text-shadow:0 2px 3px #000;line-height:1.5}
 .stats b{color:#ffd45e;font-size:18px}
 #banner{position:absolute;top:22%;width:100%;text-align:center;font-size:clamp(28px,6vw,56px);font-weight:900;color:#ffd45e;text-shadow:0 4px 0 #7a4a00,0 6px 16px #000;opacity:0;transform:scale(.8);transition:opacity .35s ease,transform .45s cubic-bezier(.2,1.6,.4,1);letter-spacing:2px;will-change:transform,opacity}
@@ -37,11 +40,11 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 #touch{position:fixed;inset:0;z-index:6;pointer-events:none;touch-action:none}
 #stick{position:absolute;left:max(24px,env(safe-area-inset-left));bottom:max(28px,env(safe-area-inset-bottom));width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.25);pointer-events:auto}
 #knob{position:absolute;left:45px;top:45px;width:50px;height:50px;border-radius:50%;background:rgba(255,212,94,.75);box-shadow:0 2px 8px rgba(0,0,0,.5)}
-#btns{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(26px,env(safe-area-inset-bottom));width:190px;height:180px;pointer-events:none}
-.tb{position:absolute;pointer-events:auto;width:64px;height:64px;min-width:48px;min-height:48px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(20,10,40,.55);color:#fff;font-size:28px}
-.tb.big{width:88px;height:88px;right:0;bottom:0;font-size:38px;background:rgba(200,40,40,.6)}
-#bBlock{right:100px;bottom:0;background:rgba(40,90,200,.55)}
-#bDodge{right:10px;bottom:100px;background:rgba(40,160,90,.55)}
+#btns{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));width:156px;height:128px;pointer-events:none}
+.tb{position:absolute;pointer-events:auto;width:52px;height:52px;min-width:48px;min-height:48px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(20,10,40,.55);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;padding:0}
+.tb.big{width:64px;height:64px;right:0;bottom:0;font-size:30px;background:rgba(200,40,40,.6)}
+#bHeavy{right:72px;bottom:2px;background:rgba(210,120,20,.75)}
+#bDodge{right:6px;bottom:68px;background:rgba(40,160,90,.55)}
 .tb.on{filter:brightness(1.6);transform:scale(.94)}
 body.touch #hint{display:none}
 .pre{font-size:clamp(16px,3.5vw,24px);font-weight:800;color:#ffb7e0;letter-spacing:6px;margin-bottom:6px;text-transform:uppercase}
@@ -63,7 +66,7 @@ body.touch .stats{max-width:calc(50% - max(14px,env(safe-area-inset-right)) - 8p
 .tips{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;margin:2px 0 8px;padding:8px 16px;min-width:44px;min-height:44px;font:700 14px/1 system-ui,sans-serif;color:#ffd45e;background:transparent;border:1px solid rgba(255,212,94,.55);border-radius:999px;cursor:pointer}
 .combo b{color:#fff6d0}
 #coach{position:absolute;left:50%;bottom:max(36px,calc(env(safe-area-inset-bottom) + 28px));transform:translateX(-50%);max-width:calc(100% - 28px);padding:8px 14px;border-radius:16px;background:rgba(13,10,26,.62);border:2px solid rgba(255,212,94,.75);color:#ffd45e;font-size:clamp(15px,4.2vw,22px);font-weight:800;letter-spacing:.3px;text-align:center;text-shadow:0 2px 0 #5a3a00;white-space:nowrap;pointer-events:none;opacity:1;transition:opacity .35s linear}
-body.touch #coach{bottom:max(206px,calc(env(safe-area-inset-bottom) + 196px))}
+body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 #coach.fade{opacity:0}
 #pause{cursor:pointer;z-index:24}
 #upgrade{z-index:22}
@@ -105,7 +108,13 @@ body.hts-over,body.hts-over #over{touch-action:pan-y}
 @media (max-height:500px){
   .screen{padding:max(6px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
   .tips{margin:1px 0 2px;padding:6px 12px;font-size:13px}
-  body.touch #coach{bottom:max(168px,calc(env(safe-area-inset-bottom) + 158px));font-size:15px}
+  body.touch #coach{bottom:max(150px,calc(env(safe-area-inset-bottom) + 140px));font-size:15px}
+  #stick{width:112px;height:112px}
+  #knob{left:34px;top:34px;width:44px;height:44px}
+  #btns{width:148px;height:116px;bottom:max(8px,env(safe-area-inset-bottom))}
+  .tb.big{width:58px;height:58px}
+  #bHeavy{right:66px}
+  #bDodge{bottom:60px}
   .pre{font-size:13px;letter-spacing:3px;margin-bottom:1px}
   .panel h1{font-size:clamp(28px,10vh,46px);letter-spacing:1px;text-shadow:0 3px 0 #8a5200,0 6px 14px rgba(0,0,0,.8)}
   #over h1.fallen{font-size:clamp(22px,7vh,32px);letter-spacing:.5px}

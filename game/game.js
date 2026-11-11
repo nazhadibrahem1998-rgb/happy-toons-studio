@@ -155,7 +155,7 @@ function updateParticles(dt) {
   }
 }
 // slash trail arc
-const slashMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+const slashMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
 const slash = new THREE.Mesh(new THREE.RingGeometry(1.2, 2.5, 24, 1, -Math.PI * 0.45, Math.PI * 0.9), slashMat);
 slash.rotation.x = -Math.PI / 2; scene.add(slash);
 
@@ -419,6 +419,8 @@ const sfx = {
   clang: () => { tone(0.25, 1400, 1200, 0.12, 'square'); tone(0.3, 2100, 1900, 0.08, 'sine'); },
   hurt: () => tone(0.25, 300, 90, 0.2, 'sawtooth'),
   dodge: () => noise(0.22, 300, 1200, 0.18),
+  heavy: () => { noise(0.24, 360, 70, 0.36, 'lowpass'); tone(0.2, 108, 40, 0.22, 'triangle'); tone(0.14, 68, 34, 0.16, 'sine'); },
+  dry: () => tone(0.09, 168, 92, 0.08, 'square'),
   die: () => tone(0.4, 400, 50, 0.18, 'square'),
   wave: () => { tone(0.15, 440, 440, 0.12, 'square'); setTimeout(() => tone(0.3, 660, 660, 0.12, 'square'), 150); },
   heal: () => { tone(0.12, 600, 900, 0.12, 'sine'); setTimeout(() => tone(0.2, 900, 1300, 0.12, 'sine'), 100); },
@@ -493,21 +495,13 @@ function buildWarrior() {
   sword.rotation.x = Math.PI / 2;
   mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.28, 6), leather, 0, 0, 0, sword);
   mesh(new THREE.BoxGeometry(0.42, 0.06, 0.1), gold, 0, 0.16, 0, sword);
-  const blade = mesh(new THREE.BoxGeometry(0.1, 1.15, 0.03), mat(0xe8eef8, { metalness: 0.95, roughness: 0.15, emissive: 0x223344 }), 0, 0.75, 0, sword);
-  mesh(new THREE.ConeGeometry(0.07, 0.18, 4), mat(0xe8eef8, { metalness: 0.95, roughness: 0.15 }), 0, 1.41, 0, sword).rotation.y = Math.PI / 4;
+  // Blade grows from the guard. scale.y on this group lengthens it without moving the hilt.
+  const bladeRoot = new THREE.Group(); bladeRoot.position.y = 0.2; sword.add(bladeRoot);
+  const blade = mesh(new THREE.BoxGeometry(0.1, 1.15, 0.03), mat(0xe8eef8, { metalness: 0.95, roughness: 0.15, emissive: 0x223344 }), 0, 0.575, 0, bladeRoot);
+  const bladeTip = mesh(new THREE.ConeGeometry(0.07, 0.18, 4), mat(0xe8eef8, { metalness: 0.95, roughness: 0.15 }), 0, 1.24, 0, bladeRoot);
+  bladeTip.rotation.y = Math.PI / 4;
   mesh(new THREE.SphereGeometry(0.06, 6, 6), gold, 0, -0.17, 0, sword);
-  // shield on left forearm
-  const shield = new THREE.Group(); shield.position.set(0.1, -0.2, 0.05); L.fore.add(shield);
-  const sh = mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.08, 20), mat(0x2f4fb8, { metalness: 0.3, roughness: 0.5 }), 0, 0, 0, shield);
-  sh.rotation.z = Math.PI / 2;
-  const rimS = mesh(new THREE.TorusGeometry(0.48, 0.05, 6, 24), gold, 0, 0, 0, shield); rimS.rotation.y = Math.PI / 2;
-  // yellow star emblem (brand nod)
-  const st = new THREE.Shape();
-  for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.12 : 0.3, a = i / 10 * Math.PI * 2 + Math.PI / 2; const x = Math.cos(a) * r, y = Math.sin(a) * r; i ? st.lineTo(x, y) : st.moveTo(x, y); }
-  const starM = mesh(new THREE.ExtrudeGeometry(st, { depth: 0.04, bevelEnabled: false }), mat(0xffd21f, { emissive: 0x664400, roughness: 0.4 }), 0.05, 0, 0, shield);
-  starM.rotation.y = Math.PI / 2;
-  shield.rotation.y = 0; // shield faces outward (+x of left arm)
-  return { root, body, legs, torso, head, cape, R, L, sword, blade, shield };
+  return { root, body, legs, torso, head, cape, R, L, sword, blade, bladeRoot };
 }
 
 const HERO_NAME = 'Lang';
@@ -697,10 +691,16 @@ const player = {
   pos: W.root.position, facing: 0, vel: new THREE.Vector3(),
   hp: 100, maxHp: 100, st: 100,
   attackT: -1, combo: 0, comboWindow: 0, hitSet: new Set(),
-  blocking: false, dodgeT: -1, dodgeDir: new THREE.Vector3(), dodgeCd: 0,
+  heavy: false, swingSide: -1, heavyVoiced: false,
+  dodgeT: -1, dodgeDir: new THREE.Vector3(), dodgeCd: 0, rollSide: -1,
   hurtT: 0, walkPhase: 0, dead: false, deadT: 0,
 };
 const ATTACK_DUR = 0.42;
+const HEAVY_DUR = 0.78;
+const HEAVY_COST = 36;
+const ROLL_COST = 14;
+const ROLL_TIME = 0.42;
+const ROLL_IFRAME = 0.26;
 const enemies = [];
 const pickups = [];
 function bootBest() {
@@ -714,7 +714,7 @@ let archersThisWave = 0, dashersThisWave = 0, throwersThisWave = 0, skipNextClea
 let choosingUpgrade = false, upgradePicks = 0, resumeState = 'play';
 const upgrades = { reach: 0, haste: 0, speed: 0, combo: 0, heal: 0 };
 const UPGRADE_DEFS = [
-  { id: 'reach', name: 'Longer Blade', desc: 'Swings reach farther.', cap: 4, icon: '⚔' },
+  { id: 'reach', name: 'Long Sword', desc: 'The blade grows longer.', cap: 4, icon: '⚔' },
   { id: 'haste', name: 'Quick Cuts', desc: 'Attack a little faster.', cap: 4, icon: '⚡' },
   { id: 'speed', name: 'Swift Boots', desc: 'Run faster.', cap: 4, icon: '💨' },
   { id: 'heal', name: 'Small Heal', desc: 'Restore 28 health now.', cap: 99, icon: '💚' },
@@ -891,14 +891,14 @@ function readDebugWave() {
 
 // ---------- Input ----------
 const keys = {};
-const input = { mx: 0, mz: 0, tx: 0, tz: 0, attack: false, block: false, dodge: false };
-let pausedAt = 0, lastTouchT = -1e9, hadLock = false, mouseBlock = false;
-const touchBtn = { block: false };
+const input = { mx: 0, mz: 0, tx: 0, tz: 0, attack: false, heavy: false, dodge: false, dodgeSide: 0 };
+let pausedAt = 0, lastTouchT = -1e9, hadLock = false;
+let stWarnT = 0;
 function requestLock() {
   if (document.pointerLockElement === canvas || !canvas.requestPointerLock) return;
   try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {}
 }
-function clearHeld() { for (const k in keys) keys[k] = false; mouseBlock = false; touchBtn.block = false; input.attack = input.dodge = false; }
+function clearHeld() { for (const k in keys) keys[k] = false; input.attack = input.heavy = input.dodge = false; input.dodgeSide = 0; }
 // switch on-screen controls per event (hybrid touch laptops can use both)
 function noteTouch() {
   lastTouchT = performance.now();
@@ -912,6 +912,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM' && !e.repeat) setMuted(!muted);
   if (state === 'play') {
     if (e.code === 'KeyJ') input.attack = true;
+    if (e.code === 'KeyK' && !e.repeat) input.heavy = true;
     if (e.code === 'Space') input.dodge = true;
     if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) togglePause();
   } else if (state === 'upgrade' && !e.repeat) {
@@ -934,9 +935,8 @@ canvas.addEventListener('mousedown', e => {
   if (state !== 'play' || isSynthMouse(e)) return;
   noteMouse(); audio(); requestLock();
   if (e.button === 0) input.attack = true;
-  if (e.button === 2) mouseBlock = true;
+  if (e.button === 2) input.heavy = true;
 });
-addEventListener('mouseup', e => { if (e.button === 2) mouseBlock = false; });
 addEventListener('mousemove', e => {
   if (state !== 'play') return;
   if (document.pointerLockElement === canvas) {
@@ -959,8 +959,28 @@ function bindBtn(el, down, up) {
   el.addEventListener('touchend', end, { passive: false }); el.addEventListener('touchcancel', end, { passive: false });
 }
 bindBtn($('bAttack'), () => input.attack = true);
-bindBtn($('bBlock'), () => touchBtn.block = true, () => touchBtn.block = false);
-bindBtn($('bDodge'), () => input.dodge = true);
+bindBtn($('bHeavy'), () => input.heavy = true);
+// Roll on release so a sideways swipe on the button can pick left or right.
+{
+  const bDodge = $('bDodge');
+  let dodgeTouchX = 0, dodgeSwipe = 0;
+  bDodge.addEventListener('touchstart', e => {
+    e.preventDefault(); noteTouch(); audio(); bDodge.classList.add('on');
+    dodgeTouchX = e.changedTouches[0].clientX; dodgeSwipe = 0;
+  }, { passive: false });
+  bDodge.addEventListener('touchmove', e => {
+    for (const t of e.changedTouches) {
+      const dx = t.clientX - dodgeTouchX;
+      if (Math.abs(dx) > 22) dodgeSwipe = Math.sign(dx);
+    }
+  }, { passive: true });
+  const dodgeEnd = e => {
+    e.preventDefault(); bDodge.classList.remove('on');
+    input.dodgeSide = dodgeSwipe; input.dodge = true; dodgeSwipe = 0;
+  };
+  bDodge.addEventListener('touchend', dodgeEnd, { passive: false });
+  bDodge.addEventListener('touchcancel', e => { e.preventDefault(); bDodge.classList.remove('on'); dodgeSwipe = 0; }, { passive: false });
+}
 bindBtn($('bPause'), () => { if (state === 'play' || state === 'upgrade') togglePause(); });
 bindBtn($('bMute'), () => setMuted(!muted));
 stick.addEventListener('touchstart', e => {
@@ -1075,7 +1095,7 @@ function noteScoreCombo() {
 
 let coachOn = false, coachT = 0, coachStep = -1;
 function coachLines() {
-  return touchUI ? ['Move with the stick', 'Tap ⚔ to attack'] : ['Move with WASD', 'Click to attack'];
+  return touchUI ? ['Move with the stick', '✦ heavy hit costs stamina'] : ['Move with WASD', 'K is a heavy hit'];
 }
 function endCoach() {
   coachOn = false; coachT = 0; coachStep = -1;
@@ -1133,7 +1153,7 @@ function resetGame() {
   for (const e of [...enemies]) removeEnemy(e);
   for (const p of pickups) scene.remove(p.m); pickups.length = 0;
   resetFx();
-  Object.assign(player, { hp: 100, st: 100, attackT: -1, combo: 0, comboWindow: 0, blocking: false, dodgeT: -1, dodgeCd: 0, hurtT: 0, dead: false, deadT: 0, facing: 0 });
+  Object.assign(player, { hp: 100, st: 100, attackT: -1, combo: 0, comboWindow: 0, heavy: false, swingSide: -1, heavyVoiced: false, dodgeT: -1, dodgeCd: 0, rollSide: -1, hurtT: 0, dead: false, deadT: 0, facing: 0 });
   player.pos.set(0, 0, 0); player.vel.set(0, 0, 0); W.root.rotation.set(0, 0, 0); W.body.rotation.set(0, 0, 0); W.body.position.set(0, 0, 0);
   visFacing = 0;
   score = 0; wave = 0; toSpawn = 0; waveTimer = 1.0;
@@ -1241,8 +1261,12 @@ function chooseUpgrade(index) {
   if (touchUI) $('touch').classList.remove('hidden');
   else requestLock();
 }
-function attackDur() { return ATTACK_DUR * Math.pow(0.88, upgrades.haste || 0); }
-function bladeReach() { return (player.combo === 2 ? 3.0 : 2.6) + (upgrades.reach || 0) * 0.42; }
+function attackDur() {
+  if (player.heavy) return HEAVY_DUR;
+  return ATTACK_DUR * Math.pow(0.88, upgrades.haste || 0);
+}
+function bladeReach() { return (player.heavy ? 3.15 : player.combo === 2 ? 3.0 : 2.6) + (upgrades.reach || 0) * 0.42; }
+function bladeVisual() { return 1 + (upgrades.reach || 0) * 0.17; }
 function runSpeed() { return 6.2 + (upgrades.speed || 0) * 0.8; }
 function comboGap() { return 0.35 + (upgrades.combo || 0) * 0.14; }
 function arenaBusy() {
@@ -1330,18 +1354,15 @@ function collide(pos, r) {
   if (d > lim) { pos.x *= lim / d; pos.z *= lim / d; }
 }
 
+function denyStamina() {
+  if (stWarnT > 0.45) return;
+  stWarnT = 0.9;
+  sfx.dry();
+  const bar = $('stBar');
+  if (bar) bar.classList.add('deny');
+}
 function damagePlayer(dmg, fromPos) {
-  if (player.dead || player.dodgeT >= 0) return false;
-  // block check: enemy in front within ~110°
-  if (player.blocking && player.st > 0) {
-    const a = Math.atan2(fromPos.x - player.pos.x, fromPos.z - player.pos.z);
-    if (Math.abs(angDiff(player.facing, a)) < 1.0) {
-      player.st -= dmg * 1.6; sfx.clang(); burst(tmpV.set(player.pos.x + Math.sin(player.facing) * 0.7, 1.3, player.pos.z + Math.cos(player.facing) * 0.7), 0xfff0a0, 10, 6);
-      shake = Math.max(shake, 0.15);
-      if (player.st > 0) return 'blocked';
-      dmg *= 0.5; // guard broken
-    }
-  }
+  if (player.dead || (player.dodgeT >= 0 && player.dodgeT < ROLL_IFRAME)) return false;
   player.hp -= dmg; player.hurtT = 0.3; sfx.hurt(); shake = Math.max(shake, 0.35); breakScoreCombo();
   dmgFlash.style.opacity = 1; setTimeout(() => dmgFlash.style.opacity = 0, 120);
   burst(tmpV.set(player.pos.x, 1.3, player.pos.z), 0xff3344, 10, 5);
@@ -1366,19 +1387,50 @@ function updatePlayer(dt) {
   const move = tmpV.set(0, 0, 0).addScaledVector(right, mx).addScaledVector(fwd, -mz);
   if (move.lengthSq() > 0) move.normalize().multiplyScalar(mag);
 
-  player.blocking = (keys.KeyK || mouseBlock || touchBtn.block) && player.attackT < 0 && player.dodgeT < 0 && player.st > 0;
   player.dodgeCd -= dt; player.comboWindow -= dt;
+  const sideX = Math.cos(player.facing), sideZ = -Math.sin(player.facing);
 
-  if (input.dodge && player.dodgeT < 0 && player.dodgeCd <= 0 && player.st >= 20) {
-    player.dodgeT = 0; player.dodgeCd = 0.75; player.st -= 20; player.attackT = -1;
-    if (move.lengthSq() > 0.01) player.dodgeDir.copy(move).normalize();
-    else player.dodgeDir.set(Math.sin(player.facing), 0, Math.cos(player.facing));
-    player.facing = Math.atan2(player.dodgeDir.x, player.dodgeDir.z); sfx.dodge();
+  if (input.dodge && player.dodgeT < 0 && player.dodgeCd <= 0) {
+    if (player.st < ROLL_COST) denyStamina();
+    else {
+      player.dodgeT = 0; player.dodgeCd = 0.72; player.st -= ROLL_COST; player.attackT = -1; player.heavy = false;
+      if (touchUI) {
+        // Phone: roll along the stick's left/right, or the swipe on the roll button.
+        let side = input.dodgeSide;
+        if (!side && Math.abs(input.tx) > 0.18) side = Math.sign(input.tx);
+        if (!side) { player.rollSide = -(player.rollSide || -1); side = player.rollSide; }
+        else player.rollSide = side;
+        const yaw = camYawPitch.yaw;
+        player.dodgeDir.set(Math.cos(yaw) * side, 0, -Math.sin(yaw) * side);
+      } else if (move.lengthSq() > 0.04) {
+        player.dodgeDir.copy(move).normalize();
+        const lat = player.dodgeDir.x * sideX + player.dodgeDir.z * sideZ;
+        player.rollSide = Math.abs(lat) > 0.3 ? Math.sign(lat) : (player.rollSide || -1);
+      } else {
+        player.rollSide = -(player.rollSide || -1);
+        player.dodgeDir.set(sideX * player.rollSide, 0, sideZ * player.rollSide);
+      }
+      sfx.dodge();
+      burst(tmpV.set(player.pos.x, 0.35, player.pos.z), 0xffe08a, 10, 4);
+    }
   }
   const atkCost = Math.max(5, 8 - (upgrades.haste || 0));
-  if (input.attack && player.attackT < 0 && player.dodgeT < 0 && player.st >= atkCost) {
-    player.attackT = 0; player.st -= atkCost; player.hitSet.clear();
+  if (input.heavy && player.attackT < 0 && player.dodgeT < 0) {
+    if (player.st < HEAVY_COST) denyStamina();
+    else {
+      player.heavy = true; player.attackT = 0; player.st -= HEAVY_COST; player.hitSet.clear();
+      player.swingSide = -1; player.heavyVoiced = false;
+      let best = null, bd = bladeReach() + 0.8;
+      for (const e of enemies) { if (e.dead) continue; const d = e.g.root.position.distanceTo(player.pos); if (d < bd) { bd = d; best = e; } }
+      if (best) player.facing = Math.atan2(best.g.root.position.x - player.pos.x, best.g.root.position.z - player.pos.z);
+      else if (move.lengthSq() > 0.01) player.facing = Math.atan2(move.x, move.z);
+      noise(0.16, 200, 80, 0.16, 'lowpass');
+    }
+  } else if (input.attack && player.attackT < 0 && player.dodgeT < 0 && player.st >= atkCost) {
+    player.heavy = false; player.attackT = 0; player.st -= atkCost; player.hitSet.clear();
     player.combo = player.comboWindow > 0 ? (player.combo + 1) % 3 : 0;
+    player.swingSide = player.combo === 1 ? 1 : player.combo === 2 ? 0 : -1;
+    player.heavyVoiced = false;
     // auto-aim toward nearest enemy in front-ish
     let best = null, bd = 3.2 + (upgrades.reach || 0) * 0.45;
     for (const e of enemies) { if (e.dead) continue; const d = e.g.root.position.distanceTo(player.pos); if (d < bd) { bd = d; best = e; } }
@@ -1386,16 +1438,16 @@ function updatePlayer(dt) {
     else if (move.lengthSq() > 0.01) player.facing = Math.atan2(move.x, move.z);
     sfx.swing();
   }
-  input.attack = input.dodge = false;
+  input.attack = input.heavy = input.dodge = false; input.dodgeSide = 0;
 
   let speed = runSpeed();
-  if (player.blocking) speed = 2.4;
-  if (player.attackT >= 0) speed = 1.2;
+  if (player.heavy && player.attackT >= 0) speed = 0.85;
+  else if (player.attackT >= 0) speed = 1.2;
   if (player.dodgeT >= 0) {
     player.dodgeT += dt;
-    const k = 1 - player.dodgeT / 0.45;
-    player.pos.addScaledVector(player.dodgeDir, 15 * Math.max(0.2, k) * dt);
-    if (player.dodgeT > 0.45) player.dodgeT = -1;
+    const k = 1 - player.dodgeT / ROLL_TIME;
+    player.pos.addScaledVector(player.dodgeDir, 13 * Math.max(0.25, k) * dt);
+    if (player.dodgeT > ROLL_TIME) player.dodgeT = -1;
     player.vel.set(0, 0, 0);
   } else {
     // short acceleration ramp (~55 ms) instead of instant start/stop
@@ -1417,31 +1469,35 @@ function updatePlayer(dt) {
   }
 
   // stamina regen
-  if (player.attackT < 0 && player.dodgeT < 0) player.st = Math.min(100, player.st + (player.blocking ? 8 : 26) * dt);
+  if (player.attackT < 0 && player.dodgeT < 0) player.st = Math.min(100, player.st + 18 * dt);
 
   // attack resolution
   if (player.attackT >= 0) {
     player.attackT += dt;
     const swingDur = attackDur();
     const p = player.attackT / swingDur;
-    if (p > 0.25 && p < 0.6) {
-      const reach = bladeReach(), arc = player.combo === 2 ? Math.PI : 1.3;
+    const p0 = player.heavy ? 0.46 : 0.25, p1 = player.heavy ? 0.74 : 0.6;
+    if (p > p0 && p < p1) {
+      const reach = bladeReach(), arc = player.heavy ? 2.25 : player.combo === 2 ? Math.PI : 1.3;
       for (const e of enemies) {
         if (e.dead || player.hitSet.has(e)) continue;
         const ep = e.g.root.position; const dx = ep.x - player.pos.x, dz = ep.z - player.pos.z;
         const d = Math.hypot(dx, dz);
         if (d < reach + ETYPES[e.type].r * 0.5 && Math.abs(angDiff(player.facing, Math.atan2(dx, dz))) < arc) {
           player.hitSet.add(e);
-          hitEnemy(e, player.combo === 2 ? 22 : 15, dx / (d || 1), dz / (d || 1));
+          const dir = impactDir(e);
+          hitEnemy(e, player.heavy ? 34 : player.combo === 2 ? 22 : 15, dir[0], dir[1], player.heavy ? 2 : 1);
         }
       }
-      slashMat.opacity = Math.sin((p - 0.25) / 0.35 * Math.PI) * 0.6;
+      slashMat.opacity = Math.sin((p - p0) / (p1 - p0) * Math.PI) * (player.heavy ? 0.92 : 0.78);
     } else slashMat.opacity = Math.max(0, slashMat.opacity - dt * 6);
-    if (player.attackT > swingDur) { player.attackT = -1; player.comboWindow = comboGap(); }
+    if (player.attackT > swingDur) { player.attackT = -1; player.heavy = false; player.comboWindow = comboGap(); }
   } else slashMat.opacity = Math.max(0, slashMat.opacity - dt * 6);
   slash.position.set(player.pos.x, 1.1, player.pos.z);
+  slash.scale.setScalar(Math.max(0.2, bladeReach()) / 2.5);
+  slashMat.color.setHex(player.heavy ? 0xffb03a : 0xfff2b0);
   slash.rotation.z = player.facing - Math.PI / 2; // ring lies in XY, tilted onto ground
-  slash.rotation.x = -Math.PI / 2 + (player.combo === 1 ? 0.3 : player.combo === 0 ? -0.2 : 0);
+  slash.rotation.x = -Math.PI / 2 + (player.heavy ? 0.05 : player.combo === 1 ? 0.3 : player.combo === 0 ? -0.2 : 0);
 
   // pickups
   for (let i = pickups.length - 1; i >= 0; i--) {
@@ -1471,14 +1527,48 @@ function deathColor(type) {
   if (type === 'chief') return 0x3f9a45;
   return 0x6cbf3a;
 }
-function hitEnemy(e, dmg, nx, nz) {
+// Push along the blade: sideways for a side swing, back for an overhead or a heavy cleave.
+function impactDir(e) {
+  const f = player.facing;
+  const fx = Math.sin(f), fz = Math.cos(f);
+  const rx = Math.cos(f), rz = -Math.sin(f);
+  const ep = e.g.root.position;
+  let ox = ep.x - player.pos.x, oz = ep.z - player.pos.z;
+  const od = Math.hypot(ox, oz) || 1;
+  ox /= od; oz /= od;
+  const lat = ox * rx + oz * rz;
+  let sx, sz;
+  if (player.heavy) {
+    sx = -rx * 0.8 + fx * 0.45 + rx * lat * 0.5;
+    sz = -rz * 0.8 + fz * 0.45 + rz * lat * 0.5;
+  } else if (player.swingSide === 0) {
+    sx = fx + rx * lat * 0.7;
+    sz = fz + rz * lat * 0.7;
+  } else {
+    const side = player.swingSide;
+    sx = rx * side + fx * Math.max(0, 1 - Math.abs(lat)) * 0.5;
+    sz = rz * side + fz * Math.max(0, 1 - Math.abs(lat)) * 0.5;
+  }
+  sx += ox * 0.35; sz += oz * 0.35;
+  const m = Math.hypot(sx, sz) || 1;
+  return [sx / m, sz / m];
+}
+function hitEnemy(e, dmg, nx, nz, power) {
   noteScoreCombo();
   e.hp -= dmg; e.flash = 0.12;
-  const heavy = e.type === 'brute' || e.type === 'king' || e.type === 'chief';
-  const kb = e.type === 'king' || e.type === 'chief' ? 2.2 : heavy ? 3 : e.type === 'archer' || e.type === 'thrower' ? 7 : 9;
-  e.kb.set(nx, 0, nz).multiplyScalar(kb);
+  const boss = e.type === 'king' || e.type === 'chief';
+  const brute = e.type === 'brute';
+  const strong = (power || 1) > 1;
+  let mag = strong ? 13 : 7.2;
+  if (boss) mag = strong ? 2.2 : 1.35;
+  else if (brute) mag = strong ? 4.6 : 3;
+  const len = Math.hypot(nx, nz) || 1;
+  e.kb.set(nx / len, 0, nz / len).multiplyScalar(mag);
+  const heavy = brute || boss;
   if (e.state === 'windup' && !heavy) { e.state = 'stagger'; e.t = 0; if (e.warn) releaseWarn(e); releaseLane(e); }
-  sfx.hit(); hitStop = 0.05; shake = Math.max(shake, 0.18);
+  if (strong) { if (!player.heavyVoiced) { player.heavyVoiced = true; sfx.heavy(); } else sfx.hit(); }
+  else sfx.hit();
+  hitStop = strong ? 0.07 : 0.05; shake = Math.max(shake, strong ? 0.28 : 0.18);
   const ep = e.g.root.position;
   burst(tmpV.set(ep.x - nx * 0.3, 1.1, ep.z - nz * 0.3), puffColor(e.type), 10, 6);
   burst(tmpV, 0xffffff, 4, 8);
@@ -1713,7 +1803,7 @@ function updateEnemies(dt) {
     const toP = Math.atan2(dx, dz);
     e.cd -= dt; e.t += dt;
     // knockback
-    if (e.kb.lengthSq() > 0.01) { p.addScaledVector(e.kb, dt); e.kb.multiplyScalar(Math.pow(0.002, dt)); }
+    if (e.kb.lengthSq() > 0.01) { p.addScaledVector(e.kb, dt); e.kb.multiplyScalar(Math.pow(0.012, dt)); }
     let moving = false;
     if (player.dead) { if (e.warn) releaseWarn(e); releaseLane(e); e.state = 'idle'; }
     else if (e.state === 'chase') {
@@ -1844,9 +1934,10 @@ function updateEnemies(dt) {
 const tmpQ = new THREE.Quaternion();
 
 // blended pose so limbs ease between idle / walk / block / attack instead of snapping
-const pose = { rX: -0.25, rY: 0, rZ: -0.15, foreX: -0.4, lX: -0.5, lY: 0, lZ: 0.2, lForeX: -0.9, tY: 0, tX: 0, legL: 0, legR: 0, shieldY: -0.9 };
+const pose = { rX: -0.25, rY: 0, rZ: -0.15, foreX: -0.4, lX: -0.5, lY: 0, lZ: 0.2, lForeX: -0.9, tY: 0, tX: 0, legL: 0, legR: 0 };
 function animateWarrior(dt, moving, speedK) {
   const w = W;
+  if (w.bladeRoot) w.bladeRoot.scale.y = bladeVisual();
   visFacing += angDiff(visFacing, player.facing) * damp(28, dt);
   W.root.rotation.y = visFacing;
   if (player.dead) {
@@ -1866,7 +1957,17 @@ function animateWarrior(dt, moving, speedK) {
   // cape sway
   w.cape.rotation.x = 0.15 + (moving ? 0.35 * speedK : 0) + Math.sin(performance.now() * 0.004) * 0.05;
   const attacking = player.attackT >= 0;
-  if (attacking) {
+  if (attacking && player.heavy) {
+    const p = player.attackT / HEAVY_DUR;
+    const wind = Math.min(1, p / 0.46), strike = clamp((p - 0.46) / 0.28, 0, 1), ease = 1 - Math.pow(1 - strike, 3);
+    rX = -0.5 - 1.15 * wind + 0.4 * ease;
+    rZ = 1.55 * wind - 2.9 * ease;
+    tY = 0.9 * wind - 1.7 * ease;
+    foreX = -0.55;
+    lX = -0.9 - 0.35 * wind;
+    lZ = 0.7 * wind - 1.35 * ease;
+    lY = 0.2 * wind;
+  } else if (attacking) {
     const p = player.attackT / attackDur();
     const wind = Math.min(1, p / 0.25), strike = clamp((p - 0.25) / 0.3, 0, 1), ease = 1 - Math.pow(1 - strike, 3);
     if (player.combo === 0) { // horizontal right-to-left
@@ -1882,24 +1983,31 @@ function animateWarrior(dt, moving, speedK) {
       w.body.rotation.y = ease * Math.PI * 2;
     }
   }
-  if (player.blocking) { lX = -1.45; lZ = -0.45; lY = 0; lForeX = -0.25; tY = -0.15; }
   if (player.dodgeT >= 0) {
-    const k = player.dodgeT / 0.45;
-    w.body.rotation.x = k * Math.PI * 2; w.body.position.y = Math.sin(k * Math.PI) * 0.5;
+    const k = player.dodgeT / ROLL_TIME;
+    const side = player.rollSide || 1;
+    if (reduceMotion) {
+      w.body.rotation.z = side * Math.sin(Math.min(1, k) * Math.PI) * 0.85;
+      w.body.position.y = 0.12;
+    } else {
+      w.body.rotation.z = side * Math.min(1, k) * Math.PI * 2;
+      w.body.position.y = Math.sin(Math.min(1, k) * Math.PI) * 0.42;
+    }
+    w.body.position.x = side * Math.sin(Math.min(1, k) * Math.PI) * 0.18;
+  } else if (Math.abs(w.body.position.x) > 0.001) {
+    w.body.position.x = 0;
   }
   // attack poses track tightly (crisp swings); everything else eases
-  const k = damp(attacking ? 45 : player.blocking ? 22 : 14, dt), kl = damp(20, dt);
+  const k = damp(attacking ? (player.heavy ? 16 : 45) : 14, dt), kl = damp(20, dt);
   pose.rX += (rX - pose.rX) * k; pose.rY += (rY - pose.rY) * k; pose.rZ += (rZ - pose.rZ) * k; pose.foreX += (foreX - pose.foreX) * k;
   pose.lX += (lX - pose.lX) * k; pose.lY += (lY - pose.lY) * k; pose.lZ += (lZ - pose.lZ) * k; pose.lForeX += (lForeX - pose.lForeX) * k;
   pose.tY += (tY - pose.tY) * k; pose.tX += (tX - pose.tX) * k;
   pose.legL += (s * 0.8 - pose.legL) * kl; pose.legR += (-s * 0.8 - pose.legR) * kl;
-  pose.shieldY += ((player.blocking ? -1.2 : -0.9) - pose.shieldY) * k;
   w.legs[0].rotation.x = pose.legL; w.legs[1].rotation.x = pose.legR;
   w.torso.rotation.set(pose.tX, pose.tY, 0);
   if (player.hurtT > 0) { player.hurtT -= dt; w.torso.rotation.x -= 0.25 * (player.hurtT / 0.3); }
   w.R.sh.rotation.set(pose.rX, pose.rY, pose.rZ); w.R.fore.rotation.x = pose.foreX;
   w.L.sh.rotation.set(pose.lX, pose.lY, pose.lZ); w.L.fore.rotation.x = pose.lForeX;
-  w.shield.rotation.y = pose.shieldY;
 }
 
 const camGoal = new THREE.Vector3(), camLook = new THREE.Vector3(0, 1.4, 0), camBase = new THREE.Vector3(), camTgt = new THREE.Vector3();
@@ -1976,6 +2084,12 @@ function update(dt) {
   for (const t of torches) t.scale.setScalar(1 + Math.sin(performance.now() * 0.02 + t.position.x) * 0.15);
   heroTag.visible = (state === 'play' || state === 'pause' || state === 'upgrade') && !player.dead;
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) banner.classList.remove('show'); }
+  if (stWarnT > 0) {
+    stWarnT -= dt;
+    const warn = $('stWarn'), bar = $('stBar');
+    if (warn) warn.classList.toggle('hidden', stWarnT <= 0);
+    if (stWarnT <= 0 && bar) bar.classList.remove('deny');
+  }
   if (bestPending && bannerT <= 0 && state === 'play') { bestPending = false; showBanner('NEW BEST!'); sfx.heal(); }
 
   if (state === 'menu') { updateMenu(dt); }
@@ -1988,7 +2102,7 @@ function update(dt) {
     if (state === 'play') {
       const moving = (Math.abs(input.tx || 0) + Math.abs(input.tz || 0) > 0.1) || keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight;
       if (!player.dead) updatePlayer(dt);
-      animateWarrior(dt, moving && !player.dead && player.dodgeT < 0, player.blocking ? 0.5 : 1);
+      animateWarrior(dt, moving && !player.dead && player.dodgeT < 0, player.heavy ? 0.4 : 1);
       if (player.dead) { if (player.deadT > 1.6) gameOver(); }
       // waves
       if (toSpawn > 0) {
