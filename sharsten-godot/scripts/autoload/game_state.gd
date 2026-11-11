@@ -40,6 +40,34 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and scene_id != "" and scene_id != "title":
 		save_now()
+	if what == NOTIFICATION_PREDELETE:
+		release_runtime_caches()
+
+func _exit_tree() -> void:
+	release_runtime_caches()
+
+static func release_runtime_caches() -> void:
+	var meshes = load("res://scripts/world/mesh_lib.gd")
+	if meshes and meshes.has_method("drop_caches"):
+		meshes.drop_caches()
+	var world_script = load("res://scripts/world/village_world.gd")
+	if world_script and world_script.has_method("drop_nature_cache"):
+		world_script.drop_nature_cache()
+
+static func silence_audio(root: Node) -> void:
+	if root == null:
+		return
+	var pending: Array = [root]
+	while pending.size() > 0:
+		var node: Node = pending.pop_back()
+		if node is AudioStreamPlayer:
+			(node as AudioStreamPlayer).stop()
+			(node as AudioStreamPlayer).stream = null
+		elif node is AudioStreamPlayer3D:
+			(node as AudioStreamPlayer3D).stop()
+			(node as AudioStreamPlayer3D).stream = null
+		for child in node.get_children():
+			pending.append(child)
 
 func _process(delta: float) -> void:
 	if typeof(data) == TYPE_DICTIONARY and autosave_due(float(data.get("play_time", 0.0))):
@@ -56,6 +84,11 @@ func autosave_due(play_time: float) -> bool:
 
 func saving_visible() -> bool:
 	return save_notice > 0.0
+
+func headless() -> bool:
+	# `godot --headless` sets the display name. The "headless" feature tag
+	# is only present on a headless export template.
+	return DisplayServer.get_name() == "headless" or OS.has_feature("headless")
 
 func _start() -> Dictionary:
 	if is_instance_valid(ContentDB):

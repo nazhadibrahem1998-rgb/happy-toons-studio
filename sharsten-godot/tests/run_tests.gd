@@ -18,12 +18,15 @@ var walk_clip := ""
 var travel := {}
 var worst_sole := 0.0
 var sit_while_walking := 0
+var patrol_limit := 6000
 
 func _process(_delta: float) -> void:
 	if phase == "boot":
 		var args := OS.get_cmdline_user_args()
 		if args.has("--repeat"):
 			repeat = int(args[args.find("--repeat") + 1])
+		if args.has("--patrol"):
+			patrol_limit = int(args[args.find("--patrol") + 1])
 		for _i in repeat:
 			_units()
 		if args.has("--no-world"):
@@ -68,7 +71,7 @@ func _process(_delta: float) -> void:
 			walker.bot_sprint = false
 		phase = "patrol"
 		return
-	if phase == "patrol" and patrol_frames >= 6000:
+	if phase == "patrol" and patrol_frames >= patrol_limit:
 		Engine.time_scale = 1.0
 		Engine.physics_ticks_per_second = 60
 		Engine.max_physics_steps_per_frame = 8
@@ -144,6 +147,14 @@ func _watch_inside() -> void:
 			if v.has_method("is_home") and v.is_home():
 				continue
 			inside_hits += 1
+			if inside_hits <= 6:
+				var why := ""
+				for h in get_tree().get_nodes_in_group("house_block"):
+					var mn: Vector2 = h.get_meta("min_xz")
+					var mx: Vector2 = h.get_meta("max_xz")
+					if v.global_position.x > mn.x and v.global_position.x < mx.x and v.global_position.z > mn.y and v.global_position.z < mx.y:
+						why += "%s[%s..%s] " % [h.get_meta("resident", "?"), mn, mx]
+				print("INSIDE ", v.name, " ", v.global_position, " hour ", GameState.hour(), " blocked ", v._forbidden(v.global_position), " thinks ", v._inside_house(), " boxes ", why)
 			return
 
 func _watch_feet() -> void:
@@ -820,4 +831,13 @@ func _check(cond: bool, msg: String) -> void:
 
 func _finish() -> void:
 	print("PASSED %d  FAILED %d" % [passed, failed])
+	_release_runtime()
 	get_tree().quit(0 if failed == 0 else 1)
+
+func _release_runtime() -> void:
+	if is_instance_valid(world):
+		GameState.silence_audio(world)
+		var held: Node = world
+		world = null
+		held.free()
+	GameState.release_runtime_caches()

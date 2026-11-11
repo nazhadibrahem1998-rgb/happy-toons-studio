@@ -13,6 +13,24 @@ var _click: AudioStream
 var _steps := {}
 var _oneshots := 0
 
+func _exit_tree() -> void:
+	_silence()
+
+func _silence() -> void:
+	var voices: Array = []
+	for node in find_children("*", "AudioStreamPlayer", true, false):
+		voices.append(node)
+	for node in find_children("*", "AudioStreamPlayer3D", true, false):
+		voices.append(node)
+	for node in get_children():
+		if node is AudioStreamPlayer or node is AudioStreamPlayer3D:
+			voices.append(node)
+	for voice in voices:
+		voice.stop()
+		voice.stream = null
+	_click = null
+	_steps.clear()
+
 func _ready() -> void:
 	add_to_group("ambience")
 	_ensure_buses()
@@ -31,7 +49,7 @@ func _ready() -> void:
 	birds.max_distance = 48.0
 	birds.unit_size = 8.0
 	add_child(birds)
-	if not OS.has_feature("headless"):
+	if not GameState.headless():
 		birds.play()
 	_click = load("res://assets/audio/cc0/ui_click.ogg")
 	_steps = {
@@ -81,6 +99,8 @@ func play_click() -> void:
 	_oneshot(_click, -10.0 + _gain(Settings.sfx))
 
 func _chirp() -> void:
+	if GameState.headless():
+		return
 	var t := Timer.new()
 	t.wait_time = 7.0
 	t.autostart = true
@@ -107,10 +127,11 @@ func _bed(bus_name: String, stream: AudioStream, db: float) -> void:
 	p.bus = "Ambience"
 	p.max_polyphony = 1
 	add_child(p)
-	p.play()
+	if not GameState.headless():
+		p.play()
 
 func _oneshot(stream: AudioStream, db: float) -> void:
-	if _oneshots >= MAX_ONESHOTS:
+	if GameState.headless() or stream == null or _oneshots >= MAX_ONESHOTS:
 		return
 	_oneshots += 1
 	var p := AudioStreamPlayer.new()

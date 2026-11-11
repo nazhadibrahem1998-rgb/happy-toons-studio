@@ -7,6 +7,13 @@ static var _spheres := {}
 static var _cyls := {}
 static var _tex := {}
 
+static func drop_caches() -> void:
+	_mats.clear()
+	_boxes.clear()
+	_spheres.clear()
+	_cyls.clear()
+	_tex.clear()
+
 static func col(hex: String) -> Color:
 	return Color(hex)
 

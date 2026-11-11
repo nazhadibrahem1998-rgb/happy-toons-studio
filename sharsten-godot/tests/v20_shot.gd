@@ -86,6 +86,10 @@ func _process(_delta: float) -> void:
 		_save("v20-map-1366.jpg")
 		_check_hud(ui, true)
 		print("V20SHOT ", "ok" if not failed else "failed")
+		var held := get_tree().get_first_node_in_group("player")
+		if held and held.get_parent():
+			held.get_parent().free()
+		GameState.release_runtime_caches()
 		get_tree().quit(1 if failed else 0)
 
 func _check_menu() -> void:

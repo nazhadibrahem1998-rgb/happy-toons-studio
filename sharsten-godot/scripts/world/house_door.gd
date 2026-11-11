@@ -46,6 +46,12 @@ func build() -> void:
 	audio.max_distance = 12.0
 	add_child(audio)
 
+func _exit_tree() -> void:
+	var audio := get_node_or_null("Creak")
+	if audio is AudioStreamPlayer3D:
+		audio.stop()
+		audio.stream = null
+
 func use(_who = null) -> void:
 	set_open(not open, "player")
 
@@ -62,7 +68,7 @@ func set_open(on: bool, who: String = "") -> void:
 	set_meta("verb", "Close door" if on else "Open door")
 	panel.collision_layer = 0
 	var audio := get_node_or_null("Creak")
-	if audio and is_inside_tree() and not OS.has_feature("headless"):
+	if audio and is_inside_tree() and not GameState.headless():
 		audio.play()
 
 func angle_deg() -> float:

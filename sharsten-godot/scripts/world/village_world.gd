@@ -32,7 +32,7 @@ func _ready() -> void:
 	_bake_nav()
 	_people()
 	_encounter()
-	if not OS.has_feature("headless"):
+	if not GameState.headless():
 		_nature()
 		_horizon()
 		_echoes()
@@ -56,7 +56,7 @@ func _ready() -> void:
 	var life = load("res://scripts/world/life_world.gd").new()
 	add_child(life)
 	life.bind(self, sun, env, _sky_mat)
-	if OS.has_feature("headless"):
+	if GameState.headless():
 		_hide_draw(self)
 	apply_graphics()
 	if str(GameState.data.get("phase", "dream")) == "woke":
@@ -583,7 +583,7 @@ func _stations_nodes() -> void:
 		add_child(n)
 
 func _bake_nav() -> void:
-	if OS.has_feature("headless") or OS.get_environment("WIP_SHOT") == "1":
+	if GameState.headless() or OS.get_environment("WIP_SHOT") == "1":
 		return
 	var map := get_world_3d().navigation_map
 	NavigationServer3D.map_set_cell_size(map, 1.0)
@@ -618,7 +618,7 @@ func _bake_nav() -> void:
 	for poly in polys:
 		mesh.add_polygon(poly)
 	region.navigation_mesh = mesh
-	if not OS.has_feature("headless"):
+	if not GameState.headless():
 		add_child(region)
 
 func _encounter() -> void:
@@ -629,15 +629,30 @@ func _encounter() -> void:
 		beast.position = origin + Vector3(-1.4 + float(i) * 1.5, 0, 1.2 if i == 1 else 0.0)
 		add_child(beast)
 
+func _keep_people_outdoors() -> void:
+	# The hour can change between physics frames. Anyone the new hour
+	# no longer allows indoors is moved out before the next sample.
+	for v in get_tree().get_nodes_in_group("villager"):
+		if v.has_method("_inside_house") and v._inside_house():
+			v.global_position = v._escape_house()
+
 func _nav_blocked(x: float, z: float, pad: float) -> bool:
 	var p := Vector2(x, z)
 	for h in get_tree().get_nodes_in_group("house_block"):
+		if not h.has_meta("min_xz"):
+			continue
+		var mn: Vector2 = h.get_meta("min_xz")
+		var mx: Vector2 = h.get_meta("max_xz")
+		# The interior is never a path, including the cells just inside the door.
+		if x > mn.x and x < mx.x and z > mn.y and z < mx.y:
+			return true
+		var near_door := false
 		if h.has_meta("door"):
 			var door: Vector3 = h.get_meta("door")
 			if p.distance_to(Vector2(door.x, door.z)) < 1.8:
-				continue
-		var mn: Vector2 = h.get_meta("min_xz")
-		var mx: Vector2 = h.get_meta("max_xz")
+				near_door = true
+		if near_door:
+			continue
 		if x > mn.x - pad and x < mx.x + pad and z > mn.y - pad and z < mx.y + pad:
 			return true
 	return false
@@ -665,7 +680,7 @@ func _people() -> void:
 				entry["home"] = [out.x, out.z]
 				entry["inside"] = [inside.x, inside.z]
 		v.setup(ContentDB.npc(id), entry, loop)
-		if not OS.has_feature("headless"):
+		if not GameState.headless():
 			_work_mark(v)
 	for i in 4:
 		var sheep := MeshInstance3D.new()
@@ -815,6 +830,12 @@ func _foliage(positions: Array, kind: String, detailed: bool) -> MultiMeshInstan
 	return inst
 
 static var _nature_cache := {}
+
+static func drop_nature_cache() -> void:
+	_nature_cache.clear()
+
+func _exit_tree() -> void:
+	drop_nature_cache()
 
 func _nature_mesh(kind: String) -> Mesh:
 	var file := "CommonTree_1.fbx"
@@ -1390,6 +1411,7 @@ func _process(delta: float) -> void:
 	_ghost()
 	if player and str(GameState.data.get("phase", "")) == "dream":
 		GameState.data["play_time"] = float(GameState.data.get("play_time", 0.0)) + delta
+	_keep_people_outdoors()
 
 func _sync_placed() -> void:
 	var placed: Array = GameState.data.get("placed", [])

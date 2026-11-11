@@ -116,3 +116,35 @@ func test_sleep_and_continue_round_trip() -> void:
 	assert_true(GameState.load_game(), "Continue can read it")
 	assert_eq(int(GameState.data["flags"]["slept"]), 1, "the loaded dream still has the sleep")
 	_wipe(path)
+
+func _box(id: String, mn: Vector2, mx: Vector2) -> StaticBody3D:
+	var house := StaticBody3D.new()
+	house.name = id
+	house.add_to_group("house_block")
+	house.set_meta("min_xz", mn)
+	house.set_meta("max_xz", mx)
+	house.set_meta("resident", "someone_else")
+	return house
+
+func _outside(p: Vector2, mn: Vector2, mx: Vector2) -> bool:
+	return p.x <= mn.x + 0.15 or p.x >= mx.x - 0.15 or p.y <= mn.y + 0.15 or p.y >= mx.y - 0.15
+
+func test_corner_escape_leaves_the_footprint() -> void:
+	GameState.data["play_time"] = 0.0
+	var house := _box("corner_house", Vector2(0, 0), Vector2(6, 6))
+	add_child_autofree(house)
+	var neighbor := _box("next_house", Vector2(6.2, 0), Vector2(12, 6))
+	add_child_autofree(neighbor)
+	var villager = load("res://scripts/npc/villager.gd").new()
+	villager.npc_id = "walker"
+	add_child_autofree(villager)
+	villager.global_position = Vector3(5.2, 0.05, 5.2)
+	villager.global_position = villager._escape_house()
+	var at := Vector2(villager.global_position.x, villager.global_position.z)
+	assert_true(_outside(at, Vector2(0, 0), Vector2(6, 6)), "a corner step-out clears the first house, at %s" % at)
+	assert_true(_outside(at, Vector2(6.2, 0), Vector2(12, 6)), "the step-out does not land in the next house, at %s" % at)
+	villager.global_position = Vector3(6.7, 0.05, 3.0)
+	villager.velocity = Vector3(-2.0, 0.0, 0.0)
+	villager._step_around_houses(0.4)
+	var stayed := Vector2(villager.global_position.x, villager.global_position.z)
+	assert_true(_outside(stayed, Vector2(0, 0), Vector2(6, 6)), "a step toward a wall does not enter it")
