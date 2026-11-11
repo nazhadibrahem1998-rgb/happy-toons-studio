@@ -59,7 +59,8 @@
     <p class="sub">Survive the waves. Between waves, pick one of three upgrades. A boss arrives every 5th wave.</p>
     <p class="sub"><a class="hub" href="../games/">All games</a></p>
     <p class="hero-intro">Play as <b>Lang</b></p>
-    <p id="sBestWrap" class="sub best">🏆 Best: <b id="sBest">—</b></p>
+    <p id="sBestWrap" class="sub best">🏆 Best: <b id="sBest">—</b> · Best wave: <b id="sBestWave">—</b></p>
+    <ul id="achList" class="ach" aria-label="Marks"></ul>
     <p id="dailyNote" class="sub" hidden></p>
     <button id="playBtn" class="btn">▶ PLAY</button>
     <button id="tipsBtn" class="tips" type="button">Show tips</button>
@@ -75,10 +76,11 @@
 
 <div id="over" class="screen hidden">
   <div class="panel">
-    <h1 class="fallen">Game over</h1>
-    <p class="sub">Lang has fallen · Wave <b id="oWave">1</b></p>
+    <h1 class="fallen">Try again?</h1>
+    <p class="sub">Wave <b id="oWave">1</b> · Best wave <b id="oBestWave">—</b></p>
+    <button id="againBtn" class="btn">▶ Retry</button>
+    <p id="runNote" class="sub run-note"></p>
     <div id="endScore"></div>
-    <button id="againBtn" class="btn">Play again</button>
     <div id="endTry"></div>
     <p class="credit">by Happy Toons Studio</p>
     <p class="ai">Made with AI-assisted tools</p>
@@ -90,7 +92,7 @@
 <div id="upgrade" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="upTitle">
   <div class="panel up-panel">
     <h2 id="upTitle">Choose an upgrade</h2>
-    <p class="sub">Pick one. The next wave starts after you choose.</p>
+    <p class="sub">Pick one to start the next wave.</p>
     <div id="upCards" class="up-cards"></div>
   </div>
 </div>

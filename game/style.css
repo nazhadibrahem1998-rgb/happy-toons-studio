@@ -16,19 +16,25 @@ a.hub{display:inline-flex;align-items:center;justify-content:center;min-height:4
 .st-warn{position:absolute;left:max(14px,env(safe-area-inset-left));top:max(78px,calc(env(safe-area-inset-top) + 70px));margin:0;font-size:13px;font-weight:800;color:#ffe08a;text-shadow:0 1px 2px #000;pointer-events:none}
 .bar>div{height:100%;width:100%;transition:width .18s ease-out}
 #hpFill{background:linear-gradient(90deg,#d9262f,#ff6a4a)}
+.bar.hp.low{animation:hpPulse .65s ease-in-out infinite}
+@keyframes hpPulse{50%{filter:brightness(1.55)}}
 #stFill{background:linear-gradient(90deg,#3aa0ff,#9fe3ff)}
 .bar span{position:absolute;left:8px;top:0;font-size:11px;font-weight:800;line-height:15px;text-shadow:0 1px 2px #000}
 .bar.st span{display:block;line-height:13px;font-size:10px;letter-spacing:.5px}
-.stats{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));text-align:right;font-size:14px;font-weight:700;text-shadow:0 2px 3px #000;line-height:1.5}
+.stats{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));text-align:right;font-size:14px;font-weight:700;text-shadow:0 2px 3px #000;line-height:1.5;width:max-content;max-width:46vw}
 .stats b{color:#ffd45e;font-size:18px}
 #banner{position:absolute;top:22%;width:100%;text-align:center;font-size:clamp(28px,6vw,56px);font-weight:900;color:#ffd45e;text-shadow:0 4px 0 #7a4a00,0 6px 16px #000;opacity:0;transform:scale(.8);transition:opacity .35s ease,transform .45s cubic-bezier(.2,1.6,.4,1);letter-spacing:2px;will-change:transform,opacity}
 #banner.show{opacity:1;transform:scale(1)}
+#banner.win{top:16%;font-size:clamp(20px,4.2vw,34px)}
+@media (max-height:500px){
+  #banner.win{top:auto;bottom:118px;font-size:22px}
+}
 #banner.boss{color:#ffb6ff;text-shadow:0 4px 0 #6a2088,0 6px 16px #000}
 #banner.win{color:#b8ff9a;text-shadow:0 4px 0 #1e6a20,0 6px 16px #000}
 #bossBar{position:absolute;top:max(76px,calc(env(safe-area-inset-top) + 64px));left:50%;transform:translateX(-50%);width:min(480px,86vw);text-align:center;pointer-events:none}
 #bossName{font-size:clamp(13px,2.4vw,18px);font-weight:900;letter-spacing:2px;color:#ffd45e;text-shadow:0 2px 0 #6a3a00,0 3px 8px #000;margin-bottom:4px}
 #bossTrack{height:18px;background:rgba(0,0,0,.62);border:3px solid #ffd45e;border-radius:12px;overflow:hidden;box-shadow:0 4px 0 rgba(80,20,90,.45)}
-#bossFill{height:100%;width:100%;background:linear-gradient(90deg,#7a2cff,#e86bff);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+#bossFill{height:100%;width:100%;background:linear-gradient(90deg,#7a2cff,#e86bff);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25);transition:width .16s linear}
 #hint{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));width:100%;text-align:center;font-size:12px;opacity:.7;text-shadow:0 1px 2px #000}
 #dmgFlash{position:absolute;inset:0;box-shadow:inset 0 0 120px rgba(255,0,0,.9);opacity:0;transition:opacity .25s}
 .screen{position:fixed;inset:0;display:flex;align-items:center;align-items:safe center;justify-content:center;background:radial-gradient(ellipse at center,rgba(40,20,70,.55),rgba(5,3,12,.9));z-index:20;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
@@ -40,6 +46,7 @@ a.hub{display:inline-flex;align-items:center;justify-content:center;min-height:4
 .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #8a5200}
 .controls{font-size:13px;opacity:.75;line-height:1.7;margin-top:8px}
 .controls .ctl{white-space:nowrap}
+@media (max-width:720px){.controls .ctl{white-space:normal}}
 #touch{position:fixed;inset:0;z-index:6;pointer-events:none;touch-action:none}
 #stick{position:absolute;left:max(24px,env(safe-area-inset-left));bottom:max(28px,env(safe-area-inset-bottom));width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.25);pointer-events:auto}
 #knob{position:absolute;left:45px;top:45px;width:50px;height:50px;border-radius:50%;background:rgba(255,212,94,.75);box-shadow:0 2px 8px rgba(0,0,0,.5)}
@@ -65,10 +72,17 @@ body.touch #hint{display:none}
 /* Keep the centred pause/mute cluster off the HP bar and the score column. */
 body.touch .bars{width:min(320px,calc(50% - max(14px,env(safe-area-inset-left)) - 8px - (48px * 2 + 10px) / 2))}
 body.touch .stats{max-width:calc(50% - max(14px,env(safe-area-inset-right)) - 8px - (48px * 2 + 10px) / 2)}
+body.touch .stats b{font-size:16px}
+body.touch #bossBar{top:max(118px,calc(env(safe-area-inset-top) + 106px));width:min(420px,calc(100vw - 28px))}
+@media (max-height:500px){
+  body.touch #bossBar{top:max(74px,calc(env(safe-area-inset-top) + 66px));width:min(340px,48vw)}
+  body.touch #bossTrack{height:12px;border-width:2px}
+  body.touch #bossName{margin-bottom:1px;font-size:13px}
+}
 .btn.small{font-size:15px;padding:10px 22px;min-width:44px;min-height:44px;margin:6px 0;box-shadow:0 4px 0 #8a5200}
 .tips{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;margin:2px 0 8px;padding:8px 16px;min-width:44px;min-height:44px;font:700 14px/1 system-ui,sans-serif;color:#ffd45e;background:transparent;border:1px solid rgba(255,212,94,.55);border-radius:999px;cursor:pointer}
 .combo b{color:#fff6d0}
-#coach{position:absolute;left:50%;bottom:max(36px,calc(env(safe-area-inset-bottom) + 28px));transform:translateX(-50%);max-width:calc(100% - 28px);padding:8px 14px;border-radius:16px;background:rgba(13,10,26,.62);border:2px solid rgba(255,212,94,.75);color:#ffd45e;font-size:clamp(15px,4.2vw,22px);font-weight:800;letter-spacing:.3px;text-align:center;text-shadow:0 2px 0 #5a3a00;white-space:nowrap;pointer-events:none;opacity:1;transition:opacity .35s linear}
+#coach{position:absolute;left:50%;bottom:max(36px,calc(env(safe-area-inset-bottom) + 28px));transform:translateX(-50%);max-width:min(440px,calc(100% - 28px));padding:8px 14px;border-radius:16px;background:rgba(13,10,26,.62);border:2px solid rgba(255,212,94,.75);color:#ffd45e;font-size:clamp(15px,4.2vw,22px);font-weight:800;letter-spacing:.3px;text-align:center;text-shadow:0 2px 0 #5a3a00;white-space:normal;pointer-events:none;opacity:1;transition:opacity .35s linear}
 body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 #coach.fade{opacity:0}
 #pause{cursor:pointer;z-index:24}
@@ -77,7 +91,7 @@ body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 .up-panel h2{margin:0;font-size:clamp(26px,5vw,44px);font-weight:900;letter-spacing:1px;line-height:1.05;color:#ffd45e;text-shadow:0 3px 0 #8a5200,0 8px 18px rgba(0,0,0,.65)}
 .up-cards{display:flex;flex-direction:row;gap:12px;justify-content:center;align-items:stretch;margin-top:8px}
 .up-card{pointer-events:auto;touch-action:manipulation;flex:1 1 0;min-width:0;max-width:300px;min-height:168px;padding:16px 14px 14px;border-radius:22px;border:3px solid #e8c25a;background:linear-gradient(180deg,#4a3880,#22183c);color:#fff;text-align:center;cursor:pointer;box-shadow:0 6px 0 #8a5200,0 10px 20px rgba(0,0,0,.35);font:800 16px/1.25 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.up-card:active{transform:translateY(4px);box-shadow:0 2px 0 #8a5200}
+.up-card:active{filter:brightness(1.18);box-shadow:0 3px 0 #8a5200}
 .up-ico{display:block;font-size:36px;line-height:1;margin-bottom:6px}
 .up-name{display:block;color:#ffd45e;font-size:clamp(16px,2.1vw,22px);margin-bottom:4px}
 .up-desc{display:block;font-weight:650;font-size:clamp(14px,1.7vw,17px);line-height:1.25}
@@ -91,21 +105,27 @@ body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
   .up-panel h2{font-size:22px}
   .up-panel .sub{margin:2px 0 4px}
   .up-cards{flex-direction:row;gap:8px;margin-top:2px;width:100%}
-  .up-card{max-width:none;min-height:min(188px,calc(100dvh - 92px));padding:8px 8px 8px;border-radius:16px;box-shadow:0 3px 0 #8a5200}
+  .up-card{max-width:none;min-height:0;max-height:calc(100dvh - 86px);padding:8px 8px 8px;border-radius:16px;box-shadow:0 3px 0 #8a5200;overflow:hidden}
   .up-ico{font-size:26px;margin-bottom:2px}
   .up-name{font-size:16px;margin-bottom:2px}
   .up-desc{font-size:13px}
   .up-rank{margin-top:4px;font-size:11px}
 }
-@media (prefers-reduced-motion:reduce){.up-card,.up-card:active{transition:none;transform:none}}
+@media (prefers-reduced-motion:reduce){.up-card,.up-card:active{transition:none;filter:none}}
 .ai{margin-top:12px;font-size:12px;color:#bfe3ff;opacity:.85}
 .newbest{margin:6px 0;font-size:20px;font-weight:900;color:#ffd45e;animation:glow .8s ease-in-out infinite alternate}
 @keyframes glow{from{transform:scale(1);text-shadow:0 0 0 #f29a0e}to{transform:scale(1.08);text-shadow:0 0 14px #f29a0e}}
 .best b{color:#ffd45e}
-@media (prefers-reduced-motion:reduce){.newbest,.stats b.pop{animation:none}#banner,#coach{transition:none}}
+.ach{list-style:none;margin:2px 0 8px;padding:0;font-size:13px;line-height:1.4;color:#b7b3c9}
+.ach li::before{content:'○ '}
+.ach li.on{color:#ffd45e;font-weight:800}
+.ach li.on::before{content:'✓ '}
+.run-note{font-weight:800;color:#ffe9a8}
+@media (prefers-reduced-motion:reduce){.newbest,.stats b.pop,.bar.hp.low{animation:none}#banner,#coach,#bossFill{transition:none}}
 body.hts-over,body.hts-over #over{touch-action:pan-y}
 #over{overflow-x:hidden;overflow-y:auto}
 #over .panel{margin:auto;width:min(620px,100%)}
+#over #againBtn{font-size:28px;min-width:220px;margin-top:6px}
 #bestLive{font-size:13px;font-weight:700;line-height:1.3}
 /* Short landscape viewports: the start/pause/over panel is taller than the screen. */
 @media (max-height:500px){
@@ -121,9 +141,11 @@ body.hts-over,body.hts-over #over{touch-action:pan-y}
   .pre{font-size:13px;letter-spacing:3px;margin-bottom:1px}
   .panel h1{font-size:clamp(28px,10vh,46px);letter-spacing:1px;text-shadow:0 3px 0 #8a5200,0 6px 14px rgba(0,0,0,.8)}
   #over h1.fallen{font-size:clamp(22px,7vh,32px);letter-spacing:.5px}
+  #over #againBtn{font-size:22px;padding:12px 40px;margin:6px 0 4px}
   .credit{margin-top:2px;font-size:12px}
   .sub{margin:2px 0;font-size:13px;line-height:1.25}
   .hero-intro{margin:0 0 2px;font-size:14px}
+  .ach{font-size:12px;line-height:1.25;margin:1px 0 2px}
   .btn{margin:3px 0;font-size:18px;line-height:1;padding:10px 28px;min-height:44px}
   .controls{font-size:12px;line-height:1.3;margin-top:2px}
   .ai{margin-top:2px;font-size:11px}
