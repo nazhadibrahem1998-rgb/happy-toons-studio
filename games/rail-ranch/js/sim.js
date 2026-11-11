@@ -58,24 +58,24 @@ const GATES = [
 export const LAYOUT = {
   worldW: WORLD_W,
   worldH: WORLD_H,
-  market: { x: 590, y: 530 },
-  wagon: { x: 690, y: 505 },
-  engine: { x: 745, y: 455 },
-  truck: { x: 625, y: 535 },
+  market: { x: 455, y: 385 },
+  wagon: { x: 640, y: 488 },
+  engine: { x: 708, y: 442 },
+  truck: { x: 575, y: 518 },
   focus: { x: 555, y: 400 },
-  road: { x: 500, y: 590, x2: 820, y2: 490, w: 340, h: 42 },
+  road: { x: 680, y: 690, x2: 940, y2: 650, w: 280, h: 42 },
   fence: { x: 470, y: 308, w: 172, h: 148 },
   park: [
-    { x: 545, y: 575 },
-    { x: 700, y: 545 },
-    { x: 790, y: 500 },
-    { x: 860, y: 470 },
+    { x: 740, y: 678 },
+    { x: 850, y: 662 },
+    { x: 940, y: 646 },
+    { x: 1020, y: 630 },
   ],
 };
 
 const PRODUCERS = [
   { id: 'barn', name: 'Red Barn', good: 'milk', noun: 'Milk', x: 555, y: 392, interval: 1.75, price: 5, cap: 12, up: 44, track: 0, owned: true },
-  { id: 'coop', name: 'Hen House', good: 'eggs', noun: 'Eggs', x: 500, y: 500, interval: 1.35, price: 4, cap: 14, up: 62, track: 0, cost: 46 },
+  { id: 'coop', name: 'Hen House', good: 'eggs', noun: 'Eggs', x: 498, y: 468, interval: 1.35, price: 4, cap: 14, up: 62, track: 0, cost: 46 },
   { id: 'wheat', name: 'Wheat Field', good: 'wheat', noun: 'Wheat', x: 990, y: 248, interval: 2.15, price: 8, cap: 12, up: 130, track: 1, cost: 210 },
   { id: 'sheep', name: 'Sheep Pen', good: 'wool', noun: 'Wool', x: 1088, y: 455, interval: 2.5, price: 13, cap: 10, up: 230, track: 1, cost: 620 },
   { id: 'orchard', name: 'Apple Orchard', good: 'apples', noun: 'Apples', x: 240, y: 155, interval: 2.0, price: 11, cap: 12, up: 400, track: 2, cost: 1450 },
@@ -1014,8 +1014,8 @@ export function view(state) {
     piles.push({
       id: p.id,
       good: p.good,
-      x: p.x + (p.id === 'barn' ? 58 : 34),
-      y: p.y + (p.id === 'barn' ? -28 : 16),
+      x: p.x + (p.id === 'barn' ? 48 : 34),
+      y: p.y + (p.id === 'barn' ? 36 : 16),
       n: st.stock,
       cap: capOf(state, p.id),
     });

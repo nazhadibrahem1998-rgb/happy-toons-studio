@@ -89,19 +89,15 @@ function priceTexture(label) {
   g.clearRect(0, 0, 512, 256);
   g.fillStyle = '#3ddc58';
   g.beginPath();
-  g.roundRect(28, 48, 150, 160, 28);
+  g.roundRect(18, 68, 108, 124, 22);
   g.fill();
-  g.strokeStyle = '#f3ffe8';
-  g.lineWidth = 8;
-  g.strokeRect(52, 78, 104, 84);
   g.fillStyle = '#ffffff';
-  g.font = '900 88px ui-rounded, sans-serif';
+  g.font = '900 64px ui-rounded, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText('$', 104, 128);
-  g.font = '900 132px ui-rounded, sans-serif';
-  g.textAlign = 'left';
-  g.fillText(String(label).replace('$', ''), 188, 132);
+  g.fillText('$', 72, 132);
+  g.font = '900 118px ui-rounded, sans-serif';
+  g.fillText(String(label).replace('$', ''), 310, 136);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -198,7 +194,7 @@ export function createWorld(canvas, fx) {
   const roadDx = LAYOUT.road.x2 - LAYOUT.road.x;
   const roadDz = LAYOUT.road.y2 - LAYOUT.road.y;
   const roadLen = Math.hypot(roadDx, roadDz);
-  const road = new THREE.Mesh(new THREE.BoxGeometry(roadLen, 2.2, 54), toon(0xf3efe4));
+  const road = new THREE.Mesh(new THREE.BoxGeometry(roadLen, 2.2, 36), toon(0xf3efe4));
   road.position.set((LAYOUT.road.x + LAYOUT.road.x2) / 2, 0.8, (LAYOUT.road.y + LAYOUT.road.y2) / 2);
   road.rotation.y = -Math.atan2(roadDz, roadDx);
   road.receiveShadow = true;
@@ -207,7 +203,7 @@ export function createWorld(canvas, fx) {
   curb.position.copy(road.position);
   curb.position.y = 1.3;
   curb.rotation.y = road.rotation.y;
-  curb.translateZ(26);
+  curb.translateZ(16);
   scene.add(curb);
   const sunPatch = new THREE.Mesh(
     new THREE.CircleGeometry(340, 40),
@@ -223,11 +219,9 @@ export function createWorld(canvas, fx) {
   scene.add(pond);
 
   const trees = [
-    { x: 418, y: 328, s: 1.85, pine: false, tint: 0.2 },
-    { x: 700, y: 318, s: 1.7, pine: false, tint: 0.55 },
-    { x: 392, y: 490, s: 1.75, pine: false, tint: 0.35 },
-    { x: 730, y: 470, s: 1.6, pine: false, tint: 0.8 },
-    { x: 470, y: 300, s: 1.45, pine: false, tint: 0.1 },
+    { x: 400, y: 470, s: 1.55, pine: false, tint: 0.2 },
+    { x: 430, y: 540, s: 1.35, pine: false, tint: 0.5 },
+    { x: 760, y: 390, s: 1.4, pine: false, tint: 0.35 },
   ];
   const rnd = mulberry32(21);
   let guard = 0;
@@ -238,6 +232,7 @@ export function createWorld(canvas, fx) {
     const inside = x > 12 && y > 12 && x < LAYOUT.worldW - 12 && y < LAYOUT.worldH - 12;
     if (inside && blocked(x, y)) continue;
     if (x > 300 && x < 860 && y > 200 && y < 680) continue;
+    if (x > 280 && x < 860 && y < 360) continue;
     trees.push({ x, y, s: 1.15 + rnd() * 0.55, pine: rnd() < 0.22, tint: rnd() });
   }
 
@@ -350,8 +345,7 @@ export function createWorld(canvas, fx) {
   const bushes = instances(bushGeo, toon(0x1f9a34), 16);
   bushes.castShadow = false;
   const bushAt = [
-    [455, 360], [675, 360], [430, 455], [690, 440],
-    [510, 270], [620, 275], [360, 360], [780, 400],
+    [440, 430], [680, 400], [400, 520], [740, 500],
   ];
   for (let i = 0; i < bushAt.length; i++) {
     dummy.position.set(bushAt[i][0], 0, bushAt[i][1]);
@@ -482,6 +476,19 @@ export function createWorld(canvas, fx) {
   roofGeo.translate(0, 0, -24);
   const roof = addMesh(roofGeo, toon(0x3ad4c8, { map: shingleTexture() }), 0, 34, 0, barn);
   roof.rotation.y = 0;
+  addMesh(new THREE.BoxGeometry(4, 2.4, 48), toon(0xfffaf2), 0, 54.6, 0, barn);
+  addMesh(new THREE.BoxGeometry(64, 2.2, 3), toon(0xfffaf2), 0, 33.4, 23, barn);
+  addMesh(new THREE.BoxGeometry(64, 2.2, 3), toon(0xfffaf2), 0, 33.4, -23, barn);
+  for (let i = 1; i <= 3; i++) {
+    const xL = -4 - i * 7;
+    const yL = 35.2 + (30 + xL) * (20 / 30);
+    const left = addMesh(new THREE.BoxGeometry(4.2, 0.55, 46), toon(i % 2 ? 0x12867a : 0x0e6e64), xL, yL, 0, barn);
+    left.rotation.z = 0.588;
+    const xR = 4 + i * 7;
+    const yR = 35.2 + (30 - xR) * (20 / 30);
+    const right = addMesh(new THREE.BoxGeometry(4.2, 0.55, 46), toon(i % 2 ? 0x12867a : 0x0e6e64), xR, yR, 0, barn);
+    right.rotation.z = -0.588;
+  }
   addMesh(new THREE.BoxGeometry(18, 22, 1.4), toon(0xfffaf2), 0, 12, 21.2, barn);
   addMesh(new THREE.BoxGeometry(14, 18, 1.2), toon(0xc62828), 0, 11, 22.2, barn);
   const x1 = addMesh(new THREE.BoxGeometry(16, 2.4, 1.4), toon(0xffffff), 0, 12, 23.2, barn);
@@ -671,16 +678,20 @@ export function createWorld(canvas, fx) {
 
   function makeTruck() {
     const g = new THREE.Group();
-    addMesh(new THREE.BoxGeometry(22, 11, 16), toon(0xc47a3a), -8, 8, 0, g);
-    addMesh(new THREE.BoxGeometry(16, 13, 15), toon(0xe23b3b), 12, 11, 0, g);
-    addMesh(new THREE.BoxGeometry(8, 6, 1.6), toon(0xd7f0ff), 14, 13, 8, g);
-    addMesh(new THREE.BoxGeometry(20, 2.2, 16.4), toon(0x8a4e22), -8, 14, 0, g);
-    const wheel = new THREE.CylinderGeometry(3.1, 3.1, 2.4, 10);
+    addMesh(new THREE.BoxGeometry(20, 7, 14), toon(0xc47a3a), -7, 7, 0, g);
+    addMesh(new THREE.BoxGeometry(20, 1.6, 14.8), toon(0x8a4e22), -7, 11, 0, g);
+    addMesh(new THREE.BoxGeometry(12, 11, 14), toon(0xe23b3b), 10, 9.5, 0, g);
+    addMesh(new THREE.BoxGeometry(9, 5, 1.1), toon(0xd7f4ff), 10, 12, 7.4, g);
+    addMesh(new THREE.BoxGeometry(9, 5, 1.1), toon(0xd7f4ff), 10, 12, -7.4, g);
+    addMesh(new THREE.BoxGeometry(1.1, 5, 10), toon(0xd7f4ff), 16.2, 12, 0, g);
+    const wheel = new THREE.CylinderGeometry(2.8, 2.8, 2.2, 12);
     wheel.rotateX(Math.PI / 2);
-    addMesh(wheel, toon(0x222222), -12, 3.1, 8, g);
-    addMesh(wheel, toon(0x222222), 10, 3.1, 8, g);
-    g.scale.setScalar(1.45);
-    shellPass(g, 1.04);
+    for (const wx of [-12, 8]) {
+      addMesh(wheel, toon(0x222222), wx, 2.8, 8, g);
+      addMesh(wheel, toon(0x222222), wx, 2.8, -8, g);
+    }
+    g.scale.setScalar(1.35);
+    shellPass(g, 1.035);
     return g;
   }
   const mover = makeTruck();
@@ -689,7 +700,7 @@ export function createWorld(canvas, fx) {
   for (let i = 0; i < 4; i++) {
     const t = makeTruck();
     t.position.set(LAYOUT.park[i].x, 0, LAYOUT.park[i].y);
-    t.rotation.y = -Math.PI / 5;
+    t.rotation.y = -Math.atan2(LAYOUT.road.y2 - LAYOUT.road.y, LAYOUT.road.x2 - LAYOUT.road.x);
     scene.add(t);
     parked.push(t);
     blobShadow(LAYOUT.park[i].x, LAYOUT.park[i].y, 1.5, 0.9);
@@ -721,32 +732,49 @@ export function createWorld(canvas, fx) {
     return g;
   }
 
-  const hand = new THREE.Group();
-  const gloss = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    roughness: 0.16,
-    metalness: 0.04,
-    clearcoat: 0.7,
-    clearcoatRoughness: 0.2,
-  });
-  const palm = new THREE.Mesh(new THREE.SphereGeometry(11, 18, 14), gloss);
-  palm.scale.set(1.15, 0.78, 0.72);
-  palm.castShadow = true;
-  const finger = new THREE.Mesh(new THREE.CapsuleGeometry(4.2, 26, 4, 10), gloss);
-  finger.position.set(4, 18, 10);
-  finger.rotation.x = 0.55;
-  finger.castShadow = true;
-  const thumb = new THREE.Mesh(new THREE.SphereGeometry(4.2, 12, 10), gloss);
-  thumb.position.set(-10, 2, 6);
-  thumb.scale.set(0.8, 1.1, 0.7);
-  thumb.castShadow = true;
-  hand.add(palm, finger, thumb);
+  function gloveTexture() {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 256;
+    const g = c.getContext('2d');
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    g.strokeStyle = '#214018';
+    g.lineWidth = 12;
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.ellipse(118, 150, 62, 48, 0, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.ellipse(58, 168, 22, 34, -0.8, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.roundRect(150, 28, 40, 130, 20);
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.arc(170, 36, 22, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+  const hand = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: gloveTexture(),
+    transparent: true,
+    depthWrite: false,
+  }));
+  hand.center.set(0.5, 0.5);
+  hand.material.rotation = -0.55;
   scene.add(hand);
 
   const signRoot = new THREE.Group();
   scene.add(signRoot);
   const signById = new Map();
-  const padGeo = roundedPadGeometry(58, 36);
+  const padGeo = roundedPadGeometry(70, 42);
 
   function ensureSign(sign) {
     let node = signById.get(sign.buyId);
@@ -756,7 +784,7 @@ export function createWorld(canvas, fx) {
       pad.castShadow = true;
       pad.receiveShadow = true;
       const label = new THREE.Mesh(
-        new THREE.PlaneGeometry(50, 28),
+        new THREE.PlaneGeometry(64, 34),
         new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }),
       );
       label.rotation.x = -Math.PI / 2;
@@ -804,9 +832,9 @@ export function createWorld(canvas, fx) {
     let left = shown;
     let row = 0;
     let index = 0;
-    const base = 4;
-    while (left > 0 && row < 6 && index < MAX_PILE) {
-      const wide = Math.min(left, Math.max(2, base - row));
+    const base = shown > 16 ? 5 : shown > 8 ? 4 : 3;
+    while (left > 0 && row < 9 && index < MAX_PILE) {
+      const wide = Math.min(left, Math.max(1, base - row));
       for (let i = 0; i < wide && index < MAX_PILE; i++) {
         dummy.position.set(
           origin.x + (i - (wide - 1) / 2) * spread,
@@ -1016,7 +1044,7 @@ export function createWorld(canvas, fx) {
 
     for (let i = 0; i < view.piles.length; i++) {
       const pile = view.piles[i];
-      const shown = pile.n <= 0 ? 0 : Math.min(MAX_PILE, pile.good === 'milk' ? Math.max(10, pile.n * 2) : pile.n);
+      const shown = pile.n <= 0 ? 0 : Math.min(MAX_PILE, pile.good === 'milk' ? pile.n * 2 : pile.n);
       if (pile.good === 'milk') layoutPile(piles.milk, piles.milkCap, pile, shown, 6.4);
       else if (piles[pile.good]) layoutPile(piles[pile.good], null, pile, shown, 5.4);
     }
@@ -1078,13 +1106,13 @@ export function createWorld(canvas, fx) {
     const bob = Math.sin(env.time * 5) * 6;
     if (view.hand) {
       hand.visible = true;
-      hand.position.set(view.hand.x + 28, 22 + bob * 0.2, view.hand.y + 18);
-      hand.rotation.set(0.9, -0.6, 0.35);
-      hand.scale.setScalar(0.95 + Math.sin(env.time * 5) * 0.04);
+      const pulse = 36 + Math.sin(env.time * 5) * 4;
+      hand.position.set(view.hand.x - 40, 30, view.hand.y - 4);
+      hand.scale.set(pulse, pulse, 1);
     } else hand.visible = false;
 
     cow.visible = !!owned.barn;
-    cow.position.set(512 + Math.sin(env.time * 0.35) * 16, 0, 470 + Math.cos(env.time * 0.28) * 8);
+    cow.position.set(530 + Math.sin(env.time * 0.35) * 10, 0, 360 + Math.cos(env.time * 0.28) * 6);
     for (let i = 0; i < animals.length; i++) {
       const a = animals[i];
       a.mesh.position.set(
