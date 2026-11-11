@@ -58,7 +58,7 @@ var SFX={
 var BASS=[0,0,-5,-2];
 function beatLoop(){if(!AC)return;var bpm=112+36*G.diff;var spb=60/bpm/2;
   while(nextBeat<AC.currentTime+0.12){var t=nextBeat,step=beatN%8;
-    if(!S.muted&&state==='play'){
+    if(!S.muted&&state==='play'&&!paused){
       if(step%2===0){var o=AC.createOscillator(),g=AC.createGain();o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(42,t+0.12);g.gain.setValueAtTime(0.32,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.18);}
       else noise(0.04,0.05,8000,'highpass',0,t);
       if(step===4)noise(0.12,0.08,1800,'bandpass',0,t);
@@ -125,7 +125,7 @@ function addScore(v){G.score+=v*G.mult*(G.dbl>0?2:1);}
 
 /* ---------- input ---------- */
 function tapGame(){
-  if(paused){paused=false;return;}
+  if(paused){paused=false;if(AC&&AC.state==='suspended')AC.resume();return;}
   if(state==='play'){G.switchFrom=G.lane;G.lane=1-G.lane;G.lastSwitch=G.t;G.squash=1;SFX.flip();buzz(8);}
   else if(state==='start'){startRun();SFX.flip();}
   else if(state==='over'&&performance.now()-overAt>320){startRun();}
@@ -135,7 +135,7 @@ document.addEventListener('keydown',function(e){if(e.code==='Space'||e.code==='A
 document.addEventListener('touchmove',function(e){if(!e.target.closest('.panel'))e.preventDefault();},{passive:false});
 document.addEventListener('gesturestart',function(e){e.preventDefault();});
 document.addEventListener('dblclick',function(e){e.preventDefault();});
-document.addEventListener('visibilitychange',function(){if(document.hidden){if(state==='play')paused=true;if(AC)AC.suspend();}else if(AC)AC.resume();});
+document.addEventListener('visibilitychange',function(){if(document.hidden){if(state==='play')paused=true;if(AC&&AC.state==='running')AC.suspend();}});
 
 /* ---------- UI ---------- */
 function show(id,on){$(id).classList.toggle('on',on);}
@@ -179,6 +179,10 @@ function endRun(){state='over';overAt=performance.now();$('hud').style.opacity=0
   var nextSkin=SKINS.filter(function(s){return s.need>S.top})[0];
   $('unlock').textContent=newSkins.length?('Unlocked skin: '+newSkins.map(function(s){return s.n}).join(', ')+'!'):(nextSkin?('Next skin at '+nextSkin.need+' ('+(nextSkin.need-S.top)+' to go)'):'All skins unlocked!');
   $('oMode').innerHTML=isDaily?'Classic':'&#9733; Daily';
+  if(window.HappyScores){
+    var hs=window.HappyScores.record('pulse-orbit',sc);
+    window.HappyScores.showEnd({tryEl:$('endTry'),id:'pulse-orbit',from:'games/pulse-orbit',score:sc,best:hs.best,isNew:false});
+  }
   show('over',true);got.forEach(function(n){toast('Achievement: '+n)});newSkins.forEach(function(s){toast('New skin: '+s.n)});refreshStart();
 }
 

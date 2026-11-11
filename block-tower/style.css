@@ -354,13 +354,14 @@ textarea {
   cursor: pointer;
 }
 @media (max-width: 430px) {
-  #hud { align-items: center; flex-wrap: nowrap; }
-  .hud-top { flex-direction: row; align-items: center; gap: 6px; min-width: 0; }
-  .hud-top > div:first-child { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  #hud { align-items: flex-start; flex-wrap: nowrap; }
+  .hud-top { flex-direction: row; align-items: flex-start; gap: 8px; min-width: 0; flex: 1; }
+  .hud-top > div:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-width: 0; }
   #floorName, #timerLabel { display: none; }
-  #floorLabel, #placeRow, #timer { font-size: 0.78rem; white-space: nowrap; }
-  #placeRow { margin: 0; }
-  #timer { font-size: 0.78rem; }
+  #floorLabel, #placeRow, #bestLive, #timer { font-size: 0.75rem; line-height: 1.15; white-space: nowrap; }
+  #placeRow, #bestLive { margin: 0; }
+  #timer { font-size: 0.85rem; }
+  #rotate { top: calc(78px + var(--safe-t)); }
   .hud-actions { gap: 3px; flex: none; }
   .hud-actions button, #gemBtn { min-width: 32px; min-height: 32px; padding: 0 4px; font-size: 0.85rem; }
   #stickZone { --stick: 104px; left: calc(10px + var(--safe-l)); bottom: calc(12px + var(--safe-b)); }
