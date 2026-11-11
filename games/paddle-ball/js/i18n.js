@@ -40,6 +40,8 @@ export const STR = {
   creditKu: { en: '', ckb: 'دروستکراوە بە یارمەتی زیرەکی دەستکرد' },
   playAgain: { en: 'Play again', ckb: 'دووبارە یاری بکە' },
   paused: { en: 'Paused', ckb: 'وەستاوە' },
+  gameOver: { en: 'Game over', ckb: 'یاری تەواو بوو' },
+  allGames: { en: 'All games', ckb: 'هەموو یارییەکان' },
 };
 
 const DIGITS = '٠١٢٣٤٥٦٧٨٩';

@@ -45,7 +45,7 @@
   </div>
   <div id="stageBox"><div id="stageName">قۆناغی ١</div><div id="leftTxt"></div><div id="bestHud" dir="ltr">Best: —</div></div>
   <div id="bossBar" class="hidden">
-    <img id="bossImg" src="assets/miran_face.png" alt="">
+    <img id="bossImg" alt="" width="320" height="428" decoding="async" loading="lazy">
     <div class="bb"><div id="bossName">میران — سەرۆکی خەلیفەکان</div><div id="bossTrack"><div id="bossFill"></div></div></div>
   </div>
   <div id="banner"><div id="bTitle"></div><div id="bSub"></div></div>
@@ -81,6 +81,7 @@
     <p id="sBest" class="sub" dir="ltr">Best: —</p>
     <p id="dailyNote" class="sub" dir="ltr" hidden></p>
     <button type="button" id="playBtn" class="btn">▶ دەستپێکردن</button>
+    <a class="btn alt" href="../games/">All games</a>
     <div class="controls">
       <div>مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن · ڕاکێشانی لای ڕاست بۆ کامێرا · دوگمەکان بۆ لێدان، لێدانی قورس، خۆلادان و بازدان</div>
       <div class="kb">کیبۆرد: WASD ڕۆیشتن · ماوس کامێرا · J لێدان · K قورس · Shift خۆلادان · Space بازدان · P وەستان</div>
@@ -95,6 +96,7 @@
     <button type="button" id="resumeBtn" class="btn">▶ بەردەوامبوون</button>
     <button type="button" id="restartBtn" class="btn alt">↻ دەستپێکردنەوە</button>
     <button type="button" id="menuBtn" class="btn alt">⌂ مێنیو</button>
+    <a class="btn alt" href="../games/">All games</a>
   </div>
 </div>
 
@@ -110,11 +112,45 @@
   </div>
 </div>
 
-<div id="loading" class="screen"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
+<div id="loading" class="screen hidden"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
 
 <div id="rotate"><div class="ph">📱</div><p>تکایە مۆبایلەکەت بە پانی بسوڕێنە</p><p class="small">ئەم یارییە تەنها لە باری پانیدا کار دەکات</p></div>
 
-<script src="../assets/js/game-scores.js"></script>
-<script type="module" src="game.js"></script>
+<script>
+(function () {
+  var btn = document.getElementById('playBtn');
+  var loading = document.getElementById('loading');
+  var timer = 0;
+  if (btn) btn.addEventListener('click', function (e) {
+    if (window.__khReady) return;
+    window.__khWant = true;
+    if (e.cancelable) e.preventDefault();
+    e.stopImmediatePropagation();
+    clearTimeout(timer);
+    timer = setTimeout(function () { if (!window.__khReady && loading) loading.classList.remove('hidden'); }, 300);
+  }, true);
+  window.__khClearLoad = function () {
+    clearTimeout(timer);
+    if (loading) loading.classList.add('hidden');
+  };
+})();
+</script>
+<script src="../assets/js/game-scores.js" defer></script>
+<script type="module">
+/* Download the 3D engine on the first tap so the title can paint on a slow phone. */
+(function () {
+  var started = false;
+  function load() {
+    if (started) return;
+    started = true;
+    import('./game.js');
+  }
+  var play = document.getElementById('playBtn');
+  if (play) play.addEventListener('pointerdown', load, true);
+  var again = document.getElementById('againBtn');
+  if (again) again.addEventListener('pointerdown', load, true);
+  if (/[?&]autostart(?:=|&|$)/.test(location.search)) load();
+})();
+</script>
 </body>
 </html>

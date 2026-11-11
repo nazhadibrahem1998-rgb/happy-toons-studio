@@ -40,11 +40,19 @@ rim.position.set(-12, 10, -16);
 scene.add(rim);
 
 function resize() {
-  const w = innerWidth, h = innerHeight;
+  const vv = window.visualViewport;
+  const w = vv ? vv.width : innerWidth;
+  const h = vv ? vv.height : innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
-addEventListener('resize', resize); resize();
+addEventListener('resize', resize);
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', resize);
+  visualViewport.addEventListener('scroll', resize);
+}
+addEventListener('orientationchange', () => { setTimeout(resize, 60); setTimeout(resize, 280); });
+resize();
 
 // ---------- Helpers ----------
 const matCache = {};
@@ -284,14 +292,14 @@ function updateWarns(dt) {
 let actx = null, master = null;
 let muted = false; try { muted = localStorage.getItem('toonblade_muted') === '1'; } catch (_) {}
 function audio() {
-  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = muted ? 0 : 1; master.connect(actx.destination); } catch (e) { actx = null; } }
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = muted ? 0 : 0.42; master.connect(actx.destination); } catch (e) { actx = null; } }
   if (actx && actx.state === 'suspended') actx.resume();
   return actx;
 }
 function setMuted(m) {
   muted = m;
   try { localStorage.setItem('toonblade_muted', m ? '1' : '0'); } catch (_) {}
-  if (master) master.gain.setTargetAtTime(m ? 0 : 1, actx.currentTime, 0.02);
+  if (master) master.gain.setTargetAtTime(m ? 0 : 0.42, actx.currentTime, 0.02);
   updateMuteUI();
 }
 let noiseBuf = null;
@@ -734,6 +742,9 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { clearHeld(); if (state === 'play') togglePause(); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
+['gesturestart', 'gesturechange', 'gestureend'].forEach(type => {
+  document.addEventListener(type, e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+});
 // mouse: decided per event; compat mouse events synthesized after a touch are ignored
 const isSynthMouse = e => (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) || performance.now() - lastTouchT < 800;
 canvas.addEventListener('mousedown', e => {
@@ -965,7 +976,17 @@ function countHit(key) {
   } catch (_) {}
 }
 
+let backArmed = false;
+let lastStart = 0;
+function armBack() {
+  if (backArmed) return;
+  try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (e) {}
+}
 function startGame() {
+  const now = performance.now();
+  if (state === 'play' || now - lastStart < 350) return;
+  lastStart = now;
+  armBack();
   countHit('toonblade-plays');
   audio(); resetGame(); state = 'play';
   document.body.classList.remove('hts-over');
@@ -976,6 +997,7 @@ function startGame() {
   if (touchUI) $('touch').classList.remove('hidden');
   else requestLock();
   maybeStartTutorial();
+  if (!looping) { looping = true; requestAnimationFrame(loop); }
 }
 function gameOver() {
   state = 'over';
@@ -1007,13 +1029,17 @@ function togglePause() {
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
   } else if (state === 'pause') {
     state = 'play'; $('pause').classList.add('hidden'); clock.getDelta();
+    armBack();
     if (!touchUI) requestLock(); // called from a click/key gesture
   }
 }
 $('playBtn').addEventListener('click', startGame);
 $('againBtn').addEventListener('click', startGame);
 // click / tap anywhere on the pause screen (incl. RESUME) resumes
-$('pause').addEventListener('click', () => { if (state === 'pause' && performance.now() - pausedAt > 150) togglePause(); });
+$('pause').addEventListener('click', (e) => {
+  if (e.target.closest('a')) return;
+  if (state === 'pause' && performance.now() - pausedAt > 150) togglePause();
+});
 $('pMute').addEventListener('click', e => { e.stopPropagation(); audio(); setMuted(!muted); });
 $('pShake').addEventListener('click', e => { e.stopPropagation(); if (reduceMotion) return; setShakeOff(!shakeOff); });
 $('tipsBtn').addEventListener('click', () => {
@@ -1022,6 +1048,7 @@ $('tipsBtn').addEventListener('click', () => {
   $('tipsBtn').textContent = 'Tips on next play';
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { saveBest(); if (state === 'play') togglePause(); } });
+addEventListener('popstate', () => { backArmed = false; if (state === 'play') togglePause(); });
 addEventListener('pagehide', saveBest);
 updateMuteUI(); updateShakeUI(); showStartBest();
 try { if (localStorage.getItem('toonblade_tutorial_again') === '1') { tutorialReplay = true; $('tipsBtn').textContent = 'Tips on next play'; } } catch (_) {}
@@ -1524,6 +1551,7 @@ function trackFps(dt) {
   }
 }
 const STEP = 1 / 30;
+let looping = false;
 function loop() {
   requestAnimationFrame(loop);
   const real = clock.getDelta();
@@ -1603,6 +1631,7 @@ window.__game = {
   get bossOn() { return bossShown; },
 };
 
-$('loading').remove();
+renderer.render(scene, camera);
 countHit('toonblade-views');
-loop();
+if (window.__htsBoot) window.__htsBoot(startGame);
+else { const el = $('loading'); if (el) el.hidden = true; }

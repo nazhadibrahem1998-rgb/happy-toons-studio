@@ -43,6 +43,28 @@ canvas {
   height: 100%;
   display: block;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+a.btn { text-align: center; text-decoration: none; box-sizing: border-box; }
+#boot[hidden] { display: none !important; }
+#boot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 40;
+  text-align: center;
+  pointer-events: none;
+}
+#boot span {
+  display: inline-block;
+  background: rgba(8, 10, 18, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 800;
 }
 [hidden] { display: none !important; }
 .en, .en-title { font-family: 'Segoe UI', Tahoma, sans-serif; }

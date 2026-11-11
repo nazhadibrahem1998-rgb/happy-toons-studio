@@ -816,8 +816,15 @@ function fillResults() {
   });
 }
 
+let backArmed = false;
+function armBack() {
+  if (backArmed) return;
+  try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (err) {}
+}
+
 function setMode(next) {
   mode = next;
+  if (next === 'play') armBack();
   ui.menu.hidden = next !== 'menu';
   ui.pause.hidden = next !== 'pause';
   ui.finish.hidden = next !== 'finish';
@@ -904,6 +911,7 @@ function poll() {
     if (mode === 'play') {
       playDeath();
       flash();
+      toast(t(lang, 'fell'));
     }
     lastDeaths = world.deaths;
   } else {
@@ -1216,7 +1224,7 @@ document.getElementById('gemBtn').addEventListener('click', openUpgrades);
 document.getElementById('upgradeClose').addEventListener('click', () => {
   document.getElementById('upgrades').hidden = true;
 });
-document.getElementById('newRunBtn').addEventListener('click', restart);
+document.getElementById('newRunBtn').addEventListener('click', guarded(restart));
 
 function toggleMute() {
   setMuted(!isMuted());
@@ -1225,11 +1233,20 @@ function toggleMute() {
 }
 if (readStore('bt-mute') === '1') setMuted(true);
 
-document.getElementById('playBtn').addEventListener('click', () => { markRun(); setMode('play'); });
+function guarded(fn) {
+  let last = 0;
+  return () => {
+    const now = performance.now();
+    if (now - last < 350) return;
+    last = now;
+    fn();
+  };
+}
+document.getElementById('playBtn').addEventListener('click', guarded(() => { markRun(); setMode('play'); }));
 document.getElementById('pauseBtn').addEventListener('click', () => setMode('pause'));
 document.getElementById('resumeBtn').addEventListener('click', () => setMode('play'));
-document.getElementById('restartBtn').addEventListener('click', restart);
-document.getElementById('finishAgain').addEventListener('click', restart);
+document.getElementById('restartBtn').addEventListener('click', guarded(restart));
+document.getElementById('finishAgain').addEventListener('click', guarded(restart));
 document.getElementById('pauseMenu').addEventListener('click', () => setMode('menu'));
 document.getElementById('finishMenu').addEventListener('click', () => setMode('menu'));
 function showPanel(id) {
@@ -1364,6 +1381,17 @@ canvas.addEventListener('webglcontextrestored', () => {
 
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => { setTimeout(resize, 60); setTimeout(resize, 280); });
+window.addEventListener('popstate', () => {
+  backArmed = false;
+  if (mode === 'play') setMode('pause');
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && mode === 'play') setMode('pause');
+});
+window.addEventListener('blur', () => {
+  if (mode === 'play') setMode('pause');
+});
 resize();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
@@ -1680,4 +1708,5 @@ async function installTestHook() {
 }
 installTestHook().then(() => {
   document.body.dataset.ready = '1';
+  if (window.__htsBoot) window.__htsBoot(() => { markRun(); setMode('play'); });
 });
