@@ -114,6 +114,11 @@ export function createAudio() {
         tone(720, 0.05, 'sine', 0.04);
       } else if (name === 'truck') {
         tone(280, 0.07, 'sine', 0.04, 180);
+      } else if (name === 'chug') {
+        tone(78, 0.07, 'sine', 0.03, 48);
+      } else if (name === 'whistle') {
+        tone(660, 0.14, 'sine', 0.045, 880);
+        tone(880, 0.2, 'sine', 0.035, 620);
       }
     },
   };

@@ -982,8 +982,8 @@ export function view(state) {
     piles.push({
       id: p.id,
       good: p.good,
-      x: p.x + (p.id === 'barn' ? 48 : 30),
-      y: p.y + (p.id === 'barn' ? 8 : 10),
+      x: p.x + (p.id === 'barn' ? 70 : 36),
+      y: p.y + (p.id === 'barn' ? 16 : 14),
       n: st.stock,
       cap: capOf(state, p.id),
     });

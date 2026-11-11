@@ -130,9 +130,9 @@ test('phone screenshots of the tutorial, a busy ranch, and upgrades', async ({ p
   await page.screenshot({ path: path.join(shots, 'rail-ranch-start.png') });
   await page.evaluate(() => {
     RR.autoplay(240);
-    for (let i = 0; i < 36; i++) {
-      RR.step(0.25);
-      if (RR.summary().maxStock >= 4) break;
+    for (let i = 0; i < 70; i++) {
+      RR.step(0.35);
+      if (RR.summary().maxStock >= 9) break;
     }
     RR.look(680, 490, 0.54);
   });

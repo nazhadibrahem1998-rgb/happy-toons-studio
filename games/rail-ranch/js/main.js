@@ -41,6 +41,9 @@ const offlineNote = document.getElementById('offlineNote');
 const audio = createAudio();
 const renderer = createRenderer();
 const floats = [];
+const coins = [];
+const confetti = [];
+const pops = [];
 const ptrs = new Map();
 
 let state;
@@ -56,6 +59,7 @@ let toastTimer = 0;
 let shake = { id: '', life: 0 };
 let selected = '';
 let puffAcc = 0;
+let whistleAcc = 2.4;
 let lastTruckSound = 0;
 let viewW = 1;
 let viewH = 1;
@@ -178,6 +182,53 @@ function spawnFloat(x, y, text) {
   if (floats.length > 14) floats.shift();
 }
 
+function cashPoint() {
+  const box = cashEl.getBoundingClientRect();
+  return { x: box.left + box.width * 0.35, y: box.top + box.height / 2 };
+}
+
+function spawnCoins(wx, wy) {
+  const from = worldToClient(wx, wy);
+  const to = cashPoint();
+  const count = 6;
+  for (let i = 0; i < count; i++) {
+    coins.push({
+      x: from.x + (i - 2.5) * 7,
+      y: from.y + (i % 2) * 6,
+      tx: to.x,
+      ty: to.y,
+      age: i * 0.025,
+      life: 0.62,
+    });
+  }
+  if (coins.length > 24) coins.splice(0, coins.length - 24);
+}
+
+function spawnConfetti() {
+  const colors = ['#ffe56a', '#ff8eb8', '#7ec8e8', '#ffffff', '#e23b3b', '#7dce54'];
+  for (let i = 0; i < 26; i++) {
+    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
+    const speed = 90 + Math.random() * 150;
+    confetti.push({
+      x: viewW * 0.5 + (Math.random() - 0.5) * 40,
+      y: 130,
+      vx: Math.cos(ang) * speed,
+      vy: Math.sin(ang) * speed,
+      age: 0,
+      life: 0.85 + Math.random() * 0.35,
+      color: colors[i % colors.length],
+      rot: Math.random() * 6,
+    });
+  }
+  if (confetti.length > 40) confetti.splice(0, confetti.length - 40);
+}
+
+function spawnPop(point, id) {
+  if (!point) return;
+  pops.push({ x: point.x, y: point.y, id: id || '', age: 0, life: 0.42 });
+  if (pops.length > 4) pops.shift();
+}
+
 function handleEvents(events) {
   if (!events || !events.length) return;
   let sold = 0;
@@ -191,6 +242,7 @@ function handleEvents(events) {
     if (e.type === 'sale') {
       sold += e.amount;
       spawnFloat(e.x, e.y, '+$' + money(e.amount));
+      spawnCoins(e.x, e.y - 10);
     } else if (e.type === 'pickup') picked = true;
     else if (e.type === 'goal') goal = e;
     else if (e.type === 'truck') {
@@ -203,6 +255,7 @@ function handleEvents(events) {
   else if (picked) audio.play('pickup');
   if (goal) {
     audio.play('goal');
+    spawnConfetti();
     toast(goal.reward ? 'Goal complete +$' + goal.reward : 'Goal complete');
     if (goal.reward) spawnFloat(LAYOUT.market.x, LAYOUT.market.y - 36, '+$' + goal.reward);
   }
@@ -227,13 +280,18 @@ function afterBuy(res) {
   }
   audio.play('buy');
   toast(res.title);
-  if (res.focus) ease = { x: res.focus.x, y: res.focus.y };
+  if (res.focus) {
+    ease = { x: res.focus.x, y: res.focus.y };
+    spawnPop(res.focus, res.id && res.id.indexOf('p:') === 0 ? res.id.slice(2) : '');
+  } else if (res.id === 'w') spawnPop(LAYOUT.wagon, '');
+  else if (res.id === 'e') spawnPop(LAYOUT.engine, '');
   if (res.goals) {
     for (let i = 0; i < res.goals.length; i++) {
       const g = res.goals[i];
       if (g.reward) spawnFloat(LAYOUT.market.x, LAYOUT.market.y - 28, '+$' + g.reward);
       toast('Goal complete +$' + (g.reward || 0));
       audio.play('goal');
+      spawnConfetti();
     }
   }
   maybeScore();
@@ -447,6 +505,22 @@ function frame(now) {
     floats[i].age += dt;
     if (floats[i].age >= floats[i].life) floats.splice(i, 1);
   }
+  for (let i = coins.length - 1; i >= 0; i--) {
+    coins[i].age += dt;
+    if (coins[i].age >= coins[i].life) coins.splice(i, 1);
+  }
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const bit = confetti[i];
+    bit.age += dt;
+    bit.vy += 320 * dt;
+    bit.x += bit.vx * dt;
+    bit.y += bit.vy * dt;
+    if (bit.age >= bit.life) confetti.splice(i, 1);
+  }
+  for (let i = pops.length - 1; i >= 0; i--) {
+    pops[i].age += dt;
+    if (pops[i].age >= pops[i].life) pops.splice(i, 1);
+  }
   if (toastTimer > 0) {
     toastTimer -= dt;
     if (toastTimer <= 0) toastEl.hidden = true;
@@ -454,8 +528,14 @@ function frame(now) {
   if (heard && audio.enabled) {
     puffAcc -= dt;
     if (puffAcc <= 0) {
-      puffAcc = 0.5;
+      puffAcc = 0.46;
       audio.puff();
+      audio.play('chug');
+    }
+    whistleAcc -= dt;
+    if (whistleAcc <= 0) {
+      whistleAcc = 9;
+      audio.play('whistle');
     }
   }
   syncHud(false);
@@ -474,6 +554,9 @@ function frame(now) {
     floats,
     shake,
     selected,
+    coins,
+    confetti,
+    pops,
   });
 }
 
