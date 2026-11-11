@@ -1,5 +1,5 @@
 // خەلیفەکان (Khalifakan) — © 2026 Nazhad Ibrahem – Happy Toons Studio.
-import * as THREE from './vendor/three.module.min.js';
+const THREE = await import(globalThis.__htsThreeUrl || './vendor/three.module.min.js');
 
 const $ = id => document.getElementById(id);
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;

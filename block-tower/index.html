@@ -328,7 +328,7 @@
   });
 })();
 </script>
-<div id="boot" hidden><span>Loading…</span></div>
+<div id="boot" hidden><span>Loading…<i class="loadtrack"><b id="loadFill"></b></i></span></div>
 <script>
 (function () {
   var el = document.getElementById('boot');
@@ -359,14 +359,63 @@
 })();
 </script>
 <script src="../assets/js/game-scores.js" defer></script>
+<script>
+/* Prefetch the 3D engine while the menu is on screen. Play shows the bar. */
+(function () {
+  var SRC = 'vendor/three.module.min.js';
+  var job = null;
+  function fill(p) {
+    var el = document.getElementById('loadFill');
+    if (el) el.style.width = Math.max(0, Math.min(100, Math.round(p * 100))) + '%';
+  }
+  function showBoot() {
+    var el = document.getElementById('boot');
+    if (el) el.hidden = false;
+  }
+  window.__htsPrefetchThree = function () {
+    if (job) return job;
+    var url = new URL(SRC, document.baseURI).href;
+    job = fetch(url).then(function (res) {
+      if (!res.ok || !res.body || !res.body.getReader) throw new Error('engine');
+      var total = Number(res.headers.get('content-length')) || 670681;
+      var reader = res.body.getReader();
+      var got = 0;
+      var chunks = [];
+      function pump() {
+        return reader.read().then(function (step) {
+          if (step.done) {
+            window.__htsThreeUrl = URL.createObjectURL(new Blob(chunks, { type: 'text/javascript' }));
+            fill(1);
+            return;
+          }
+          chunks.push(step.value);
+          got += step.value.byteLength;
+          fill(got / total);
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function () { window.__htsThreeUrl = ''; });
+    return job;
+  };
+  function idle() {
+    var go = function () { window.__htsPrefetchThree(); };
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 500 });
+    else setTimeout(go, 1);
+  }
+  requestAnimationFrame(function () { requestAnimationFrame(idle); });
+  window.__htsShowBoot = showBoot;
+})();
+</script>
 <script type="module">
-/* The 3D engine stays off the menu. The first Play tap starts the download. */
 (function () {
   var started = false;
   function load() {
     if (started) return;
     started = true;
-    import('./game.js');
+    if (window.__htsShowBoot) window.__htsShowBoot();
+    var ready = window.__htsPrefetchThree ? window.__htsPrefetchThree() : Promise.resolve();
+    ready.then(function () { return import('./game.js'); }).catch(function () { return import('./game.js'); });
   }
   var play = document.getElementById('playBtn');
   if (play) play.addEventListener('pointerdown', load, true);

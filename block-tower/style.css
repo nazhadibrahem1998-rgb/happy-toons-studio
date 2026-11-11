@@ -59,13 +59,17 @@ a.btn { text-align: center; text-decoration: none; box-sizing: border-box; }
   pointer-events: none;
 }
 #boot span {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   background: rgba(8, 10, 18, 0.92);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 8px 14px;
   font-weight: 800;
 }
+.loadtrack { display: block; width: 120px; height: 8px; border-radius: 99px; background: rgba(255,255,255,.16); overflow: hidden; }
+#loadFill { display: block; height: 100%; width: 0; background: var(--cyan); }
 [hidden] { display: none !important; }
 .en, .en-title { font-family: 'Segoe UI', Tahoma, sans-serif; }
 .en { color: var(--muted); margin: 0 0 8px; font-size: 0.92rem; }

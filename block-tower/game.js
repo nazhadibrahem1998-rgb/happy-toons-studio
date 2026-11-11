@@ -3,7 +3,7 @@
  * © 2026 Nazhad Ibrahem – Happy Toons Studio
  * Made with AI assistance (code and graphics).
  */
-import * as THREE from './vendor/three.module.min.js';
+const THREE = await import(globalThis.__htsThreeUrl || './vendor/three.module.min.js');
 import { COMMUNITY_LINKS, COSMETICS } from './config.js';
 import { t } from './i18n.js';
 import { FLOOR_COUNT, FLOOR_NAMES } from './levels.js';
@@ -183,7 +183,7 @@ function buildScenery() {
   lava.rotation.x = -Math.PI / 2;
   scene.add(lava);
 
-  const count = 48;
+  const count = 16;
   buildings = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: 0x141824 }), count);
   windows = new THREE.InstancedMesh(box, new THREE.MeshBasicMaterial({ color: 0xffffff }), count);
   const neon = [0x3ef0ff, 0xff3ec8, 0xc6ff4a];
@@ -490,16 +490,20 @@ let signsReady = false;
 if (renderer) {
   buildScenery();
   buildLevelMeshes(world.ents);
-  buildGems(world.ents);
   player = makePlayer();
-  for (const who of [
-    { color: 0xff3ec8, en: 'Nari', ckb: 'ناری', lift: 0 },
-    { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ', lift: 0 },
-    { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ', lift: 0.38 },
-  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb, who.lift));
-  buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
   applyQuality();
+  const dress = () => {
+    buildGems(world.ents);
+    for (const who of [
+      { color: 0xff3ec8, en: 'Nari', ckb: 'ناری', lift: 0 },
+      { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ', lift: 0 },
+      { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ', lift: 0.38 },
+    ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb, who.lift));
+    buildStudioSigns(world.ents);
+  };
+  if (testMode) dress();
+  else requestAnimationFrame(dress);
 }
 
 function wordmarkTexture() {
