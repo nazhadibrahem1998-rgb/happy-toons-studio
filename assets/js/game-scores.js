@@ -395,4 +395,7 @@
     showEnd: showEnd,
     mountHub: mountHub,
   };
+
+  /* The hub's inline caller used to run before this deferred file. Mount here too. */
+  if (global.document && global.document.getElementById('daily')) mountHub('games');
 })(typeof window !== 'undefined' ? window : globalThis);

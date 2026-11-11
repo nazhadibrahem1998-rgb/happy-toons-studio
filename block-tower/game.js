@@ -740,7 +740,7 @@ function applyLang(next) {
   if (document.getElementById('finish') && !document.getElementById('finish').hidden) {
     fillResults();
     const again = document.getElementById('finishAgain');
-    if (again) again.textContent = 'Play again';
+    if (again) again.textContent = t(lang, 'playAgain');
   }
   if (ui.fbText && ui.fbCount) ui.fbCount.textContent = formatCount(ui.fbText.value.length);
   refreshRivalNames();
@@ -882,7 +882,7 @@ function showFinish() {
   }
   setMode('finish');
   const again = document.getElementById('finishAgain');
-  if (again) again.textContent = 'Play again';
+  if (again) again.textContent = t(lang, 'playAgain');
   updateRecords();
 }
 
@@ -1224,7 +1224,7 @@ document.getElementById('gemBtn').addEventListener('click', openUpgrades);
 document.getElementById('upgradeClose').addEventListener('click', () => {
   document.getElementById('upgrades').hidden = true;
 });
-document.getElementById('newRunBtn').addEventListener('click', guarded(restart));
+bindTap(document.getElementById('newRunBtn'), restart);
 
 function toggleMute() {
   setMuted(!isMuted());
@@ -1233,20 +1233,40 @@ function toggleMute() {
 }
 if (readStore('bt-mute') === '1') setMuted(true);
 
-function guarded(fn) {
+function bindTap(el, fn) {
+  if (!el) return;
   let last = 0;
-  return () => {
+  let sx = 0;
+  let sy = 0;
+  let moved = false;
+  const run = (fromPointer) => {
+    if (fromPointer && moved) return;
     const now = performance.now();
     if (now - last < 350) return;
     last = now;
     fn();
   };
+  el.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    sx = event.clientX;
+    sy = event.clientY;
+    moved = false;
+  });
+  el.addEventListener('pointermove', (event) => {
+    if (Math.hypot(event.clientX - sx, event.clientY - sy) > 16) moved = true;
+  });
+  el.addEventListener('pointerup', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    run(true);
+  });
+  el.addEventListener('click', () => run(false));
 }
-document.getElementById('playBtn').addEventListener('click', guarded(() => { markRun(); setMode('play'); }));
-document.getElementById('pauseBtn').addEventListener('click', () => setMode('pause'));
-document.getElementById('resumeBtn').addEventListener('click', () => setMode('play'));
-document.getElementById('restartBtn').addEventListener('click', guarded(restart));
-document.getElementById('finishAgain').addEventListener('click', guarded(restart));
+bindTap(document.getElementById('playBtn'), () => { markRun(); setMode('play'); });
+bindTap(document.getElementById('pauseBtn'), () => setMode('pause'));
+bindTap(document.getElementById('resumeBtn'), () => setMode('play'));
+bindTap(document.getElementById('restartBtn'), restart);
+bindTap(document.getElementById('finishAgain'), restart);
+bindTap(document.getElementById('muteBtn'), toggleMute);
 document.getElementById('pauseMenu').addEventListener('click', () => setMode('menu'));
 document.getElementById('finishMenu').addEventListener('click', () => setMode('menu'));
 function showPanel(id) {
@@ -1269,8 +1289,7 @@ document.getElementById('pauseHelp').addEventListener('click', () => { showPanel
 document.getElementById('helpClose').addEventListener('click', () => { ui.help.hidden = true; });
 document.getElementById('feedbackBtn').addEventListener('click', () => { showPanel('feedback'); });
 document.getElementById('fbClose').addEventListener('click', () => { ui.feedback.hidden = true; });
-document.getElementById('muteBtn').addEventListener('click', toggleMute);
-document.getElementById('fullBtn').addEventListener('click', () => {
+bindTap(document.getElementById('fullBtn'), () => {
   const req = document.fullscreenElement
     ? document.exitFullscreen()
     : document.documentElement.requestFullscreen?.();

@@ -385,7 +385,7 @@ textarea {
   #timer { font-size: 0.85rem; }
   #rotate { top: calc(78px + var(--safe-t)); }
   .hud-actions { gap: 3px; flex: none; }
-  .hud-actions button, #gemBtn { min-width: 32px; min-height: 32px; padding: 0 4px; font-size: 0.85rem; }
+  .hud-actions button, #gemBtn { min-width: 44px; min-height: 44px; padding: 0 6px; font-size: 0.85rem; }
   #stickZone { --stick: 104px; left: calc(10px + var(--safe-l)); bottom: calc(12px + var(--safe-b)); }
   #lookZone { --stick: 96px; --jump-w: 72px; --jump-b: 18px; --jump-r: 12px; }
   #jumpBtn { width: 72px; height: 72px; right: calc(12px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); font-size: 0.82rem; }

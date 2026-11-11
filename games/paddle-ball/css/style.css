@@ -228,9 +228,10 @@ a.hub {
 
 @media (max-width: 720px) {
   #hud { gap: 4px; }
-  #hud button { padding: 4px 8px; font-size: 0.78rem; }
-  .scoreline { gap: 4px; padding: 2px 8px; font-size: 0.85rem; }
-  .who { font-size: 0.8rem; }
+  #hud button { padding: 4px 8px; font-size: 0.78rem; min-width: 44px; }
+  .scoreline { gap: 4px; padding: 2px 8px; font-size: 0.85rem; min-width: 0; flex: 1 1 auto; justify-content: center; }
+  .who { font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; max-width: 4.2rem; }
+  #hudBest { font-size: 0.68rem; }
 }
 
 body.hts-over { touch-action: pan-y; }

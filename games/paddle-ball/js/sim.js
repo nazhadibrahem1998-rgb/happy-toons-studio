@@ -20,9 +20,11 @@ export const COURT = Object.freeze({
 const HUMAN_SPEED = 7.6;
 
 export const PROFILES = Object.freeze({
+  // error is how far the CPU aims off the ball. It has to be able to miss:
+  // the paddle is only 1.85 wide, and a tiny error means the point never ends.
   easy: { speed: 3.5, reaction: 0.24, error: 1.05, aim: 0.2 },
-  normal: { speed: 5.1, reaction: 0.1, error: 0.38, aim: 0.72 },
-  hard: { speed: 8.6, reaction: 0.03, error: 0.12, aim: 0.92 },
+  normal: { speed: 5.1, reaction: 0.12, error: 0.85, aim: 0.55 },
+  hard: { speed: 7.4, reaction: 0.05, error: 0.55, aim: 0.82 },
 });
 
 export function clamp(v, a, b) {
@@ -227,12 +229,14 @@ function cpuControl(state, paddle) {
     brain.target = home;
   } else {
     const coming = paddle.side === 0 ? ball.vy < 0 : ball.vy > 0;
+    // Stop correcting once the ball is close, so a mistimed read can actually miss.
+    const commit = coming && Math.abs(ball.y - frontY(paddle)) < 1.7;
     if (!coming) {
       brain.react = profile.reaction;
       brain.target += (home + (ball.x - home) * 0.25 - brain.target) * 0.35;
     } else if (brain.react > 0) {
       brain.react -= 1 / 60;
-    } else if (brain.age > 0.03 + profile.reaction * 0.2) {
+    } else if (!commit && brain.age > 0.03 + profile.reaction * 0.2) {
       const predicted = predictX(ball, frontY(paddle));
       if (predicted != null) {
         const opp = state.paddles[1 - paddle.side];
@@ -301,19 +305,31 @@ export function step(state, inputs, dt) {
 
   const ball = state.ball;
   if (!ball?.inPlay || state.stage !== 'play') return events;
-  const moved = moveBall(ball, h);
-  const prev = moved.prev;
-  let hit = false;
-  if (tryPaddle(ball, prev, state.paddles[0])) {
-    events.push('hit');
-    hit = true;
-  } else if (tryPaddle(ball, prev, state.paddles[1])) {
-    events.push('hit');
-    hit = true;
+  // Slice a fast step so the ball cannot jump the paddle and the score line together.
+  const speed = Math.hypot(ball.vx, ball.vy);
+  const pieces = Math.min(4, Math.max(1, Math.ceil((speed * h) / 0.45)));
+  const sub = h / pieces;
+  for (let piece = 0; piece < pieces && ball.inPlay && state.stage === 'play'; piece++) {
+    const moved = moveBall(ball, sub);
+    const prev = moved.prev;
+    let hit = false;
+    if (tryPaddle(ball, prev, state.paddles[0])) {
+      events.push('hit');
+      hit = true;
+    } else if (tryPaddle(ball, prev, state.paddles[1])) {
+      events.push('hit');
+      hit = true;
+    }
+    if (!hit && moved.wall) events.push('wall');
+    if (ball.y < -0.04 && ball.vy <= 0) {
+      events.push(scorePoint(state, 1));
+      break;
+    }
+    if (ball.y > COURT.length + 0.04 && ball.vy >= 0) {
+      events.push(scorePoint(state, 0));
+      break;
+    }
   }
-  if (!hit && moved.wall) events.push('wall');
-  if (ball.y < -0.04 && ball.vy <= 0) events.push(scorePoint(state, 1));
-  else if (ball.y > COURT.length + 0.04 && ball.vy >= 0) events.push(scorePoint(state, 0));
   return events;
 }
 

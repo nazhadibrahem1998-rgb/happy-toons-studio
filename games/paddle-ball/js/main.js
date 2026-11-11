@@ -250,13 +250,33 @@ function armBack() {
   try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (err) {}
 }
 function guarded(el, fn) {
+  if (!el) return;
   let last = 0;
-  el.addEventListener('click', () => {
+  let sx = 0;
+  let sy = 0;
+  let moved = false;
+  const run = (fromPointer) => {
+    if (fromPointer && moved) return;
     const now = performance.now();
     if (now - last < 350) return;
     last = now;
     fn();
+  };
+  // iOS drops the click when a touchend called preventDefault. pointerup still arrives.
+  el.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    sx = event.clientX;
+    sy = event.clientY;
+    moved = false;
   });
+  el.addEventListener('pointermove', (event) => {
+    if (Math.hypot(event.clientX - sx, event.clientY - sy) > 16) moved = true;
+  });
+  el.addEventListener('pointerup', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    run(true);
+  });
+  el.addEventListener('click', () => run(false));
 }
 
 guarded(document.getElementById('play'), () => { audio.unlock(); startMatch(); });
@@ -288,14 +308,14 @@ document.querySelectorAll('[data-lang]').forEach((btn) => {
   btn.addEventListener('click', () => setLang(btn.dataset.lang));
 });
 document.querySelectorAll('[data-sound]').forEach((btn) => {
-  btn.addEventListener('click', () => {
+  guarded(btn, () => {
     audio.unlock();
     setSound(!settings.sound);
     audio.play('ui');
   });
 });
-document.getElementById('btn-pause').addEventListener('click', togglePause);
-document.getElementById('btn-resume').addEventListener('click', togglePause);
+guarded(document.getElementById('btn-pause'), togglePause);
+guarded(document.getElementById('btn-resume'), togglePause);
 guarded(document.getElementById('btn-restart'), startMatch);
 document.getElementById('btn-menu').addEventListener('click', goMenu);
 guarded(document.getElementById('btn-again'), startMatch);

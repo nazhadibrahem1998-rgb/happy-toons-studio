@@ -207,7 +207,7 @@
   </div>
 </footer>
 <script src="../assets/js/game-scores.js" defer></script>
-<script defer>if(window.HappyScores)HappyScores.mountHub('games');</script>
+<script>document.addEventListener('DOMContentLoaded',function(){if(window.HappyScores)HappyScores.mountHub('games');});</script>
 <script src="../assets/js/site.js" defer></script>
 <script src="../assets/js/online-now.js" defer></script>
 </body>

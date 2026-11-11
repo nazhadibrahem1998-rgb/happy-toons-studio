@@ -145,6 +145,30 @@ function updateHud() {
   pausePanel.hidden = phase !== 'pause';
   touch.classList.toggle('is-on', playing && touchWanted());
   touch.setAttribute('aria-hidden', playing ? 'false' : 'true');
+  touch.classList.toggle('portrait', window.innerHeight >= window.innerWidth);
+  touch.querySelectorAll('.half').forEach((el) => {
+    el.classList.toggle('cpu-side', settings.mode !== 'local' && Number(el.dataset.zone) === 1);
+  });
+  showTennisEnd();
+}
+
+let endShown = false;
+function showTennisEnd() {
+  if (endShown || state.stage !== 'match' || phase !== 'play' || !window.HappyScores) return;
+  endShown = true;
+  const games = state.match.games[0];
+  const result = window.HappyScores.record('toon-tennis', games, state.match.gamesToWin);
+  const bestEl = document.getElementById('menuBest');
+  if (bestEl) bestEl.textContent = 'Best: ' + (result.best > 0 ? result.best : '—');
+  window.HappyScores.showEnd({
+    scoreEl: document.getElementById('matchScore'),
+    tryEl: document.getElementById('matchTry'),
+    id: 'toon-tennis',
+    from: 'games/toon-tennis',
+    score: games,
+    best: result.best,
+    isNew: result.isNew && games > 0,
+  });
 }
 
 function touchWanted() {
@@ -167,6 +191,7 @@ function setSound(on) {
 }
 
 function startMatch() {
+  endShown = false;
   seed += 1;
   state = createMatchState({
     mode: settings.mode,
@@ -203,7 +228,36 @@ function togglePause() {
   audio.play('ui');
 }
 
-document.getElementById('play').addEventListener('click', () => {
+function bindTap(el, fn) {
+  if (!el) return;
+  let last = 0;
+  let sx = 0;
+  let sy = 0;
+  let moved = false;
+  const run = (fromPointer) => {
+    if (fromPointer && moved) return;
+    const now = performance.now();
+    if (now - last < 350) return;
+    last = now;
+    fn();
+  };
+  el.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    sx = event.clientX;
+    sy = event.clientY;
+    moved = false;
+  });
+  el.addEventListener('pointermove', (event) => {
+    if (Math.hypot(event.clientX - sx, event.clientY - sy) > 16) moved = true;
+  });
+  el.addEventListener('pointerup', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    run(true);
+  });
+  el.addEventListener('click', () => run(false));
+}
+
+bindTap(document.getElementById('play'), () => {
   audio.unlock();
   startMatch();
 });
@@ -235,18 +289,18 @@ document.querySelectorAll('[data-lang]').forEach((btn) => {
   btn.addEventListener('click', () => setLang(btn.dataset.lang));
 });
 document.querySelectorAll('[data-sound]').forEach((btn) => {
-  btn.addEventListener('click', () => {
+  bindTap(btn, () => {
     audio.unlock();
     setSound(!settings.sound);
     audio.play('ui');
   });
 });
-document.getElementById('btn-pause').addEventListener('click', togglePause);
-document.getElementById('btn-resume').addEventListener('click', togglePause);
-document.getElementById('btn-restart').addEventListener('click', restartMatch);
-document.getElementById('btn-menu').addEventListener('click', goMenu);
-document.getElementById('btn-again').addEventListener('click', restartMatch);
-document.getElementById('btn-match-menu').addEventListener('click', goMenu);
+bindTap(document.getElementById('btn-pause'), togglePause);
+bindTap(document.getElementById('btn-resume'), togglePause);
+bindTap(document.getElementById('btn-restart'), restartMatch);
+bindTap(document.getElementById('btn-menu'), goMenu);
+bindTap(document.getElementById('btn-again'), restartMatch);
+bindTap(document.getElementById('btn-match-menu'), goMenu);
 
 function controlIndex(zone) {
   if (settings.mode !== 'local') return 0;
@@ -425,6 +479,16 @@ window.addEventListener('keyup', (event) => {
 });
 window.addEventListener('blur', () => {
   keys.clear();
+  if (phase === 'play') {
+    phase = 'pause';
+    updateHud();
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden || phase !== 'play') return;
+  keys.clear();
+  phase = 'pause';
+  updateHud();
 });
 
 function readInputs() {
@@ -493,8 +557,7 @@ function resize() {
   const h = vv ? vv.height : window.innerHeight;
   document.documentElement.style.setProperty('--app-h', `${h}px`);
   renderer.resize(w, h);
-  const portrait = h > w + 40;
-  rotate.hidden = !(touchWanted() && portrait && phase === 'play');
+  rotate.hidden = true;
   updateHud();
 }
 
@@ -562,6 +625,11 @@ window.__TT = {
 
 audio.setEnabled(settings.sound);
 applyLang();
+if (window.HappyScores) {
+  const n = window.HappyScores.getBest('toon-tennis');
+  const bestEl = document.getElementById('menuBest');
+  if (bestEl) bestEl.textContent = 'Best: ' + (n > 0 ? n : '—');
+}
 resize();
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
