@@ -50,6 +50,7 @@ export const STR = {
     maxed: 'تەواو',
     nextCost: 'دواتر',
     gems: 'گەوهەر',
+    coach: 'بۆشاییەکان بازبدە. بگە بە نهۆمی ١٠.',
   },
   en: {
     play: 'Play',
@@ -100,6 +101,7 @@ export const STR = {
     maxed: 'Max',
     nextCost: 'next',
     gems: 'gems',
+    coach: 'Jump the gaps. Reach floor 10.',
   },
 };
 

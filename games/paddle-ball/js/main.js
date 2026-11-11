@@ -180,6 +180,10 @@ function updateHud() {
   }
   banner.hidden = !text;
   banner.textContent = text;
+  const coach = document.getElementById('coach');
+  const showCoach = phase === 'play' && state.time < 5 && state.stage !== 'match';
+  coach.hidden = !showCoach;
+  if (showCoach) coach.textContent = t(settings.lang, 'coach');
   matchPanel.hidden = !(phase === 'play' && state.stage === 'match');
   if (!matchPanel.hidden) document.getElementById('match-title').textContent = text;
   document.body.classList.toggle('hts-over', !matchPanel.hidden);

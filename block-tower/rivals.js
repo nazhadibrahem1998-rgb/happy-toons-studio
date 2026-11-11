@@ -2,9 +2,10 @@
 import { plan } from './bot.js';
 
 const ROSTER = [
-  { id: 'nari', en: 'Nari', ckb: 'ناری', color: 0xff3ec8, lane: -0.55 },
-  { id: 'peko', en: 'Peko', ckb: 'پێکۆ', color: 0xc6ff4a, lane: 0.55 },
-  { id: 'vilo', en: 'Vilo', ckb: 'ڤایلۆ', color: 0x7aa2ff, lane: 0 },
+  // Stand across the start pad, not in a line down the camera, so the names stay apart.
+  { id: 'nari', en: 'Nari', ckb: 'ناری', color: 0xff3ec8, lane: -1.15, lead: 0 },
+  { id: 'peko', en: 'Peko', ckb: 'پێکۆ', color: 0xc6ff4a, lane: 1.15, lead: 0 },
+  { id: 'vilo', en: 'Vilo', ckb: 'ڤایلۆ', color: 0x7aa2ff, lane: 0, lead: 1.35 },
 ];
 
 const MODES = {
@@ -36,7 +37,7 @@ export function createRivals(mode, world) {
       cool: 0.8 + i * 0.25,
       blunders: 0,
       seed: 2.1 + i * 1.3,
-      x: start.x - 0.85 - i * 0.7,
+      x: start.x + (who.lead || 0),
       y: start.y,
       z: start.z + who.lane,
       vx: 0,
@@ -45,7 +46,7 @@ export function createRivals(mode, world) {
       onGround: true,
       groundId: world.spawnId,
       spawnId: world.spawnId,
-      spawn: { x: start.x, y: start.y, z: start.z, floor: start.floor },
+      spawn: { x: start.x + (who.lead || 0), y: start.y, z: start.z + who.lane, floor: start.floor },
       floor: start.floor,
       highest: start.floor,
       won: false,

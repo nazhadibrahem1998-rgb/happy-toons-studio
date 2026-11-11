@@ -442,7 +442,7 @@ function refreshRivalNames() {
   rivalNamePlates.forEach(drawRivalName);
 }
 
-function nameSprite(en, ckb, css) {
+function nameSprite(en, ckb, css, lift) {
   const board = document.createElement('canvas');
   board.width = 256;
   board.height = 64;
@@ -455,13 +455,13 @@ function nameSprite(en, ckb, css) {
   rivalNamePlates.push(plate);
   drawRivalName(plate);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  sprite.position.y = 2.05;
-  sprite.scale.set(1.8, 0.46, 1);
+  sprite.position.y = 2.12 + (lift || 0);
+  sprite.scale.set(1.05, 0.4, 1);
   sprite.frustumCulled = false;
   return sprite;
 }
 
-function makeRivalMesh(color, en, ckb) {
+function makeRivalMesh(color, en, ckb, lift) {
   const group = new THREE.Group();
   const css = `#${color.toString(16).padStart(6, '0')}`;
   const mat = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.22 });
@@ -477,7 +477,7 @@ function makeRivalMesh(color, en, ckb) {
   legL.position.set(-0.14, 0.26, 0);
   const legR = new THREE.Mesh(rivalGeo.leg, rivalDark);
   legR.position.set(0.14, 0.26, 0);
-  group.add(torso, head, armL, armR, legL, legR, nameSprite(en, ckb, css));
+  group.add(torso, head, armL, armR, legL, legR, nameSprite(en, ckb, css, lift));
   group.traverse((obj) => { obj.frustumCulled = false; });
   group.visible = false;
   scene.add(group);
@@ -493,10 +493,10 @@ if (renderer) {
   buildGems(world.ents);
   player = makePlayer();
   for (const who of [
-    { color: 0xff3ec8, en: 'Nari', ckb: 'ناری' },
-    { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ' },
-    { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ' },
-  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb));
+    { color: 0xff3ec8, en: 'Nari', ckb: 'ناری', lift: 0 },
+    { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ', lift: 0 },
+    { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ', lift: 0.38 },
+  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb, who.lift));
   buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
   applyQuality();
@@ -817,6 +817,7 @@ function fillResults() {
 }
 
 let backArmed = false;
+let coached = false;
 function armBack() {
   if (backArmed) return;
   try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (err) {}
@@ -832,6 +833,10 @@ function setMode(next) {
   ui.hud.hidden = !playing;
   ui.touch.hidden = !playing || !mobileUI();
   if (playing) keys.clear();
+  if (playing && !coached && world.playTime < 1) {
+    coached = true;
+    toast(t(lang, 'coach'), 3.6);
+  }
   if (next === 'menu') {
     refreshRunButtons();
     const play = document.getElementById('playBtn');
@@ -842,10 +847,10 @@ function setMode(next) {
   updateGemButton();
 }
 
-function toast(text) {
+function toast(text, seconds) {
   ui.toast.textContent = text;
   ui.toast.classList.add('on');
-  toastTimer = 1.4;
+  toastTimer = seconds || 1.4;
 }
 
 let flashHandle = 0;
@@ -929,6 +934,7 @@ function markRun() {
 }
 
 function restart() {
+  coached = false;
   markRun();
   world = createState();
   applyProgress(world, progress);

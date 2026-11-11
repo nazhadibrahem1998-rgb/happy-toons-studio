@@ -37,6 +37,7 @@ export const STR = {
   match: { en: 'Match', ckb: 'کۆتایی' },
   wins: { en: 'wins', ckb: 'بردیەوە' },
   drag: { en: 'Drag', ckb: 'ڕاکێشە' },
+  coach: { en: 'Drag to hit the ball. First to the score.', ckb: 'ڕاکێشە بۆ لێدانی تۆپ. یەکەم کە خاڵەکان بباتەوە.' },
   creditKu: { en: '', ckb: 'دروستکراوە بە یارمەتی زیرەکی دەستکرد' },
   playAgain: { en: 'Play again', ckb: 'دووبارە یاری بکە' },
   paused: { en: 'Paused', ckb: 'وەستاوە' },

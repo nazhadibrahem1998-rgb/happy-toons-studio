@@ -107,7 +107,7 @@ function newRun(){
 var lastStart=0;
 function startRun(){var now=performance.now();if(now-lastStart<350)return;lastStart=now;initAudio();if(AC&&AC.state==='suspended')AC.resume();newRun();state='play';paused=false;armBack();
   if(AC){nextBeat=AC.currentTime+0.05;beatN=0;}
-  show('start',false);show('over',false);$('hud').style.opacity=1;$('unlock').textContent='';syncPauseBtn();}
+  show('start',false);show('over',false);$('hud').style.opacity=1;$('unlock').textContent='';$('coach').hidden=false;syncPauseBtn();}
 
 /* ---------- patterns ---------- */
 function gapA(){var gt=0.62-0.36*G.diff;return gt*G.w;}
@@ -134,7 +134,7 @@ function addScore(v){G.score+=v*G.mult*(G.dbl>0?2:1);}
 /* ---------- input ---------- */
 function tapGame(){
   if(paused){setPaused(false);return;}
-  if(state==='play'){G.switchFrom=G.lane;G.lane=1-G.lane;G.lastSwitch=G.t;G.squash=1;SFX.flip();buzz(8);}
+  if(state==='play'){G.switchFrom=G.lane;G.lane=1-G.lane;G.lastSwitch=G.t;G.squash=1;SFX.flip();buzz(8);$('coach').hidden=true;}
   else if(state==='start'){startRun();SFX.flip();}
   else if(state==='over'&&performance.now()-overAt>320){startRun();}
 }
@@ -324,6 +324,7 @@ function render(now){
   if(G.slow>0&&state==='play'){ctx.fillStyle='rgba(120,80,255,0.08)';ctx.fillRect(0,0,W,H);}
   if(paused&&state==='play'){ctx.fillStyle='rgba(5,4,15,0.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='800 26px system-ui,sans-serif';ctx.fillText('PAUSED',CX,CY-14);ctx.font='600 15px system-ui,sans-serif';ctx.fillText('Tap to resume',CX,CY+18);}
   // HUD
+  if(state==='play'&&G.t>7)$('coach').hidden=true;
   if(state==='play'||state==='dying'){setText('score',String(Math.floor(G.score)));var m=$('mult');setText('mult','COMBO '+G.combo+'  \u00b7  x'+G.mult+(G.dbl>0?'  \u00b7  2X':''));m.style.opacity=G.combo>0||G.dbl>0?1:0;$('cbar').style.opacity=G.ctimer>0?1:0;$('cfill').style.width=Math.max(0,G.ctimer/3.2*100)+'%';
     var pw=[];if(G.shield)pw.push('<span style="color:#00f0ff">SHIELD</span>');if(G.slow>0)pw.push('<span style="color:#b07cff">SLOW '+G.slow.toFixed(1)+'</span>');if(G.mag>0)pw.push('<span style="color:#7cffb2">MAGNET '+G.mag.toFixed(1)+'</span>');if(G.dbl>0)pw.push('<span style="color:#ffe45e">2X '+G.dbl.toFixed(1)+'</span>');var ph=pw.join(' &nbsp; ');if(hudCache.pw!==ph){hudCache.pw=ph;$('pw').innerHTML=ph;}}
 }

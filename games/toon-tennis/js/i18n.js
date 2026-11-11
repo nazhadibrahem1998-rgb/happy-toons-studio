@@ -36,6 +36,7 @@ export const STR = {
   p1: { en: 'P1', ckb: 'ی١' },
   p2: { en: 'P2', ckb: 'ی٢' },
   serve: { en: 'Serve', ckb: 'سێرڤ' },
+  coach: { en: 'Tap Hit, or press Space, to serve.', ckb: 'لێدان دابگرە، یان Space، بۆ سێرڤ.' },
   fault: { en: 'Fault', ckb: 'هەڵە' },
   doublefault: { en: 'Double fault', ckb: 'دوو هەڵە' },
   let: { en: 'Let — serve again', ckb: 'لێت — دووبارە سێرڤ بکە' },

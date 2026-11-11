@@ -119,6 +119,24 @@ canvas {
   font-size: 1.05rem;
 }
 
+#coach {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: calc(max(8px, env(safe-area-inset-top)) + 108px);
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: min(92vw, 520px);
+  background: var(--ink);
+  color: white;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+}
+#coach[hidden] { display: none !important; }
 #banner {
   position: absolute;
   z-index: 4;

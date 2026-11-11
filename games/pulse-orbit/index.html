@@ -21,6 +21,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 .combo-bar{width:110px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);margin:6px auto 0;overflow:hidden;opacity:0;transition:opacity .2s}
 .combo-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffe45e,#ff4fd8)}
 .pw{margin-top:8px;font-size:13px;font-weight:700;letter-spacing:2px;height:18px}
+#coach{margin-top:10px;font-size:15px;font-weight:800;letter-spacing:1px;color:#fff;text-shadow:0 0 12px #00f0ff}
+#coach[hidden]{display:none !important}
 .topbtn{position:absolute;top:calc(env(safe-area-inset-top) + 12px);width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;font-size:18px;pointer-events:auto;display:flex;align-items:center;justify-content:center;cursor:pointer}
 #mute{right:calc(env(safe-area-inset-right) + 12px)}
 #pause{left:calc(env(safe-area-inset-left) + 12px)}
@@ -91,6 +93,7 @@ h1{font-size:46px;line-height:.95;font-weight:900;letter-spacing:3px;background:
     <div class="mult" id="mult">x1</div>
     <div class="combo-bar" id="cbar"><i id="cfill"></i></div>
     <div class="pw" id="pw"></div>
+    <div id="coach" hidden>Tap to switch lanes</div>
   </div>
   <button class="topbtn" id="pause" aria-label="Pause" hidden>&#10074;&#10074;</button>
   <button class="topbtn" id="mute" aria-label="Sound">&#9834;</button>

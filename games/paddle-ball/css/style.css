@@ -101,6 +101,25 @@ canvas {
 }
 .goal { opacity: 0.85; font-size: 0.8rem; letter-spacing: 0.02em; }
 
+#coach {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: calc(max(8px, env(safe-area-inset-top)) + 96px);
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: min(92vw, 520px);
+  background: rgba(26, 20, 64, 0.9);
+  color: var(--paper);
+  border: 2px solid var(--yellow);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+}
+#coach[hidden] { display: none !important; }
 #banner {
   position: absolute;
   z-index: 4;

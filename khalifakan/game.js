@@ -1222,6 +1222,15 @@ function endGame(win) {
       score: game.kills,
       best: result.best,
       isNew: result.isNew && game.kills > 0,
+      labels: {
+        score: 'خاڵ',
+        best: 'باشترین',
+        newBest: 'باشترین نوێ!',
+        tryAnother: 'یارییەکی تر تاقی بکەرەوە',
+        allGames: 'هەموو یارییەکان',
+        dir: 'rtl',
+        digits: 'ar',
+      },
     });
   }
   if ($('againBtn')) $('againBtn').textContent = 'دووبارە یاری بکە';

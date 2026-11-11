@@ -136,6 +136,10 @@ function updateHud() {
   }
   banner.hidden = !text;
   banner.textContent = text;
+  const coach = document.getElementById('coach');
+  const showCoach = phase === 'play' && state.stage === 'serve' && state.match.server === 0 && state.stats.pointsPlayed < 1;
+  coach.hidden = !showCoach;
+  if (showCoach) coach.textContent = t(settings.lang, 'coach');
 
   matchPanel.hidden = !(phase === 'play' && state.stage === 'match');
   if (!matchPanel.hidden) {
