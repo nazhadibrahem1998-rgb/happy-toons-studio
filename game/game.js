@@ -123,9 +123,9 @@ for (const [x, z] of [[ARENA_R - 2, 0], [-(ARENA_R - 2), 0]]) {
 {
   const tGeo = new THREE.ConeGeometry(1.6, 5, 7), trunk = new THREE.CylinderGeometry(0.25, 0.3, 1.2, 6);
   const leaf = mat(0x2f6b3a, { flatShading: true }), wood = mat(0x5a3a22);
-  const tm = new THREE.InstancedMesh(tGeo, leaf, 60), trm = new THREE.InstancedMesh(trunk, wood, 60);
+  const tm = new THREE.InstancedMesh(tGeo, leaf, 32), trm = new THREE.InstancedMesh(trunk, wood, 32);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 32; i++) {
     const a = rand(0, Math.PI * 2), d = rand(ARENA_R + 4, ARENA_R + 20), k = rand(0.8, 1.6);
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
     m4.compose(new THREE.Vector3(x, 1.2 * k + 2.5 * k, z), q, s.set(k, k, k)); tm.setMatrixAt(i, m4);
@@ -135,7 +135,7 @@ for (const [x, z] of [[ARENA_R - 2, 0], [-(ARENA_R - 2), 0]]) {
 }
 
 // ---------- Particles (pooled) ----------
-const PCOUNT = 160;
+const PCOUNT = 96;
 const pGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
 const particles = [];
 const pMats = {};
@@ -464,6 +464,7 @@ const sfx = {
   heavy: () => { noise(0.24, 360, 70, 0.28, 'lowpass'); tone(0.2, 108, 40, 0.16, 'triangle'); tone(0.14, 68, 34, 0.12, 'sine'); },
   dry: () => tone(0.09, 168, 92, 0.07, 'square'),
   die: () => tone(0.4, 400, 50, 0.16, 'square'),
+  thud: () => { noise(0.1, 420, 70, 0.36, 'lowpass'); tone(0.07, 240, 80, 0.2, 'triangle'); },
   wave: () => { tone(0.15, 440, 440, 0.1, 'square'); later(150, () => tone(0.3, 660, 660, 0.1, 'square')); },
   heal: () => { tone(0.12, 600, 900, 0.1, 'sine'); later(100, () => tone(0.2, 900, 1300, 0.1, 'sine')); },
   shoot: () => noise(0.14, 700, 2400, 0.13),
@@ -770,7 +771,7 @@ function bootBestWave() {
   try { return Math.max(0, Math.floor(+(localStorage.getItem('toonblade_best_wave') || 0)) || 0); } catch (e) { return 0; }
 }
 let bestWave = bootBestWave(), runStartBestWave = bestWave, bestWavePending = false, waveRecordShown = false;
-let runT = 0, kills = 0, bestComboReached = 0;
+let runT = 0, kills = 0, bestComboReached = 0, firstKill = true;
 let tutorialReplay = false;
 const reduceMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 let reduceMotion = reduceMotionQuery.matches;
@@ -1354,8 +1355,8 @@ function updateCoach(dt) {
   if (!el) return;
   coachT += dt;
   let step = -1, fade = false;
-  if (coachT < 1.5) { step = 0; fade = coachT > 1.15; }
-  else if (coachT < 3) { step = 1; fade = coachT > 2.6; }
+  if (coachT < 1.05) { step = 0; fade = coachT > 0.8; }
+  else if (coachT < 2.05) { step = 1; fade = coachT > 1.75; }
   else { endCoach(); return; }
   if (step !== coachStep) {
     coachStep = step;
@@ -1389,7 +1390,7 @@ function resetGame() {
   uiHp = uiSt = uiWave = uiScore = uiLeft = -1;
   runStartBest = best; newBestShown = false; bestPending = false;
   runStartBestWave = bestWave; waveRecordShown = false; bestWavePending = false;
-  runT = 0; kills = 0; bestComboReached = 0;
+  runT = 0; kills = 0; bestComboReached = 0; firstKill = true;
   audioGen++;
   savedKey = '0:0';
   clearHeld();
@@ -1518,7 +1519,7 @@ function arenaBusy() {
 
 function startGame() {
   const now = performance.now();
-  if (state === 'play' || now - lastStart < 350) return;
+  if (state === 'play' || (lastStart > 0 && now - lastStart < 350)) return;
   lastStart = now;
   armBack();
   countHit('toonblade-plays');
@@ -1541,6 +1542,8 @@ function gameOver() {
   best = result.best;
   if (wave > bestWave) noteBestWave();
   $('oWave').textContent = wave;
+  const bw = $('oBestWave');
+  if (bw) bw.textContent = bestWave > 0 ? String(bestWave) : '—';
   paintRunNote();
   if (window.HappyScores) {
     window.HappyScores.showEnd({
@@ -1553,6 +1556,9 @@ function gameOver() {
       isNew: score > runStartBest && score > 0,
     });
   }
+  if (banner) { banner.classList.remove('show'); bannerT = 0; }
+  const hud = $('hud');
+  if (hud) hud.classList.add('hidden');
   $('over').classList.remove('hidden'); $('touch').classList.add('hidden');
   document.body.classList.add('hts-over');
   showStartBest();
@@ -1902,9 +1908,17 @@ function hitEnemy(e, dmg, nx, nz, power) {
       shake = Math.max(shake, 0.45);
       burst(tmpV.set(ep.x, 1.6, ep.z), 0xffd45e, 24, 8);
       burst(tmpV.set(ep.x, 1.1, ep.z), e.type === 'king' ? 0xfff6c8 : 0xd8ffb0, 14, 6);
-    } else sfx.die();
+    } else {
+      const punch = firstKill;
+      firstKill = false;
+      hitStop = Math.max(hitStop, punch ? 0.12 : 0.08);
+      shake = Math.max(shake, punch ? 0.55 : 0.38);
+      sfx.thud();
+      sfx.die();
+      burst(tmpV.set(ep.x, 1.15, ep.z), 0xfff6c8, punch ? 16 : 10, 9);
+    }
     score += pts; checkBest();
-    burst(tmpV.set(ep.x, 0.8, ep.z), deathColor(e.type), 22, 7);
+    burst(tmpV.set(ep.x, 0.8, ep.z), deathColor(e.type), e.type === 'king' || e.type === 'chief' ? 22 : 16, 7);
     const sure = e.type === 'brute' || e.type === 'king' || e.type === 'chief';
     const rare = e.type === 'archer' || e.type === 'thrower' || e.type === 'dasher';
     if (Math.random() < (sure ? 1 : rare ? 0.16 : 0.14)) dropPotion(ep);
@@ -2541,6 +2555,6 @@ window.__game = {
 };
 
 renderer.render(scene, camera);
-countHit('toonblade-views');
+setTimeout(() => countHit('toonblade-views'), 4000);
 if (window.__htsBoot) window.__htsBoot(startGame);
 else { const el = $('loading'); if (el) el.hidden = true; }
