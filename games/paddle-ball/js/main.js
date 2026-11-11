@@ -210,6 +210,7 @@ function setSound(on) {
 }
 
 function startMatch() {
+  armBack();
   seed += 1;
   state = createMatchState({
     mode: settings.mode,
@@ -238,12 +239,27 @@ function goMenu() {
 
 function togglePause() {
   if (phase === 'play') phase = 'pause';
-  else if (phase === 'pause') phase = 'play';
+  else if (phase === 'pause') { phase = 'play'; armBack(); }
   updateHud();
   audio.play('ui');
 }
 
-document.getElementById('play').addEventListener('click', () => { audio.unlock(); startMatch(); });
+let backArmed = false;
+function armBack() {
+  if (backArmed) return;
+  try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (err) {}
+}
+function guarded(el, fn) {
+  let last = 0;
+  el.addEventListener('click', () => {
+    const now = performance.now();
+    if (now - last < 350) return;
+    last = now;
+    fn();
+  });
+}
+
+guarded(document.getElementById('play'), () => { audio.unlock(); startMatch(); });
 document.querySelectorAll('[data-mode]').forEach((btn) => {
   btn.addEventListener('click', () => {
     settings.mode = btn.dataset.mode === 'local' ? 'local' : 'cpu';
@@ -280,9 +296,9 @@ document.querySelectorAll('[data-sound]').forEach((btn) => {
 });
 document.getElementById('btn-pause').addEventListener('click', togglePause);
 document.getElementById('btn-resume').addEventListener('click', togglePause);
-document.getElementById('btn-restart').addEventListener('click', startMatch);
+guarded(document.getElementById('btn-restart'), startMatch);
 document.getElementById('btn-menu').addEventListener('click', goMenu);
-document.getElementById('btn-again').addEventListener('click', startMatch);
+guarded(document.getElementById('btn-again'), startMatch);
 document.getElementById('btn-match-menu').addEventListener('click', goMenu);
 
 function portraitNow() {
@@ -431,13 +447,27 @@ window.addEventListener('keydown', (event) => {
   audio.unlock();
 });
 window.addEventListener('keyup', (event) => keys.delete(event.code));
-window.addEventListener('blur', () => keys.clear());
+window.addEventListener('blur', () => {
+  keys.clear();
+  if (phase === 'play') {
+    phase = 'pause';
+    updateHud();
+  }
+});
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden || phase !== 'play') return;
   keys.clear();
   phase = 'pause';
   updateHud();
 });
+window.addEventListener('popstate', () => {
+  backArmed = false;
+  if (phase !== 'play') return;
+  keys.clear();
+  phase = 'pause';
+  updateHud();
+});
+canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
 function axis(neg, pos) {
   return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0);
@@ -568,5 +598,7 @@ applyLang();
 resize();
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => { setTimeout(resize, 60); setTimeout(resize, 280); });
 document.addEventListener('pointerdown', () => audio.unlock(), { passive: true });
+if (window.__htsBoot) window.__htsBoot(() => { audio.unlock(); startMatch(); });
 requestAnimationFrame(frame);

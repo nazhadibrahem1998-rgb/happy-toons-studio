@@ -103,6 +103,7 @@
     <p class="tag" data-i18n="tag">Climb a night-time neon tower.</p>
     <p class="age" data-i18n="age">For ages 15–18</p>
     <button type="button" id="playBtn" class="btn" data-i18n="play">Play</button>
+    <a class="btn alt" data-i18n="allGames" href="../games/">All games</a>
     <button type="button" id="newRunBtn" class="btn alt" data-i18n="newRun" hidden>New run</button>
     <div class="row">
       <button type="button" id="helpBtn" class="btn alt" data-i18n="help">Help</button>
@@ -234,6 +235,7 @@
     <button type="button" id="pauseUpgrades" class="btn alt">Upgrades</button>
     <button type="button" id="restartBtn" class="btn alt" data-i18n="again">Again</button>
     <button type="button" id="pauseMenu" class="btn alt" data-i18n="menu">Menu</button>
+    <a class="btn alt" data-i18n="allGames" href="../games/">All games</a>
     <p class="legal">© 2026 Nazhad Ibrahem – Happy Toons Studio</p>
   </div>
 </div>
@@ -326,7 +328,29 @@
   });
 })();
 </script>
-<script src="../assets/js/game-scores.js"></script>
+<div id="boot" hidden><span>Loading…</span></div>
+<script>
+(function () {
+  var el = document.getElementById('boot');
+  var btn = document.getElementById('playBtn');
+  var booted = false;
+  var pending = false;
+  var timer = setTimeout(function () { if (!booted && el) el.hidden = false; }, 300);
+  if (btn) btn.addEventListener('click', function (e) {
+    if (booted) return;
+    pending = true;
+    if (e.cancelable) e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+  window.__htsBoot = function (start) {
+    booted = true;
+    clearTimeout(timer);
+    if (el) el.hidden = true;
+    if (pending && typeof start === 'function') start();
+  };
+})();
+</script>
+<script src="../assets/js/game-scores.js" defer></script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

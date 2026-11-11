@@ -1122,6 +1122,7 @@ function clearAll() {
   for (const p of pickups) scene.remove(p.m); pickups.length = 0;
 }
 function startGame(stage = 0) {
+  if (backArmed === false) armBack();
   Audio.init(); Audio.ui(); clearAll(); player.reset();
   Object.assign(game, { time: 0, kills: 0, maxCombo: 0, combo: 0, stageClearT: -1, winT: 0, slowmo: 0, hitStop: 0 });
   ['start', 'end', 'pause'].forEach(id => $(id).classList.add('hidden')); $('hud').classList.remove('hidden'); $('touch').classList.remove('hidden'); $('bossBar').classList.add('hidden');
@@ -1178,7 +1179,12 @@ function endGame(win) {
 }
 function togglePause(force) {
   if (game.state === 'play' || game.state === 'cine') { game.prev = game.state; game.state = 'paused'; $('pause').classList.remove('hidden'); Audio.hold(true); if (document.pointerLockElement) document.exitPointerLock(); }
-  else if (game.state === 'paused' && force !== true) { game.state = game.prev; $('pause').classList.add('hidden'); Audio.hold(false); }
+  else if (game.state === 'paused' && force !== true) { game.state = game.prev; $('pause').classList.add('hidden'); Audio.hold(false); armBack(); }
+}
+let backArmed = false;
+function armBack() {
+  if (backArmed) return;
+  try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (e) {}
 }
 function toMenu() { clearAll(); player.reset(); player.pos.set(0, 0, 0); game.state = 'menu'; Audio.music(false); applyLook(0); ['end', 'pause', 'hud', 'touch'].forEach(id => $(id).classList.add('hidden')); $('start').classList.remove('hidden'); document.body.classList.remove('hts-over'); paintKhBest(); }
 async function goFull() {
@@ -1228,6 +1234,8 @@ document.addEventListener('fullscreenchange', syncFullBtn);
 document.addEventListener('webkitfullscreenchange', syncFullBtn);
 const portrait = () => { if (!isTouch) return false; const box = viewBox(); return box.h > box.w; };
 document.addEventListener('visibilitychange', () => { if (document.hidden && (game.state === 'play' || game.state === 'cine')) togglePause(); });
+addEventListener('blur', () => { if (game.state === 'play' || game.state === 'cine') togglePause(); });
+addEventListener('popstate', () => { backArmed = false; if (game.state === 'play' || game.state === 'cine') togglePause(); });
 
 // ---------- camera ----------
 const camPos = new THREE.Vector3(), lookAt = new THREE.Vector3(), shakeO = new THREE.Vector3();
@@ -1248,7 +1256,7 @@ function updateCamera(dt, t) {
       const k = ease((u - 0.55) / 0.45); const behind = lookAt.set(player.pos.x - Math.sin(cam.yaw) * cam.dist * Math.cos(cam.pitch), 1.4 + cam.dist * Math.sin(cam.pitch), player.pos.z - Math.cos(cam.yaw) * cam.dist * Math.cos(cam.pitch));
       camera.position.lerpVectors(close, behind, k); const la = V2.copy(hp).lerp(V.set(player.pos.x, 1.4, player.pos.z), k); camera.lookAt(la);
     }
-    if (u >= 1) { cam.cine = null; game.state = 'play'; $('banner').classList.remove('low'); $('bossBar').classList.remove('hidden'); cam.tgt.set(player.pos.x, 1.4, player.pos.z); }
+    if (u >= 1) { cam.cine = null; game.state = 'play'; $('banner').classList.remove('low'); const face = $('bossImg'); if (face && !face.getAttribute('src')) face.src = 'assets/miran_face.webp'; $('bossBar').classList.remove('hidden'); cam.tgt.set(player.pos.x, 1.4, player.pos.z); }
     return;
   }
   const p = player, moving = input.mag > 0.3 && p.state === 'move';
@@ -1349,10 +1357,18 @@ function frame(now) {
 }
 
 // ---------- boot ----------
+function loadFace(url) {
+  return new Promise(res => new THREE.TextureLoader().load(url, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t); }, undefined, () => res(null)));
+}
 (async function boot() {
   resize();
+  // The portrait is only needed for the boss, so it must not hold the title screen.
+  const faceReady = loadFace('assets/miran_face.webp').then(t => t || loadFace('assets/miran_face.png'));
+  faceReady.then(t => {
+    faceTex = t;
+    if (t && boss && boss.faceMesh) { boss.faceMesh.material.map = t; boss.faceMesh.material.emissiveMap = t; boss.faceMesh.material.needsUpdate = true; }
+  });
   try { await Promise.race([document.fonts.load('700 34px KFont'), new Promise(r => setTimeout(r, 2500))]); } catch (e) { }
-  faceTex = await new Promise(res => new THREE.TextureLoader().load('assets/miran_face.png', t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t); }, undefined, () => res(null)));
   buildWorld();
   player = new Player(); player.reset(); player.pos.set(0, 0, 0);
   applyLook(0);

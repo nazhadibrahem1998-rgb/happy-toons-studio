@@ -17,7 +17,7 @@ h2{font-size:clamp(28px,8vh,56px);margin:0 0 1.5vh;color:#f2c46b;text-shadow:0 2
 .controls{font-size:clamp(9px,2.5vh,13px);color:#c8b596;line-height:1.6;margin-top:1.6vh}
 body.touch .controls .kb{display:none}
 input,select,textarea{font-size:16px}
-.btn{font-family:inherit;font-size:clamp(16px,5vh,26px);padding:1.2vh 5vh;margin:.8vh .6vh;border:2px solid #f2c46b;border-radius:12px;background:linear-gradient(#b5401c,#7a230c);color:#fff3dc;cursor:pointer;box-shadow:0 4px 0 #3d1306,0 0 18px rgba(255,120,40,.35);touch-action:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.btn{font-family:inherit;font-size:clamp(16px,5vh,26px);padding:1.2vh 5vh;margin:.8vh .6vh;border:2px solid #f2c46b;border-radius:12px;background:linear-gradient(#b5401c,#7a230c);color:#fff3dc;cursor:pointer;box-shadow:0 4px 0 #3d1306,0 0 18px rgba(255,120,40,.35);touch-action:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;text-decoration:none;display:inline-block}
 .btn:active{transform:translateY(2px);box-shadow:0 2px 0 #3d1306}
 .btn.alt{background:linear-gradient(#4a3a2a,#2a2018);border-color:#a88a5c}
 #pause .btn,#end .btn{display:block;margin:1.2vh auto;min-width:40vh}
