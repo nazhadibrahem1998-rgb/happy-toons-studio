@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- خەلیفەکان (Khalifakan) — © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance. Three.js (vendor/) © three.js authors, MIT. Font: Noto Sans Arabic, SIL OFL 1.1. -->
+<!-- خەلیفەکان (Khalifakan) — © 2026 Ayub Azizi – Happy Toons Studio. Three.js (vendor/) © three.js authors, MIT. Font: Noto Sans Arabic, SIL OFL 1.1. -->
 <html lang="ckb" dir="rtl">
 <head>
 <meta charset="utf-8">
@@ -24,7 +24,7 @@
   });
   document.addEventListener('touchmove', function (e) {
     var t = e.target;
-    if (t && t.closest && t.closest('.panel, #end')) return;
+    if (t && t.closest && t.closest('.panel, #end, #tips')) return;
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
   document.addEventListener('touchend', function (e) {
@@ -40,6 +40,7 @@
 <div id="hud" class="hidden">
   <div id="pbox">
     <div class="pname">گڕوت</div>
+    <div id="scoreHud">خاڵ ٠</div>
     <div class="bar hp"><div id="hpFill"></div></div>
     <div class="bar st"><div id="stFill"></div></div>
   </div>
@@ -85,7 +86,7 @@
       <div>مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن · ڕاکێشانی لای ڕاست بۆ کامێرا · دوگمەکان بۆ لێدان، لێدانی قورس، خۆلادان و بازدان</div>
       <div class="kb">کیبۆرد: WASD ڕۆیشتن · ماوس کامێرا · J لێدان · K قورس · Shift خۆلادان · Space بازدان · P وەستان</div>
     </div>
-    <p class="credit">© ٢٠٢٦ Happy Toons Studio · دروستکراو بە یارمەتی AI</p>
+    <p class="credit">© ٢٠٢٦ Happy Toons Studio</p>
   </div>
 </div>
 
@@ -107,6 +108,14 @@
     <button type="button" id="againBtn" class="btn">Play again</button>
     <div id="endTry"></div>
     <button type="button" id="endMenuBtn" class="btn alt">⌂ مێنیو</button>
+  </div>
+</div>
+
+<div id="tips" class="screen hidden" dir="rtl" lang="ckb">
+  <div class="panel">
+    <h2>ئامۆژگاری</h2>
+    <p id="tipsBody" class="sub"></p>
+    <button type="button" id="tipsOk" class="btn">باشە</button>
   </div>
 </div>
 
