@@ -107,7 +107,7 @@
     <p id="endSub" class="sub"></p>
     <p id="endStats" class="sub"></p>
     <div id="endScore"></div>
-    <button type="button" id="againBtn" class="btn">Play again</button>
+    <button type="button" id="againBtn" class="btn">دووبارە یاری بکە</button>
     <div id="endTry"></div>
     <button type="button" id="endMenuBtn" class="btn alt">⌂ مێنیو</button>
   </div>
@@ -121,7 +121,7 @@
   </div>
 </div>
 
-<div id="loading" class="screen hidden"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
+<div id="loading" class="screen hidden"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p><div class="loadtrack"><div id="loadFill"></div></div></div></div>
 
 <div id="rotate"><div class="ph">📱</div><p>تکایە مۆبایلەکەت بە پانی بسوڕێنە</p><p class="small">ئەم یارییە تەنها لە باری پانیدا کار دەکات</p></div>
 
@@ -191,14 +191,56 @@
 })();
 </script>
 <script src="../assets/js/game-scores.js" defer></script>
+<script>
+/* Prefetch the 3D engine while the title is on screen. Play shows the bar. */
+(function () {
+  var job = null;
+  function fill(p) {
+    var el = document.getElementById('loadFill');
+    if (el) el.style.width = Math.max(0, Math.min(100, Math.round(p * 100))) + '%';
+  }
+  window.__htsPrefetchThree = function () {
+    if (job) return job;
+    var url = new URL('vendor/three.module.min.js', document.baseURI).href;
+    job = fetch(url).then(function (res) {
+      if (!res.ok || !res.body || !res.body.getReader) throw new Error('engine');
+      var total = Number(res.headers.get('content-length')) || 670681;
+      var reader = res.body.getReader();
+      var got = 0;
+      var chunks = [];
+      function pump() {
+        return reader.read().then(function (step) {
+          if (step.done) {
+            window.__htsThreeUrl = URL.createObjectURL(new Blob(chunks, { type: 'text/javascript' }));
+            fill(1);
+            return;
+          }
+          chunks.push(step.value);
+          got += step.value.byteLength;
+          fill(got / total);
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function () { window.__htsThreeUrl = ''; });
+    return job;
+  };
+  function idle() {
+    var go = function () { window.__htsPrefetchThree(); };
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 500 });
+    else setTimeout(go, 1);
+  }
+  requestAnimationFrame(function () { requestAnimationFrame(idle); });
+})();
+</script>
 <script type="module">
-/* Download the 3D engine on the first tap so the title can paint on a slow phone. */
 (function () {
   var started = false;
   function load() {
     if (started) return;
     started = true;
-    import('./game.js');
+    var ready = window.__htsPrefetchThree ? window.__htsPrefetchThree() : Promise.resolve();
+    ready.then(function () { return import('./game.js'); }).catch(function () { return import('./game.js'); });
   }
   var play = document.getElementById('playBtn');
   if (play) play.addEventListener('pointerdown', load, true);

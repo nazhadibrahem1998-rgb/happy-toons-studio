@@ -119,6 +119,30 @@ canvas {
   font-size: 1.05rem;
 }
 
+#coach {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: calc(max(8px, env(safe-area-inset-top)) + 108px);
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: min(92vw, 520px);
+  background: var(--ink);
+  color: white;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+}
+#coach[hidden] { display: none !important; }
+body.juicy #app { animation: juicy 0.16s ease-out; }
+@keyframes juicy {
+  0% { transform: scale(1.012); }
+  40% { transform: translate(-2px, 1px); }
+  100% { transform: none; }
+}
 #banner {
   position: absolute;
   z-index: 4;
@@ -151,6 +175,9 @@ canvas {
   pointer-events: none;
 }
 #touch.is-on { display: flex; }
+#touch.portrait { flex-direction: column; }
+#touch.portrait [data-zone="1"] { order: 1; }
+#touch.portrait [data-zone="0"] { order: 2; }
 .half {
   flex: 1;
   position: relative;
@@ -177,7 +204,7 @@ canvas {
 }
 .hitbtn {
   position: absolute;
-  bottom: 18px;
+  bottom: max(18px, env(safe-area-inset-bottom));
   min-width: 76px;
   min-height: 52px;
   background: var(--pink);
@@ -187,9 +214,7 @@ canvas {
 }
 .half[data-zone="0"] .hitbtn { left: 16px; }
 .half[data-zone="1"] .hitbtn { right: 16px; }
-.half.cpu-side { pointer-events: none; }
-.half.cpu-side .pad { opacity: 0.55; }
-.half.cpu-side .hitbtn { display: none; }
+.half.cpu-side { display: none; }
 
 .panel {
   position: absolute;

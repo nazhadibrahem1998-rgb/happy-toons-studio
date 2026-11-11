@@ -11,6 +11,7 @@ export const STR = {
     resume: 'بەردەوامبوون',
     menu: 'مێنیو',
     again: 'دووبارە',
+    playAgain: 'جارێکی تر',
     jump: 'بازدان',
     sound: 'دەنگ',
     full: 'پڕشاشە',
@@ -49,6 +50,7 @@ export const STR = {
     maxed: 'تەواو',
     nextCost: 'دواتر',
     gems: 'گەوهەر',
+    coach: 'بۆشاییەکان بازبدە. بگە بە نهۆمی ١٠.',
   },
   en: {
     play: 'Play',
@@ -60,6 +62,7 @@ export const STR = {
     resume: 'Resume',
     menu: 'Menu',
     again: 'Again',
+    playAgain: 'One more try',
     jump: 'Jump',
     sound: 'Sound',
     full: 'Full screen',
@@ -98,6 +101,7 @@ export const STR = {
     maxed: 'Max',
     nextCost: 'next',
     gems: 'gems',
+    coach: 'Jump the gaps. Reach floor 10.',
   },
 };
 

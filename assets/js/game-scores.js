@@ -320,26 +320,40 @@
     global.document.head.appendChild(style);
   }
 
+  function localDigits(n, kind) {
+    var text = String(n);
+    if (kind !== 'ar') return text;
+    return text.replace(/\d/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
+  }
+
   function showEnd(opts) {
     ensureStyle();
+    var labels = opts.labels || {};
+    var scoreWord = labels.score || 'Score';
+    var bestWord = labels.best || 'Best';
+    var newWord = labels.newBest || 'New best!';
+    var tryWord = labels.tryAnother || 'Try another game';
+    var allWord = labels.allGames || 'All games';
+    var dir = labels.dir === 'rtl' ? 'rtl' : 'ltr';
     var score = Math.max(0, Math.floor(Number(opts.score) || 0));
     var best = Math.max(score, Math.floor(Number(opts.best) || 0));
     var isNew = !!opts.isNew && score > 0;
-    var bestText = best > 0 ? String(best) : '—';
+    var bestText = best > 0 ? localDigits(best, labels.digits) : '—';
+    var scoreText = localDigits(score, labels.digits);
     if (opts.scoreEl) {
-      opts.scoreEl.innerHTML = '<div dir="ltr">'
-        + '<p class="hts-scoreline">Score: <b>' + score + '</b></p>'
-        + '<p class="hts-scoreline">Best: <b>' + bestText + '</b></p>'
-        + '<p class="hts-new"' + (isNew ? '' : ' hidden') + '>New best!</p></div>';
+      opts.scoreEl.innerHTML = '<div dir="' + dir + '">'
+        + '<p class="hts-scoreline">' + escapeHtml(scoreWord) + ': <b>' + scoreText + '</b></p>'
+        + '<p class="hts-scoreline">' + escapeHtml(bestWord) + ': <b>' + bestText + '</b></p>'
+        + '<p class="hts-new"' + (isNew ? '' : ' hidden') + '>' + escapeHtml(newWord) + '</p></div>';
     }
     if (opts.tryEl) {
       var list = others(opts.id);
-      var html = '<p>Try another game</p>';
+      var html = '<p dir="' + dir + '">' + escapeHtml(tryWord) + '</p>';
       var i;
       for (i = 0; i < list.length; i++) {
         html += '<a href="' + rel(opts.from, list[i].path) + '">' + escapeHtml(list[i].name) + '</a>';
       }
-      if (opts.from) html += '<a href="' + rel(opts.from, 'games') + '">All games</a>';
+      if (opts.from) html += '<a href="' + rel(opts.from, 'games') + '">' + escapeHtml(allWord) + '</a>';
       opts.tryEl.className = 'hts-try';
       opts.tryEl.innerHTML = html;
     }
@@ -395,4 +409,7 @@
     showEnd: showEnd,
     mountHub: mountHub,
   };
+
+  /* The hub's inline caller used to run before this deferred file. Mount here too. */
+  if (global.document && global.document.getElementById('daily')) mountHub('games');
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -59,13 +59,17 @@ a.btn { text-align: center; text-decoration: none; box-sizing: border-box; }
   pointer-events: none;
 }
 #boot span {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   background: rgba(8, 10, 18, 0.92);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 8px 14px;
   font-weight: 800;
 }
+.loadtrack { display: block; width: 120px; height: 8px; border-radius: 99px; background: rgba(255,255,255,.16); overflow: hidden; }
+#loadFill { display: block; height: 100%; width: 0; background: var(--cyan); }
 [hidden] { display: none !important; }
 .en, .en-title { font-family: 'Segoe UI', Tahoma, sans-serif; }
 .en { color: var(--muted); margin: 0 0 8px; font-size: 0.92rem; }
@@ -384,8 +388,9 @@ textarea {
   #placeRow, #bestLive { margin: 0; }
   #timer { font-size: 0.85rem; }
   #rotate { top: calc(78px + var(--safe-t)); }
+  #toast { top: calc(136px + var(--safe-t)); }
   .hud-actions { gap: 3px; flex: none; }
-  .hud-actions button, #gemBtn { min-width: 32px; min-height: 32px; padding: 0 4px; font-size: 0.85rem; }
+  .hud-actions button, #gemBtn { min-width: 44px; min-height: 44px; padding: 0 6px; font-size: 0.85rem; }
   #stickZone { --stick: 104px; left: calc(10px + var(--safe-l)); bottom: calc(12px + var(--safe-b)); }
   #lookZone { --stick: 96px; --jump-w: 72px; --jump-b: 18px; --jump-r: 12px; }
   #jumpBtn { width: 72px; height: 72px; right: calc(12px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); font-size: 0.82rem; }
@@ -418,6 +423,12 @@ textarea {
   opacity: 0;
 }
 #toast.on { opacity: 1; }
+body.juicy #c { animation: juicy 0.18s ease-out; }
+@keyframes juicy {
+  0% { transform: scale(1.02); }
+  50% { transform: translate(3px, -2px); }
+  100% { transform: none; }
+}
 #glLost {
   position: fixed;
   z-index: 30;

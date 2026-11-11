@@ -1,5 +1,5 @@
 // خەلیفەکان (Khalifakan) — © 2026 Nazhad Ibrahem – Happy Toons Studio.
-import * as THREE from './vendor/three.module.min.js';
+const THREE = await import(globalThis.__htsThreeUrl || './vendor/three.module.min.js');
 
 const $ = id => document.getElementById(id);
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -103,10 +103,15 @@ scene.add(sky);
 // ---------- audio (WebAudio, procedural) ----------
 const Audio = (() => {
   let ctx = null, master = null, musicG = null, muted = false, noiseBuf = null, nextBeat = 0, beatI = 0, musicOn = false, droneNodes = null;
+  try { muted = localStorage.getItem('khalifakan-muted') === '1'; } catch (e) {}
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-    master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination);
+    if (ctx.state === 'suspended') ctx.resume();
+    master = ctx.createGain(); master.gain.value = muted ? 0 : 0.32;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 14; comp.ratio.value = 10; comp.attack.value = 0.003; comp.release.value = 0.18;
+    master.connect(comp); comp.connect(ctx.destination);
     musicG = ctx.createGain(); musicG.gain.value = 0.22; musicG.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -161,7 +166,14 @@ const Audio = (() => {
         nextBeat += step; beatI++;
       }
     },
-    toggleMute() { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.7; return muted; },
+    toggleMute() {
+      muted = !muted;
+      if (master) master.gain.value = muted ? 0 : 0.32;
+      try { localStorage.setItem('khalifakan-muted', muted ? '1' : '0'); } catch (e) {}
+      const b = $('bMute');
+      if (b) b.style.opacity = muted ? 0.45 : 1;
+      return muted;
+    },
     hold(paused) {
       if (!ctx) return;
       try {
@@ -1080,7 +1092,8 @@ bindBtn('bHeavy', () => player.buf.heavy = 0.35);
 bindBtn('bDodge', () => player.buf.dodge = 0.3);
 bindBtn('bJump', () => player.buf.jump = 0.25);
 bindBtn('bPause', () => togglePause());
-bindBtn('bMute', () => { const m = Audio.toggleMute(); $('bMute').style.opacity = m ? 0.45 : 1; });
+bindBtn('bMute', () => { Audio.toggleMute(); });
+if ($('bMute')) $('bMute').style.opacity = Audio.muted ? 0.45 : 1;
 addEventListener('keydown', e => {
   input.keys[e.code] = true; Audio.init();
   if (!player) return;
@@ -1088,7 +1101,7 @@ addEventListener('keydown', e => {
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyL') player.buf.dodge = 0.3;
   if (e.code === 'Space') { player.buf.jump = 0.25; e.preventDefault(); }
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
-  if (e.code === 'KeyM') Audio.toggleMute();
+  if (e.code === 'KeyM') { Audio.init(); Audio.toggleMute(); }
 });
 addEventListener('keyup', e => { input.keys[e.code] = false; });
 function readInput(dt) {
@@ -1210,9 +1223,18 @@ function endGame(win) {
       score: game.kills,
       best: result.best,
       isNew: result.isNew && game.kills > 0,
+      labels: {
+        score: 'خاڵ',
+        best: 'باشترین',
+        newBest: 'باشترین نوێ!',
+        tryAnother: 'یارییەکی تر تاقی بکەرەوە',
+        allGames: 'هەموو یارییەکان',
+        dir: 'rtl',
+        digits: 'ar',
+      },
     });
   }
-  if ($('againBtn')) $('againBtn').textContent = 'Play again';
+  if ($('againBtn')) $('againBtn').textContent = 'دووبارە یاری بکە';
   $('end').classList.remove('hidden'); $('touch').classList.add('hidden');
   document.body.classList.add('hts-over');
   paintKhBest();
@@ -1254,7 +1276,7 @@ function syncFullBtn() {
 }
 function onTap(el, fn) {
   if (!el) return;
-  let lock = 0;
+  let lock = -1000;
   const run = () => { const now = performance.now(); if (now - lock < 400) return; lock = now; fn(); };
   el.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;

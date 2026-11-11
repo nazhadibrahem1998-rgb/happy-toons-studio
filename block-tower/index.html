@@ -249,9 +249,9 @@
       <div><span data-i18n="best">Best time</span> <b id="finishBest">—</b></div>
       <div><span data-i18n="highest">Highest floor</span> <b id="finishHighest">—</b></div>
     </div>
+    <button type="button" id="finishAgain" class="btn" data-i18n="playAgain">One more try</button>
     <div id="finishScore"></div>
     <ol id="raceResults" hidden></ol>
-    <button type="button" id="finishAgain" class="btn" data-i18n="again">Play again</button>
     <div id="finishTry"></div>
     <button type="button" id="finishMenu" class="btn alt" data-i18n="menu">Menu</button>
     <p class="ai"><span dir="ltr" lang="en">Made with AI assistance (code and graphics)</span><br><span dir="rtl" lang="ckb">دروستکراو بە یارمەتی AI (کۆد و گرافیک)</span></p>
@@ -328,7 +328,7 @@
   });
 })();
 </script>
-<div id="boot" hidden><span>Loading…</span></div>
+<div id="boot" hidden><span>Loading…<i class="loadtrack"><b id="loadFill"></b></i></span></div>
 <script>
 (function () {
   var el = document.getElementById('boot');
@@ -336,12 +336,20 @@
   var booted = false;
   var pending = false;
   var timer = setTimeout(function () { if (!booted && el) el.hidden = false; }, 300);
-  if (btn) btn.addEventListener('click', function (e) {
+  function arm(e) {
     if (booted) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     pending = true;
-    if (e.cancelable) e.preventDefault();
-    e.stopImmediatePropagation();
-  }, true);
+  }
+  if (btn) {
+    btn.addEventListener('pointerdown', arm, true);
+    btn.addEventListener('click', function (e) {
+      if (booted) return;
+      pending = true;
+      if (e.cancelable) e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
+  }
   window.__htsBoot = function (start) {
     booted = true;
     clearTimeout(timer);
@@ -351,6 +359,68 @@
 })();
 </script>
 <script src="../assets/js/game-scores.js" defer></script>
-<script type="module" src="game.js"></script>
+<script>
+/* Prefetch the 3D engine while the menu is on screen. Play shows the bar. */
+(function () {
+  var SRC = 'vendor/three.module.min.js';
+  var job = null;
+  function fill(p) {
+    var el = document.getElementById('loadFill');
+    if (el) el.style.width = Math.max(0, Math.min(100, Math.round(p * 100))) + '%';
+  }
+  function showBoot() {
+    var el = document.getElementById('boot');
+    if (el) el.hidden = false;
+  }
+  window.__htsPrefetchThree = function () {
+    if (job) return job;
+    var url = new URL(SRC, document.baseURI).href;
+    job = fetch(url).then(function (res) {
+      if (!res.ok || !res.body || !res.body.getReader) throw new Error('engine');
+      var total = Number(res.headers.get('content-length')) || 670681;
+      var reader = res.body.getReader();
+      var got = 0;
+      var chunks = [];
+      function pump() {
+        return reader.read().then(function (step) {
+          if (step.done) {
+            window.__htsThreeUrl = URL.createObjectURL(new Blob(chunks, { type: 'text/javascript' }));
+            fill(1);
+            return;
+          }
+          chunks.push(step.value);
+          got += step.value.byteLength;
+          fill(got / total);
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function () { window.__htsThreeUrl = ''; });
+    return job;
+  };
+  function idle() {
+    var go = function () { window.__htsPrefetchThree(); };
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 500 });
+    else setTimeout(go, 1);
+  }
+  requestAnimationFrame(function () { requestAnimationFrame(idle); });
+  window.__htsShowBoot = showBoot;
+})();
+</script>
+<script type="module">
+(function () {
+  var started = false;
+  function load() {
+    if (started) return;
+    started = true;
+    if (window.__htsShowBoot) window.__htsShowBoot();
+    var ready = window.__htsPrefetchThree ? window.__htsPrefetchThree() : Promise.resolve();
+    ready.then(function () { return import('./game.js'); }).catch(function () { return import('./game.js'); });
+  }
+  var play = document.getElementById('playBtn');
+  if (play) play.addEventListener('pointerdown', load, true);
+  if (/[?&]autostart(?:=|&|$)/.test(location.search) || /[?&]test(?:=|&|$)/.test(location.search)) load();
+})();
+</script>
 </body>
 </html>

@@ -3,7 +3,7 @@
  * © 2026 Nazhad Ibrahem – Happy Toons Studio
  * Made with AI assistance (code and graphics).
  */
-import * as THREE from './vendor/three.module.min.js';
+const THREE = await import(globalThis.__htsThreeUrl || './vendor/three.module.min.js');
 import { COMMUNITY_LINKS, COSMETICS } from './config.js';
 import { t } from './i18n.js';
 import { FLOOR_COUNT, FLOOR_NAMES } from './levels.js';
@@ -183,7 +183,7 @@ function buildScenery() {
   lava.rotation.x = -Math.PI / 2;
   scene.add(lava);
 
-  const count = 48;
+  const count = 16;
   buildings = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: 0x141824 }), count);
   windows = new THREE.InstancedMesh(box, new THREE.MeshBasicMaterial({ color: 0xffffff }), count);
   const neon = [0x3ef0ff, 0xff3ec8, 0xc6ff4a];
@@ -442,7 +442,7 @@ function refreshRivalNames() {
   rivalNamePlates.forEach(drawRivalName);
 }
 
-function nameSprite(en, ckb, css) {
+function nameSprite(en, ckb, css, lift) {
   const board = document.createElement('canvas');
   board.width = 256;
   board.height = 64;
@@ -455,13 +455,13 @@ function nameSprite(en, ckb, css) {
   rivalNamePlates.push(plate);
   drawRivalName(plate);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  sprite.position.y = 2.05;
-  sprite.scale.set(1.8, 0.46, 1);
+  sprite.position.y = 2.12 + (lift || 0);
+  sprite.scale.set(1.05, 0.4, 1);
   sprite.frustumCulled = false;
   return sprite;
 }
 
-function makeRivalMesh(color, en, ckb) {
+function makeRivalMesh(color, en, ckb, lift) {
   const group = new THREE.Group();
   const css = `#${color.toString(16).padStart(6, '0')}`;
   const mat = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.22 });
@@ -477,7 +477,7 @@ function makeRivalMesh(color, en, ckb) {
   legL.position.set(-0.14, 0.26, 0);
   const legR = new THREE.Mesh(rivalGeo.leg, rivalDark);
   legR.position.set(0.14, 0.26, 0);
-  group.add(torso, head, armL, armR, legL, legR, nameSprite(en, ckb, css));
+  group.add(torso, head, armL, armR, legL, legR, nameSprite(en, ckb, css, lift));
   group.traverse((obj) => { obj.frustumCulled = false; });
   group.visible = false;
   scene.add(group);
@@ -490,16 +490,20 @@ let signsReady = false;
 if (renderer) {
   buildScenery();
   buildLevelMeshes(world.ents);
-  buildGems(world.ents);
   player = makePlayer();
-  for (const who of [
-    { color: 0xff3ec8, en: 'Nari', ckb: 'ناری' },
-    { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ' },
-    { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ' },
-  ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb));
-  buildStudioSigns(world.ents);
   applyCosmetic(colorId, false);
   applyQuality();
+  const dress = () => {
+    buildGems(world.ents);
+    for (const who of [
+      { color: 0xff3ec8, en: 'Nari', ckb: 'ناری', lift: 0 },
+      { color: 0xc6ff4a, en: 'Peko', ckb: 'پێکۆ', lift: 0 },
+      { color: 0x7aa2ff, en: 'Vilo', ckb: 'ڤایلۆ', lift: 0.38 },
+    ]) rivalMeshes.push(makeRivalMesh(who.color, who.en, who.ckb, who.lift));
+    buildStudioSigns(world.ents);
+  };
+  if (testMode) dress();
+  else requestAnimationFrame(dress);
 }
 
 function wordmarkTexture() {
@@ -740,7 +744,7 @@ function applyLang(next) {
   if (document.getElementById('finish') && !document.getElementById('finish').hidden) {
     fillResults();
     const again = document.getElementById('finishAgain');
-    if (again) again.textContent = 'Play again';
+    if (again) again.textContent = t(lang, 'playAgain');
   }
   if (ui.fbText && ui.fbCount) ui.fbCount.textContent = formatCount(ui.fbText.value.length);
   refreshRivalNames();
@@ -817,6 +821,8 @@ function fillResults() {
 }
 
 let backArmed = false;
+let coached = false;
+let jumpedOnce = false;
 function armBack() {
   if (backArmed) return;
   try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (err) {}
@@ -832,6 +838,10 @@ function setMode(next) {
   ui.hud.hidden = !playing;
   ui.touch.hidden = !playing || !mobileUI();
   if (playing) keys.clear();
+  if (playing && !coached && world.playTime < 1) {
+    coached = true;
+    toast(t(lang, 'coach'), 3.6);
+  }
   if (next === 'menu') {
     refreshRunButtons();
     const play = document.getElementById('playBtn');
@@ -842,10 +852,10 @@ function setMode(next) {
   updateGemButton();
 }
 
-function toast(text) {
+function toast(text, seconds) {
   ui.toast.textContent = text;
   ui.toast.classList.add('on');
-  toastTimer = 1.4;
+  toastTimer = seconds || 1.4;
 }
 
 let flashHandle = 0;
@@ -853,6 +863,12 @@ function flash() {
   ui.flash.classList.add('on');
   clearTimeout(flashHandle);
   flashHandle = setTimeout(() => ui.flash.classList.remove('on'), 120);
+}
+
+function pop() {
+  document.body.classList.remove('juicy');
+  void document.body.offsetWidth;
+  document.body.classList.add('juicy');
 }
 
 function showFinish() {
@@ -882,7 +898,7 @@ function showFinish() {
   }
   setMode('finish');
   const again = document.getElementById('finishAgain');
-  if (again) again.textContent = 'Play again';
+  if (again) again.textContent = t(lang, 'playAgain');
   updateRecords();
 }
 
@@ -929,6 +945,8 @@ function markRun() {
 }
 
 function restart() {
+  coached = false;
+  jumpedOnce = false;
   markRun();
   world = createState();
   applyProgress(world, progress);
@@ -1224,7 +1242,7 @@ document.getElementById('gemBtn').addEventListener('click', openUpgrades);
 document.getElementById('upgradeClose').addEventListener('click', () => {
   document.getElementById('upgrades').hidden = true;
 });
-document.getElementById('newRunBtn').addEventListener('click', guarded(restart));
+bindTap(document.getElementById('newRunBtn'), restart);
 
 function toggleMute() {
   setMuted(!isMuted());
@@ -1233,20 +1251,40 @@ function toggleMute() {
 }
 if (readStore('bt-mute') === '1') setMuted(true);
 
-function guarded(fn) {
-  let last = 0;
-  return () => {
+function bindTap(el, fn) {
+  if (!el) return;
+  let last = -1000;
+  let sx = 0;
+  let sy = 0;
+  let moved = false;
+  const run = (fromPointer) => {
+    if (fromPointer && moved) return;
     const now = performance.now();
     if (now - last < 350) return;
     last = now;
     fn();
   };
+  el.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    sx = event.clientX;
+    sy = event.clientY;
+    moved = false;
+  });
+  el.addEventListener('pointermove', (event) => {
+    if (Math.hypot(event.clientX - sx, event.clientY - sy) > 28) moved = true;
+  });
+  el.addEventListener('pointerup', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    run(true);
+  });
+  el.addEventListener('click', () => run(false));
 }
-document.getElementById('playBtn').addEventListener('click', guarded(() => { markRun(); setMode('play'); }));
-document.getElementById('pauseBtn').addEventListener('click', () => setMode('pause'));
-document.getElementById('resumeBtn').addEventListener('click', () => setMode('play'));
-document.getElementById('restartBtn').addEventListener('click', guarded(restart));
-document.getElementById('finishAgain').addEventListener('click', guarded(restart));
+bindTap(document.getElementById('playBtn'), () => { markRun(); setMode('play'); });
+bindTap(document.getElementById('pauseBtn'), () => setMode('pause'));
+bindTap(document.getElementById('resumeBtn'), () => setMode('play'));
+bindTap(document.getElementById('restartBtn'), restart);
+bindTap(document.getElementById('finishAgain'), restart);
+bindTap(document.getElementById('muteBtn'), toggleMute);
 document.getElementById('pauseMenu').addEventListener('click', () => setMode('menu'));
 document.getElementById('finishMenu').addEventListener('click', () => setMode('menu'));
 function showPanel(id) {
@@ -1269,8 +1307,7 @@ document.getElementById('pauseHelp').addEventListener('click', () => { showPanel
 document.getElementById('helpClose').addEventListener('click', () => { ui.help.hidden = true; });
 document.getElementById('feedbackBtn').addEventListener('click', () => { showPanel('feedback'); });
 document.getElementById('fbClose').addEventListener('click', () => { ui.feedback.hidden = true; });
-document.getElementById('muteBtn').addEventListener('click', toggleMute);
-document.getElementById('fullBtn').addEventListener('click', () => {
+bindTap(document.getElementById('fullBtn'), () => {
   const req = document.fullscreenElement
     ? document.exitFullscreen()
     : document.documentElement.requestFullscreen?.();
@@ -1413,7 +1450,13 @@ function frame(now) {
     if (!holdRivals) decideRivals(world, dt);
     step(world, input, dt);
     if (!holdRivals) stepRivals(world, dt);
-    if (input.jump && world.player.vy > beforeY + 1) playJump();
+    if (input.jump && world.player.vy > beforeY + 1) {
+      playJump();
+      if (!jumpedOnce) {
+        jumpedOnce = true;
+        pop();
+      }
+    }
     collectGems();
     poll();
   }
