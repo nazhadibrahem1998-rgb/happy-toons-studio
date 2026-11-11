@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- خەلیفەکان (Khalifakan) — © 2026 Ayub Azizi – Happy Toons Studio. Made with AI assistance. Three.js (vendor/) © three.js authors, MIT. Font: Noto Sans Arabic, SIL OFL 1.1. -->
+<!-- خەلیفەکان (Khalifakan) — © 2026 Ayub Azizi – Happy Toons Studio. Three.js (vendor/) © three.js authors, MIT. Font: Noto Sans Arabic, SIL OFL 1.1. -->
 <html lang="ckb" dir="rtl">
 <head>
 <meta charset="utf-8">
@@ -24,7 +24,7 @@
   });
   document.addEventListener('touchmove', function (e) {
     var t = e.target;
-    if (t && t.closest && t.closest('.panel, #end')) return;
+    if (t && t.closest && t.closest('.panel, #end, #tips')) return;
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
   document.addEventListener('touchend', function (e) {
@@ -40,12 +40,13 @@
 <div id="hud" class="hidden">
   <div id="pbox">
     <div class="pname">گڕوت</div>
+    <div id="scoreHud">خاڵ ٠</div>
     <div class="bar hp"><div id="hpFill"></div></div>
     <div class="bar st"><div id="stFill"></div></div>
   </div>
   <div id="stageBox"><div id="stageName">قۆناغی ١</div><div id="leftTxt"></div><div id="bestHud" dir="ltr">Best: —</div></div>
   <div id="bossBar" class="hidden">
-    <img id="bossImg" src="assets/miran_face.png" alt="">
+    <img id="bossImg" alt="" width="320" height="428" decoding="async" loading="lazy">
     <div class="bb"><div id="bossName">میران — سەرۆکی خەلیفەکان</div><div id="bossTrack"><div id="bossFill"></div></div></div>
   </div>
   <div id="banner"><div id="bTitle"></div><div id="bSub"></div></div>
@@ -81,11 +82,12 @@
     <p id="sBest" class="sub" dir="ltr">Best: —</p>
     <p id="dailyNote" class="sub" dir="ltr" hidden></p>
     <button type="button" id="playBtn" class="btn">▶ دەستپێکردن</button>
+    <a class="btn alt" href="../games/">All games</a>
     <div class="controls">
       <div>مۆبایل: جۆیستیکی چەپ بۆ ڕۆیشتن · ڕاکێشانی لای ڕاست بۆ کامێرا · دوگمەکان بۆ لێدان، لێدانی قورس، خۆلادان و بازدان</div>
       <div class="kb">کیبۆرد: WASD ڕۆیشتن · ماوس کامێرا · J لێدان · K قورس · Shift خۆلادان · Space بازدان · P وەستان</div>
     </div>
-    <p class="credit">© ٢٠٢٦ Happy Toons Studio · دروستکراو بە یارمەتی AI</p>
+    <p class="credit">© ٢٠٢٦ Happy Toons Studio</p>
   </div>
 </div>
 
@@ -95,6 +97,7 @@
     <button type="button" id="resumeBtn" class="btn">▶ بەردەوامبوون</button>
     <button type="button" id="restartBtn" class="btn alt">↻ دەستپێکردنەوە</button>
     <button type="button" id="menuBtn" class="btn alt">⌂ مێنیو</button>
+    <a class="btn alt" href="../games/">All games</a>
   </div>
 </div>
 
@@ -110,11 +113,99 @@
   </div>
 </div>
 
-<div id="loading" class="screen"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
+<div id="tips" class="screen hidden" dir="rtl" lang="ckb">
+  <div class="panel">
+    <h2>ئامۆژگاری</h2>
+    <p id="tipsBody" class="sub"></p>
+    <button type="button" id="tipsOk" class="btn">باشە</button>
+  </div>
+</div>
+
+<div id="loading" class="screen hidden"><div class="panel"><h2>خەلیفەکان</h2><p class="sub">چاوەڕێ بکە…</p></div></div>
 
 <div id="rotate"><div class="ph">📱</div><p>تکایە مۆبایلەکەت بە پانی بسوڕێنە</p><p class="small">ئەم یارییە تەنها لە باری پانیدا کار دەکات</p></div>
 
-<script src="../assets/js/game-scores.js"></script>
-<script type="module" src="game.js"></script>
+<script>
+/* Tips are plain HTML so the 3D engine stays unloaded until the first Play tap. */
+(function () {
+  var KEY = 'khalifakan-tips-seen';
+  var tips = document.getElementById('tips');
+  var body = document.getElementById('tipsBody');
+  var ok = document.getElementById('tipsOk');
+  var play = document.getElementById('playBtn');
+  function seen() {
+    try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+  }
+  function dismiss() {
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    if (tips) tips.classList.add('hidden');
+  }
+  /* iOS Safari drops the click after touchend.preventDefault (zoom lock), so act on pointerdown too.
+     Do not stopImmediatePropagation here: Play's loader is a later pointerdown listener. */
+  function okTap(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
+    dismiss();
+  }
+  if (ok) {
+    ok.addEventListener('pointerdown', okTap);
+    ok.addEventListener('click', okTap);
+  }
+  if (play) {
+    play.addEventListener('pointerdown', dismiss, true);
+    play.addEventListener('click', dismiss, true);
+  }
+  if (!tips || !body || seen() || /[?&]autostart(?:=|&|$)/.test(location.search)) return;
+  var touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  body.textContent = touch
+    ? 'جۆیستیکی چەپ بۆ ڕۆیشتن. لای ڕاست ڕابکێشە بۆ کامێرا. دوگمەی شمشێر بۆ لێدان.'
+    : 'WASD بۆ ڕۆیشتن. ماوس بۆ کامێرا. J بۆ لێدان. P بۆ وەستان.';
+  tips.classList.remove('hidden');
+})();
+</script>
+<script>
+(function () {
+  var btn = document.getElementById('playBtn');
+  var loading = document.getElementById('loading');
+  var timer = 0;
+  function want(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (window.__khReady) return;
+    window.__khWant = true;
+    if (e.cancelable) e.preventDefault();
+    /* Click may still reach a handler registered for the title screen. Pointerdown must
+       not stopImmediatePropagation, or it blocks the game loader on the same button. */
+    if (e.type === 'click') e.stopImmediatePropagation();
+    clearTimeout(timer);
+    timer = setTimeout(function () { if (!window.__khReady && loading) loading.classList.remove('hidden'); }, 300);
+  }
+  if (btn) {
+    btn.addEventListener('pointerdown', want, true);
+    btn.addEventListener('click', want, true);
+  }
+  window.__khClearLoad = function () {
+    clearTimeout(timer);
+    if (loading) loading.classList.add('hidden');
+  };
+})();
+</script>
+<script src="../assets/js/game-scores.js" defer></script>
+<script type="module">
+/* Download the 3D engine on the first tap so the title can paint on a slow phone. */
+(function () {
+  var started = false;
+  function load() {
+    if (started) return;
+    started = true;
+    import('./game.js');
+  }
+  var play = document.getElementById('playBtn');
+  if (play) play.addEventListener('pointerdown', load, true);
+  var again = document.getElementById('againBtn');
+  if (again) again.addEventListener('pointerdown', load, true);
+  if (/[?&]autostart(?:=|&|$)/.test(location.search)) load();
+})();
+</script>
 </body>
 </html>

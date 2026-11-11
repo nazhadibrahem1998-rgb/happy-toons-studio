@@ -15,6 +15,9 @@
     { id: 'paddle-ball', name: 'Paddle Ball', path: 'games/paddle-ball', levels: [7, 11] },
     { id: 'sharsten', name: 'Sharsten Village', path: 'sharsten', levels: [1, 2, 3, 4] },
   ];
+  var EXTRA = [
+    { id: 'pulse-orbit', name: 'Pulse Orbit', path: 'games/pulse-orbit' },
+  ];
   var LEGACY = { toonblade: 'toonblade_best', 'block-tower': 'bt-highest' };
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   var memory = {};
@@ -270,11 +273,23 @@
     return (out.length ? out.join('/') : '.') + '/';
   }
 
+  function catalog() {
+    var all = GAMES.slice();
+    var i, j, seen;
+    for (i = 0; i < EXTRA.length; i++) {
+      seen = false;
+      for (j = 0; j < all.length; j++) if (all[j].id === EXTRA[i].id) seen = true;
+      if (!seen) all.push(EXTRA[i]);
+    }
+    return all;
+  }
+
   function others(id, dateStr) {
     var rest = [];
     var day = dateStr || today();
+    var all = catalog();
     var i;
-    for (i = 0; i < GAMES.length; i++) if (GAMES[i].id !== id) rest.push(GAMES[i]);
+    for (i = 0; i < all.length; i++) if (all[i].id !== id) rest.push(all[i]);
     if (rest.length < 2) return rest;
     var h = hash('hts-more-v1|' + day + '|' + id);
     var i1 = h % rest.length;
@@ -310,17 +325,21 @@
     var score = Math.max(0, Math.floor(Number(opts.score) || 0));
     var best = Math.max(score, Math.floor(Number(opts.best) || 0));
     var isNew = !!opts.isNew && score > 0;
+    var bestText = best > 0 ? String(best) : '—';
     if (opts.scoreEl) {
-      opts.scoreEl.innerHTML = '<p class="hts-scoreline">Score: <b>' + score + '</b></p>'
-        + '<p class="hts-scoreline">Best: <b>' + best + '</b></p>'
-        + '<p class="hts-new"' + (isNew ? '' : ' hidden') + '>New best!</p>';
+      opts.scoreEl.innerHTML = '<div dir="ltr">'
+        + '<p class="hts-scoreline">Score: <b>' + score + '</b></p>'
+        + '<p class="hts-scoreline">Best: <b>' + bestText + '</b></p>'
+        + '<p class="hts-new"' + (isNew ? '' : ' hidden') + '>New best!</p></div>';
     }
     if (opts.tryEl) {
       var list = others(opts.id);
       var html = '<p>Try another game</p>';
-      for (var i = 0; i < list.length; i++) {
+      var i;
+      for (i = 0; i < list.length; i++) {
         html += '<a href="' + rel(opts.from, list[i].path) + '">' + escapeHtml(list[i].name) + '</a>';
       }
+      if (opts.from) html += '<a href="' + rel(opts.from, 'games') + '">All games</a>';
       opts.tryEl.className = 'hts-try';
       opts.tryEl.innerHTML = html;
     }

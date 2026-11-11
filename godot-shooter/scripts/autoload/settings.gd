@@ -9,6 +9,11 @@ var sensitivity: float = BASE_SENS
 var volume: float = 0.8
 var quality: String = "high"
 var user_chose_quality: bool = false
+var best_score: int = 0
+var tips_seen: bool = false
+
+const TIPS_KEY := "gurut-tips-seen"
+const BEST_KEY := "hts:best:gurut"
 
 
 func _ready() -> void:
@@ -132,16 +137,23 @@ func _apply_quality(env: Environment, light: DirectionalLight3D, viewport: Viewp
 				light.directional_shadow_max_distance = 80.0
 				light.directional_shadow_blend_splits = true
 				light.shadow_blur = 1.4
+	_cap_pixel_ratio(viewport)
 
 
 func _load() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load(PATH) != OK:
-		return
-	volume = float(cfg.get_value("audio", "volume", volume))
-	sensitivity = float(cfg.get_value("input", "sensitivity", sensitivity))
-	quality = str(cfg.get_value("video", "quality", quality))
-	user_chose_quality = bool(cfg.get_value("video", "chosen", false))
+	if cfg.load(PATH) == OK:
+		volume = float(cfg.get_value("audio", "volume", volume))
+		sensitivity = float(cfg.get_value("input", "sensitivity", sensitivity))
+		quality = str(cfg.get_value("video", "quality", quality))
+		user_chose_quality = bool(cfg.get_value("video", "chosen", false))
+		best_score = int(cfg.get_value("score", "best", best_score))
+		tips_seen = bool(cfg.get_value("meta", TIPS_KEY, tips_seen))
+	if _web_get(TIPS_KEY) == "1":
+		tips_seen = true
+	var web_best := _parse_int(_web_get(BEST_KEY))
+	if web_best > best_score:
+		best_score = web_best
 
 
 func _save() -> void:
@@ -150,4 +162,88 @@ func _save() -> void:
 	cfg.set_value("input", "sensitivity", sensitivity)
 	cfg.set_value("video", "quality", quality)
 	cfg.set_value("video", "chosen", user_chose_quality)
+	cfg.set_value("score", "best", best_score)
+	cfg.set_value("meta", TIPS_KEY, tips_seen)
 	cfg.save(PATH)
+	if tips_seen:
+		_web_set(TIPS_KEY, "1")
+	if best_score > 0:
+		_web_set(BEST_KEY, str(best_score))
+
+
+func prefers_reduced_motion() -> bool:
+	if OS.get_environment("SHOOTER_REDUCED_MOTION") == "1":
+		return true
+	if DisplayServer.has_method("accessibility_should_reduce_animation"):
+		if bool(DisplayServer.call("accessibility_should_reduce_animation")):
+			return true
+	if OS.has_feature("web"):
+		var raw = _web_eval("window.matchMedia('(prefers-reduced-motion: reduce)').matches")
+		return bool(raw)
+	return false
+
+
+func should_show_tips() -> bool:
+	if tips_seen:
+		return false
+	if OS.get_environment("SHOOTER_SCREENSHOTS") == "1" or OS.get_environment("SHOOTER_SMOKE") == "1":
+		return false
+	var args := OS.get_cmdline_user_args()
+	if args.has("--screenshots") or args.has("--smoke"):
+		return false
+	return true
+
+
+func mark_tips_seen() -> void:
+	tips_seen = true
+	_save()
+
+
+func record_score(points: int) -> Dictionary:
+	var safe := maxi(0, points)
+	var is_new := safe > best_score
+	if is_new:
+		best_score = safe
+		_save()
+	return {"score": safe, "best": best_score, "is_new": is_new and safe > 0}
+
+
+func _cap_pixel_ratio(viewport: Viewport) -> void:
+	if viewport == null or DisplayServer.get_name() == "headless":
+		return
+	var dpr := maxf(DisplayServer.screen_get_scale(), 1.0)
+	var limit := 2.0 / dpr
+	viewport.scaling_3d_scale = minf(viewport.scaling_3d_scale, minf(1.0, limit))
+
+
+func _web_eval(code: String) -> Variant:
+	if not OS.has_feature("web"):
+		return null
+	var bridge = Engine.get_singleton("JavaScriptBridge")
+	if bridge == null:
+		return null
+	return bridge.call("eval", code)
+
+
+func _parse_int(text: String) -> int:
+	if text.is_valid_int():
+		return int(text)
+	return 0
+
+
+func _js_quote(text: String) -> String:
+	return "'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+func _web_get(key: String) -> String:
+	var raw = _web_eval("localStorage.getItem(%s)" % _js_quote(key))
+	if raw == null:
+		return ""
+	var text := str(raw)
+	if text == "null" or text == "<null>":
+		return ""
+	return text
+
+
+func _web_set(key: String, value: String) -> void:
+	_web_eval("localStorage.setItem(%s, %s)" % [_js_quote(key), _js_quote(value)])

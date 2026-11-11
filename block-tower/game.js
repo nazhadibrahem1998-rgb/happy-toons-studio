@@ -13,6 +13,13 @@ import { submitFeedback } from './feedback.js';
 import { UPGRADES, applyProgress, buyUpgrade, loadProgress, saveProgress, upgradeCost } from './upgrades.js';
 import { isMuted, playCheckpoint, playDeath, playJump, playWin, setMuted, tone } from './audio.js';
 
+function readStore(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeStore(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* private mode */ }
+}
+
 const canvas = document.getElementById('c');
 const perfEl = document.getElementById('perf');
 const testMode = new URLSearchParams(location.search).has('test');
@@ -47,10 +54,10 @@ const ui = {
   langEn: document.getElementById('langEn'),
 };
 
-let lang = localStorage.getItem('bt-lang') === 'ckb' ? 'ckb' : 'en';
-let rivalMode = rivalModeName(localStorage.getItem('bt-rivals') || 'easy');
-let quality = localStorage.getItem('bt-quality') || (mobileUI() ? 'low' : 'high');
-let colorId = localStorage.getItem('bt-color') || 'cyan';
+let lang = readStore('bt-lang') === 'ckb' ? 'ckb' : 'en';
+let rivalMode = rivalModeName(readStore('bt-rivals') || 'easy');
+let quality = readStore('bt-quality') || (mobileUI() ? 'low' : 'high');
+let colorId = readStore('bt-color') || 'cyan';
 let mode = 'menu';
 let progress = loadProgress();
 let world = createState();
@@ -100,7 +107,7 @@ function fmt(seconds) {
 }
 
 function highestRecord() {
-  return Number(localStorage.getItem('bt-highest') || 0);
+  return Number(readStore('bt-highest') || 0);
 }
 
 function cosmeticById(id) {
@@ -594,7 +601,7 @@ function applyCosmetic(id, save) {
   const item = cosmeticById(id);
   if (!cosmeticUnlocked(item)) return;
   colorId = item.id;
-  if (save !== false) localStorage.setItem('bt-color', colorId);
+  if (save !== false) writeStore('bt-color', colorId);
   if (!player) return;
   player.bodyMat.color.set(item.body);
   player.accent.color.set(item.accent);
@@ -628,7 +635,7 @@ function resize() {
 function updateRotate() {
   const portrait = window.innerHeight > window.innerWidth + 40;
   const phone = mobileUI() && Math.min(window.innerWidth, window.innerHeight) < 920;
-  const show = portrait && phone && mode === 'play' && !localStorage.getItem('bt-rotate-ok');
+  const show = portrait && phone && mode === 'play' && !readStore('bt-rotate-ok');
   ui.rotate.classList.toggle('show', show);
 }
 
@@ -703,7 +710,7 @@ function refreshRunButtons() {
 
 function applyLang(next) {
   lang = next === 'en' ? 'en' : 'ckb';
-  localStorage.setItem('bt-lang', lang);
+  writeStore('bt-lang', lang);
   refreshRunButtons();
   document.documentElement.lang = lang === 'en' ? 'en' : 'ckb';
   document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
@@ -741,7 +748,7 @@ function applyLang(next) {
 }
 
 function updateRecords() {
-  const best = Number(localStorage.getItem('bt-best-ms') || 0);
+  const best = Number(readStore('bt-best-ms') || 0);
   const high = highestRecord();
   ui.menuBest.textContent = best ? fmt(best / 1000) : '—';
   ui.menuHighest.textContent = high ? String(high) : '—';
@@ -809,8 +816,15 @@ function fillResults() {
   });
 }
 
+let backArmed = false;
+function armBack() {
+  if (backArmed) return;
+  try { history.pushState({ hts: 'play' }, ''); backArmed = true; } catch (err) {}
+}
+
 function setMode(next) {
   mode = next;
+  if (next === 'play') armBack();
   ui.menu.hidden = next !== 'menu';
   ui.pause.hidden = next !== 'pause';
   ui.finish.hidden = next !== 'finish';
@@ -845,10 +859,10 @@ function showFinish() {
   ui.toast.classList.remove('on');
   toastTimer = 0;
   const ms = Math.round(world.playTime * 1000);
-  const prev = Number(localStorage.getItem('bt-best-ms') || 0);
-  if (!prev || ms < prev) localStorage.setItem('bt-best-ms', String(ms));
+  const prev = Number(readStore('bt-best-ms') || 0);
+  if (!prev || ms < prev) writeStore('bt-best-ms', String(ms));
   ui.finishTime.textContent = fmt(world.playTime);
-  ui.finishBest.textContent = fmt(Number(localStorage.getItem('bt-best-ms')) / 1000);
+  ui.finishBest.textContent = fmt(Number(readStore('bt-best-ms')) / 1000);
   ui.finishHighest.textContent = String(Math.max(world.highest, highestRecord()));
   fillResults();
   const HS = window.HappyScores;
@@ -874,7 +888,7 @@ function showFinish() {
 
 function poll() {
   if (mode === 'play' && world.highest > highestRecord()) {
-    localStorage.setItem('bt-highest', String(world.highest));
+    writeStore('bt-highest', String(world.highest));
     updateRecords();
     renderSwatches();
   }
@@ -897,6 +911,7 @@ function poll() {
     if (mode === 'play') {
       playDeath();
       flash();
+      toast(t(lang, 'fell'));
     }
     lastDeaths = world.deaths;
   } else {
@@ -1209,20 +1224,29 @@ document.getElementById('gemBtn').addEventListener('click', openUpgrades);
 document.getElementById('upgradeClose').addEventListener('click', () => {
   document.getElementById('upgrades').hidden = true;
 });
-document.getElementById('newRunBtn').addEventListener('click', restart);
+document.getElementById('newRunBtn').addEventListener('click', guarded(restart));
 
 function toggleMute() {
   setMuted(!isMuted());
-  localStorage.setItem('bt-mute', isMuted() ? '1' : '0');
+  writeStore('bt-mute', isMuted() ? '1' : '0');
   document.getElementById('muteBtn').setAttribute('aria-pressed', isMuted() ? 'true' : 'false');
 }
-if (localStorage.getItem('bt-mute') === '1') setMuted(true);
+if (readStore('bt-mute') === '1') setMuted(true);
 
-document.getElementById('playBtn').addEventListener('click', () => { markRun(); setMode('play'); });
+function guarded(fn) {
+  let last = 0;
+  return () => {
+    const now = performance.now();
+    if (now - last < 350) return;
+    last = now;
+    fn();
+  };
+}
+document.getElementById('playBtn').addEventListener('click', guarded(() => { markRun(); setMode('play'); }));
 document.getElementById('pauseBtn').addEventListener('click', () => setMode('pause'));
 document.getElementById('resumeBtn').addEventListener('click', () => setMode('play'));
-document.getElementById('restartBtn').addEventListener('click', restart);
-document.getElementById('finishAgain').addEventListener('click', restart);
+document.getElementById('restartBtn').addEventListener('click', guarded(restart));
+document.getElementById('finishAgain').addEventListener('click', guarded(restart));
 document.getElementById('pauseMenu').addEventListener('click', () => setMode('menu'));
 document.getElementById('finishMenu').addEventListener('click', () => setMode('menu'));
 function showPanel(id) {
@@ -1256,7 +1280,7 @@ document.getElementById('rivalModes').addEventListener('click', (event) => {
   const btn = event.target.closest('[data-rival]');
   if (!btn) return;
   rivalMode = rivalModeName(btn.dataset.rival);
-  localStorage.setItem('bt-rivals', rivalMode);
+  writeStore('bt-rivals', rivalMode);
   if (mode !== 'play') world.rivals = createRivals(rivalMode, world);
   applyLang(lang);
   updateHud();
@@ -1264,17 +1288,17 @@ document.getElementById('rivalModes').addEventListener('click', (event) => {
 });
 document.getElementById('qualityBtn').addEventListener('click', () => {
   quality = quality === 'low' ? 'high' : 'low';
-  localStorage.setItem('bt-quality', quality);
+  writeStore('bt-quality', quality);
   applyQuality();
 });
 ui.langCkb.addEventListener('click', () => applyLang('ckb'));
 ui.langEn.addEventListener('click', () => applyLang('en'));
 document.getElementById('iosDismiss').addEventListener('click', () => {
-  localStorage.setItem('bt-ios-ok', '1');
+  writeStore('bt-ios-ok', '1');
   document.getElementById('iosHint').hidden = true;
 });
 document.getElementById('rotateDismiss').addEventListener('click', () => {
-  localStorage.setItem('bt-rotate-ok', '1');
+  writeStore('bt-rotate-ok', '1');
   updateRotate();
 });
 
@@ -1333,7 +1357,7 @@ const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const standalone = window.navigator.standalone === true
   || window.matchMedia('(display-mode: standalone)').matches;
-if (ios && !standalone && !localStorage.getItem('bt-ios-ok')) {
+if (ios && !standalone && !readStore('bt-ios-ok')) {
   document.getElementById('iosHint').hidden = false;
 }
 
@@ -1357,6 +1381,17 @@ canvas.addEventListener('webglcontextrestored', () => {
 
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => { setTimeout(resize, 60); setTimeout(resize, 280); });
+window.addEventListener('popstate', () => {
+  backArmed = false;
+  if (mode === 'play') setMode('pause');
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && mode === 'play') setMode('pause');
+});
+window.addEventListener('blur', () => {
+  if (mode === 'play') setMode('pause');
+});
 resize();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
@@ -1593,7 +1628,7 @@ async function installTestHook() {
     },
     setRivals(next) {
       rivalMode = rivalModeName(next);
-      localStorage.setItem('bt-rivals', rivalMode);
+      writeStore('bt-rivals', rivalMode);
       world.rivals = createRivals(rivalMode, world);
       applyLang(lang);
       syncRivals();
@@ -1673,4 +1708,5 @@ async function installTestHook() {
 }
 installTestHook().then(() => {
   document.body.dataset.ready = '1';
+  if (window.__htsBoot) window.__htsBoot(() => { markRun(); setMode('play'); });
 });
