@@ -1217,7 +1217,7 @@ const bossBar = $('bossBar'), bossFill = $('bossFill');
 let bannerT = 0, bossRef = null, bossShown = false, bossHpUi = -1, bossHideT = 0;
 function showBanner(text) {
   banner.textContent = text;
-  const win = text === 'KING DEFEATED!' || text === 'CHIEF DEFEATED!' || text === 'EMPEROR DEFEATED!' || text === 'WARLORD DEFEATED!' || text === 'NEW BEST WAVE' || text === 'NEW BEST!';
+  const win = text === 'KING DEFEATED!' || text === 'CHIEF DEFEATED!' || text === 'EMPEROR DEFEATED!' || text === 'WARLORD DEFEATED!' || text === 'BEST WAVE!' || text === 'NEW BEST!';
   const boss = text === 'BOSS WAVE' || text === 'CHIEF RETURNS' || text === 'KING RETURNS';
   banner.classList.toggle('boss', boss);
   banner.classList.toggle('win', win);
@@ -1443,6 +1443,8 @@ function closeUpgrade() {
   if (el) el.classList.add('hidden');
   const box = $('upCards');
   if (box) box.replaceChildren();
+  const hud = $('hud');
+  if (hud && state !== 'menu') hud.classList.remove('hidden');
 }
 function openUpgrade() {
   if (choosingUpgrade || state === 'upgrade') return;
@@ -1455,6 +1457,9 @@ function openUpgrade() {
   clearHeld();
   const el = $('upgrade');
   if (el) el.classList.remove('hidden');
+  const hud = $('hud');
+  if (hud) hud.classList.add('hidden');
+  if (banner) { banner.classList.remove('show'); bannerT = 0; }
   if (touchUI) $('touch').classList.add('hidden');
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
 }
@@ -2437,7 +2442,7 @@ function update(dt) {
     if (stWarnT <= 0 && bar) bar.classList.remove('deny');
   }
   if ((state === 'play' || state === 'upgrade') && !player.dead) runT += dt;
-  if (bestWavePending && bannerT <= 0 && state === 'play') { bestWavePending = false; showBanner('NEW BEST WAVE'); sfx.heal(); }
+  if (bestWavePending && bannerT <= 0 && state === 'play') { bestWavePending = false; showBanner('BEST WAVE!'); sfx.heal(); }
   else if (bestPending && bannerT <= 0 && state === 'play') { bestPending = false; showBanner('NEW BEST!'); sfx.heal(); }
 
   if (state === 'menu') { updateMenu(dt); }

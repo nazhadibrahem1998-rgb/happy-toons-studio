@@ -19,10 +19,11 @@ a.hub{display:inline-flex;align-items:center;justify-content:center;min-height:4
 #stFill{background:linear-gradient(90deg,#3aa0ff,#9fe3ff)}
 .bar span{position:absolute;left:8px;top:0;font-size:11px;font-weight:800;line-height:15px;text-shadow:0 1px 2px #000}
 .bar.st span{display:block;line-height:13px;font-size:10px;letter-spacing:.5px}
-.stats{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));text-align:right;font-size:14px;font-weight:700;text-shadow:0 2px 3px #000;line-height:1.5}
+.stats{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));text-align:right;font-size:14px;font-weight:700;text-shadow:0 2px 3px #000;line-height:1.5;width:max-content;max-width:46vw}
 .stats b{color:#ffd45e;font-size:18px}
 #banner{position:absolute;top:22%;width:100%;text-align:center;font-size:clamp(28px,6vw,56px);font-weight:900;color:#ffd45e;text-shadow:0 4px 0 #7a4a00,0 6px 16px #000;opacity:0;transform:scale(.8);transition:opacity .35s ease,transform .45s cubic-bezier(.2,1.6,.4,1);letter-spacing:2px;will-change:transform,opacity}
 #banner.show{opacity:1;transform:scale(1)}
+#banner.win{top:14%;font-size:clamp(22px,4.6vw,40px)}
 #banner.boss{color:#ffb6ff;text-shadow:0 4px 0 #6a2088,0 6px 16px #000}
 #banner.win{color:#b8ff9a;text-shadow:0 4px 0 #1e6a20,0 6px 16px #000}
 #bossBar{position:absolute;top:max(76px,calc(env(safe-area-inset-top) + 64px));left:50%;transform:translateX(-50%);width:min(480px,86vw);text-align:center;pointer-events:none}
