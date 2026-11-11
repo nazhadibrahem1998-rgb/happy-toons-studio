@@ -16,6 +16,8 @@ a.hub{display:inline-flex;align-items:center;justify-content:center;min-height:4
 .st-warn{position:absolute;left:max(14px,env(safe-area-inset-left));top:max(78px,calc(env(safe-area-inset-top) + 70px));margin:0;font-size:13px;font-weight:800;color:#ffe08a;text-shadow:0 1px 2px #000;pointer-events:none}
 .bar>div{height:100%;width:100%;transition:width .18s ease-out}
 #hpFill{background:linear-gradient(90deg,#d9262f,#ff6a4a)}
+.bar.hp.low{animation:hpPulse .65s ease-in-out infinite}
+@keyframes hpPulse{50%{filter:brightness(1.55)}}
 #stFill{background:linear-gradient(90deg,#3aa0ff,#9fe3ff)}
 .bar span{position:absolute;left:8px;top:0;font-size:11px;font-weight:800;line-height:15px;text-shadow:0 1px 2px #000}
 .bar.st span{display:block;line-height:13px;font-size:10px;letter-spacing:.5px}
@@ -29,7 +31,7 @@ a.hub{display:inline-flex;align-items:center;justify-content:center;min-height:4
 #bossBar{position:absolute;top:max(76px,calc(env(safe-area-inset-top) + 64px));left:50%;transform:translateX(-50%);width:min(480px,86vw);text-align:center;pointer-events:none}
 #bossName{font-size:clamp(13px,2.4vw,18px);font-weight:900;letter-spacing:2px;color:#ffd45e;text-shadow:0 2px 0 #6a3a00,0 3px 8px #000;margin-bottom:4px}
 #bossTrack{height:18px;background:rgba(0,0,0,.62);border:3px solid #ffd45e;border-radius:12px;overflow:hidden;box-shadow:0 4px 0 rgba(80,20,90,.45)}
-#bossFill{height:100%;width:100%;background:linear-gradient(90deg,#7a2cff,#e86bff);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+#bossFill{height:100%;width:100%;background:linear-gradient(90deg,#7a2cff,#e86bff);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25);transition:width .16s linear}
 #hint{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));width:100%;text-align:center;font-size:12px;opacity:.7;text-shadow:0 1px 2px #000}
 #dmgFlash{position:absolute;inset:0;box-shadow:inset 0 0 120px rgba(255,0,0,.9);opacity:0;transition:opacity .25s}
 .screen{position:fixed;inset:0;display:flex;align-items:center;align-items:safe center;justify-content:center;background:radial-gradient(ellipse at center,rgba(40,20,70,.55),rgba(5,3,12,.9));z-index:20;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
@@ -111,7 +113,7 @@ body.touch #coach{bottom:max(176px,calc(env(safe-area-inset-bottom) + 160px))}
 @keyframes glow{from{transform:scale(1);text-shadow:0 0 0 #f29a0e}to{transform:scale(1.08);text-shadow:0 0 14px #f29a0e}}
 .best b{color:#ffd45e}
 .run-note{font-weight:800;color:#ffe9a8}
-@media (prefers-reduced-motion:reduce){.newbest,.stats b.pop{animation:none}#banner,#coach{transition:none}}
+@media (prefers-reduced-motion:reduce){.newbest,.stats b.pop,.bar.hp.low{animation:none}#banner,#coach,#bossFill{transition:none}}
 body.hts-over,body.hts-over #over{touch-action:pan-y}
 #over{overflow-x:hidden;overflow-y:auto}
 #over .panel{margin:auto;width:min(620px,100%)}

@@ -428,7 +428,10 @@ function later(ms, fn) {
 function setMuted(m) {
   muted = m;
   try { localStorage.setItem('toonblade_muted', m ? '1' : '0'); } catch (_) {}
-  if (master) master.gain.setTargetAtTime(m ? 0 : 0.42, actx.currentTime, 0.02);
+  if (master && actx) {
+    try { master.gain.setTargetAtTime(m ? 0 : 0.32, actx.currentTime, 0.02); }
+    catch (_) { master.gain.value = m ? 0 : 0.32; }
+  }
   updateMuteUI();
 }
 let noiseBuf = null;
@@ -1028,7 +1031,7 @@ function clearHeld() {
   mouseAttack = false;
   stickId = null;
   lookId = null;
-  if (knob) knob.style.transform = '';
+  releaseKnob();
   document.querySelectorAll('#touch .tb.on').forEach((el) => el.classList.remove('on'));
 }
 // switch on-screen controls per event (hybrid touch laptops can use both)
@@ -1161,13 +1164,20 @@ stick.addEventListener('pointerdown', e => {
 stick.addEventListener('pointermove', e => { if (e.pointerType !== 'touch' && e.pointerId === stickId) moveStick(e); });
 stick.addEventListener('pointerup', e => {
   if (e.pointerType === 'touch' || e.pointerId !== stickId) return;
-  stickId = null; input.tx = input.tz = 0; knob.style.transform = '';
+  stickId = null; input.tx = input.tz = 0; releaseKnob();
 });
 stick.addEventListener('pointercancel', e => {
   if (e.pointerId !== stickId) return;
-  stickId = null; input.tx = input.tz = 0; knob.style.transform = '';
+  stickId = null; input.tx = input.tz = 0; releaseKnob();
 });
+function releaseKnob() {
+  if (!knob) return;
+  if (!reduceMotion) knob.style.transition = 'transform .09s linear';
+  knob.style.transform = '';
+  if (!reduceMotion) setTimeout(() => { if (knob) knob.style.transition = ''; }, 110);
+}
 function moveStick(t) {
+  if (knob) knob.style.transition = '';
   let dx = t.clientX - stickC.x, dy = t.clientY - stickC.y; const d = Math.hypot(dx, dy), m = 55;
   if (d > m) { dx *= m / d; dy *= m / d; }
   knob.style.transform = `translate(${dx}px,${dy}px)`;
@@ -1205,7 +1215,7 @@ addEventListener('touchmove', e => {
 }, { passive: false });
 function endTouch(e) {
   for (const t of e.changedTouches) {
-    if (t.identifier === stickId) { stickId = null; input.tx = input.tz = 0; knob.style.transform = ''; }
+    if (t.identifier === stickId) { stickId = null; input.tx = input.tz = 0; releaseKnob(); }
     if (t.identifier === lookId) lookId = null;
   }
 }
@@ -1243,7 +1253,11 @@ function updateBossUI(dt) {
 function updateUI(dt) {
   const hp = player.hp | 0, st = player.st | 0;
   let left = toSpawn; for (let i = 0; i < enemies.length; i++) if (!enemies[i].dead) left++;
-  if (hp !== uiHp) { uiHp = hp; hpFill.style.width = clamp(player.hp / player.maxHp * 100, 0, 100) + '%'; }
+  if (hp !== uiHp) {
+    uiHp = hp; hpFill.style.width = clamp(player.hp / player.maxHp * 100, 0, 100) + '%';
+    const hpBar = hpFill.parentElement;
+    if (hpBar) hpBar.classList.toggle('low', player.hp > 0 && player.hp / player.maxHp <= 0.3);
+  }
   if (st !== uiSt) { uiSt = st; stFill.style.width = clamp(player.st, 0, 100) + '%'; }
   if (wave !== uiWave) { if (uiWave >= 0) pop(elWave); uiWave = wave; elWave.textContent = wave; }
   if (score !== uiScore) { if (uiScore >= 0 && score > uiScore) pop(elScore); uiScore = score; elScore.textContent = score; }
@@ -1305,7 +1319,7 @@ function noteScoreCombo() {
 
 let coachOn = false, coachT = 0, coachStep = -1;
 function coachLines() {
-  return touchUI ? ['Move with the stick', '✦ heavy hit costs stamina'] : ['Move with WASD', 'K is a heavy hit'];
+  return touchUI ? ['Move with the stick', '⚔ hit · ✦ heavy · ↔ roll'] : ['Move with WASD', 'K is a heavy hit'];
 }
 function endCoach() {
   coachOn = false; coachT = 0; coachStep = -1;
@@ -1553,6 +1567,7 @@ function togglePause() {
     $('pause').classList.remove('hidden');
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
   } else if (state === 'pause') {
+    audio();
     state = resumeState === 'upgrade' ? 'upgrade' : 'play';
     $('pause').classList.add('hidden'); clock.getDelta();
     armBack();
@@ -1577,6 +1592,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { sav
 addEventListener('popstate', () => { backArmed = false; if (state === 'play' || state === 'upgrade') togglePause(); });
 addEventListener('pagehide', saveBest);
 updateMuteUI(); updateShakeUI(); showStartBest();
+addEventListener('pointerdown', () => { audio(); }, { passive: true });
 try { if (localStorage.getItem('toonblade_tutorial_again') === '1') { tutorialReplay = true; $('tipsBtn').textContent = 'Tips on next play'; } } catch (_) {}
 
 // ---------- Update ----------
