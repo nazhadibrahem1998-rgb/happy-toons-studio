@@ -31,7 +31,7 @@ export function loadProgress() {
 }
 
 export function saveProgress(progress) {
-  localStorage.setItem(KEY, JSON.stringify({
+  try { localStorage.setItem(KEY, JSON.stringify({
     gems: progress.gems,
     found: progress.found,
     jump: progress.jump,
@@ -40,7 +40,7 @@ export function saveProgress(progress) {
     dash: progress.dash,
     shield: progress.shield,
     glide: progress.glide,
-  }));
+  })); } catch { /* private mode */ }
 }
 
 export function applyProgress(world, progress) {
