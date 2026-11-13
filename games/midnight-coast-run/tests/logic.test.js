@@ -183,7 +183,7 @@ function driveUntilDone(state, limitSec) {
       const dist = Math.hypot(state.objective.x - state.x, state.objective.y - state.y);
       const want = Math.abs(diff) > 0.55 ? 72 : 168;
       if (Math.abs(state.speed) > want) { gas = 0; brake = 1; }
-      else if (Math.abs(diff) > 0.85) { gas = 0; brake = 0; }
+      else if (Math.abs(diff) > 0.85) { gas = 1; brake = 0; }
       else gas = 1;
       if (dist < 120) {
         gas = 0;
@@ -209,6 +209,64 @@ function driveUntilDone(state, limitSec) {
   }
   return t;
 }
+
+test('the car moves along its heading, not sideways', function () {
+  const angles = [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4];
+  for (const angle of angles) {
+    const state = Sim.createNight(1, { engine: 0, handling: 0, nitro: 0, trunk: 0 });
+    state.traffic = [];
+    state.barricades = [];
+    state.drones = [];
+    state.x = 940;
+    state.y = 1570;
+    state.angle = angle;
+    state.speed = 100;
+    state.lat = 0;
+    const x0 = state.x;
+    const y0 = state.y;
+    Sim.step(state, { gas: 1, brake: 0, steer: 0, nitro: 0, handbrake: 0 }, 1 / 30);
+    const dx = state.x - x0;
+    const dy = state.y - y0;
+    const along = dx * Math.cos(angle) + dy * Math.sin(angle);
+    const side = dx * (-Math.sin(angle)) + dy * Math.cos(angle);
+    assert.ok(along > 1, 'along ' + angle);
+    assert.ok(Math.abs(side) < along * 0.35, 'sideways ' + side + ' along ' + along);
+  }
+});
+
+test('grip kills a slide unless the handbrake is held', function () {
+  const plain = Sim.createNight(1, { engine: 0, handling: 0, nitro: 0, trunk: 0 });
+  plain.traffic = [];
+  plain.speed = 140;
+  plain.lat = 80;
+  plain.angle = 0;
+  for (let i = 0; i < 20; i++) Sim.step(plain, { gas: 1, brake: 0, steer: 0, nitro: 0 }, 1 / 60);
+  assert.ok(Math.abs(plain.lat) < 15, 'lat ' + plain.lat);
+  const slide = Sim.createNight(1, { engine: 0, handling: 0, nitro: 0, trunk: 0 });
+  slide.traffic = [];
+  slide.x = 940;
+  slide.y = 1570;
+  slide.speed = 150;
+  slide.lat = 0;
+  slide.angle = 0;
+  for (let i = 0; i < 25; i++) Sim.step(slide, { gas: 1, brake: 0, steer: 1, nitro: 0, handbrake: true }, 1 / 60);
+  assert.ok(Math.abs(slide.lat) > 20 || slide.skids.length > 4, 'drift lat ' + slide.lat);
+});
+
+test('laser damages a drone and leaves traffic in the world', function () {
+  const state = Sim.createNight(3, { engine: 0, handling: 0, nitro: 0, trunk: 0 });
+  state.owned = ['laser'];
+  state.weapon = 'laser';
+  state.energy = 100;
+  state.energyMax = 100;
+  const drone = { id: 1, x: state.x + 80, y: state.y, hp: 64, max: 64, stun: 0, zap: 5, phase: 0 };
+  state.drones = [drone];
+  state.angle = 0;
+  const cars = state.traffic.length;
+  for (let i = 0; i < 40; i++) Sim.step(state, { gas: 0, brake: 1, steer: 0, fire: true }, 1 / 60);
+  assert.ok(drone.hp < 64, 'hp ' + drone.hp);
+  assert.equal(state.traffic.length, cars);
+});
 
 test('a digital driver clears the first three nights', function () {
   const upg = { engine: 0, handling: 0, nitro: 0, trunk: 0 };

@@ -22,7 +22,7 @@
         <h1 class="logo"><span>MIDNIGHT</span><span>COAST</span><span>RUN</span></h1>
         <p class="tag">Deliver the night. Beat the clock.</p>
         <p class="best" id="title-best">Night 1 is open.</p>
-        <p class="kb">Arrows or WASD to drive. Space for nitro.</p>
+        <p class="kb">Arrows to drive. Shift drifts. F fires.</p>
       </div>
       <div class="title-actions">
         <button type="button" class="btn btn-primary" id="btn-play">Play Night 1</button>
@@ -40,10 +40,10 @@
       <div class="kicker">Courier notes</div>
       <h2>HOW TO PLAY</h2>
       <p>You are the night courier for Luma Bay Parcel. Each night is a short run. Finish the drops before the clock hits midnight.</p>
-      <p>Drive with the arrows or WASD. Space (or Shift) is nitro. On a phone, hold the on-screen steer, gas, brake and nitro pads. A controller works too: stick to steer, triggers to drive, face button for nitro.</p>
+      <p>Drive with the arrows or WASD. The wheel returns to center, and the car grips the road until you ask it to slide. Shift or Ctrl is the handbrake. Space is nitro. On a phone, drag the wheel on the left. Brake, Drift, Nitro and Fire sit on the right. Auto-accelerate is on for touch, and you can turn it off in Settings. A controller uses the stick to steer, the south button to go, the east button to drift, and the right trigger to fire.</p>
       <p>Follow the pink arrow. Roll through a drop ring and the parcel is handed off. If the trunk is full, deliver one or return to the Parcel depot for the rest.</p>
       <p>Gold rings are side contracts. They pay more and spend time. Once you take one, finish it. Amber cans refill the tank. Cyan tokens give minutes back. Chevron pads give a speed kick.</p>
-      <p>Pass close to other drivers for a near-miss bonus. A hard bump rattles the clock forward four minutes. No one is on foot. The other cars are just traffic.</p>
+      <p>Pass close to other drivers for a near-miss bonus. A hard bump rattles the clock forward four minutes. No one is on foot. The other cars are just traffic. From night 2 the car can mount neon tools: a front laser, a pulse shockwave, an EMP that stalls traffic, and a homing plasma orb. They break barricades and jammer drones. Traffic only spins out or coasts. It is never wrecked, and there is no reward for bothering other drivers.</p>
       <p>Between nights, the garage sells engine, handling, nitro, trunk space and paint. After you clear Midnight, Endless Coast unlocks. Progress is saved in this browser.</p>
       <p class="credits">Happy Toons Studio. Art is drawn in the game. Sound is synthesized here. Nothing is fetched from the network.</p>
       <button type="button" class="btn btn-primary" id="btn-help-back">Back</button>
@@ -59,6 +59,8 @@
       <div class="set-row"><span>Quality</span><div class="chips" id="quality-chips"></div></div>
       <div class="set-row"><span>Shake</span><button type="button" class="chip" id="btn-shake">On</button></div>
       <div class="set-row"><span>Touch pads</span><div class="chips" id="touch-chips"></div></div>
+      <div class="set-row"><span>Camera</span><button type="button" class="chip" id="btn-camera">Rotating</button></div>
+      <div class="set-row"><span>Auto-go</span><button type="button" class="chip" id="btn-autogas">On</button></div>
       <p class="meta">Auto quality eases detail if the frame rate drops. Music and effects are synthesized in the browser.</p>
       <div class="confirm" id="reset-confirm" hidden>
         <span>Erase saved nights?</span>
@@ -78,6 +80,8 @@
       <h2>GARAGE</h2>
       <div class="wallet" id="garage-cash">Wallet $0</div>
       <div id="garage-list"></div>
+      <div class="kicker" style="margin-top:12px">Energy tools</div>
+      <div id="weapon-list"></div>
       <div class="kicker" style="margin-top:12px">Paint</div>
       <div class="paints" id="paint-list"></div>
       <p class="meta" id="garage-note">Upgrades apply on the next run.</p>
@@ -138,6 +142,7 @@
         <div class="bars">
           <div class="bar-wrap"><span>FUEL</span><div class="bar"><i id="fuel-fill"></i></div></div>
           <div class="bar-wrap"><span>NITRO</span><div class="bar"><i id="nitro-fill"></i></div></div>
+          <div class="bar-wrap"><span>CELL</span><div class="bar"><i id="energy-fill"></i></div></div>
         </div>
       </div>
     </div>
@@ -145,17 +150,22 @@
       <div id="objective">Drop</div>
       <div id="obj-dist">0 m</div>
       <div id="cargo">Trunk 0/2</div>
+      <div id="weapon-name"></div>
       <button type="button" id="btn-next">NEXT</button>
     </div>
     <div id="combo"></div>
+    <div id="drift"></div>
   </div>
 
   <div id="touch" aria-hidden="true">
-    <button type="button" class="pad" id="t-left" aria-label="Steer left">◀</button>
-    <button type="button" class="pad" id="t-right" aria-label="Steer right">▶</button>
-    <button type="button" class="pad" id="t-gas" aria-label="Gas">GAS</button>
+    <div id="steer-zone" aria-label="Steer"></div>
+    <div id="stick" hidden><i id="stick-knob"></i></div>
     <button type="button" class="pad" id="t-brake" aria-label="Brake">BRAKE</button>
+    <button type="button" class="pad" id="t-drift" aria-label="Drift">DRIFT</button>
     <button type="button" class="pad" id="t-nitro" aria-label="Nitro">NITRO</button>
+    <button type="button" class="pad" id="t-fire" aria-label="Fire">FIRE</button>
+    <button type="button" class="pad" id="t-swap" aria-label="Switch weapon">SWAP</button>
+    <button type="button" class="pad" id="t-gas" aria-label="Gas">GAS</button>
   </div>
   <div id="toast"></div>
 </div>

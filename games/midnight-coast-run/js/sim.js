@@ -29,7 +29,20 @@
     trunk: { name: 'Trunk', desc: 'Carry one more parcel', max: 4, costs: [240, 420, 700, 1100] }
   };
 
-  const PAINTS = [
+  const WEAPONS = [
+  { id: 'laser', name: 'Laser', night: 2, cost: 0, stars: 0 },
+  { id: 'pulse', name: 'Pulse', night: 2, cost: 360, stars: 2 },
+  { id: 'emp', name: 'EMP', night: 3, cost: 640, stars: 4 },
+  { id: 'plasma', name: 'Plasma', night: 3, cost: 920, stars: 6 }
+];
+
+const WUP = {
+  dmg: { name: 'Beam power', desc: 'Stronger energy hits', max: 3, costs: [220, 420, 700] },
+  cool: { name: 'Venting', desc: 'Shorter pauses between shots', max: 3, costs: [200, 380, 640] },
+  energy: { name: 'Energy well', desc: 'A larger cell', max: 3, costs: [180, 360, 600] }
+};
+
+const PAINTS = [
     { name: 'Magenta Dusk', color: '#ff3d8a', glow: '#ff77b5', price: 0 },
     { name: 'Cyan Tide', color: '#1ad4e6', glow: '#7cf6ff', price: 160 },
     { name: 'Amber Sun', color: '#ffb020', glow: '#ffd27a', price: 200 },
@@ -174,7 +187,29 @@
       y: City.HUB.y + 8,
       angle: -Math.PI / 2,
       speed: 0,
+      lat: 0,
       steerV: 0,
+      handbrake: false,
+      drifting: false,
+      driftPts: 0,
+      driftHold: 0,
+      skids: [],
+      skidLast: null,
+      energy: 100,
+      energyMax: 100,
+      weapon: 'none',
+      owned: [],
+      wup: { dmg: 0, cool: 0, energy: 0 },
+      heat: 0,
+      overheated: false,
+      fireWas: false,
+      coolLeft: 0,
+      beam: null,
+      pulses: [],
+      orbs: [],
+      drones: [],
+      barricades: [],
+      cells: [],
       fuel: 100,
       nitro: 100,
       nitroOn: false,
@@ -381,6 +416,7 @@
       return { id: 'c' + i, x: s.x, y: s.y };
     });
     spawnTraffic(state, night.traffic, night.trafficSpeed);
+    spawnHazards(state, idx);
     chooseObjective(state);
     return state;
   }
@@ -411,6 +447,7 @@
       return { id: 'c' + i, x: s.x, y: s.y };
     });
     spawnTraffic(state, 10, 96);
+    spawnHazards(state, 6);
     chooseObjective(state);
     return state;
   }
@@ -422,6 +459,47 @@
     state.cargo = [makeJob(spot, pay, true, state.nextId++)];
     state.waiting = [];
     chooseObjective(state);
+  }
+
+  function spawnHazards(state, nightIndex) {
+    state.drones = [];
+    state.barricades = [];
+    state.cells = [];
+    state.orbs = [];
+    state.pulses = [];
+    state.beam = null;
+    if (nightIndex < 2) return;
+    const rng = state.rng;
+    const bars = pickSpots(rng, Math.min(6, 3 + nightIndex - 2), 280, [City.HUB]);
+    for (let i = 0; i < bars.length; i++) {
+      const s = bars[i];
+      state.barricades.push({
+        id: state.nextId++,
+        x: s.x + 56,
+        y: s.y + 56,
+        hw: 11,
+        hh: 11,
+        hp: 90,
+        max: 90
+      });
+    }
+    const cells = pickSpots(rng, 2, 360, [City.HUB]);
+    for (let i = 0; i < cells.length; i++) state.cells.push({ id: 'e' + i, x: cells[i].x, y: cells[i].y });
+    if (nightIndex >= 3) {
+      const n = 1 + Math.min(3, Math.floor((nightIndex - 3) / 2));
+      for (let i = 0; i < n; i++) {
+        state.drones.push({
+          id: state.nextId++,
+          x: 700 + rng() * 1200,
+          y: 500 + rng() * 1600,
+          hp: 64,
+          max: 64,
+          stun: 0,
+          zap: 1.4 + rng(),
+          phase: rng() * 6
+        });
+      }
+    }
   }
 
   function spawnTraffic(state, count, speed) {
@@ -566,6 +644,12 @@
       const c = cars[i];
       c.nearCd = Math.max(0, c.nearCd - dt);
       c.turnCd = Math.max(0, c.turnCd - dt);
+      if (c.penalized > 0) c.penalized -= dt;
+      if (c.stall > 0) {
+        c.stall -= dt;
+        c.speed *= Math.exp(-dt * 2.4);
+        c.spin = (c.spin || 0) + dt * 7;
+      } else c.spin = 0;
       let ahead = false;
       for (let j = 0; j < cars.length; j++) {
         if (i === j) continue;
@@ -633,83 +717,122 @@
     const gas = clamp(inp.gas || 0, 0, 1);
     const brake = clamp(inp.brake || 0, 0, 1);
     const steer = clamp(inp.steer || 0, -1, 1);
-    state.steerV += (steer - state.steerV) * Math.min(1, dt * 8);
+    const handbrake = !!inp.handbrake;
+    state.handbrake = handbrake;
+    const steerK = 1 - Math.exp(-dt * 12);
+    state.steerV += (steer - state.steerV) * steerK;
+    if (Math.abs(steer) < 0.05) state.steerV *= Math.exp(-dt * 7);
     state.steerInput = steer;
 
-    const rain = state.rain ? 0.9 : 1;
+    const rain = state.rain ? 0.86 : 1;
     const sp = Math.abs(state.speed);
-    const omega = state.steerV * state.stats.turn * rain;
-    const speedScale = 1 / (1 + Math.max(0, sp - 150) / 380);
-    if (sp > 12) state.angle += omega * speedScale * Math.sign(state.speed) * dt;
-    else state.angle += steer * 2.1 * dt;
+    const speedGate = clamp((sp - 8) / 42, 0, 1);
+    const highDamp = 1 / (1 + Math.max(0, sp - 125) / 230);
+    let yaw = state.steerV * state.stats.turn * rain * speedGate * highDamp;
+    if (handbrake && sp > 48) yaw += state.steerV * 2.15 * Math.min(1, sp / 120);
+    const dirSign = state.speed < -8 ? -1 : 1;
+    state.angle += yaw * dirSign * dt;
     if (state.angle > Math.PI * 2 || state.angle < -Math.PI * 2) {
       state.angle = Math.atan2(Math.sin(state.angle), Math.cos(state.angle));
     }
 
-    if (Math.abs(state.steerV) > 0.25 && sp > 100) {
-      state.speed -= Math.abs(state.steerV) * 360 * dt * Math.sign(state.speed || 1);
-    }
-
     let max = state.stats.maxSpeed;
-    const wantNitro = !!(inp.nitro && state.nitro > 1 && sp > 30);
+    const wantNitro = !!(inp.nitro && state.nitro > 1 && sp > 18 && !handbrake);
+    const nitroStart = wantNitro && !state.nitroOn;
     state.nitroOn = wantNitro;
     if (wantNitro) {
       max *= state.stats.nitroMul;
       state.nitro = Math.max(0, state.nitro - state.stats.nitroDrain * dt);
-      state.speed += 70 * dt * (state.speed >= 0 ? 1 : -1);
-      if (Math.random() < 0.7) burst(state, state.x, state.y, '#7cf6ff', 1, 40);
+      state.shake = Math.max(state.shake, nitroStart ? 8 : 2.4);
+      if (Math.random() < 0.5) burst(state, state.x, state.y, '#7cf6ff', 1, 36);
     } else {
       state.nitro = Math.min(100, state.nitro + state.stats.nitroRegen * dt);
     }
 
     if (state.fuel <= 0) max *= 0.24;
     else if (state.fuel < 16) max *= 0.62;
-    if (City.onSand(state.x)) max *= 0.48;
+    if (City.onSand(state.x)) max *= 0.5;
 
-    if (gas > 0 && state.speed < max) state.speed += state.stats.accel * gas * dt;
-    if (Math.abs(state.speed) < 10 && brake > 0 && gas === 0) state.reverseHold += dt;
+    const headroom = clamp(1 - Math.max(0, state.speed) / Math.max(50, max), 0.28, 1);
+    if (gas > 0 && state.speed < max) {
+      state.speed += state.stats.accel * gas * headroom * (handbrake ? 0.45 : 1) * dt;
+    }
+    if (brake > 0 && state.speed > 6) state.speed -= state.stats.brake * brake * dt;
+    if (Math.abs(state.speed) < 12 && brake > 0 && gas === 0) state.reverseHold += dt;
     else state.reverseHold = 0;
-    if (brake > 0) {
-      if (state.speed > 6) state.speed -= state.stats.brake * brake * dt;
-      else if (state.reverseHold > 0.22) state.speed -= state.stats.brake * 0.4 * brake * dt;
-      else if (state.speed > 0) state.speed = Math.max(0, state.speed - state.stats.brake * brake * dt);
+    if (brake > 0 && gas === 0 && state.reverseHold > 0.28 && state.speed > -76) {
+      state.speed -= state.stats.brake * 0.32 * brake * dt;
     }
-    state.speed -= state.speed * (0.42 + (state.rain ? 0.12 : 0)) * dt;
     if (gas === 0 && brake === 0) {
-      const drag = 70 * dt;
-      if (Math.abs(state.speed) <= drag) state.speed = 0;
-      else state.speed -= Math.sign(state.speed) * drag;
+      const engineBrake = (26 + sp * 0.18) * dt;
+      if (Math.abs(state.speed) <= engineBrake) state.speed = 0;
+      else state.speed -= Math.sign(state.speed) * engineBrake;
     }
-    state.speed = clamp(state.speed, -96, max);
+    if (handbrake && sp > 36) state.speed -= Math.sign(state.speed || 1) * 70 * dt;
+    if (wantNitro) state.speed += 120 * dt;
+    state.speed = clamp(state.speed, -76, max);
 
-    state.x += Math.cos(state.angle) * state.speed * dt;
-    state.y += Math.sin(state.angle) * state.speed * dt;
+    let grip = 18;
+    const fastCorner = sp > 155 && Math.abs(state.steerV) > 0.78;
+    if (fastCorner && !handbrake) grip = 8;
+    if (handbrake && sp > 42) grip = 2.05;
+    if (state.rain) grip *= 0.82;
+    state.lat = (state.lat || 0) * Math.exp(-grip * dt);
+    if (handbrake && sp > 50) state.lat += -state.steerV * sp * 1.25 * dt;
+    else if (fastCorner) state.lat += -state.steerV * sp * 0.16 * dt;
+    state.lat = clamp(state.lat, -200, 200);
+
+    const fx = Math.cos(state.angle);
+    const fy = Math.sin(state.angle);
+    const rx = -Math.sin(state.angle);
+    const ry = Math.cos(state.angle);
+    let vx = fx * state.speed + rx * state.lat;
+    let vy = fy * state.speed + ry * state.lat;
+    state.x += vx * dt;
+    state.y += vy * dt;
 
     const resolved = City.resolveCar(state.x, state.y, City.CAR_R);
     if (resolved.hit) {
-      const vx = Math.cos(state.angle) * state.speed;
-      const vy = Math.sin(state.angle) * state.speed;
+      state.x = resolved.x;
+      state.y = resolved.y;
       const nx = resolved.hit.nx;
       const ny = resolved.hit.ny;
       const vn = vx * nx + vy * ny;
       if (vn < 0) {
-        const tx = vx - vn * nx;
-        const ty = vy - vn * ny;
-        const tsp = Math.hypot(tx, ty);
-        if (tsp > 20) {
-          state.angle = Math.atan2(ty, tx);
-          state.speed = tsp * 0.82 * (state.speed < 0 ? -1 : 1);
-          if (state.speed < 0 && tsp > 40) state.speed = tsp * 0.82;
-        } else if (Math.abs(state.speed) > 40) {
-          state.speed *= -0.18;
-        } else {
-          state.speed *= 0.2;
-        }
+        vx -= vn * nx;
+        vy -= vn * ny;
+        vx *= 0.9;
+        vy *= 0.9;
+        state.speed = vx * fx + vy * fy;
+        state.lat = vx * rx + vy * ry;
+        if (Math.abs(vn) > 120) doBump(state, state.x, state.y);
       }
-      if (Math.abs(state.speed) > 80 || Math.abs(vn) > 70) doBump(state, state.x, state.y);
-      state.x = resolved.x;
-      state.y = resolved.y;
     }
+    slideBarricades(state);
+
+    const slip = Math.abs(Math.atan2(state.lat, state.speed || 0.01));
+    state.drifting = (handbrake && sp > 48 && Math.abs(state.steerV) > 0.2) || Math.abs(state.lat) > 42;
+    if (state.drifting && slip > 0.2 && sp > 40) {
+      state.driftPts = (state.driftPts || 0) + slip * sp * dt * 0.11;
+      state.driftHold = 0.45;
+      spawnSkid(state);
+      if (Math.random() < 0.4) burst(state, state.x - fx * 14, state.y - fy * 14, '#d5d8ea', 1, 28);
+      if (handbrake && Math.random() < 0.3) burst(state, state.x - fx * 12, state.y - fy * 12, '#ffe08a', 1, 46);
+    } else {
+      state.skidLast = null;
+      if ((state.driftHold || 0) > 0) {
+        state.driftHold -= dt;
+        if (state.driftHold <= 0 && state.driftPts > 14) {
+          const bonus = Math.min(70, Math.round(state.driftPts));
+          state.earned += bonus;
+          popup(state, state.x, state.y - 22, 'Drift +$' + bonus, '#ffe18a');
+          pushEvent(state, { t: 'drift', pay: bonus });
+          state.driftPts = 0;
+        } else if (state.driftHold <= 0) state.driftPts = 0;
+      }
+    }
+    decaySkids(state, dt);
+    if (state.phase === 'play') updateWeapons(state, inp, dt);
 
     state.fuel -= (0.45 + Math.min(1, sp / 200) * 0.9) * state.fuelRate * dt;
     if (state.fuel < 0) state.fuel = 0;
@@ -891,6 +1014,272 @@
     }
   }
 
+  function distToSeg(px, py, x1, y1, x2, y2) {
+    const vx = x2 - x1;
+    const vy = y2 - y1;
+    const l2 = vx * vx + vy * vy || 1;
+    let t = ((px - x1) * vx + (py - y1) * vy) / l2;
+    t = clamp(t, 0, 1);
+    return Math.hypot(px - (x1 + vx * t), py - (y1 + vy * t));
+  }
+
+  function slideBarricades(state) {
+    if (!state.barricades) return;
+    const r = City.CAR_R;
+    const fx = Math.cos(state.angle);
+    const fy = Math.sin(state.angle);
+    const rx = -fy;
+    const ry = fx;
+    for (let i = 0; i < state.barricades.length; i++) {
+      const b = state.barricades[i];
+      if (b.hp <= 0) continue;
+      const box = { x: b.x - b.hw, y: b.y - b.hh, w: b.hw * 2, h: b.hh * 2 };
+      const hit = City.circleAABB(state.x, state.y, r, box);
+      if (!hit) continue;
+      state.x = hit.x;
+      state.y = hit.y;
+      let vx = fx * state.speed + rx * state.lat;
+      let vy = fy * state.speed + ry * state.lat;
+      const vn = vx * hit.nx + vy * hit.ny;
+      if (vn < 0) {
+        vx -= vn * hit.nx;
+        vy -= vn * hit.ny;
+        state.speed = vx * fx + vy * fy;
+        state.lat = vx * rx + vy * ry;
+      }
+    }
+  }
+
+  function spawnSkid(state) {
+    const fx = Math.cos(state.angle);
+    const fy = Math.sin(state.angle);
+    const rx = -fy;
+    const ry = fx;
+    const bx = state.x - fx * 16;
+    const by = state.y - fy * 16;
+    const last = state.skidLast;
+    if (last) {
+      const d = Math.hypot(bx - last.x, by - last.y);
+      if (d > 3 && d < 36) {
+        pushSkid(state, last.x + rx * 6, last.y + ry * 6, bx + rx * 6, by + ry * 6);
+        pushSkid(state, last.x - rx * 6, last.y - ry * 6, bx - rx * 6, by - ry * 6);
+      }
+    }
+    state.skidLast = { x: bx, y: by };
+  }
+
+  function pushSkid(state, x1, y1, x2, y2) {
+    if (!state.skids) state.skids = [];
+    if (state.skids.length >= 100) state.skids.shift();
+    state.skids.push({ x1: x1, y1: y1, x2: x2, y2: y2, life: 2.8 });
+  }
+
+  function decaySkids(state, dt) {
+    if (!state.skids) return;
+    for (let i = state.skids.length - 1; i >= 0; i--) {
+      state.skids[i].life -= dt * 0.85;
+      if (state.skids[i].life <= 0) state.skids.splice(i, 1);
+    }
+  }
+
+  function hurtBarricade(state, b, amount) {
+    b.hp -= amount;
+    if (b.hp <= 0) {
+      burst(state, b.x, b.y, '#ff4fd8', 12, 90);
+      burst(state, b.x, b.y, '#7cf6ff', 8, 70);
+      pushEvent(state, { t: 'shard' });
+    }
+  }
+
+  function popDrone(state, d) {
+    burst(state, d.x, d.y, '#ff7ad1', 14, 110);
+    burst(state, d.x, d.y, '#7cf6ff', 8, 80);
+    state.energy = Math.min(state.energyMax || 100, (state.energy || 0) + 8);
+    d.hp = 0;
+    pushEvent(state, { t: 'spark' });
+  }
+
+  function penalizeCar(state, c) {
+    c.stall = Math.max(c.stall || 0, 1.15);
+    c.speed *= 0.28;
+    if (!(c.penalized > 0)) {
+      state.clock = Math.min(MIDNIGHT, state.clock + 4);
+      c.penalized = 2.5;
+    }
+  }
+
+  function updateWeapons(state, inp, dt) {
+    const maxE = state.energyMax || 100;
+    state.energy = Math.min(maxE, (state.energy || 0) + (7 + ((state.wup && state.wup.energy) || 0) * 1.5) * dt);
+    if (state.overheated) {
+      state.heat -= dt * 0.65;
+      if (state.heat <= 0) { state.heat = 0; state.overheated = false; }
+    } else state.heat = Math.max(0, (state.heat || 0) - dt * 0.32);
+    state.coolLeft = Math.max(0, (state.coolLeft || 0) - dt);
+    if (state.beam) {
+      state.beam.life -= dt;
+      if (state.beam.life <= 0) state.beam = null;
+    }
+    if (state.pulses) {
+      for (let i = state.pulses.length - 1; i >= 0; i--) {
+        const p = state.pulses[i];
+        p.life -= dt;
+        p.r += dt * 420;
+        if (p.life <= 0) state.pulses.splice(i, 1);
+      }
+    }
+    const owned = state.owned || [];
+    if (inp.cycle && owned.length) {
+      const i = Math.max(0, owned.indexOf(state.weapon));
+      state.weapon = owned[(i + inp.cycle + owned.length * 4) % owned.length];
+      pushEvent(state, { t: 'swap' });
+    }
+    if (inp.slot && owned[inp.slot - 1]) state.weapon = owned[inp.slot - 1];
+    if (owned.indexOf(state.weapon) < 0) state.weapon = owned[0] || 'none';
+    const fire = !!inp.fire;
+    const pressed = fire && !state.fireWas;
+    state.fireWas = fire;
+    const dmg = 1 + (((state.wup && state.wup.dmg) || 0) * 0.28);
+    const coolMul = 1 - (((state.wup && state.wup.cool) || 0) * 0.16);
+    if (owned.length && state.weapon === 'laser' && fire && !state.overheated && state.energy > 0) {
+      state.energy = Math.max(0, state.energy - 24 * dt);
+      state.heat += dt * 0.8;
+      if (state.heat >= 1) { state.overheated = true; state.heat = 1; popup(state, state.x, state.y - 16, 'Venting', '#ffd0e0'); }
+      const len = 320;
+      const x1 = state.x + Math.cos(state.angle) * 18;
+      const y1 = state.y + Math.sin(state.angle) * 18;
+      const x2 = state.x + Math.cos(state.angle) * len;
+      const y2 = state.y + Math.sin(state.angle) * len;
+      state.beam = { x1: x1, y1: y1, x2: x2, y2: y2, life: 0.07 };
+      for (let i = 0; i < state.drones.length; i++) {
+        const d = state.drones[i];
+        if (distToSeg(d.x, d.y, x1, y1, x2, y2) < 22) d.hp -= 52 * dmg * dt;
+      }
+      for (let i = 0; i < state.barricades.length; i++) {
+        const b = state.barricades[i];
+        if (b.hp > 0 && distToSeg(b.x, b.y, x1, y1, x2, y2) < 26) hurtBarricade(state, b, 46 * dmg * dt);
+      }
+      for (let i = 0; i < state.traffic.length; i++) {
+        const c = state.traffic[i];
+        if (distToSeg(c.x, c.y, x1, y1, x2, y2) < 20) penalizeCar(state, c);
+      }
+    } else if (owned.length && pressed && state.coolLeft <= 0) {
+      if (state.weapon === 'pulse' && state.energy >= 26) {
+        state.energy -= 26;
+        state.coolLeft = 1.15 * coolMul;
+        state.pulses.push({ x: state.x, y: state.y, r: 16, life: 0.38, emp: false });
+        shock(state, 150, dmg, false);
+        pushEvent(state, { t: 'pulse' });
+      } else if (state.weapon === 'emp' && state.energy >= 32) {
+        state.energy -= 32;
+        state.coolLeft = 2.1 * coolMul;
+        state.pulses.push({ x: state.x, y: state.y, r: 18, life: 0.45, emp: true });
+        shock(state, 210, dmg * 0.35, true);
+        pushEvent(state, { t: 'emp' });
+      } else if (state.weapon === 'plasma' && state.energy >= 16 && state.orbs.length < 6) {
+        state.energy -= 16;
+        state.coolLeft = 0.42 * coolMul;
+        const c = Math.cos(state.angle);
+        const s = Math.sin(state.angle);
+        state.orbs.push({ x: state.x + c * 22, y: state.y + s * 22, vx: c * 240, vy: s * 240, life: 2.3, dmg: dmg });
+        pushEvent(state, { t: 'plasma' });
+      }
+    }
+    for (let i = state.orbs.length - 1; i >= 0; i--) {
+      const o = state.orbs[i];
+      o.life -= dt;
+      let tx = null;
+      let best = 1e9;
+      for (let k = 0; k < state.drones.length; k++) {
+        const d = state.drones[k];
+        const dd = Math.hypot(d.x - o.x, d.y - o.y);
+        if (dd < best) { best = dd; tx = d; }
+      }
+      for (let k = 0; k < state.barricades.length; k++) {
+        const b = state.barricades[k];
+        if (b.hp <= 0) continue;
+        const dd = Math.hypot(b.x - o.x, b.y - o.y);
+        if (dd < best) { best = dd; tx = b; }
+      }
+      if (tx) {
+        const dx = tx.x - o.x;
+        const dy = tx.y - o.y;
+        const mag = Math.hypot(dx, dy) || 1;
+        o.vx += dx / mag * 520 * dt;
+        o.vy += dy / mag * 520 * dt;
+        const sp = Math.hypot(o.vx, o.vy) || 1;
+        const cap = 280;
+        if (sp > cap) { o.vx = o.vx / sp * cap; o.vy = o.vy / sp * cap; }
+      }
+      o.x += o.vx * dt;
+      o.y += o.vy * dt;
+      let hit = false;
+      for (let k = 0; k < state.drones.length; k++) {
+        const d = state.drones[k];
+        if (Math.hypot(d.x - o.x, d.y - o.y) < 18) { d.hp -= 48 * o.dmg; hit = true; }
+      }
+      for (let k = 0; k < state.barricades.length; k++) {
+        const b = state.barricades[k];
+        if (b.hp > 0 && Math.hypot(b.x - o.x, b.y - o.y) < 22) { hurtBarricade(state, b, 50 * o.dmg); hit = true; }
+      }
+      if (hit || o.life <= 0) {
+        burst(state, o.x, o.y, '#d9b3ff', 8, 70);
+        state.orbs.splice(i, 1);
+      }
+    }
+    for (let i = state.drones.length - 1; i >= 0; i--) {
+      const d = state.drones[i];
+      if (d.hp <= 0) { popDrone(state, d); state.drones.splice(i, 1); continue; }
+      d.stun = Math.max(0, d.stun - dt);
+      d.zap = Math.max(0, d.zap - dt);
+      if (d.stun <= 0) {
+        const dx = state.x - d.x;
+        const dy = state.y - d.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        d.x += dx / dist * 70 * dt;
+        d.y += dy / dist * 70 * dt;
+        if (dist < 72 && d.zap <= 0) {
+          d.zap = 2.7;
+          state.clock = Math.min(MIDNIGHT, state.clock + 8);
+          state.fuel = Math.max(0, state.fuel - 4);
+          popup(state, state.x, state.y - 18, 'Signal jam', '#ff9ad2');
+          pushEvent(state, { t: 'zap' });
+        }
+      }
+    }
+    for (let i = state.cells.length - 1; i >= 0; i--) {
+      const f = state.cells[i];
+      if (Math.hypot(state.x - f.x, state.y - f.y) < 36) {
+        state.energy = Math.min(maxE, state.energy + 36);
+        state.cells.splice(i, 1);
+        popup(state, f.x, f.y, 'Energy', '#d9b3ff');
+        pushEvent(state, { t: 'cell' });
+      }
+    }
+    state.barricades = state.barricades.filter(function (b) { return b.hp > 0; });
+  }
+
+  function shock(state, radius, dmg, emp) {
+    for (let i = 0; i < state.drones.length; i++) {
+      const d = state.drones[i];
+      if (Math.hypot(d.x - state.x, d.y - state.y) < radius) {
+        d.hp -= (emp ? 16 : 50) * dmg;
+        if (emp) d.stun = Math.max(d.stun, 1.6);
+      }
+    }
+    for (let i = 0; i < state.barricades.length; i++) {
+      const b = state.barricades[i];
+      if (b.hp > 0 && Math.hypot(b.x - state.x, b.y - state.y) < radius) hurtBarricade(state, b, (emp ? 18 : 55) * dmg);
+    }
+    for (let i = 0; i < state.traffic.length; i++) {
+      const c = state.traffic[i];
+      if (Math.hypot(c.x - state.x, c.y - state.y) < radius) {
+        c.stall = Math.max(c.stall || 0, emp ? 2.1 : 1.2);
+        penalizeCar(state, c);
+      }
+    }
+  }
+
   function decayFx(state, dt) {
     state.shake *= Math.pow(0.05, dt);
     if (state.shake < 0.3) state.shake = 0;
@@ -948,7 +1337,9 @@
       upg: { engine: 0, handling: 0, nitro: 0, trunk: 0 },
       paint: 0,
       paintsOwned: [0],
-      settings: { music: 70, sfx: 80, quality: 'auto', shake: true, touch: 'auto' },
+      settings: { music: 70, sfx: 80, quality: 'auto', shake: true, touch: 'auto', camera: 'rotate', autoAccel: true },
+      weaponsOwned: [],
+      wup: { dmg: 0, cool: 0, energy: 0 },
       stats: { deliveries: 0, nights: 0, near: 0 }
     };
   }
@@ -958,6 +1349,8 @@
     NIGHTS: NIGHTS,
     UPGRADES: UPGRADES,
     PAINTS: PAINTS,
+    WEAPONS: WEAPONS,
+    WUP: WUP,
     clamp: clamp,
     angleDiff: angleDiff,
     formatClock: formatClock,

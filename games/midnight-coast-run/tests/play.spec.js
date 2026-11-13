@@ -112,7 +112,7 @@ async function installBot(page) {
       let gas = 1;
       let brake = 0;
       if (Math.abs(s.speed) > want) { gas = 0; brake = 1; }
-      else if (Math.abs(diff) > 0.85) { gas = 0; brake = 0; }
+      else if (Math.abs(diff) > 0.85) { gas = 1; brake = 0; }
       if (dist < 120) {
         gas = 0;
         brake = Math.abs(s.speed) > 28 ? 1 : 0;
@@ -214,6 +214,65 @@ test('desktop title, three nights, shop and summary', async function ({ page }, 
   expect(errors).toEqual([]);
 });
 
+test('camera, drift, nitro, laser and garage', async function ({ page }, testInfo) {
+  test.skip(testInfo.project.name !== 'desktop', 'shots on desktop');
+  const errors = [];
+  track(page, errors);
+  await page.goto('/');
+  await page.locator('#btn-play').click();
+  await page.locator('#btn-start-run').click();
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: ART + '/midnight-coast-run-camera.png' });
+  await page.keyboard.up('KeyW');
+  await page.evaluate(function () { window.MCR.setCamera('north'); });
+  const dirs = [['north', -Math.PI / 2], ['east', 0], ['south', Math.PI / 2], ['west', Math.PI]];
+  for (let i = 0; i < dirs.length; i++) {
+    const name = dirs[i][0];
+    const ang = dirs[i][1];
+    await page.evaluate(function (angle) { window.MCR.place(940, 1570, angle, 110); }, ang);
+    await page.waitForTimeout(180);
+    await page.screenshot({ path: ART + '/midnight-coast-run-heading-' + name + '.png' });
+  }
+  await page.evaluate(function () { window.MCR.setCamera('rotate'); });
+  await page.evaluate(function () { window.MCR.place(940, 1570, 0, 160); });
+  await page.keyboard.down('KeyW');
+  await page.keyboard.down('KeyD');
+  await page.keyboard.down('ShiftLeft');
+  await page.waitForTimeout(650);
+  await page.screenshot({ path: ART + '/midnight-coast-run-drift.png' });
+  await page.keyboard.up('ShiftLeft');
+  await page.keyboard.up('KeyD');
+  await page.keyboard.down('Space');
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: ART + '/midnight-coast-run-nitro.png' });
+  await page.keyboard.up('Space');
+  await page.keyboard.up('KeyW');
+  await page.evaluate(function () {
+    window.MCR.giveKit();
+    window.MCR.debugNight(3);
+    const d = window.MCR.snapshot();
+    window.MCR.place(d.x, d.y, 0, 0);
+  });
+  const aim = await page.evaluate(function () {
+    const s = window.MCR.snapshot();
+    return s.drone ? { x: s.drone.x, y: s.drone.y } : null;
+  });
+  if (aim) {
+    await page.evaluate(function (t) { window.MCR.place(t.x - 90, t.y, 0, 0); }, aim);
+  }
+  await page.keyboard.down('KeyF');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: ART + '/midnight-coast-run-laser.png' });
+  await page.keyboard.up('KeyF');
+  await page.keyboard.press('Escape');
+  await page.locator('#btn-quit').click();
+  await page.locator('#btn-garage').click();
+  await expect(page.locator('#weapon-list')).toBeVisible();
+  await page.screenshot({ path: ART + '/midnight-coast-run-weapons.png' });
+  expect(errors).toEqual([]);
+});
+
 test('phone landscape touch and layout', async function ({ page }, testInfo) {
   test.skip(testInfo.project.name !== 'iphone', 'landscape phone');
   const errors = [];
@@ -224,17 +283,14 @@ test('phone landscape touch and layout', async function ({ page }, testInfo) {
   await page.locator('#btn-play').tap();
   await page.locator('#btn-start-run').tap();
   await expect(page.locator('#touch')).toBeVisible();
-  await expect(page.locator('#t-gas')).toBeVisible();
-  const before = await page.evaluate(function () { return window.MCR.snapshot().speed; });
-  await page.evaluate(function () {
-    const el = document.querySelector('#t-gas');
-    el.dispatchEvent(new PointerEvent('pointerdown', {
-      bubbles: true, cancelable: true, pointerId: 3, pointerType: 'touch', isPrimary: true, button: 0, clientX: 20, clientY: 20
-    }));
-  });
-  await page.waitForTimeout(450);
-  const after = await page.evaluate(function () { return window.MCR.snapshot().speed; });
-  expect(after).toBeGreaterThan(before + 8);
+  await expect(page.locator('#steer-zone')).toBeVisible();
+  await expect(page.locator('#t-fire')).toBeVisible();
+  await expect(page.locator('#t-drift')).toBeVisible();
+  await expect(page.locator('#t-brake')).toBeVisible();
+  await page.waitForTimeout(500);
+  const speed = await page.evaluate(function () { return window.MCR.snapshot().speed; });
+  expect(speed).toBeGreaterThan(8);
+  await page.screenshot({ path: ART + '/midnight-coast-run-phone.png' });
   expect(await fitIssues(page)).toEqual([]);
   const body = await page.locator('body').innerText();
   expect(body.toLowerCase()).not.toContain('vice');
@@ -254,7 +310,8 @@ test('phone portrait touch and layout', async function ({ page }, testInfo) {
   await page.locator('#btn-play').tap();
   expect(await fitIssues(page)).toEqual([]);
   await page.locator('#btn-start-run').tap();
-  await expect(page.locator('#t-left')).toBeVisible();
+  await expect(page.locator('#steer-zone')).toBeVisible();
+  await expect(page.locator('#t-fire')).toBeVisible();
   await expect(page.locator('#t-nitro')).toBeVisible();
   await page.locator('#t-brake').dispatchEvent('pointerdown');
   await page.waitForTimeout(200);

@@ -35,10 +35,12 @@
   let fpsAcc = 0;
   let fpsN = 0;
   const keys = Object.create(null);
-  const holds = { left: 0, right: 0, gas: 0, brake: 0, nitro: 0 };
+  const holds = { left: 0, right: 0, gas: 0, brake: 0, nitro: 0, drift: 0, fire: 0, steer: 0 };
   let padPauseWas = false;
   let toastTimer = 0;
   const hudCache = {};
+  const cam = { x: 0, y: 0, angle: -Math.PI / 2, zoom: 1, ready: false, rotating: true };
+  const gpWas = { lb: false, rb: false };
 
   applyAudio();
   bindUi();
@@ -87,7 +89,17 @@
         base.settings.quality = ['auto', 'high', 'medium', 'low'].indexOf(s.settings.quality) >= 0 ? s.settings.quality : 'auto';
         base.settings.shake = s.settings.shake !== false;
         base.settings.touch = ['auto', 'on', 'off'].indexOf(s.settings.touch) >= 0 ? s.settings.touch : 'auto';
+        base.settings.camera = s.settings.camera === 'north' ? 'north' : 'rotate';
+        base.settings.autoAccel = s.settings.autoAccel !== false;
       }
+      base.weaponsOwned = Array.isArray(s.weaponsOwned) ? s.weaponsOwned.filter(function (id) {
+        return Sim.WEAPONS.some(function (w) { return w.id === id; });
+      }) : [];
+      base.wup = {
+        dmg: clampNum(s.wup && s.wup.dmg, 0, 3),
+        cool: clampNum(s.wup && s.wup.cool, 0, 3),
+        energy: clampNum(s.wup && s.wup.energy, 0, 3)
+      };
       if (s.stats) {
         base.stats.deliveries = clampNum(s.stats.deliveries, 0, 999999);
         base.stats.nights = clampNum(s.stats.nights, 0, 99999);
@@ -139,6 +151,7 @@
     }
     hud.hidden = mode !== 'play';
     document.body.classList.toggle('show-touch', mode === 'play' && touchWanted());
+    document.body.classList.toggle('auto-go', save.settings.autoAccel !== false);
     if (mode !== 'play') {
       toast.classList.remove('on');
       toast.textContent = '';
@@ -221,9 +234,32 @@
     audio.resume();
     if (briefEndless) state = Sim.createEndless(save.upg);
     else state = Sim.createNight(briefNight, save.upg);
-    state.paintIndex = save.paint;
+    applyLoadout(state);
     clearKeys();
+    cam.ready = false;
     setMode('play', null);
+  }
+
+  function applyLoadout(st) {
+    if (!save.weaponsOwned) save.weaponsOwned = [];
+    if (st.nightIndex >= 2 && save.weaponsOwned.indexOf('laser') < 0) save.weaponsOwned.push('laser');
+    st.owned = save.weaponsOwned.slice();
+    st.wup = {
+      dmg: save.wup.dmg || 0,
+      cool: save.wup.cool || 0,
+      energy: save.wup.energy || 0
+    };
+    st.energyMax = 100 + st.wup.energy * 30;
+    st.energy = st.energyMax;
+    if (st.owned.indexOf(st.weapon) < 0) st.weapon = st.owned[0] || 'none';
+    st.paintIndex = save.paint;
+  }
+
+  function starTotal() {
+    let n = 0;
+    const b = save.bestStars || {};
+    for (const k in b) n += Number(b[k]) || 0;
+    return n;
   }
 
   function renderSettings() {
@@ -231,6 +267,12 @@
     document.getElementById('sfx').value = String(save.settings.sfx);
     document.getElementById('btn-shake').textContent = save.settings.shake ? 'On' : 'Off';
     document.getElementById('btn-shake').classList.toggle('sel', save.settings.shake);
+    const camBtn = document.getElementById('btn-camera');
+    camBtn.textContent = save.settings.camera === 'north' ? 'North-up' : 'Rotating';
+    camBtn.classList.toggle('sel', save.settings.camera !== 'north');
+    const gasBtn = document.getElementById('btn-autogas');
+    gasBtn.textContent = save.settings.autoAccel ? 'On' : 'Off';
+    gasBtn.classList.toggle('sel', !!save.settings.autoAccel);
     fillChips('quality-chips', ['auto', 'high', 'medium', 'low'], save.settings.quality, function (v) {
       save.settings.quality = v;
       if (v === 'high' || v === 'medium' || v === 'low') resolvedQuality = v;
@@ -242,6 +284,7 @@
       save.settings.touch = v;
       persist();
       document.body.classList.toggle('show-touch', mode === 'play' && touchWanted());
+      document.body.classList.toggle('auto-go', save.settings.autoAccel !== false);
     });
   }
 
@@ -315,6 +358,95 @@
       tap(b, function () { buyPaint(i); });
       paints.appendChild(b);
     });
+    const wbox = document.getElementById('weapon-list');
+    if (!wbox) return;
+    wbox.textContent = '';
+    const stars = starTotal();
+    Sim.WEAPONS.forEach(function (w) {
+      const owned = save.weaponsOwned.indexOf(w.id) >= 0;
+      const row = document.createElement('div');
+      row.className = 'up-row';
+      const meta = document.createElement('div');
+      const title = document.createElement('b');
+      title.textContent = w.name;
+      const desc = document.createElement('small');
+      desc.textContent = owned ? 'Ready' : (w.cost ? ('$' + w.cost + ' · ' + w.stars + ' stars') : 'Included');
+      meta.appendChild(title);
+      meta.appendChild(desc);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'buy';
+      if (owned) {
+        btn.textContent = 'Owned';
+        btn.classList.add('maxed');
+      } else if (stars < w.stars) {
+        btn.textContent = w.stars + ' stars';
+        btn.classList.add('poor');
+      } else if (save.cash < w.cost) {
+        btn.textContent = money(w.cost);
+        btn.classList.add('poor');
+      } else {
+        btn.textContent = w.cost ? money(w.cost) : 'Take';
+        tap(btn, function () { buyWeapon(w.id); });
+      }
+      row.appendChild(meta);
+      row.appendChild(btn);
+      wbox.appendChild(row);
+    });
+    Object.keys(Sim.WUP).forEach(function (key) {
+      const spec = Sim.WUP[key];
+      const lvl = save.wup[key] || 0;
+      const row = document.createElement('div');
+      row.className = 'up-row';
+      const meta = document.createElement('div');
+      const title = document.createElement('b');
+      title.textContent = spec.name;
+      const desc = document.createElement('small');
+      desc.textContent = spec.desc + ' · ' + lvl + '/' + spec.max;
+      meta.appendChild(title);
+      meta.appendChild(desc);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'buy';
+      if (lvl >= spec.max) {
+        btn.textContent = 'Max';
+        btn.classList.add('maxed');
+      } else {
+        const cost = spec.costs[lvl];
+        btn.textContent = money(cost);
+        if (save.cash < cost) btn.classList.add('poor');
+        tap(btn, function () { buyWup(key); });
+      }
+      row.appendChild(meta);
+      row.appendChild(btn);
+      wbox.appendChild(row);
+    });
+  }
+
+  function buyWeapon(id) {
+    const w = Sim.WEAPONS.filter(function (item) { return item.id === id; })[0];
+    if (!w || save.weaponsOwned.indexOf(id) >= 0) return;
+    if (starTotal() < w.stars || save.cash < w.cost) {
+      showToast('Not yet');
+      return;
+    }
+    save.cash -= w.cost;
+    save.weaponsOwned.push(id);
+    persist();
+    renderGarage();
+  }
+
+  function buyWup(key) {
+    const spec = Sim.WUP[key];
+    const lvl = save.wup[key] || 0;
+    if (lvl >= spec.max) return;
+    const cost = spec.costs[lvl];
+    if (save.cash < cost) return;
+    save.cash -= cost;
+    save.wup[key] = lvl + 1;
+    if (state) applyLoadout(state);
+    persist();
+    renderGarage();
   }
 
   function buyUpgrade(key) {
@@ -447,6 +579,7 @@
   }
 
   function tap(el, fn) {
+    if (!el) return;
     el.addEventListener('pointerdown', function (e) {
       if (e.button != null && e.button !== 0) return;
       e.preventDefault();
@@ -456,7 +589,49 @@
     });
   }
 
+  function bindStick() {
+    const zone = document.getElementById('steer-zone');
+    const stick = document.getElementById('stick');
+    const knob = document.getElementById('stick-knob');
+    if (!zone) return;
+    let pid = null;
+    function down(e) {
+      if (pid != null || (e.button != null && e.button !== 0)) return;
+      pid = e.pointerId;
+      try { zone.setPointerCapture(e.pointerId); } catch (err) {}
+      audio.resume();
+      move(e);
+    }
+    function move(e) {
+      if (e.pointerId !== pid) return;
+      const r = zone.getBoundingClientRect();
+      const cx = r.left + r.width * 0.5;
+      const cy = r.top + r.height * 0.62;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const mag = Math.hypot(dx, dy) || 1;
+      const lim = 54;
+      const clamped = Math.min(lim, mag);
+      holds.steer = Math.max(-1, Math.min(1, dx / lim));
+      stick.hidden = false;
+      stick.style.left = (cx - r.left) + 'px';
+      stick.style.top = (cy - r.top) + 'px';
+      knob.style.transform = 'translate(' + (dx / mag * clamped) + 'px,' + (dy / mag * clamped) + 'px)';
+    }
+    function up(e) {
+      if (e.pointerId !== pid) return;
+      pid = null;
+      holds.steer = 0;
+      stick.hidden = true;
+    }
+    zone.addEventListener('pointerdown', down);
+    zone.addEventListener('pointermove', move);
+    zone.addEventListener('pointerup', up);
+    zone.addEventListener('pointercancel', up);
+  }
+
   function bindHold(el, prop) {
+    if (!el) return;
     function down(e) {
       if (e.button != null && e.button !== 0) return;
       e.preventDefault();
@@ -475,10 +650,14 @@
   }
 
   function clearTouch() {
-    holds.left = holds.right = holds.gas = holds.brake = holds.nitro = 0;
-    ['t-left', 't-right', 't-gas', 't-brake', 't-nitro'].forEach(function (id) {
-      document.getElementById(id).classList.remove('held');
+    holds.left = holds.right = holds.gas = holds.brake = holds.nitro = holds.drift = holds.fire = 0;
+    holds.steer = 0;
+    ['t-left', 't-right', 't-gas', 't-brake', 't-nitro', 't-drift', 't-fire'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('held');
     });
+    const stick = document.getElementById('stick');
+    if (stick) stick.hidden = true;
   }
 
   function clearKeys() {
@@ -571,11 +750,24 @@
       applyAudio();
       persist();
     });
-    bindHold(document.getElementById('t-left'), 'left');
-    bindHold(document.getElementById('t-right'), 'right');
     bindHold(document.getElementById('t-gas'), 'gas');
     bindHold(document.getElementById('t-brake'), 'brake');
     bindHold(document.getElementById('t-nitro'), 'nitro');
+    bindHold(document.getElementById('t-drift'), 'drift');
+    bindHold(document.getElementById('t-fire'), 'fire');
+    tap(document.getElementById('t-swap'), function () { if (state) cycleWeapon(1); });
+    tap(document.getElementById('btn-camera'), function () {
+      save.settings.camera = save.settings.camera === 'north' ? 'rotate' : 'north';
+      cam.ready = false;
+      persist();
+      renderSettings();
+    });
+    tap(document.getElementById('btn-autogas'), function () {
+      save.settings.autoAccel = !save.settings.autoAccel;
+      persist();
+      renderSettings();
+    });
+    bindStick();
 
     window.addEventListener('pointerdown', function () { audio.resume(); }, { passive: true });
     window.addEventListener('keydown', onKeyDown);
@@ -587,8 +779,9 @@
     if (!state) { setMode('title', 'screen-title'); return; }
     if (state.endless) state = Sim.createEndless(save.upg);
     else state = Sim.createNight(state.nightIndex || briefNight, save.upg);
-    state.paintIndex = save.paint;
+    applyLoadout(state);
     clearKeys();
+    cam.ready = false;
     setMode('play', null);
   }
 
@@ -604,20 +797,37 @@
       if (mode === 'play') setMode('pause', 'screen-pause');
       else if (mode === 'pause' && state && state.phase === 'play') setMode('play', null);
     }
-    if ((e.code === 'Tab' || e.code === 'KeyQ') && mode === 'play' && state) {
+    if (e.repeat) return;
+    if (e.code === 'Tab' && mode === 'play' && state) {
       e.preventDefault();
       Sim.cycleTarget(state);
     }
+    if (mode === 'play' && state && e.code === 'KeyQ') cycleWeapon(-1);
+    if (mode === 'play' && state && e.code === 'KeyE') cycleWeapon(1);
+    if (mode === 'play' && state && /^Digit[1-4]$/.test(e.code)) {
+      const slot = Number(e.code.slice(5));
+      if (state.owned && state.owned[slot - 1]) state.weapon = state.owned[slot - 1];
+    }
     if (e.code === 'Enter' && mode === 'brief') startCurrentBrief();
+  }
+
+  function cycleWeapon(dir) {
+    if (!state || !state.owned || !state.owned.length) return;
+    const i = Math.max(0, state.owned.indexOf(state.weapon));
+    state.weapon = state.owned[(i + dir + state.owned.length) % state.owned.length];
   }
 
   function readInput() {
     let steer = 0;
     if (keys.KeyA || keys.ArrowLeft || holds.left) steer -= 1;
     if (keys.KeyD || keys.ArrowRight || holds.right) steer += 1;
+    if (Math.abs(holds.steer || 0) > Math.abs(steer)) steer = holds.steer;
     let gas = (keys.KeyW || keys.ArrowUp || holds.gas) ? 1 : 0;
     let brake = (keys.KeyS || keys.ArrowDown || holds.brake) ? 1 : 0;
-    let nitro = !!(keys.Space || keys.ShiftLeft || keys.ShiftRight || holds.nitro);
+    let nitro = !!(keys.Space || holds.nitro);
+    let handbrake = !!(keys.ShiftLeft || keys.ShiftRight || keys.ControlLeft || keys.ControlRight || holds.drift);
+    let fire = !!(keys.KeyF || holds.fire);
+    let cycle = 0;
     try {
       const pads = navigator.getGamepads ? navigator.getGamepads() : null;
       if (pads) {
@@ -628,17 +838,27 @@
           if (Math.abs(ax) > 0.18) steer = Math.max(-1, Math.min(1, ax));
           const rt = gp.buttons[7] ? gp.buttons[7].value : 0;
           const lt = gp.buttons[6] ? gp.buttons[6].value : 0;
-          if (rt > 0.05) gas = Math.max(gas, rt);
+          if (gp.buttons[0] && gp.buttons[0].pressed) gas = 1;
           if (lt > 0.05) brake = Math.max(brake, lt);
-          if ((gp.buttons[0] && gp.buttons[0].pressed) || (gp.buttons[5] && gp.buttons[5].pressed)) nitro = true;
+          if ((gp.buttons[7] && gp.buttons[7].pressed) || (gp.buttons[2] && gp.buttons[2].pressed)) fire = true;
+          if (gp.buttons[1] && gp.buttons[1].pressed) handbrake = true;
+          if (gp.buttons[3] && gp.buttons[3].pressed) nitro = true;
+          const lb = gp.buttons[4] && gp.buttons[4].pressed;
+          const rb = gp.buttons[5] && gp.buttons[5].pressed;
+          if (lb && !gpWas.lb) cycle -= 1;
+          if (rb && !gpWas.rb) cycle += 1;
+          gpWas.lb = !!lb;
+          gpWas.rb = !!rb;
           const pauseNow = gp.buttons[9] && gp.buttons[9].pressed;
           if (pauseNow && !padPauseWas && mode === 'play') setMode('pause', 'screen-pause');
           padPauseWas = !!pauseNow;
         }
       }
     } catch (err) {}
+    const touchDrive = touchWanted() && save.settings.autoAccel && mode === 'play';
+    if (touchDrive && brake <= 0 && !keys.KeyS && !keys.ArrowDown) gas = Math.max(gas, 1);
     if (brake > 0) gas = 0;
-    return { steer: steer, gas: gas, brake: brake, nitro: nitro };
+    return { steer: steer, gas: gas, brake: brake, nitro: nitro, handbrake: handbrake, fire: fire, cycle: cycle };
   }
 
   function qualityNow() {
@@ -695,6 +915,23 @@
     }
     document.getElementById('fuel-fill').style.width = Math.max(0, Math.min(100, state.fuel)) + '%';
     document.getElementById('nitro-fill').style.width = Math.max(0, Math.min(100, state.nitro)) + '%';
+    const energyEl = document.getElementById('energy-fill');
+    if (energyEl) {
+      const maxE = state.energyMax || 100;
+      energyEl.style.width = Math.max(0, Math.min(100, (state.energy || 0) / maxE * 100)) + '%';
+    }
+    const wname = state.weapon && state.weapon !== 'none' ? (state.overheated ? 'Venting' : state.weapon) : '';
+    const wEl = document.getElementById('weapon-name');
+    if (wEl && hudCache.wname !== wname) {
+      hudCache.wname = wname;
+      wEl.textContent = wname ? wname.toUpperCase() : '';
+    }
+    const driftTxt = state.drifting && state.driftPts > 8 ? ('Drift ' + Math.round(state.driftPts)) : '';
+    const dEl = document.getElementById('drift');
+    if (dEl && hudCache.drift !== driftTxt) {
+      hudCache.drift = driftTxt;
+      dEl.textContent = driftTxt;
+    }
     let obj = 'Head out';
     if (state.objective) {
       if (state.objective.kind === 'hub') obj = 'Depot · load parcels';
@@ -733,6 +970,33 @@
     }
   }
 
+  function updateCam(dt) {
+    if (!state) { cam.ready = false; return; }
+    const rotating = save.settings.camera !== 'north';
+    cam.rotating = rotating;
+    const look = rotating ? (58 + Math.min(110, Math.max(0, state.speed) * 0.26)) : 0;
+    const tx = state.x + Math.cos(state.angle) * look;
+    const ty = state.y + Math.sin(state.angle) * look;
+    const ta = rotating ? state.angle : 0;
+    if (!cam.ready) {
+      cam.x = tx;
+      cam.y = ty;
+      cam.angle = ta;
+      cam.zoom = 1;
+      cam.ready = true;
+    }
+    const k = 1 - Math.exp(-dt * 8);
+    cam.x += (tx - cam.x) * k;
+    cam.y += (ty - cam.y) * k;
+    let da = ta - cam.angle;
+    while (da > Math.PI) da -= Math.PI * 2;
+    while (da < -Math.PI) da += Math.PI * 2;
+    cam.angle += da * k;
+    let tz = 1 - Math.min(0.05, Math.abs(state.speed) / 6000);
+    if (state.nitroOn) tz -= 0.11;
+    cam.zoom += (tz - cam.zoom) * (1 - Math.exp(-dt * 5));
+  }
+
   function frame(now) {
     const dt = Math.min(0.033, Math.max(0, (now - last) / 1000));
     last = now;
@@ -757,8 +1021,11 @@
     }
     if (mode === 'play' && state) {
       if (state.phase === 'play' || state.phase === 'celebrate') Sim.step(state, readInput(), dt);
+      updateCam(dt);
       consumeEvents();
       if (state.phase === 'summary' && mode === 'play') setMode('summary', 'screen-summary');
+    } else if (state && mode !== 'play') {
+      updateCam(dt);
     }
     audio.tick();
     const driving = mode === 'play' && state && state.phase === 'play';
@@ -768,9 +1035,7 @@
     if (!state || mode === 'title' || mode === 'help' || mode === 'settings') {
       Render.drawTitle(ctx, viewW, viewH, now / 1000, save.paint);
     } else {
-      const speed = Math.abs(state.speed || 0);
-      const zoom = 1 - Math.min(0.12, speed / 2800);
-      Render.drawWorld(ctx, state, { zoom: zoom }, viewW, viewH, now / 1000, q, save.settings);
+      Render.drawWorld(ctx, state, cam, viewW, viewH, now / 1000, q, save.settings);
     }
     syncHud(dt);
     requestAnimationFrame(frame);
@@ -805,9 +1070,36 @@
         endlessUnlocked: !!save.endless,
         fps: fps,
         quality: qualityNow(),
-        audio: audio.state()
+        audio: audio.state(),
+        drone: s && s.drones && s.drones[0] ? { x: s.drones[0].x, y: s.drones[0].y, hp: s.drones[0].hp } : null
       };
     },
-    audioState: function () { return audio.state(); }
+    audioState: function () { return audio.state(); },
+    place: function (x, y, angle, speed) {
+      if (!state) return;
+      state.x = x;
+      state.y = y;
+      state.angle = angle;
+      state.speed = speed || 0;
+      state.lat = 0;
+      cam.ready = false;
+      updateCam(1);
+    },
+    setCamera: function (modeName) {
+      save.settings.camera = modeName === 'north' ? 'north' : 'rotate';
+      cam.ready = false;
+    },
+    giveKit: function () {
+      save.cash = Math.max(save.cash, 2000);
+      save.weaponsOwned = ['laser', 'pulse', 'emp', 'plasma'];
+      save.wup = { dmg: 1, cool: 1, energy: 1 };
+      if (state) applyLoadout(state);
+    },
+    debugNight: function (n) {
+      state = n ? Sim.createNight(n, save.upg) : Sim.createEndless(save.upg);
+      applyLoadout(state);
+      cam.ready = false;
+      setMode('play', null);
+    }
   };
 })();

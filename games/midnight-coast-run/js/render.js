@@ -210,7 +210,8 @@
   function drawCar(ctx, x, y, angle, paint, scale, steer, cargo) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(angle);
+    // Sprite nose is local -Y. Physics heading 0 faces +X, so add a quarter turn.
+    ctx.rotate(angle + Math.PI / 2);
     ctx.scale(scale || 1, scale || 1);
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
@@ -279,19 +280,25 @@
     const shake = shakeOn ? (state.shake || 0) : 0;
     const sx = (Math.sin(time * 40) * shake);
     const sy = (Math.cos(time * 37) * shake);
+    const rotating = !!(cam && cam.rotating);
+    const rot = rotating ? (-(cam.angle || 0) - Math.PI / 2) : 0;
+    const cx = cam && cam.x != null ? cam.x : state.x;
+    const cy = cam && cam.y != null ? cam.y : state.y;
     ctx.save();
     ctx.translate(viewW / 2 + sx, viewH / 2 + sy);
     ctx.scale(zoom, zoom);
-    ctx.translate(-state.x, -state.y);
+    if (rot) ctx.rotate(rot);
+    ctx.translate(-cx, -cy);
 
+    const reach = Math.hypot(viewW, viewH) / zoom + 160;
     ctx.fillStyle = '#0e1a33';
-    ctx.fillRect(state.x - viewW, state.y - viewH, viewW * 2, viewH * 2);
+    ctx.fillRect(cx - reach, cy - reach, reach * 2, reach * 2);
 
     const v = {
-      x0: state.x - viewW / zoom / 2 - 100,
-      y0: state.y - viewH / zoom / 2 - 100,
-      x1: state.x + viewW / zoom / 2 + 100,
-      y1: state.y + viewH / zoom / 2 + 100
+      x0: cx - reach,
+      y0: cy - reach,
+      x1: cx + reach,
+      y1: cy + reach
     };
 
     ctx.fillStyle = '#0a2748';
@@ -500,10 +507,107 @@
       ctx.globalAlpha = 1;
     }
 
+    if (state.skids && quality !== 'low') {
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < state.skids.length; i++) {
+        const s = state.skids[i];
+        if (s.x1 < v.x0 || s.x1 > v.x1 || s.y1 < v.y0 || s.y1 > v.y1) continue;
+        ctx.strokeStyle = 'rgba(30,16,28,' + (0.15 + 0.4 * Math.max(0, s.life) / 2.8) + ')';
+        ctx.beginPath();
+        ctx.moveTo(s.x1, s.y1);
+        ctx.lineTo(s.x2, s.y2);
+        ctx.stroke();
+      }
+    }
+    if (state.barricades) {
+      for (let i = 0; i < state.barricades.length; i++) {
+        const b = state.barricades[i];
+        if (b.hp <= 0) continue;
+        ctx.fillStyle = '#241018';
+        ctx.fillRect(b.x - b.hw, b.y - b.hh, b.hw * 2, b.hh * 2);
+        ctx.strokeStyle = '#ff4fd8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(b.x - b.hw, b.y - b.hh, b.hw * 2, b.hh * 2);
+        ctx.fillStyle = '#7cf6ff';
+        const pips = Math.max(1, Math.ceil(b.hp / b.max * 3));
+        for (let k = 0; k < pips; k++) ctx.fillRect(b.x - 6 + k * 5, b.y - 2, 3, 4);
+      }
+    }
+    if (state.drones) {
+      for (let i = 0; i < state.drones.length; i++) {
+        const d = state.drones[i];
+        const bob = Math.sin(time * 3 + d.phase) * 4;
+        ctx.save();
+        ctx.translate(d.x, d.y + bob);
+        ctx.rotate(time * 2 + d.phase);
+        ctx.globalAlpha = d.stun > 0 && Math.sin(time * 24) > 0 ? 0.35 : 1;
+        ctx.fillStyle = '#ff4fd8';
+        ctx.beginPath();
+        ctx.moveTo(0, -12);
+        ctx.lineTo(10, 0);
+        ctx.lineTo(0, 12);
+        ctx.lineTo(-10, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#7cf6ff';
+        ctx.stroke();
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+    }
+    if (state.cells) {
+      ctx.font = '700 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      for (let i = 0; i < state.cells.length; i++) {
+        const f = state.cells[i];
+        ctx.fillStyle = '#b388ff';
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#14081f';
+        ctx.fillText('E', f.x, f.y + 4);
+      }
+    }
+    if (state.pulses) {
+      for (let i = 0; i < state.pulses.length; i++) {
+        const p = state.pulses[i];
+        ctx.strokeStyle = p.emp ? 'rgba(124,246,255,0.85)' : 'rgba(255,79,216,0.8)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    if (state.orbs) {
+      for (let i = 0; i < state.orbs.length; i++) {
+        const o = state.orbs[i];
+        ctx.fillStyle = '#d9b3ff';
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#7cf6ff';
+        ctx.stroke();
+      }
+    }
+    if (state.beam && state.beam.life > 0) {
+      ctx.strokeStyle = 'rgba(180,255,255,0.95)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(state.beam.x1, state.beam.y1);
+      ctx.lineTo(state.beam.x2, state.beam.y2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,79,216,0.45)';
+      ctx.lineWidth = 10;
+      ctx.stroke();
+    }
+
     for (let i = 0; i < state.traffic.length; i++) {
       const c = state.traffic[i];
       if (c.x < v.x0 - 40 || c.x > v.x1 + 40 || c.y < v.y0 - 40 || c.y > v.y1 + 40) continue;
-      drawCar(ctx, c.x, c.y, c.angle, { color: c.color, glow: c.color }, 0.78, 0, false);
+      ctx.globalAlpha = c.stall > 0 && Math.sin(time * 28) > 0 ? 0.45 : 1;
+      drawCar(ctx, c.x, c.y, c.angle + (c.spin || 0), { color: c.color, glow: c.color }, 0.78, 0, false);
+      ctx.globalAlpha = 1;
     }
 
     for (let i = 0; i < state.particles.length; i++) {
@@ -515,6 +619,28 @@
     ctx.globalAlpha = 1;
 
     drawCar(ctx, state.x, state.y, state.angle, paint, 1, state.steerV || 0, state.cargo && state.cargo.length > 0);
+
+    if (state.nitroOn) {
+      const fx = Math.cos(state.angle);
+      const fy = Math.sin(state.angle);
+      const bx = state.x - fx * 18;
+      const by = state.y - fy * 18;
+      const len = 18 + Math.sin(time * 42) * 8;
+      ctx.fillStyle = '#7cf6ff';
+      ctx.beginPath();
+      ctx.moveTo(bx - fy * 5, by + fx * 5);
+      ctx.lineTo(bx + fy * 5, by - fx * 5);
+      ctx.lineTo(bx - fx * len, by - fy * len);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ff7ad1';
+      ctx.beginPath();
+      ctx.moveTo(bx - fy * 3, by + fx * 3);
+      ctx.lineTo(bx + fy * 3, by - fx * 3);
+      ctx.lineTo(bx - fx * len * 0.55, by - fy * len * 0.55);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     if (Math.abs(state.speed) > 40 && quality !== 'low') {
       ctx.save();
@@ -651,11 +777,30 @@
     ctx.restore();
   }
 
+  function worldToScreen(wx, wy, cam, viewW, viewH) {
+    const dx = wx - (cam.x != null ? cam.x : 0);
+    const dy = wy - (cam.y != null ? cam.y : 0);
+    const rot = cam.rotating ? (-(cam.angle || 0) - Math.PI / 2) : 0;
+    const c = Math.cos(rot);
+    const s = Math.sin(rot);
+    const z = cam.zoom || 1;
+    return {
+      x: viewW / 2 + (dx * c - dy * s) * z,
+      y: viewH / 2 + (dx * s + dy * c) * z
+    };
+  }
+
+  function headingVector(angle) {
+    return { x: Math.cos(angle), y: Math.sin(angle) };
+  }
+
   function drawArrow(ctx, state, viewW, viewH, cam) {
     if (!state.objective || state.phase !== 'play') return;
-    const zoom = cam.zoom;
-    const sx = (state.objective.x - state.x) * zoom + viewW / 2;
-    const sy = (state.objective.y - state.y) * zoom + viewH / 2;
+    const zoom = cam.zoom || 1;
+    const origin = worldToScreen(state.x, state.y, cam, viewW, viewH);
+    const target = worldToScreen(state.objective.x, state.objective.y, cam, viewW, viewH);
+    const sx = target.x;
+    const sy = target.y;
     const margin = 36;
     let ax = sx;
     let ay = sy;
@@ -672,7 +817,7 @@
       ax = cx + dx * scale;
       ay = cy + dy * scale;
     } else return;
-    const ang = Math.atan2(ay - viewH / 2, ax - viewW / 2);
+    const ang = Math.atan2(ay - origin.y, ax - origin.x);
     ctx.save();
     ctx.translate(ax, ay);
     ctx.rotate(ang);
@@ -690,6 +835,8 @@
   return {
     drawTitle: drawTitle,
     drawWorld: drawWorld,
-    drawCar: drawCar
+    drawCar: drawCar,
+    worldToScreen: worldToScreen,
+    headingVector: headingVector
   };
 });
