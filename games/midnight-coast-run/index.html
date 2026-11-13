@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#140218">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Midnight Coast Run — a neon night-courier driving game. Finish deliveries across Luma Bay before midnight.">
+<title>Midnight Coast Run</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23140218'/%3E%3Cpath d='M8 40h48l-6 8H14z' fill='%23ff3d8a'/%3E%3Ccircle cx='20' cy='48' r='4' fill='%237cf6ff'/%3E%3Ccircle cx='44' cy='48' r='4' fill='%237cf6ff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="ui">
+  <section id="screen-title" class="screen">
+    <div class="stack glass">
+      <div class="title-copy">
+        <div class="place">Luma Bay</div>
+        <h1 class="logo"><span>MIDNIGHT</span><span>COAST</span><span>RUN</span></h1>
+        <p class="tag">Deliver the night. Beat the clock.</p>
+        <p class="best" id="title-best">Night 1 is open.</p>
+        <p class="kb">Arrows or WASD to drive. Space for nitro.</p>
+      </div>
+      <div class="title-actions">
+        <button type="button" class="btn btn-primary" id="btn-play">Play Night 1</button>
+        <button type="button" class="btn btn-ghost" id="btn-nights">Nights</button>
+        <button type="button" class="btn btn-ghost" id="btn-garage">Garage</button>
+        <button type="button" class="btn btn-ghost" id="btn-help">How to Play</button>
+        <button type="button" class="btn btn-ghost" id="btn-settings">Settings</button>
+        <p class="credits">A Happy Toons Studio game</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-help" class="screen" hidden>
+    <div class="card glass help">
+      <div class="kicker">Courier notes</div>
+      <h2>HOW TO PLAY</h2>
+      <p>You are the night courier for Luma Bay Parcel. Each night is a short run. Finish the drops before the clock hits midnight.</p>
+      <p>Drive with the arrows or WASD. Space (or Shift) is nitro. On a phone, hold the on-screen steer, gas, brake and nitro pads. A controller works too: stick to steer, triggers to drive, face button for nitro.</p>
+      <p>Follow the pink arrow. Roll through a drop ring and the parcel is handed off. If the trunk is full, deliver one or return to the Parcel depot for the rest.</p>
+      <p>Gold rings are side contracts. They pay more and spend time. Once you take one, finish it. Amber cans refill the tank. Cyan tokens give minutes back. Chevron pads give a speed kick.</p>
+      <p>Pass close to other drivers for a near-miss bonus. A hard bump rattles the clock forward four minutes. No one is on foot. The other cars are just traffic.</p>
+      <p>Between nights, the garage sells engine, handling, nitro, trunk space and paint. After you clear Midnight, Endless Coast unlocks. Progress is saved in this browser.</p>
+      <p class="credits">Happy Toons Studio. Art is drawn in the game. Sound is synthesized here. Nothing is fetched from the network.</p>
+      <button type="button" class="btn btn-primary" id="btn-help-back">Back</button>
+    </div>
+  </section>
+
+  <section id="screen-settings" class="screen" hidden>
+    <div class="card glass">
+      <div class="kicker">Options</div>
+      <h2>SETTINGS</h2>
+      <div class="set-row"><span>Music</span><input id="music" type="range" min="0" max="100" value="70" aria-label="Music volume"></div>
+      <div class="set-row"><span>Effects</span><input id="sfx" type="range" min="0" max="100" value="80" aria-label="Effects volume"></div>
+      <div class="set-row"><span>Quality</span><div class="chips" id="quality-chips"></div></div>
+      <div class="set-row"><span>Shake</span><button type="button" class="chip" id="btn-shake">On</button></div>
+      <div class="set-row"><span>Touch pads</span><div class="chips" id="touch-chips"></div></div>
+      <p class="meta">Auto quality eases detail if the frame rate drops. Music and effects are synthesized in the browser.</p>
+      <div class="confirm" id="reset-confirm" hidden>
+        <span>Erase saved nights?</span>
+        <button type="button" class="btn slim btn-ghost" id="btn-reset-yes">Erase</button>
+        <button type="button" class="btn slim btn-ghost" id="btn-reset-no">Keep</button>
+      </div>
+      <div class="row">
+        <button type="button" class="btn btn-ghost" id="btn-reset">Reset progress</button>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-settings-back">Back</button>
+    </div>
+  </section>
+
+  <section id="screen-garage" class="screen" hidden>
+    <div class="card glass">
+      <div class="kicker">Between nights</div>
+      <h2>GARAGE</h2>
+      <div class="wallet" id="garage-cash">Wallet $0</div>
+      <div id="garage-list"></div>
+      <div class="kicker" style="margin-top:12px">Paint</div>
+      <div class="paints" id="paint-list"></div>
+      <p class="meta" id="garage-note">Upgrades apply on the next run.</p>
+      <button type="button" class="btn btn-primary" id="btn-garage-back">Back</button>
+    </div>
+  </section>
+
+  <section id="screen-brief" class="screen" hidden>
+    <div class="card glass">
+      <div class="kicker" id="brief-kicker">Night 1</div>
+      <h2 id="brief-name">Warm-Up Run</h2>
+      <div class="pips-nights" id="night-pips"></div>
+      <p class="blurb" id="brief-blurb"></p>
+      <p class="meta" id="brief-meta"></p>
+      <div class="stars" id="brief-stars"></div>
+      <div class="row">
+        <button type="button" class="btn slim btn-ghost" id="btn-prev-night">Prev</button>
+        <button type="button" class="btn slim btn-ghost" id="btn-next-night">Next</button>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-start-run">Start Run</button>
+      <button type="button" class="btn btn-ghost" id="btn-brief-back">Back</button>
+    </div>
+  </section>
+
+  <section id="screen-pause" class="screen" hidden>
+    <div class="card glass">
+      <div class="kicker">Paused</div>
+      <h2>HOLDING</h2>
+      <p class="blurb">The clock is frozen. Pay from this run is not banked yet.</p>
+      <button type="button" class="btn btn-primary" id="btn-resume">Resume</button>
+      <button type="button" class="btn btn-ghost" id="btn-restart">Retry night</button>
+      <button type="button" class="btn btn-ghost" id="btn-quit">Quit to title</button>
+    </div>
+  </section>
+
+  <section id="screen-summary" class="screen" hidden>
+    <div class="card glass">
+      <div class="kicker" id="sum-kicker">Night clear</div>
+      <h2 id="sum-title">Warm-Up Run</h2>
+      <div class="stars" id="sum-stars">☆☆☆</div>
+      <div class="stats" id="sum-stats"></div>
+      <div class="paylines" id="sum-pay"></div>
+      <button type="button" class="btn btn-primary" id="btn-sum-next">Next Night</button>
+      <button type="button" class="btn btn-primary" id="btn-sum-endless" hidden>Endless Coast</button>
+      <button type="button" class="btn btn-ghost" id="btn-sum-retry">Retry</button>
+      <button type="button" class="btn btn-ghost" id="btn-sum-garage">Garage</button>
+      <button type="button" class="btn btn-ghost" id="btn-sum-title">Title</button>
+    </div>
+  </section>
+
+  <div id="hud" hidden>
+    <div class="hud-left">
+      <button type="button" id="btn-pause" aria-label="Pause">II</button>
+      <div>
+        <div class="clock" id="clock">09:30 PM</div>
+        <div class="sub" id="time-left">2h 30m left</div>
+        <div class="pay" id="cash">Pay $0</div>
+        <div class="bars">
+          <div class="bar-wrap"><span>FUEL</span><div class="bar"><i id="fuel-fill"></i></div></div>
+          <div class="bar-wrap"><span>NITRO</span><div class="bar"><i id="nitro-fill"></i></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="obj">
+      <div id="objective">Drop</div>
+      <div id="obj-dist">0 m</div>
+      <div id="cargo">Trunk 0/2</div>
+      <button type="button" id="btn-next">NEXT</button>
+    </div>
+    <div id="combo"></div>
+  </div>
+
+  <div id="touch" aria-hidden="true">
+    <button type="button" class="pad" id="t-left" aria-label="Steer left">◀</button>
+    <button type="button" class="pad" id="t-right" aria-label="Steer right">▶</button>
+    <button type="button" class="pad" id="t-gas" aria-label="Gas">GAS</button>
+    <button type="button" class="pad" id="t-brake" aria-label="Brake">BRAKE</button>
+    <button type="button" class="pad" id="t-nitro" aria-label="Nitro">NITRO</button>
+  </div>
+  <div id="toast"></div>
+</div>
+<script src="js/audio.js"></script>
+<script src="js/city.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/render.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
