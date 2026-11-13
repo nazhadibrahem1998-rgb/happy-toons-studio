@@ -273,6 +273,58 @@ test('camera, drift, nitro, laser and garage', async function ({ page }, testInf
   expect(errors).toEqual([]);
 });
 
+async function hudGaps(page) {
+  return page.evaluate(function () {
+    function box(sel) {
+      const r = document.querySelector(sel).getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height };
+    }
+    const fuel = box('.bar-wrap span');
+    const bars = box('.bars');
+    const obj = box('.obj');
+    const cell = box('#energy-fill');
+    return {
+      barsBottom: bars.bottom,
+      objTop: obj.top,
+      gap: obj.top - bars.bottom,
+      cellRight: cell.right,
+      objLeft: obj.left,
+      fuelTop: fuel.top
+    };
+  });
+}
+
+test('desktop HUD meters sit above the objective', async function ({ page }, testInfo) {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop hud');
+  const errors = [];
+  track(page, errors);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/');
+  await page.locator('#btn-play').click();
+  await page.locator('#btn-start-run').click();
+  await expect(page.locator('#energy-fill')).toBeVisible();
+  const gap = await hudGaps(page);
+  expect(gap.gap).toBeGreaterThan(6);
+  await page.screenshot({ path: ART + '/midnight-coast-run-hud-desktop.png' });
+  expect(errors).toEqual([]);
+});
+
+test('phone landscape HUD and idle steer wheel', async function ({ page }, testInfo) {
+  test.skip(testInfo.project.name !== 'iphone', 'phone landscape hud');
+  const errors = [];
+  track(page, errors);
+  await page.goto('/');
+  await page.locator('#btn-play').tap();
+  await page.locator('#btn-start-run').tap();
+  await expect(page.locator('#steer-idle')).toBeVisible();
+  const gap = await hudGaps(page);
+  expect(gap.gap).toBeGreaterThan(4);
+  const wheel = await page.locator('#steer-idle').boundingBox();
+  expect(wheel.width).toBeGreaterThan(80);
+  await page.screenshot({ path: ART + '/midnight-coast-run-hud-phone.png' });
+  expect(errors).toEqual([]);
+});
+
 test('phone landscape touch and layout', async function ({ page }, testInfo) {
   test.skip(testInfo.project.name !== 'iphone', 'landscape phone');
   const errors = [];

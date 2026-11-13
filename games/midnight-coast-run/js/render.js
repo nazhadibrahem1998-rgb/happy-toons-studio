@@ -801,22 +801,24 @@
     const target = worldToScreen(state.objective.x, state.objective.y, cam, viewW, viewH);
     const sx = target.x;
     const sy = target.y;
-    const margin = 36;
-    let ax = sx;
-    let ay = sy;
-    const off = sx < margin || sy < margin || sx > viewW - margin || sy > viewH - margin;
-    if (off) {
-      const cx = viewW / 2;
-      const cy = viewH / 2;
-      const dx = sx - cx;
-      const dy = sy - cy;
-      const scale = Math.min(
-        (viewW / 2 - margin) / Math.abs(dx || 0.001),
-        (viewH / 2 - margin) / Math.abs(dy || 0.001)
-      );
-      ax = cx + dx * scale;
-      ay = cy + dy * scale;
-    } else return;
+    const cx = viewW / 2;
+    const cy = viewH / 2;
+    const left = Math.min(250, viewW * 0.34);
+    const top = Math.min(176, viewH * 0.46);
+    const right = viewW - Math.min(160, viewW * 0.22);
+    const bottom = viewH - 40;
+    const onPlayfield = sx >= left && sx <= right && sy >= top && sy <= bottom;
+    if (onPlayfield) return;
+    const dx = sx - cx;
+    const dy = sy - cy;
+    let t = 1;
+    if (dx < 0) t = Math.min(t, (left - cx) / dx);
+    else if (dx > 0) t = Math.min(t, (right - cx) / dx);
+    if (dy < 0) t = Math.min(t, (top - cy) / dy);
+    else if (dy > 0) t = Math.min(t, (bottom - cy) / dy);
+    if (!(t > 0)) return;
+    const ax = cx + dx * t;
+    const ay = cy + dy * t;
     const ang = Math.atan2(ay - origin.y, ax - origin.x);
     ctx.save();
     ctx.translate(ax, ay);

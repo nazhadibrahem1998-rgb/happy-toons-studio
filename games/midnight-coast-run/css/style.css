@@ -71,7 +71,7 @@ h2{font-size:clamp(22px,5vw,32px);letter-spacing:.08em;font-weight:900}
 #energy-fill{background:linear-gradient(90deg,#b388ff,#ff7ad1)}
 #weapon-name{font-size:11px;letter-spacing:.14em;color:#d9b3ff;font-weight:800;min-height:14px}
 #drift{position:absolute;left:50%;top:34%;transform:translateX(-50%);font-weight:900;color:#ffe18a;letter-spacing:.08em;text-align:center}
-.obj{position:absolute;left:calc(8px + env(safe-area-inset-left));top:calc(118px + env(safe-area-inset-top));max-width:min(360px,calc(100vw - 130px));background:rgba(10,6,24,.66);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:6px 10px}
+.obj{position:absolute;left:calc(8px + env(safe-area-inset-left));top:calc(172px + env(safe-area-inset-top));max-width:min(360px,calc(100vw - 130px));background:rgba(10,6,24,.66);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:6px 10px}
 #objective{font-size:14px;font-weight:800;line-height:1.25}
 #obj-dist,#cargo{font-size:12px;color:#c9c4e4}
 #combo{position:absolute;left:50%;top:42%;transform:translateX(-50%);font-size:clamp(16px,3vw,22px);font-weight:900;color:#ffe18a;text-shadow:0 0 12px #ffb000;letter-spacing:.06em;text-align:center;max-width:80vw}
@@ -83,6 +83,9 @@ body.show-touch #touch{display:block}
 .pad{position:absolute;pointer-events:auto;width:78px;height:78px;border-radius:22px;border:1px solid rgba(255,255,255,.22);background:rgba(10,6,24,.55);color:#fff;font-weight:900;font-size:12px;letter-spacing:.04em}
 .pad:active,.pad.held{background:rgba(124,246,255,.28);border-color:#7cf6ff}
 #steer-zone{position:absolute;left:0;bottom:0;width:38%;height:52%;pointer-events:auto}
+#steer-idle{position:absolute;left:50%;top:62%;width:116px;height:116px;margin:-58px 0 0 -58px;border-radius:50%;border:2px solid rgba(124,246,255,.45);background:rgba(8,6,20,.28);pointer-events:none}
+#steer-idle i{position:absolute;left:40px;top:40px;width:36px;height:36px;border-radius:50%;background:rgba(124,246,255,.4)}
+#steer-zone.hot #steer-idle{opacity:.35}
 #stick{position:absolute;width:116px;height:116px;margin:-58px 0 0 -58px;border-radius:50%;border:2px solid rgba(124,246,255,.55);background:rgba(8,6,20,.35);pointer-events:none}
 #stick-knob{position:absolute;left:40px;top:40px;width:36px;height:36px;border-radius:50%;background:#7cf6ff}
 #t-brake{right:calc(12px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom))}
@@ -111,7 +114,8 @@ body.auto-go #t-gas{display:none}
   .logo{font-size:clamp(26px,4.6vh,44px)}
   .btn{min-height:36px;padding:7px 12px;font-size:14px;width:100%}
   .card{margin-top:0}
-  .obj{top:108px}
+  .obj{top:calc(150px + env(safe-area-inset-top))}
+  #steer-idle{top:78%}
   .row > .btn{width:auto;flex:1;max-width:48%}
   .pad{width:64px;height:64px;border-radius:16px;font-size:11px}
   #t-drift{right:calc(84px + env(safe-area-inset-right))}

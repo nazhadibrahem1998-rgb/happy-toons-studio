@@ -604,9 +604,10 @@
     }
     function move(e) {
       if (e.pointerId !== pid) return;
-      const r = zone.getBoundingClientRect();
-      const cx = r.left + r.width * 0.5;
-      const cy = r.top + r.height * 0.62;
+      const idle = document.getElementById('steer-idle');
+      const ir = idle ? idle.getBoundingClientRect() : zone.getBoundingClientRect();
+      const cx = ir.left + ir.width * 0.5;
+      const cy = ir.top + ir.height * 0.5;
       const dx = e.clientX - cx;
       const dy = e.clientY - cy;
       const mag = Math.hypot(dx, dy) || 1;
@@ -614,8 +615,9 @@
       const clamped = Math.min(lim, mag);
       holds.steer = Math.max(-1, Math.min(1, dx / lim));
       stick.hidden = false;
-      stick.style.left = (cx - r.left) + 'px';
-      stick.style.top = (cy - r.top) + 'px';
+      zone.classList.add('hot');
+      stick.style.left = cx + 'px';
+      stick.style.top = cy + 'px';
       knob.style.transform = 'translate(' + (dx / mag * clamped) + 'px,' + (dy / mag * clamped) + 'px)';
     }
     function up(e) {
@@ -623,6 +625,7 @@
       pid = null;
       holds.steer = 0;
       stick.hidden = true;
+      zone.classList.remove('hot');
     }
     zone.addEventListener('pointerdown', down);
     zone.addEventListener('pointermove', move);
