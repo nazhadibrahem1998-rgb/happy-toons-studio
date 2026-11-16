@@ -54,6 +54,13 @@ export const STR = {
   creditKu: { en: '', ckb: 'دروستکراوە بە یارمەتی زیرەکی دەستکرد' },
   playAgain: { en: 'Play again', ckb: 'دووبارە یاری بکە' },
   paused: { en: 'Paused', ckb: 'وەستاوە' },
+  credits: { en: 'Credits', ckb: 'دەستە' },
+  creditsTitle: { en: 'Credits', ckb: 'دەستە' },
+  close: { en: 'Close', ckb: 'داخستن' },
+  creditsBody: {
+    en: 'Original game. No upstream project was used: the side-view tennis games we checked were unlicensed, GPL, or vertical Pong clones whose license did not cover a match with characters and a net.',
+    ckb: 'یارییەکی ڕەسەنە. پڕۆژەیەکی سەرەکی بەکارنەهێنرا، چونکە یارییە کراوەکانی تێنسی لایەنی مۆڵەتی گونجاویان نەبوو.',
+  },
 };
 
 const DIGITS = '٠١٢٣٤٥٦٧٨٩';
