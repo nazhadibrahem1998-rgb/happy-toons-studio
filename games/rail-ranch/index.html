@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6ed63a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Rail Ranch — run a looping train around your ranch, sell milk, eggs, wheat and wool, and grow the farm.">
+<title>Rail Ranch | Happy Toons Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237dce54'/%3E%3Cpath d='M10 40h44' stroke='%23f4f7fb' stroke-width='4'/%3E%3Crect x='18' y='26' width='22' height='14' rx='3' fill='%232c6fe0'/%3E%3Crect x='30' y='18' width='16' height='18' fill='%23e23b3b'/%3E%3Cpath d='M28 18l10-8 10 8' fill='%232f8d46'/%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #6ed63a;
+    color: #1c3314;
+    font-family: "ui-rounded", "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  #view { touch-action: none; z-index: 0; }
+  #fx { pointer-events: none; z-index: 1; }
+  #loading {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #6ed63a;
+    color: #17331a;
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+  }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+  a.all, button { pointer-events: auto; font: inherit; }
+  a.all {
+    position: absolute;
+    left: calc(env(safe-area-inset-left) + 10px);
+    top: calc(env(safe-area-inset-top) + 10px);
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color: #1c3314;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 14px;
+    border: 2px solid #214018;
+  }
+  #best {
+    position: absolute;
+    left: calc(env(safe-area-inset-left) + 12px);
+    top: calc(env(safe-area-inset-top) + 54px);
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: #214018;
+    text-shadow: 0 1px 0 rgba(255,255,255,.7);
+  }
+  #money {
+    position: absolute;
+    right: calc(env(safe-area-inset-right) + 10px);
+    top: calc(env(safe-area-inset-top) + 8px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 128px;
+    min-height: 58px;
+    padding: 6px 18px 6px 8px;
+    border-radius: 30px;
+    background: linear-gradient(#9aef72, #2f9a45 42%, #187a32);
+    color: white;
+    border: 4px solid #0c4e1c;
+    box-shadow: inset 0 3px 0 rgba(255,255,255,.5), 0 4px 0 #0e5a20, 0 10px 18px rgba(20, 60, 20, .28);
+    font-weight: 900;
+    font-size: 34px;
+    letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums;
+    font-family: "ui-rounded", "Arial Rounded MT Bold", "Nunito", system-ui, sans-serif;
+  }
+  .bill {
+    width: 48px;
+    height: 32px;
+    border-radius: 6px;
+    background: linear-gradient(#b6ff78, #2fbe4a);
+    color: white;
+    border: 2px solid #f4ffe8;
+    box-shadow: inset 0 0 0 2px rgba(12, 90, 30, .25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 900;
+    flex: none;
+  }
+  #cash.pop { animation: pop .28s ease; }
+  @keyframes pop { 50% { transform: scale(1.12); } }
+  #mute {
+    position: absolute;
+    right: calc(env(safe-area-inset-right) + 12px);
+    top: calc(env(safe-area-inset-top) + 62px);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid #214018;
+    background: rgba(255,255,255,.92);
+    color: #214018;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  #mute.is-off { color: #8a8f86; }
+  #mute .slash { display: none; }
+  #mute.is-off .slash { display: block; }
+  #mute.is-off .waves { display: none; }
+  #goal {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: calc(env(safe-area-inset-top) + 108px);
+    width: min(300px, 78vw);
+    text-align: center;
+    background: rgba(246, 255, 236, 0.88);
+    border-radius: 18px;
+    padding: 8px 12px 10px;
+    box-shadow: 0 6px 16px rgba(24, 60, 16, 0.16);
+  }
+  #goalBar {
+    height: 12px;
+    border-radius: 99px;
+    background: rgba(20, 40, 16, .18);
+    border: 2px solid rgba(255,255,255,.85);
+    overflow: hidden;
+  }
+  #goalFill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ffe56a, #ff9f1c);
+  }
+  #goalLabel {
+    display: block;
+    margin-top: 4px;
+    font-size: 16px;
+    font-weight: 900;
+    color: #1c3314;
+    text-shadow: 0 1px 0 rgba(255,255,255,.75);
+  }
+  #toast {
+    position: fixed;
+    z-index: 4;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom) + 18px);
+    transform: translateX(-50%);
+    background: #17331a;
+    color: #fff6c2;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    max-width: 88vw;
+    text-align: center;
+  }
+  #sheet, #offline, #confirm { position: fixed; inset: 0; z-index: 5; }
+  #offline, #confirm { z-index: 6; }
+  .dim { position: absolute; inset: 0; background: rgba(16, 32, 12, .35); }
+  .panel, .card {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fffaf0;
+    border-radius: 22px 22px 0 0;
+    padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px);
+    box-shadow: 0 -8px 30px rgba(0,0,0,.18);
+    max-height: 70vh;
+    overflow: auto;
+    touch-action: pan-y;
+  }
+  .card {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(340px, 90vw);
+    border-radius: 22px;
+    text-align: center;
+    max-height: none;
+  }
+  .panel h2, .card h2 { margin: 0 0 4px; font-size: 22px; }
+  .panel p, .card p { margin: 0 0 8px; font-weight: 700; color: #3d5340; }
+  #offlineAmount { font-size: 40px; color: #1f7a32; margin: 6px 0 8px; }
+  .buy, .go {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 48px;
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-radius: 14px;
+    border: 2px solid #1d4a28;
+    background: #e7efe4;
+    color: #1c3314;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .buy.ok, .go { background: #2f9a45; color: white; border-color: #14662a; justify-content: center; }
+  .dots { display: flex; gap: 4px; margin-left: auto; }
+  .dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(0,0,0,.18); display: block; }
+  .buy.ok .dots span { background: rgba(255,255,255,.35); }
+  .dots span.on { background: #ffe56a; }
+  .row { display: flex; gap: 8px; }
+  .row .go { flex: 1; }
+  [hidden] { display: none !important; }
+  .tools {
+    position: fixed;
+    z-index: 4;
+    left: calc(env(safe-area-inset-left) + 10px);
+    right: calc(env(safe-area-inset-right) + 10px);
+    bottom: calc(env(safe-area-inset-bottom) + 12px);
+    display: flex;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .tools button, #buildbar button, #orders button { pointer-events: auto; }
+  .tools button {
+    min-height: 48px;
+    padding: 0 14px;
+    border-radius: 16px;
+    border: 2px solid #145c22;
+    background: #fffaf0;
+    color: #17331a;
+    font-weight: 800;
+  }
+  #buildbar, #orders {
+    position: fixed;
+    z-index: 5;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fffaf0;
+    border-radius: 22px 22px 0 0;
+    padding: 14px 14px calc(env(safe-area-inset-bottom) + 14px);
+    max-height: 48vh;
+    overflow: auto;
+    touch-action: pan-y;
+  }
+  .build-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .build-grid button, .order {
+    min-height: 64px;
+    border-radius: 14px;
+    border: 2px solid #1d4a28;
+    background: #e7efe4;
+    font-weight: 800;
+    text-align: left;
+    padding: 8px 10px;
+  }
+  .build-grid button small, .order small { display: block; font-weight: 700; color: #3d5340; }
+  .build-grid button:disabled { opacity: 0.45; }
+  .order { margin: 6px 0; background: #fff; }
+  #hint {
+    position: fixed;
+    z-index: 3;
+    width: 148px;
+    height: 168px;
+    pointer-events: none;
+    transform: translate(-26%, -78%);
+    filter: drop-shadow(0 8px 5px rgba(16, 40, 12, 0.35));
+  }
+  #hint .press {
+    width: 100%;
+    height: 100%;
+    transform-origin: 26% 78%;
+    animation: glove-press 1.15s ease-in-out infinite;
+  }
+  #hint .ring {
+    position: absolute;
+    left: 26%;
+    top: 78%;
+    width: 72px;
+    height: 40px;
+    margin: -20px 0 0 -36px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px rgba(23, 51, 26, 0.45);
+    animation: glove-ring 1.15s ease-out infinite;
+  }
+  @keyframes glove-press {
+    0%, 100% { transform: translate(0, 0); }
+    40%, 55% { transform: translate(-6px, 8px); }
+  }
+  @keyframes glove-ring {
+    0% { transform: scale(0.35); opacity: 0.95; }
+    62% { transform: scale(1.7); opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+</style>
+</head>
+<body>
+<canvas id="view" aria-label="Rail Ranch"></canvas>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="loading">Rail Ranch</div>
+<div id="hud">
+  <a class="all" href="../">All games</a>
+  <p id="best">Best —</p>
+  <div id="money" aria-live="polite"><span class="bill">$</span><b id="cash">0</b></div>
+  <button id="mute" type="button" aria-label="Sound" aria-pressed="false">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/>
+      <path class="slash" d="M5 5l14 14" stroke="currentColor" stroke-width="2" fill="none"/>
+      <path class="waves" d="M16 9c1.2 1 2 2.2 2 3s-.8 2-2 3" stroke="currentColor" stroke-width="2" fill="none"/>
+    </svg>
+  </button>
+  <div id="goal">
+    <div id="goalBar"><i id="goalFill"></i></div>
+    <span id="goalLabel">Sell goods at the market</span>
+  </div>
+</div>
+<div id="hint" hidden>
+  <span class="ring"></span>
+  <svg class="press" viewBox="0 0 150 170" aria-hidden="true">
+    <g fill="#ffffff" stroke="#17331a" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+      <rect x="78" y="6" width="46" height="26" rx="7"/>
+      <path d="M86 16h30" stroke="#d7e4d4" stroke-width="2.5" fill="none"/>
+      <ellipse cx="88" cy="72" rx="36" ry="30"/>
+      <ellipse cx="62" cy="52" rx="14" ry="12"/>
+      <ellipse cx="82" cy="40" rx="13" ry="12"/>
+      <ellipse cx="102" cy="36" rx="12" ry="11"/>
+      <ellipse cx="122" cy="84" rx="13" ry="20" transform="rotate(28 122 84)"/>
+      <ellipse cx="62" cy="108" rx="13" ry="34" transform="rotate(-42 62 108)"/>
+    </g>
+    <g fill="#ffffff">
+      <rect x="78" y="6" width="46" height="26" rx="7"/>
+      <ellipse cx="88" cy="72" rx="36" ry="30"/>
+      <ellipse cx="62" cy="52" rx="14" ry="12"/>
+      <ellipse cx="82" cy="40" rx="13" ry="12"/>
+      <ellipse cx="102" cy="36" rx="12" ry="11"/>
+      <ellipse cx="122" cy="84" rx="13" ry="20" transform="rotate(28 122 84)"/>
+      <ellipse cx="62" cy="108" rx="13" ry="34" transform="rotate(-42 62 108)"/>
+    </g>
+  </svg>
+</div>
+<div class="tools">
+  <button id="buildBtn" type="button">Build</button>
+  <button id="ordersBtn" type="button">Orders</button>
+  <button id="dailyBtn" type="button">Daily</button>
+</div>
+<div id="buildbar" hidden>
+  <div class="row">
+    <button id="buildRotate" class="buy" type="button">Rotate</button>
+    <button id="buildCancel" class="go" type="button">Done</button>
+  </div>
+  <div id="buildList" class="build-grid"></div>
+</div>
+<div id="orders" hidden>
+  <h2>Orders</h2>
+  <p id="orderMeta"></p>
+  <div id="orderList"></div>
+  <button id="ordersClose" class="go" type="button">Close</button>
+</div>
+<div id="toast" hidden></div>
+<div id="sheet" hidden>
+  <div class="dim" id="dim"></div>
+  <div class="panel" role="dialog" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle">Barn</h2>
+    <p id="sheetLine"></p>
+    <p id="sheetDetail"></p>
+    <div id="sheetActions"></div>
+    <button class="go" id="sheetClose" type="button">Close</button>
+  </div>
+</div>
+<div id="confirm" hidden>
+  <div class="dim"></div>
+  <div class="card" role="dialog" aria-labelledby="confirmTitle">
+    <h2 id="confirmTitle">New region</h2>
+    <p>Move to a fresh ranch? Buildings reset. You keep a permanent sale bonus.</p>
+    <div class="row">
+      <button class="go" id="confirmYes" type="button">Start fresh</button>
+      <button class="buy" id="confirmNo" type="button">Stay</button>
+    </div>
+  </div>
+</div>
+<div id="offline" hidden>
+  <div class="dim"></div>
+  <div class="card" role="dialog" aria-labelledby="offlineTitle">
+    <h2 id="offlineTitle">Welcome back</h2>
+    <p id="offlineAmount">+$0</p>
+    <p id="offlineNote"></p>
+    <button class="go" id="offlineOk" type="button">Collect</button>
+  </div>
+</div>
+<script src="../../assets/js/game-scores.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
