@@ -439,6 +439,47 @@ test('a touch snap puts the player on the pointer in one step', () => {
   assert.ok(moved > 0.02 && moved < 0.25, moved);
 });
 
+test('a dying ball is scored instead of sitting on the court', () => {
+  const state = createMatchState({ mode: 'local', seed: 9 });
+  state.stage = 'play';
+  state.ball = liveBall({
+    x: 16,
+    y: COURT.ballR,
+    z: 4,
+    vx: 0.02,
+    vy: 0,
+    vz: 0,
+    lastHitter: 0,
+    bounceCount: 1,
+  });
+  let guard = 0;
+  while (state.stats.pointsPlayed === 0 && guard < 120) {
+    step(state, IDLE, DT);
+    guard += 1;
+  }
+  assert.equal(state.match.points[0], 1);
+  assert.notEqual(state.stage, 'play');
+  assert.ok(guard < 90, `resolved in ${guard} frames`);
+});
+
+test('a second clip of the net tape is a net point', () => {
+  const state = createMatchState({ mode: 'local', seed: 11 });
+  state.stage = 'play';
+  state.ball = liveBall({
+    x: 11.7,
+    y: COURT.netHeight - 0.05,
+    z: 4,
+    vx: 2.2,
+    vy: 0,
+    lastHitter: 0,
+    bounceCount: 1,
+  });
+  const events = pump(state, 40);
+  assert.ok(events.includes('net'), events.join(','));
+  assert.equal(state.match.points[1], 1);
+  assert.notEqual(state.stage, 'play');
+});
+
 test('players stay inside their own half', () => {
   const state = createMatchState({ mode: 'local', seed: 2 });
   const push = [

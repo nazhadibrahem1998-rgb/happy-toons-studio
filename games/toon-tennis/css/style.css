@@ -235,6 +235,8 @@ details p { margin: 6px 0; }
   line-height: 1.35;
   color: rgba(43, 35, 80, 0.45);
 }
+#credits-body { margin: 8px 0 12px; font-size: 0.95rem; line-height: 1.4; }
+#btn-credits { margin-top: 4px; }
 .langs { display: flex; flex-wrap: wrap; gap: 8px; }
 .langs button { flex: 1 1 140px; min-width: 0; }
 
@@ -275,7 +277,7 @@ details p { margin: 6px 0; }
   }
   #menu .brand { grid-column: 1; }
   #menu .choices { grid-column: 2; }
-  #menu .help, #menu .credit, #menu .owner, #menu .langs { grid-column: 1 / -1; }
+  #menu .help, #menu .credit, #menu .owner, #menu #btn-credits, #menu .langs { grid-column: 1 / -1; }
   .go { min-height: 42px; font-size: 1.05rem; margin: 2px 0 4px; }
   .row { margin-bottom: 4px; }
   .row button { padding: 6px 8px; }
