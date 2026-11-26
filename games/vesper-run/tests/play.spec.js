@@ -57,6 +57,14 @@ test('title screen is quiet and landscape-ready', async ({ page }, info) => {
 test('keyboard moves and jumps', async ({ page }, info) => {
   const bag = await open(page);
   await start(page);
+  await page.waitForTimeout(250);
+  if (info.project.name === 'desktop') {
+    await page.screenshot({ path: path.join(shots, 'vesper-run-desktop.png') });
+  }
+  if (info.project.name === 'iphone-landscape') {
+    await expect(page.locator('#touch')).toBeVisible();
+    await page.screenshot({ path: path.join(shots, 'vesper-run-phone.png') });
+  }
   const x0 = await page.evaluate(() => window.__VR.state().player.x);
   const y0 = await page.evaluate(() => window.__VR.state().player.y);
   await page.keyboard.down('ArrowRight');
@@ -76,14 +84,6 @@ test('keyboard moves and jumps', async ({ page }, info) => {
   await page.keyboard.down('KeyZ');
   await page.waitForTimeout(80);
   await page.keyboard.up('KeyZ');
-  await page.waitForTimeout(400);
-  if (info.project.name === 'desktop') {
-    await page.screenshot({ path: path.join(shots, 'vesper-run-desktop.png') });
-  }
-  if (info.project.name === 'iphone-landscape') {
-    await expect(page.locator('#touch')).toBeVisible();
-    await page.screenshot({ path: path.join(shots, 'vesper-run-phone.png') });
-  }
   assertClean(bag);
 });
 
@@ -130,7 +130,7 @@ test('contact with a skitter spends a charge and respawns', async ({ page }) => 
   assertClean(bag);
 });
 
-test('a full circuit reaches the clear screen and stores a best score', async ({ page }) => {
+test('a full circuit reaches the clear screen and stores a best score', async ({ page }, info) => {
   const bag = await open(page);
   await start(page);
   await page.evaluate((src) => {
@@ -138,6 +138,13 @@ test('a full circuit reaches the clear screen and stores a best score', async ({
     const run = new Function('sensors', 'player', `${src}\nreturn decide(sensors, window.__hold, player);`);
     window.__VR_DRIVER = run;
   }, decide.toString());
+  await page.waitForFunction(() => {
+    const phase = document.body.dataset.phase;
+    return window.__VR.state().player.x > 1100 || phase === 'clear' || phase === 'over';
+  }, null, { timeout: 20000 });
+  if (info.project.name === 'desktop' && await page.evaluate(() => document.body.dataset.phase === 'play')) {
+    await page.screenshot({ path: path.join(shots, 'vesper-run-action.png') });
+  }
   await page.waitForFunction(() => {
     const phase = document.body.dataset.phase;
     return phase === 'clear' || phase === 'over' || phase === 'victory';

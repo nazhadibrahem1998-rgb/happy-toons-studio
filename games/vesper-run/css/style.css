@@ -193,26 +193,32 @@ body:not([data-phase="play"]) #touch { display: none !important; }
   touch-action: none;
   min-width: 68px;
   min-height: 68px;
-  width: 68px;
-  height: 68px;
-  border-radius: 8px;
-  border: 1px solid rgba(62,240,255,0.55);
-  background: rgba(8,10,16,0.72);
-  color: #f4f1ea;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  font-size: 13px;
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  border: 1px solid rgba(93,255,240,0.55);
+  background: rgba(10,14,28,0.34);
+  color: #f4fffd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
+#touch button svg { display: block; }
 #touch button[data-act="jump"] {
-  width: 84px;
-  height: 84px;
-  min-width: 84px;
-  min-height: 84px;
-  background: rgba(62,240,255,0.16);
-  font-size: 14px;
+  width: 86px;
+  height: 86px;
+  min-width: 86px;
+  min-height: 86px;
+  background: rgba(93,255,240,0.16);
+  color: #d8fff8;
 }
-#touch button[data-act="run"] { border-color: rgba(255,45,120,0.7); }
-#touch button.held { background: rgba(62,240,255,0.4); }
+#touch button[data-act="run"] {
+  border-color: rgba(255,77,154,0.7);
+  color: #ffd0e4;
+  background: rgba(255,77,154,0.14);
+}
+#touch button.held { background: rgba(93,255,240,0.42); }
 
 #rotate {
   display: none;

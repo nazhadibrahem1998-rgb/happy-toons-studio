@@ -108,7 +108,10 @@ export function createAudio() {
     get muted() { return muted; },
     jump() { tone(420, 0.09, 'square', 0.06, 720); },
     stomp() { noise(0.08, 0.08); tone(140, 0.1, 'square', 0.07, 70); },
-    shard() { tone(880, 0.07, 'sine', 0.06); tone(1320, 0.09, 'sine', 0.05); },
+    shard() {
+      tone(988, 0.07, 'square', 0.07, 1046);
+      setTimeout(() => tone(1318, 0.09, 'square', 0.06), 55);
+    },
     crate() { noise(0.07, 0.07); tone(220, 0.08, 'square', 0.05, 90); },
     power() {
       tone(440, 0.08, 'square', 0.05);

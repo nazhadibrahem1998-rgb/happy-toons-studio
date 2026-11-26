@@ -194,7 +194,7 @@ test('mover ledges actually meet the rail', () => {
   const probe = (x) => {
     const col = Math.floor(x / 32);
     const row = Math.floor((m.y + 4) / 32);
-    return game.level.solid[row * game.level.w + col] === 1;
+    return game.level.solid[row * game.level.w + col] > 0;
   };
   assert.ok(probe(m.minX + 8), `left ledge ${m.minX}`);
   assert.ok(probe(m.maxX + m.w - 8), `right ledge ${m.maxX + m.w}`);

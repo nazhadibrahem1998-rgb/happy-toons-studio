@@ -71,6 +71,10 @@ export function createGame(opts = {}) {
     beacon: null,
     boss: null,
     parts,
+    floats: [],
+    hitStop: 0,
+    flash: 0,
+    bannerT: 0,
     score: 0,
     best: 0,
     lives: LIVES,
@@ -102,6 +106,23 @@ export function createGame(opts = {}) {
     game.freshBest = game.score > prev && game.score > 0;
   }
 
+  function popup(x, y, text, color) {
+    game.floats.push({ x, y, text, color, life: 0.75, max: 0.75, vy: -42 });
+    if (game.floats.length > 20) game.floats.shift();
+  }
+
+  function decayJuice(dt) {
+    if (game.flash > 0) game.flash = Math.max(0, game.flash - dt * 1.4);
+    if (game.bannerT > 0) game.bannerT = Math.max(0, game.bannerT - dt);
+    for (const c of game.crates) if (c.bump > 0) c.bump = Math.max(0, c.bump - dt * 1.7);
+    for (const f of game.floats) {
+      f.life -= dt;
+      f.y += f.vy * dt;
+      f.vy -= 18 * dt;
+    }
+    game.floats = game.floats.filter((f) => f.life > 0);
+  }
+
   function burst(x, y, color, n, speed, life) {
     for (let i = 0; i < n; i++) {
       const p = parts[partI];
@@ -116,7 +137,7 @@ export function createGame(opts = {}) {
       p.life = life * (0.6 + Math.random() * 0.4);
       p.max = p.life;
       p.color = color;
-      p.size = 1.5 + Math.random() * 2.2;
+      p.size = 2.2 + Math.random() * 3.2;
     }
   }
 
@@ -125,7 +146,7 @@ export function createGame(opts = {}) {
     if (!level) return false;
     if (r < 0 || r >= level.h) return false;
     if (c < 0 || c >= level.w) return true;
-    return level.solid[r * level.w + c] === 1;
+    return level.solid[r * level.w + c] > 0;
   }
 
   function solidAt(px, py) {
@@ -205,6 +226,10 @@ export function createGame(opts = {}) {
     fireCd = 0;
     gateCd = 0.4;
     for (const p of parts) p.alive = false;
+    game.floats = [];
+    game.hitStop = 0;
+    game.flash = 0;
+    game.bannerT = 0;
 
     const feetOf = (m) => (m.r + 1) * TILE;
     const midX = (m, w) => m.c * TILE + (TILE - w) / 2;
@@ -359,6 +384,7 @@ export function createGame(opts = {}) {
       arc: false,
       invuln: 0.4,
       anim: 0,
+      landT: 0,
       riding: null,
     };
     game.player = player;
@@ -480,9 +506,10 @@ export function createGame(opts = {}) {
         p.grounded = true;
         p.jumping = false;
         p.riding = ride;
-        if (impact > 640) {
-          game.shake = Math.max(game.shake, 3);
-          burst(p.x + p.w / 2, p.y + p.h, '#9ad', 5, 70, 0.25);
+        if (impact > 80) p.landT = impact > 420 ? 0.16 : 0.1;
+        if (impact > 200) {
+          game.shake = Math.max(game.shake, impact > 640 ? 3 : 1.5);
+          burst(p.x + p.w / 2, p.y + p.h, '#d8fff8', impact > 640 ? 10 : 6, 110, 0.28);
         }
         return true;
       }
@@ -523,9 +550,11 @@ export function createGame(opts = {}) {
     c.alive = false;
     c.bump = 1;
     game.score += 50;
+    popup(c.x, c.y - 8, '+50', '#ffc14d');
     play('crate');
+    game.hitStop = Math.max(game.hitStop, 0.045);
     game.shake = Math.max(game.shake, 4);
-    burst(c.x + c.w / 2, c.y, '#ffb13a', 12, 140, 0.4);
+    burst(c.x + c.w / 2, c.y, '#ffc14d', 14, 160, 0.45);
     if (c.loot === 'empty') return;
     if (c.loot === 'shard') {
       game.gems.push({ x: c.x + 6, y: c.y - 18, w: 16, h: 16, got: false, phase: 0 });
@@ -539,13 +568,17 @@ export function createGame(opts = {}) {
     if (item.kind === 'bulk') {
       setSize(true);
       say('BULK FRAME');
+      popup(p.x, p.y - 18, 'FRAME', '#ffc14d');
       play('power');
-      burst(p.x + p.w / 2, p.y + 10, '#ffb13a', 16, 160, 0.45);
+      game.flash = 0.55;
+      burst(p.x + p.w / 2, p.y + 10, '#ffc14d', 22, 200, 0.55);
     } else if (item.kind === 'arc') {
       p.arc = true;
       say('ARC SPOOL');
+      popup(p.x, p.y - 18, 'SPOOL', '#ff4d9a');
       play('power');
-      burst(p.x + p.w / 2, p.y + 14, '#ff2d78', 16, 160, 0.45);
+      game.flash = 0.55;
+      burst(p.x + p.w / 2, p.y + 14, '#ff4d9a', 22, 200, 0.55);
     }
     game.score += 400;
   }
@@ -559,9 +592,11 @@ export function createGame(opts = {}) {
     p.jumping = false;
     p.riding = null;
     game.score += 250;
-    game.shake = Math.max(game.shake, 5);
+    popup(e.x, e.y - 6, '+250', '#7dfff0');
+    game.hitStop = Math.max(game.hitStop, 0.07);
+    game.shake = Math.max(game.shake, 6);
     play('stomp');
-    burst(e.x + e.w / 2, e.y + e.h / 2, e.kind === 'lens' ? '#d56bff' : '#3ef0ff', 14, 180, 0.4);
+    burst(e.x + e.w / 2, e.y + e.h / 2, e.kind === 'lens' ? '#e070ff' : '#7dfff0', 16, 200, 0.45);
   }
 
   function hurt(from) {
@@ -609,6 +644,8 @@ export function createGame(opts = {}) {
     if (!boss || !boss.alive || !boss.vulnerable) return false;
     boss.hp -= 1;
     game.score += 500;
+    popup(boss.x, boss.y - 10, '+500', '#ff8aa8');
+    game.hitStop = Math.max(game.hitStop, 0.08);
     game.shake = Math.max(game.shake, 8);
     play('boss');
     burst(boss.x + boss.w / 2, boss.y + 10, '#ff4d6a', 16, 200, 0.45);
@@ -637,8 +674,12 @@ export function createGame(opts = {}) {
     game.score += 1000 + bonus;
     saveBest();
     play('clear');
-    game.shake = 6;
-    burst(game.player.x + 10, game.player.y, '#3ef0ff', 22, 220, 0.6);
+    game.shake = 8;
+    game.flash = 0.4;
+    game.bannerT = 2.6;
+    popup(game.player.x, game.player.y - 28, 'CLEAR', '#ffe7a8');
+    burst(game.player.x + 10, game.player.y, '#7dfff0', 28, 260, 0.7);
+    burst(game.player.x + 10, game.player.y - 20, '#ff4d9a', 18, 220, 0.6);
     game.phase = game.levelIndex >= LEVELS.length - 1 ? 'victory' : 'clear';
   }
 
@@ -667,10 +708,18 @@ export function createGame(opts = {}) {
     game.clock += dt;
     if (game.toastT > 0) game.toastT -= dt;
     if (game.phase !== 'play') {
+      decayJuice(dt);
       snapCamera(false);
       return;
     }
     const p = game.player;
+    if (p.landT > 0) p.landT -= dt;
+    if (game.hitStop > 0) {
+      game.hitStop -= dt;
+      decayJuice(dt);
+      snapCamera(false);
+      return;
+    }
     game.time += dt;
     if (p.invuln > 0) p.invuln -= dt;
     if (buffer > 0) buffer -= dt;
@@ -814,8 +863,10 @@ export function createGame(opts = {}) {
           e.alive = false;
           b.life = 0;
           game.score += 250;
+          popup(e.x, e.y - 8, '+250', '#ff4d9a');
           play('stomp');
-          burst(e.x + e.w / 2, e.y + 6, '#ff2d78', 10, 160, 0.35);
+          game.hitStop = Math.max(game.hitStop, 0.05);
+          burst(e.x + e.w / 2, e.y + 6, '#ff4d9a', 12, 170, 0.4);
         }
       }
       if (game.boss && game.boss.alive && b.life > 0 && overlap(b, game.boss)) {
@@ -853,8 +904,9 @@ export function createGame(opts = {}) {
         g.got = true;
         game.shards += 1;
         game.score += 100;
+        popup(g.x, g.y - 6, '+100', '#7dfff0');
         play('shard');
-        burst(g.x + 8, g.y + 8, '#3ef0ff', 8, 110, 0.35);
+        burst(g.x + 8, g.y + 8, '#7dfff0', 10, 130, 0.4);
       }
     }
 
@@ -912,6 +964,7 @@ export function createGame(opts = {}) {
     }
 
     if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 16);
+    decayJuice(dt);
     snapCamera(false);
   }
 

@@ -2,48 +2,64 @@ export const TILE = 32;
 
 export const THEMES = {
   rail: {
-    top: '#07060f',
-    horizon: '#221448',
-    bottom: '#10141c',
-    neon: '#3ef0ff',
-    hot: '#ff2d78',
-    amber: '#ffb13a',
-    fog: '#140e28',
-    steel: '#1a1826',
-    steelDeep: '#100e18',
+    top: '#2a1d68',
+    horizon: '#5a32a8',
+    bottom: '#3a2068',
+    neon: '#5dfff0',
+    hot: '#ff4d9a',
+    amber: '#ffc14d',
+    fog: '#6a48c8',
+    steel: '#3a4578',
+    steelDeep: '#2a3058',
+    brick: '#7a3a62',
+    moss: '#2f8a78',
+    moon: '#ffe6bf',
+    sign: '#ff4d9a',
   },
   stacks: {
-    top: '#0c0616',
-    horizon: '#3a1460',
-    bottom: '#160e14',
-    neon: '#d56bff',
-    hot: '#ffb13a',
-    amber: '#7af0ff',
-    fog: '#241032',
-    steel: '#221628',
-    steelDeep: '#140c18',
+    top: '#3a1868',
+    horizon: '#6a2890',
+    bottom: '#4a1848',
+    neon: '#e070ff',
+    hot: '#ffc14d',
+    amber: '#7dfff0',
+    fog: '#7a40b0',
+    steel: '#4a3068',
+    steelDeep: '#321848',
+    brick: '#8a4060',
+    moss: '#3a9a70',
+    moon: '#ffd8ea',
+    sign: '#ffc14d',
   },
   circuit: {
-    top: '#04141a',
-    horizon: '#0a3c48',
-    bottom: '#071610',
-    neon: '#5dffc4',
-    hot: '#3ee0ff',
+    top: '#0e3a48',
+    horizon: '#146878',
+    bottom: '#0c4038',
+    neon: '#7dffe0',
+    hot: '#5ad8ff',
     amber: '#ffe08a',
-    fog: '#062830',
-    steel: '#102028',
-    steelDeep: '#08141a',
+    fog: '#1a7880',
+    steel: '#1a4860',
+    steelDeep: '#123040',
+    brick: '#3a6878',
+    moss: '#3aaa78',
+    moon: '#d8fff4',
+    sign: '#7dffe0',
   },
   vault: {
-    top: '#14060c',
-    horizon: '#4a1020',
-    bottom: '#14080c',
-    neon: '#ff4d6a',
-    hot: '#7af0ff',
+    top: '#4a1830',
+    horizon: '#7a2040',
+    bottom: '#3a1428',
+    neon: '#ff6a88',
+    hot: '#7dfff0',
     amber: '#ffd0a8',
-    fog: '#240810',
-    steel: '#241018',
-    steelDeep: '#14080e',
+    fog: '#a04060',
+    steel: '#5a2840',
+    steelDeep: '#3a1828',
+    brick: '#8a3050',
+    moss: '#c06078',
+    moon: '#ffd0c0',
+    sign: '#ff6a88',
   },
 };
 
@@ -52,11 +68,11 @@ function make(spec) {
   const solid = new Uint8Array(w * h);
   const marks = [];
   const api = {
-    box(c0, r0, c1, r1) {
+    box(c0, r0, c1, r1, kind = 1) {
       for (let r = r0; r <= r1; r++) {
         for (let c = c0; c <= c1; c++) {
           if (c < 0 || r < 0 || c >= w || r >= h) continue;
-          solid[r * w + c] = 1;
+          solid[r * w + c] = kind;
         }
       }
     },
@@ -85,19 +101,43 @@ const L1 = make({
   w: 74,
   h: 16,
   paint(a) {
-    a.box(0, 13, 73, 15);
-    a.carve(22, 13, 23, 15);
+    a.box(0, 13, 73, 15, 1);
+    a.box(0, 13, 73, 13, 3);
+    a.carve(18, 13, 19, 15);
     a.carve(48, 13, 49, 15);
-    a.box(36, 12, 37, 12);
+    a.box(24, 13, 35, 13, 2);
+    a.box(36, 12, 37, 12, 2);
+    a.box(0, 6, 0, 12, 1);
+    a.box(1, 9, 1, 12, 1);
+    a.box(0, 6, 2, 6, 2);
+    a.box(4, 8, 9, 8, 2);
+    a.box(12, 7, 16, 7, 2);
+    a.box(21, 8, 26, 8, 1);
+    a.box(38, 8, 43, 8, 2);
     a.mark('spawn', 2, 12);
-    a.mark('shard', 7, 12);
+    a.mark('shard', 5, 12);
+    a.mark('shard', 4, 6);
+    a.mark('shard', 5, 5);
+    a.mark('shard', 6, 5);
+    a.mark('shard', 7, 6);
+    a.mark('shard', 8, 7);
+    a.mark('shard', 9, 7);
+    a.mark('crate', 6, 7, { loot: 'shard' });
     a.mark('skitter', 12, 12, { left: 10, right: 16, speed: 42 });
+    a.mark('lens', 14, 5, { left: 12, right: 16, speed: 34 });
     a.mark('checkpoint', 28, 12);
+    a.mark('shard', 30, 10);
+    a.mark('shard', 31, 9);
+    a.mark('shard', 32, 9);
+    a.mark('shard', 33, 10);
     a.mark('shard', 32, 12);
     a.mark('skitter', 42, 12, { left: 40, right: 45, speed: 36 });
+    a.mark('crate', 40, 7, { loot: 'shard' });
     a.mark('spike', 54, 12);
     a.mark('spike', 55, 12);
-    a.mark('crate', 60, 9, { loot: 'shard' });
+    a.mark('shard', 58, 10);
+    a.mark('shard', 60, 9);
+    a.mark('shard', 62, 10);
     a.mark('shard', 66, 12);
     a.mark('beacon', 70, 12);
   },
@@ -112,13 +152,21 @@ const L2 = make({
   w: 88,
   h: 18,
   paint(a) {
-    a.box(0, 15, 87, 17);
+    a.box(0, 15, 87, 17, 1);
+    a.box(0, 15, 87, 15, 3);
     a.carve(26, 15, 38, 17);
-    a.box(22, 14, 44, 14);
+    a.box(22, 14, 44, 14, 2);
     a.carve(33, 14, 34, 14);
     a.carve(62, 15, 64, 17);
-    a.box(4, 12, 8, 12);
-    a.box(76, 12, 81, 12);
+    a.box(0, 9, 0, 14, 1);
+    a.box(3, 10, 8, 10, 2);
+    a.box(4, 12, 8, 12, 1);
+    a.box(76, 12, 81, 12, 1);
+    a.mark('crate', 5, 9, { loot: 'shard' });
+    a.mark('shard', 3, 8);
+    a.mark('shard', 4, 7);
+    a.mark('shard', 6, 7);
+    a.mark('shard', 7, 8);
     a.mark('spawn', 2, 14);
     a.mark('shard', 8, 14);
     a.mark('skitter', 13, 14, { left: 11, right: 17, speed: 40 });
@@ -145,11 +193,19 @@ const L3 = make({
   w: 102,
   h: 16,
   paint(a) {
-    a.box(0, 13, 101, 15);
+    a.box(0, 13, 101, 15, 1);
+    a.box(0, 13, 101, 13, 3);
     a.carve(34, 13, 44, 15);
     a.carve(70, 13, 72, 15);
-    a.box(20, 12, 21, 12);
-    a.box(80, 10, 84, 10);
+    a.box(20, 12, 21, 12, 2);
+    a.box(80, 10, 84, 10, 2);
+    a.box(0, 7, 0, 12, 1);
+    a.box(3, 8, 8, 8, 2);
+    a.mark('crate', 5, 7, { loot: 'shard' });
+    a.mark('shard', 3, 6);
+    a.mark('shard', 4, 5);
+    a.mark('shard', 6, 5);
+    a.mark('shard', 7, 6);
     a.mark('spawn', 2, 12);
     a.mark('arc', 6, 12);
     a.mark('shard', 10, 12);
@@ -179,10 +235,15 @@ const L4 = make({
   w: 36,
   h: 14,
   paint(a) {
-    a.box(0, 11, 35, 13);
-    a.box(0, 0, 0, 11);
-    a.box(35, 0, 35, 11);
-    a.box(0, 0, 35, 0);
+    a.box(0, 11, 35, 13, 1);
+    a.box(0, 11, 35, 11, 3);
+    a.box(0, 0, 0, 11, 1);
+    a.box(35, 0, 35, 11, 1);
+    a.box(0, 0, 35, 0, 2);
+    a.box(6, 7, 10, 7, 2);
+    a.box(24, 7, 29, 7, 2);
+    a.mark('shard', 8, 6);
+    a.mark('shard', 26, 6);
     a.mark('spawn', 3, 10);
     a.mark('arc', 6, 10);
     a.mark('shard', 8, 10);
