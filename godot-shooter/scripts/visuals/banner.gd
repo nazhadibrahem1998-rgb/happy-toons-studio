@@ -1,6 +1,9 @@
 class_name Banner
 extends RefCounted
 
+# Invented Iron Empire emblem (dark red field, black geometric crown).
+# Not a flag of any real country. The player's Kurdistan flag lives in KurdistanFlag.
+
 const FLAG_SHADER := """shader_type spatial;
 render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
 uniform sampler2D albedo_tex : source_color;

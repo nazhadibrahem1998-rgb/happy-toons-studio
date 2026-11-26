@@ -7,6 +7,7 @@ var _sens: HSlider
 var _volume_value: Label
 var _sens_value: Label
 var _quality_buttons: Dictionary = {}
+var _difficulty_buttons: Dictionary = {}
 
 
 func _ready() -> void:
@@ -20,9 +21,9 @@ func _ready() -> void:
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -280
-	panel.offset_top = -230
+	panel.offset_top = -290
 	panel.offset_right = 280
-	panel.offset_bottom = 230
+	panel.offset_bottom = 290
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
 	SoraniTheme.apply(panel)
@@ -58,6 +59,18 @@ func _ready() -> void:
 	box.add_child(_sens)
 	_sens_value = _label("%.2f" % _sens.value)
 	box.add_child(_sens_value)
+	box.add_child(_label(GameConfig.STR["difficulty"]))
+	var diff_row := HBoxContainer.new()
+	diff_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	diff_row.add_theme_constant_override("separation", 8)
+	box.add_child(diff_row)
+	for diff_id in ["easy", "normal"]:
+		var diff_button := Button.new()
+		diff_button.text = GameConfig.STR[diff_id]
+		diff_button.custom_minimum_size = Vector2(140, 44)
+		diff_button.pressed.connect(_on_difficulty.bind(diff_id))
+		diff_row.add_child(diff_button)
+		_difficulty_buttons[diff_id] = diff_button
 	box.add_child(_label(GameConfig.STR["quality"]))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -82,6 +95,11 @@ func _ready() -> void:
 	_refresh()
 
 
+func _on_difficulty(id: String) -> void:
+	Settings.set_difficulty(id)
+	AudioDirector.play_2d("ui", -8.0)
+
+
 func _on_quality(id: String) -> void:
 	Settings.set_quality(id)
 	AudioDirector.play_2d("ui", -8.0)
@@ -91,6 +109,9 @@ func _refresh() -> void:
 	for id in _quality_buttons.keys():
 		var button: Button = _quality_buttons[id]
 		button.modulate = Color(1, 1, 1) if id == Settings.quality else Color(0.65, 0.62, 0.58)
+	for id in _difficulty_buttons.keys():
+		var diff_button: Button = _difficulty_buttons[id]
+		diff_button.modulate = Color(1, 1, 1) if id == Settings.difficulty else Color(0.65, 0.62, 0.58)
 
 
 func _title(text: String) -> Label:

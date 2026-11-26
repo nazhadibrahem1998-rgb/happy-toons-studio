@@ -6,7 +6,9 @@ Godot **4.7.2** third-person demo. The on-screen title is the Sorani placeholder
 
 Also keep `application/config/name` in `project.godot` and the Windows export product name in sync if you rename the build.
 
-UI is Sorani Kurdish, right to left, using Vazirmatn (OFL). The main menu shows `© 2026 Nazhad Ibrahem`. Studio name is intentionally blank.
+UI is Sorani Kurdish, right to left, using Vazirmatn (OFL). The main menu shows `© 2026 Nazhad Ibrahem – Happy Toons Studio`.
+
+Difficulty defaults to **Easy** (ئاسان). Normal is in Settings. Gurut fights with a wooden sword (شمشێری دار). A metal sword can be picked up in the village. Enemies are Iron Empire soldiers with clubs and shields. They telegraph swings and take turns. There are no guns. Easy gives more health, slower enemy swings, and health regen.
 
 ## Play (Level 1)
 
@@ -16,21 +18,21 @@ Open the folder in Godot 4.7 and press Play, or from a shell:
 godot --path godot-shooter
 ```
 
-Clear the mountain village of the fictional **Iron Empire** (`ئیمپراتۆریەتی ئاسن`). There are no civilians. Soldiers fall and fade; there is no gore.
+Clear the mountain village of the fictional **Iron Empire** (`ئیمپراتۆریەتی ئاسن`). There are no civilians. Soldiers fall and fade; there is no gore. The player's side flies an original drawing of the Kurdistan flag (menu, southern houses and poles, and a patch on Gurut's vest). The occupiers keep the invented Iron Empire banner. No real nation is depicted as the enemy.
 
 | Action | Default |
 | --- | --- |
-| Move | WASD |
-| Look | Mouse |
-| Fire | Left mouse |
-| Aim | Right mouse |
-| Reload | R |
-| Sprint | Shift |
+| Move | WASD, or the left stick on a touch screen |
+| Look | Mouse, or drag on the right side of a touch screen |
+| Light attack | Left mouse |
+| Heavy attack | F |
+| Block | Right mouse (hold) |
+| Dodge | Q |
+| Soft lock-on | V |
 | Jump | Space |
-| Crouch | C |
 | Pause | Esc |
 
-Input actions are named (`move_forward`, `fire`, `aim`, `reload`, …) so Android touch controls can emit the same actions later. Look input goes through `PlayerBody.add_look_delta()`.
+On a phone the game is landscape-only. Touch buttons cover attack, heavy attack, block, dodge, lock-on, and jump. Look sensitivity is in Settings. Quality drops to low on phones and on machines with under about 7 GB of RAM.
 
 Quality settings (low / medium / high) toggle SSAO, glow, volumetric fog, MSAA, and SDFGI. High enables SDFGI. The first launch picks high on a normal GPU and low on software Vulkan.
 

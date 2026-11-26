@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
-[ext_resource type="Script" path="res://scripts/weapons/hitscan_rifle.gd" id="2_rifle"]
+[ext_resource type="Script" path="res://scripts/weapons/melee_weapon.gd" id="2_rifle"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.34
@@ -22,7 +22,7 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="WeaponMount" type="Node3D" parent="Visual"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, 1.22, -0.08)
 
-[node name="Rifle" type="Node3D" parent="Visual/WeaponMount"]
+[node name="Sword" type="Node3D" parent="Visual/WeaponMount"]
 script = ExtResource("2_rifle")
 
 [node name="HeadPivot" type="Node3D" parent="."]
