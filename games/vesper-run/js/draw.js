@@ -288,7 +288,7 @@ function drawMoss(ctx, x, y, above, theme, c) {
 }
 
 function drawPlayer(ctx, p, theme, time) {
-  if (p.invuln > 0 && Math.floor(time * 16) % 2 === 0) return;
+  const flicker = p.invuln > 0 && Math.floor(time * 14) % 2 === 0;
   const run = Math.min(1, Math.abs(p.vx) / 200);
   const idle = p.grounded && run < 0.08;
   const bob = idle ? Math.sin(time * 3) * 1.4 : 0;
@@ -312,6 +312,7 @@ function drawPlayer(ctx, p, theme, time) {
     sy *= 1 + wave * 0.07;
   }
   ctx.save();
+  if (flicker) ctx.globalAlpha = 0.45;
   ctx.translate(cx, feet);
   ctx.scale((p.facing < 0 ? -1 : 1) * sx, sy);
   const scarf = Math.sin(time * 10 + Math.abs(p.vx) * 0.02) * (4 + run * 7);

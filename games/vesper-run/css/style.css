@@ -86,7 +86,7 @@ body[data-phase="play"] #btn-pause { display: block; }
 #toast {
   position: fixed;
   left: 50%;
-  top: calc(54px + env(safe-area-inset-top));
+  top: calc(96px + env(safe-area-inset-top));
   transform: translateX(-50%);
   z-index: 4;
   letter-spacing: 0.22em;
@@ -95,7 +95,7 @@ body[data-phase="play"] #btn-pause { display: block; }
   color: #ffb13a;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
+  transition: opacity 0.45s linear;
 }
 #toast.on { opacity: 1; }
 

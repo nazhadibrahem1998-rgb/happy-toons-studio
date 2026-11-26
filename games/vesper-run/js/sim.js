@@ -56,6 +56,7 @@ export function createGame(opts = {}) {
     cam: { x: 0, y: 0 },
     viewW: 768,
     viewH: 432,
+    touchLayout: false,
     level: null,
     levelIndex: 0,
     player: null,
@@ -192,7 +193,7 @@ export function createGame(opts = {}) {
 
   function say(text) {
     game.toast = text;
-    game.toastT = 1.6;
+    game.toastT = 2.05;
   }
 
   function load(index) {
@@ -423,9 +424,14 @@ export function createGame(opts = {}) {
     const p = game.player;
     const level = game.level;
     if (!p || !level) return;
-    const look = Math.max(-120, Math.min(120, p.vx * 0.34)) + p.facing * 36;
-    let tx = p.x + p.w / 2 + look - game.viewW / 2;
-    let ty = p.y + p.h * 0.35 - game.viewH * 0.58;
+    const touch = game.touchLayout;
+    const look = touch
+      ? Math.max(-70, Math.min(90, p.vx * 0.2))
+      : Math.max(-120, Math.min(120, p.vx * 0.34)) + p.facing * 36;
+    const xAnchor = touch ? 0.38 : 0.5;
+    const yAnchor = touch ? 0.56 : 0.62;
+    let tx = p.x + p.w / 2 + look - game.viewW * xAnchor;
+    let ty = p.y + p.h - game.viewH * yAnchor;
     const maxX = Math.max(0, level.w * TILE - game.viewW);
     const maxY = Math.max(0, level.h * TILE - game.viewH);
     tx = Math.max(0, Math.min(maxX, tx));
@@ -1087,6 +1093,7 @@ export function createGame(opts = {}) {
   game.tickTitle = (dt) => {
     game.clock += dt;
     if (game.player) game.player.anim += dt * 8;
+    snapCamera(false);
     if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 16);
   };
   return game;

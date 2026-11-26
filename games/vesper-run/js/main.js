@@ -3,7 +3,8 @@ import { createAudio } from './audio.js';
 import { render } from './draw.js';
 
 const STEP = 1 / 60;
-const VIEW_H = 432;
+const DESKTOP_VIEW_H = 432;
+const TOUCH_VIEW_H = 380;
 const audio = createAudio();
 const game = createGame({ sfx: audio });
 
@@ -155,22 +156,34 @@ function readPad() {
   return out;
 }
 
+function isTouchLayout() {
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const landscape = window.innerWidth > window.innerHeight && window.innerHeight <= 520;
+  return coarse || (navigator.maxTouchPoints > 0 && landscape);
+}
+
+function currentView() {
+  const touch = isTouchLayout();
+  const viewH = touch ? TOUCH_VIEW_H : DESKTOP_VIEW_H;
+  return { w: cssW * (viewH / cssH), h: viewH, touch };
+}
+
 function resize() {
   cssW = window.innerWidth;
   cssH = Math.max(1, window.innerHeight);
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
-  const viewW = cssW * (VIEW_H / cssH);
-  game.viewW = viewW;
-  game.viewH = VIEW_H;
+  const view = currentView();
+  game.viewW = view.w;
+  game.viewH = view.h;
+  game.touchLayout = view.touch;
   syncPads();
 }
 
 function syncPads() {
-  const coarse = window.matchMedia('(pointer: coarse)').matches;
-  const shortTouch = navigator.maxTouchPoints > 0 && window.innerHeight <= 500;
-  touchRoot.classList.toggle('on', coarse || shortTouch);
+  const show = isTouchLayout();
+  touchRoot.classList.toggle('on', show);
 }
 
 function pad(n, w) {
@@ -206,7 +219,11 @@ function paintPhase() {
   if (game.phase === 'play' && game.toastT > 0 && game.toast) {
     toastEl.textContent = game.toast;
     toastEl.classList.add('on');
-  } else toastEl.classList.remove('on');
+    toastEl.style.opacity = game.toastT < 0.4 ? String(game.toastT / 0.4) : '1';
+  } else {
+    toastEl.classList.remove('on');
+    toastEl.style.opacity = '0';
+  }
   if (game.phase === 'clear' || game.phase === 'victory' || game.phase === 'over') {
     document.getElementById('clear-name').textContent = snap.levelName.toUpperCase();
     document.getElementById('clear-time').textContent = clock(snap.time);
@@ -260,9 +277,10 @@ function frame(now) {
   last = now;
   if (dt > 0.1) dt = 0.1;
   if (dt < 0) dt = 0;
-  const view = { w: cssW * (VIEW_H / cssH), h: VIEW_H };
+  const view = currentView();
   game.viewW = view.w;
   game.viewH = view.h;
+  game.touchLayout = view.touch;
   if (game.phase === 'play') audio.music(dt);
   else if (game.phase === 'title') {
     game.tickTitle(dt);
@@ -314,6 +332,8 @@ window.__VR = {
   state: () => game.snapshot(),
   sensors: () => game.sensors(),
   input: () => ({ ...published }),
+  cam: () => ({ x: game.cam.x, y: game.cam.y }),
+  view: () => ({ w: game.viewW, h: game.viewH, touch: game.touchLayout }),
   queueJump(frames) {
     jumpQueue = frames;
     jumpArm = true;

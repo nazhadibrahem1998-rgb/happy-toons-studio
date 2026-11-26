@@ -89,7 +89,41 @@ function make(spec) {
     },
   };
   paint(api);
-  return { id, name, subtitle, par, theme, w, h, solid, marks };
+  return padLevel({ id, name, subtitle, par, theme, w, h, solid, marks });
+}
+
+function padLevel(level) {
+  const extraX = 9;
+  const extraY = 5;
+  const { w, h, solid, marks } = level;
+  const spawn = marks.find((m) => m.kind === 'spawn');
+  const profile = spawn ? spawn.c : 2;
+  const wall = solid[0] > 0 && solid[w] > 0;
+  const nw = w + extraX;
+  const nh = h + extraY;
+  const next = new Uint8Array(nw * nh);
+  for (let r = 0; r < h; r++) {
+    const sample = solid[r * w + Math.min(profile, w - 1)];
+    for (let c = 0; c < extraX; c++) next[r * nw + c] = sample;
+    for (let c = 0; c < w; c++) next[r * nw + c + extraX] = solid[r * w + c];
+  }
+  for (let r = h; r < nh; r++) {
+    for (let c = 0; c < nw; c++) next[r * nw + c] = next[(h - 1) * nw + c];
+  }
+  if (wall) {
+    for (let r = 0; r < h - 3; r++) {
+      const old = solid[r * w];
+      if (!old) continue;
+      next[r * nw] = old;
+      next[r * nw + extraX] = 0;
+    }
+  }
+  for (const m of marks) {
+    if (typeof m.left === 'number') m.left += extraX;
+    if (typeof m.right === 'number') m.right += extraX;
+    m.c += extraX;
+  }
+  return { ...level, w: nw, h: nh, solid: next, marks };
 }
 
 const L1 = make({

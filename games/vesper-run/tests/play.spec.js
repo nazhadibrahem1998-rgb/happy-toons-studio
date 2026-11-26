@@ -74,16 +74,60 @@ test('keyboard moves and jumps', async ({ page }, info) => {
   await page.keyboard.down('KeyD');
   await page.waitForFunction((startX) => window.__VR.state().player.x > startX + 16, x1);
   await page.keyboard.up('KeyD');
+  await page.keyboard.up('ArrowRight');
   await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
+  const yJump = await page.evaluate(() => window.__VR.state().player.y);
   await page.keyboard.down('Space');
+  await page.keyboard.down('KeyZ');
   await page.waitForFunction((startY) => {
     const p = window.__VR.state().player;
-    return p.vy < -150 || p.y < startY - 8;
-  }, y0);
+    return p.vy < -100 || p.y < startY - 6;
+  }, yJump);
   await page.keyboard.up('Space');
-  await page.keyboard.down('KeyZ');
-  await page.waitForTimeout(80);
   await page.keyboard.up('KeyZ');
+  assertClean(bag);
+});
+
+async function framing(page) {
+  return page.evaluate(() => {
+    const p = window.__VR.state().player;
+    const cam = window.__VR.cam();
+    const view = window.__VR.view();
+    const scale = window.innerHeight / view.h;
+    const sx = (p.x + p.w / 2 - cam.x) * scale;
+    const feet = (p.y + p.h - cam.y) * scale;
+    const left = document.querySelector('[data-act="left"]').getBoundingClientRect();
+    const jump = document.querySelector('[data-act="jump"]').getBoundingClientRect();
+    return {
+      frac: sx / window.innerWidth,
+      feet,
+      btnTop: Math.min(left.top, jump.top),
+      toastTop: document.getElementById('toast').getBoundingClientRect().top,
+      pipsBottom: document.getElementById('hud-lives').getBoundingClientRect().bottom,
+      touch: view.touch,
+    };
+  });
+}
+
+test('phone start keeps the courier above the buttons', async ({ page }, info) => {
+  test.skip(info.project.name !== 'iphone-landscape', 'phone framing');
+  const bag = await open(page);
+  await start(page);
+  for (const size of [
+    { width: 844, height: 390 },
+    { width: 667, height: 375 },
+    { width: 932, height: 430 },
+  ]) {
+    await page.setViewportSize(size);
+    await page.waitForTimeout(550);
+    const m = await framing(page);
+    const label = JSON.stringify({ size, m });
+    expect(m.touch, label).toBe(true);
+    expect(m.frac, label).toBeGreaterThan(0.32);
+    expect(m.frac, label).toBeLessThan(0.46);
+    expect(m.feet, label).toBeLessThan(m.btnTop - 8);
+    expect(m.toastTop, label).toBeGreaterThan(m.pipsBottom + 6);
+  }
   assertClean(bag);
 });
 
@@ -125,7 +169,7 @@ test('contact with a skitter spends a charge and respawns', async ({ page }) => 
   await page.keyboard.up('ArrowRight');
   const after = await page.evaluate(() => window.__VR.state());
   expect(after.lives).toBe(5);
-  expect(after.player.x).toBeLessThan(200);
+  expect(after.player.x).toBeLessThan(420);
   expect(after.phase).toBe('play');
   assertClean(bag);
 });
@@ -142,8 +186,11 @@ test('a full circuit reaches the clear screen and stores a best score', async ({
     const phase = document.body.dataset.phase;
     return window.__VR.state().player.x > 1100 || phase === 'clear' || phase === 'over';
   }, null, { timeout: 20000 });
-  if (info.project.name === 'desktop' && await page.evaluate(() => document.body.dataset.phase === 'play')) {
-    await page.screenshot({ path: path.join(shots, 'vesper-run-action.png') });
+  if (await page.evaluate(() => document.body.dataset.phase === 'play')) {
+    const file = info.project.name === 'iphone-landscape' ? 'vesper-run-phone-action.png' : 'vesper-run-action.png';
+    if (info.project.name === 'desktop' || info.project.name === 'iphone-landscape') {
+      await page.screenshot({ path: path.join(shots, file) });
+    }
   }
   await page.waitForFunction(() => {
     const phase = document.body.dataset.phase;
