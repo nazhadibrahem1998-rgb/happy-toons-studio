@@ -1,0 +1,59 @@
+# Third-party licences
+
+Sharsten's story, villagers, dialogue, meshes, and procedural sounds are original to this project. Azad-i Asmani is a fictional inventor. No real person's name, face, company, or logo is used.
+
+This game was made with AI assistance for code, text, and art direction. The Credits screen says the same thing.
+
+## Godot Engine
+
+The game runs on Godot Engine 4.7.2.
+
+Copyright (c) 2014-present Godot Engine contributors.
+Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+https://godotengine.org/license
+
+## Poly Haven textures (CC0)
+
+Diffuse textures in `assets/textures/polyhaven/`, used on the grassland, plaster, timber roofs, rock walls, rubble, and the distant peaks. CC0 1.0 Universal. No attribution is required by the licence. They are credited anyway.
+
+- aerial_grass_rock — https://polyhaven.com/a/aerial_grass_rock — file `ground.jpg`
+- plastered_wall — https://polyhaven.com/a/plastered_wall — file `plaster.jpg`
+- wood_floor — https://polyhaven.com/a/wood_floor — file `wood.jpg`
+- rock_boulder_dry — https://polyhaven.com/a/rock_boulder_dry — file `rock.jpg`
+- brown_mud_dry — https://polyhaven.com/a/brown_mud_dry — file `mud.jpg`
+
+## Quaternius — Universal Animation Library (CC0)
+
+The villager and player bodies, and the idle, walk, talk, and sit clips, come from `assets/characters/quaternius/UAL1_Standard.fbx`.
+
+Quaternius released the Universal Animation Library as CC0 1.0. The file in this project was taken from the public mirror https://github.com/IAFahim/quaternius.universalAnimationLibrary.standard (the original pack is also published by Quaternius). No attribution is required by the licence. It is credited anyway. Kurdish clothing worn on top of the rig is original to Sharsten. Sheep, goats, chickens, dogs, cats, birds, donkeys, and horses are original low-poly silhouettes. The Quaternius animal pack could not be downloaded in this environment, so it is not included.
+
+Doorway rugs, wall hangings, the wool, cotton, and embroidery cloth images, and the black, grey, and cream jamane checks are original to this project. They are not photographs and not taken from the concept frames. Roads are packed earth and cobble. The full file list, source URLs, and CC0 terms are in `CREDITS.md`.
+
+The CC0 1.0 legal text is published at https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+To the extent possible under law, the persons who associated CC0 with these works have waived all copyright and related rights. The works are provided as-is, without warranty.
+
+## Inspired by
+
+Ideas only. No names, pictures, music, or interface from these works are in the game.
+
+- Fallout and Fallout 4 are trademarks of ZeniMax Media Inc. / Bethesda Softworks.
+- Rust is a trademark of Facepunch Studios Ltd.
+- Valheim is a trademark of Iron Gate Studio.
+- Red Dead Redemption 2 and Grand Theft Auto V are trademarks of Rockstar Games, Inc. / Take-Two Interactive Software, Inc.
+
+Sharsten is not affiliated with, endorsed by, or sponsored by any of them.
+
+The game names no political party, flag, symbol, slogan, or leader, and it does not retell any real conflict.
+
+## Not used
+
+No Mixamo clips. No purchased assets. Animal bodies in the valley are original low-poly silhouettes. The Quaternius animal pack is not included.

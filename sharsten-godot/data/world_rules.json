@@ -1,0 +1,163 @@
+{
+  "influence": [
+    {"id": "raised_fence", "radius": 12.0, "mood": "settled", "need": "quiet lane", "routine": "stay near the new fence"},
+    {"id": "gift_left", "radius": 6.0, "mood": "pleased", "life": "a gift on the step", "bond": "keeps the giver in mind", "need": "nothing urgent", "routine": "pause by the gift"},
+    {"id": "task_helped", "radius": 10.0, "mood": "grateful", "need": "share the work", "routine": "work beside a friend"}
+  ],
+  "life_changes": [
+    {"id": "note_left", "changes": ["mood", "routine"], "via": "note"},
+    {"id": "gift_left", "changes": ["mood", "friendship"], "via": "gift"},
+    {"id": "overheard_choice", "changes": ["mood", "job"], "via": "overheard"},
+    {"id": "task_helped", "changes": ["home", "friendship", "routine"], "via": "task"}
+  ],
+  "events": [
+    {
+      "id": "meteor_quiet",
+      "title": "A stone from the night sky",
+      "radius": 14.0,
+      "family_friendly": true,
+      "gore": false,
+      "deaths": false,
+      "effects": ["homes_cracked", "people_displaced", "people_afraid", "rebuild_together"],
+      "grants": "relic_metal"
+    }
+  ],
+  "secrets": [
+    {"id": "journal_sky_well", "kind": "journal", "clue": "A page under a loose stone. The old makers drew a wheel that drinks the wind."},
+    {"id": "relic_hum", "kind": "relic", "clue": "The frame hums when the lane is quiet. Nobody left a name on it."}
+  ],
+  "money": [
+    {
+      "id": "pay_bread",
+      "kind": "pay",
+      "trade": "pay_bread",
+      "npc": "dayka_hapsa",
+      "cost": 1,
+      "radius": 8.0,
+      "mood": "grateful",
+      "life": "the loaf is paid for",
+      "bond": "owes a kindness at the oven",
+      "routine": "works a shorter afternoon",
+      "price": "steady",
+      "lines": [
+        {"speaker": "kura_rasho", "text": "The loaf is still round. A coin has corners. I am only saying."},
+        {"speaker": "dayka_hapsa", "text": "And the coin is gone, and the loaf is here. Carry it before you count the corners."}
+      ]
+    },
+    {
+      "id": "lend_jug",
+      "kind": "lend",
+      "trade": "lend_jug",
+      "npc": "pura_shrin",
+      "cost": 1,
+      "radius": 8.0,
+      "mood": "relieved",
+      "life": "carrying a small debt and a jug",
+      "bond": "will bring the jug home",
+      "routine": "sets a little aside each evening",
+      "price": "steady",
+      "lines": [
+        {"speaker": "pura_shrin", "text": "The coin can sit until the jug comes home. That is the whole bargain."},
+        {"speaker": "dayka_hapsa", "text": "Then the jug may travel, and nobody has to make a speech about it."}
+      ]
+    },
+    {
+      "id": "gift_loaf",
+      "kind": "gift",
+      "trade": "gift_loaf",
+      "npc": "nabata_bchuk",
+      "cost": 1,
+      "radius": 6.0,
+      "mood": "pleased",
+      "life": "a loaf she did not have to ask for",
+      "bond": "shares the crust",
+      "routine": "saves the heel for later",
+      "price": "steady",
+      "lines": [
+        {"speaker": "nabata_bchuk", "text": "There is a loaf and no argument attached. I checked."},
+        {"speaker": "kcha_zenab", "text": "Then we eat the middle first. The heel can be the argument tomorrow."}
+      ]
+    },
+    {
+      "id": "hire_hands",
+      "kind": "hire",
+      "trade": "hire_hands",
+      "npc": "kura_rasho",
+      "cost": 1,
+      "radius": 10.0,
+      "mood": "busy",
+      "life": "has a dawn errand",
+      "bond": "works beside the elder",
+      "routine": "carries one jar at dawn",
+      "price": "steady",
+      "lines": [
+        {"speaker": "pira_majid", "text": "The boy has one jar to carry at dawn. Not a lecture."},
+        {"speaker": "kura_rasho", "text": "Two jars, if the well is closer than he counted. I stepped it."}
+      ]
+    }
+  ],
+  "wealth": {
+    "radius": 18.0,
+    "rich_at": 3,
+    "poor_at": 0,
+    "rich_mood": "hopeful",
+    "rich_price": "easier",
+    "rich_routine": "lingers at the cloth",
+    "poor_mood": "careful",
+    "poor_price": "dearer",
+    "poor_routine": "keeps the good clay back",
+    "lines_rich": [
+      {"speaker": "fata_chawpes", "text": "The asking price sat down this week. The lane feels lighter."},
+      {"speaker": "khana_nasre", "text": "Then we can finish the hem. Nobody is poorer for a fair price."}
+    ],
+    "lines_poor": [
+      {"speaker": "fata_chawpes", "text": "The asking price stood up. Keep the good thread in the basket."},
+      {"speaker": "khana_nasre", "text": "We will mend what we have. A dear week is not a disaster."}
+    ]
+  },
+  "day": [
+    {"from": 0, "to": 5, "phase": "home"},
+    {"from": 5, "to": 8, "phase": "leave"},
+    {"from": 8, "to": 18, "phase": "work"},
+    {"from": 18, "to": 21, "phase": "return"},
+    {"from": 21, "to": 24, "phase": "home"}
+  ],
+  "side_quests": [
+    {
+      "id": "questions_at_supper",
+      "tone": "family_comedy",
+      "title": "Questions at supper",
+      "summary": "A bright child keeps asking how the relic frame fits together. The parents answer with supper. The grandmother asks him to carry the bread first.",
+      "audience": "everyone"
+    },
+    {
+      "id": "round_loaf",
+      "tone": "family_comedy",
+      "title": "The round loaf",
+      "summary": "A boy explains that a round loaf should cost less because it has no corners. His mother tells him to carry it.",
+      "audience": "everyone"
+    },
+    {
+      "id": "borrowed_jug",
+      "tone": "family_comedy",
+      "title": "The borrowed jug",
+      "summary": "An aunt will lend the good jug if a coin waits for it. The bargain is quieter than the boy expected.",
+      "audience": "everyone"
+    },
+    {
+      "id": "extra_hands",
+      "tone": "family_comedy",
+      "title": "One jar at dawn",
+      "summary": "An elder hires a boy to carry one jar. The boy has already counted the steps and wants to carry two.",
+      "audience": "everyone"
+    },
+    {
+      "id": "the_queue_for_nails",
+      "tone": "gallows",
+      "title": "The queue for nails",
+      "summary": "A chalk list on a broken post says who may take two nails. The list is older than the people waiting. They laugh, then they wait anyway.",
+      "audience": "older",
+      "limits": "no gore, no sexual content, almost no swearing"
+    }
+  ]
+}

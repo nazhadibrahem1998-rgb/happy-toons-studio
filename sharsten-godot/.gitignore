@@ -1,0 +1,6 @@
+.godot/
+*.tmp
+*.translation
+.DS_Store
+builds/*.exe
+builds/*.pck

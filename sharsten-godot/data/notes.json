@@ -1,0 +1,28 @@
+{
+  "notes": [
+    {
+      "id": "mosque_clay",
+      "title": "Paper on the mosque step",
+      "text": "Whoever tends the tandoor: the clay is tired. Two cups on the shelf would please it. Leave them by the oven, not in a stranger's hands.",
+      "starts_quest": "clay_cups"
+    },
+    {
+      "id": "pasture_fence",
+      "title": "Note on the pasture post",
+      "text": "The dream-sheep drift into the herbs. A short wattle fence, raised from the workbench, would keep the lane kind.",
+      "starts_quest": "pasture_fence"
+    },
+    {
+      "id": "echo_grove",
+      "title": "The same scrap, twice",
+      "text": "When the grove repeats itself, the star spring is listening. Four deeds, then the north mist thins: the mould, the cups, the braid, the runes, and the small works of the lane.",
+      "starts_quest": ""
+    },
+    {
+      "id": "unmake_note",
+      "title": "A line on a basket",
+      "text": "Worn rugs, old baskets, broken pots: take them apart at the workbench. The fibre and the clay remember being useful.",
+      "starts_quest": "take_apart"
+    }
+  ]
+}
