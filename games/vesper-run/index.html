@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#07060f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Vesper Run — a night-rail platformer. Sprint the elevated circuits of Lumenfall, crack signal crates, and outlast the Warden.">
+<title>Vesper Run</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2307060f'/%3E%3Cpath d='M8 40h48v4H8z' fill='%233ef0ff'/%3E%3Cpath d='M18 40V22h6l8 10 8-10h6v18h-6V30l-8 10-8-10v10z' fill='%23f4f1ea'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-phase="boot" data-ready="0">
+<canvas id="view"></canvas>
+<div id="hud">
+  <div class="hud-top">
+    <span class="brand" id="hud-level">LOWER RAIL</span>
+    <span class="clock" id="hud-time">00:00</span>
+    <span class="stat">SCORE <b id="hud-score">000000</b></span>
+  </div>
+  <div class="hud-bot">
+    <span class="stat">BEST <b id="hud-best">000000</b></span>
+    <span class="pips" id="hud-lives" aria-label="Charges"></span>
+    <span class="stat">SHARDS <b id="hud-shards">0</b></span>
+    <span class="forms" id="hud-forms"></span>
+  </div>
+</div>
+<button id="btn-pause" type="button" aria-label="Pause">II</button>
+<button id="btn-mute" type="button" aria-label="Mute">SND</button>
+<div id="toast"></div>
+<div id="touch">
+  <div class="cluster">
+    <button type="button" data-act="left" aria-label="Left"><svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M15 4 L6 12 L15 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button type="button" data-act="right" aria-label="Right"><svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M9 4 L18 12 L9 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+  <div class="cluster">
+    <button type="button" data-act="run" aria-label="Run or fire"><svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><path d="M13 2 L4 14 h7 l-1 8 10-14 h-7 z" fill="currentColor"/></svg></button>
+    <button type="button" data-act="jump" aria-label="Jump"><svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true"><path d="M6 15 L12 6 L18 15" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 19 h8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+  </div>
+</div>
+<div id="rotate">
+  <div>
+    <strong>TURN SIDEWAYS</strong>
+    Landscape keeps the rails in frame.
+  </div>
+</div>
+<div id="screen-title" class="screen">
+  <div class="card">
+    <div class="kicker">LUMENFALL CIRCUITS</div>
+    <h1>VESPER<br><span>RUN</span></h1>
+    <p class="sub">A courier on the night rails. Crack signal crates, pocket lumen shards, and reach the beacon before the grid seals.</p>
+    <div class="help">
+      <b>Move</b><span>Arrows or A D</span>
+      <b>Jump</b><span>Space, Z, or W</span>
+      <b>Run / Fire</b><span>Shift or X</span>
+      <b>Pause</b><span>P or Esc</span>
+    </div>
+    <div class="actions">
+      <button id="btn-start" class="btn" type="button">START RUN</button>
+    </div>
+    <div class="meta">BEST <b id="title-best">000000</b></div>
+    <div class="studio">HAPPY TOONS STUDIO</div>
+  </div>
+</div>
+<div id="screen-pause" class="screen">
+  <div class="card">
+    <div class="kicker">HOLDING</div>
+    <h1>PAUSED</h1>
+    <div class="actions">
+      <button id="btn-resume" class="btn" type="button">RESUME</button>
+      <button id="btn-retry" class="btn ghost" type="button">RETRY CIRCUIT</button>
+      <button id="btn-quit" class="btn ghost" type="button">TITLE</button>
+    </div>
+  </div>
+</div>
+<div id="screen-clear" class="screen">
+  <div class="card">
+    <div class="kicker">COURSE CLEAR</div>
+    <h1 id="clear-name">LOWER RAIL</h1>
+    <div class="newbest" id="clear-new">NEW BEST</div>
+    <div class="meta">TIME <b id="clear-time">00:00</b></div>
+    <div class="meta">SCORE <b id="clear-score">0</b></div>
+    <div class="meta">BEST <b id="clear-best">0</b></div>
+    <div class="actions">
+      <button id="btn-next" class="btn" type="button">NEXT CIRCUIT</button>
+    </div>
+  </div>
+</div>
+<div id="screen-over" class="screen">
+  <div class="card">
+    <div class="kicker">RAIL CLOSED</div>
+    <h1>RUN OVER</h1>
+    <p class="sub">The circuit took the last charge.</p>
+    <div class="meta">SCORE <b id="over-score">0</b></div>
+    <div class="meta">BEST <b id="over-best">0</b></div>
+    <div class="actions">
+      <button id="btn-again" class="btn" type="button">TRY AGAIN</button>
+      <button id="btn-over-title" class="btn ghost" type="button">TITLE</button>
+    </div>
+  </div>
+</div>
+<div id="screen-victory" class="screen">
+  <div class="card">
+    <div class="kicker">GRID OPEN</div>
+    <h1>RUN<br><span>COMPLETE</span></h1>
+    <p class="sub">Every circuit is behind you. The Warden is dark.</p>
+    <div class="newbest" id="win-new">NEW BEST</div>
+    <div class="meta">SCORE <b id="win-score">0</b></div>
+    <div class="meta">BEST <b id="win-best">0</b></div>
+    <div class="actions">
+      <button id="btn-win-again" class="btn" type="button">RUN AGAIN</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
