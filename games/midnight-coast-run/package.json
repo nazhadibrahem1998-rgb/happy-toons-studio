@@ -1,0 +1,12 @@
+{
+  "name": "midnight-coast-run",
+  "private": true,
+  "scripts": {
+    "test:logic": "node --test tests/logic.test.js",
+    "test:play": "playwright test",
+    "test": "node --test tests/logic.test.js && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}
