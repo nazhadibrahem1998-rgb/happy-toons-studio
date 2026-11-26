@@ -156,6 +156,13 @@ const Audio = (() => {
       }
     },
     toggleMute() { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.7; return muted; },
+    hold(paused) {
+      if (!ctx) return;
+      try {
+        if (paused) { if (ctx.state === 'running') ctx.suspend(); }
+        else if (ctx.state === 'suspended') ctx.resume();
+      } catch (e) {}
+    },
     get muted() { return muted; }
   };
   return S;
@@ -1141,7 +1148,11 @@ function startBoss() {
 }
 function endGame(win) {
   if (game.state === 'over') return;
-  game.state = 'over'; Audio.music(false); win ? Audio.win() : Audio.lose();
+  game.state = 'over';
+  $('pause').classList.add('hidden');
+  $('hud').classList.add('hidden');
+  Audio.hold(false);
+  Audio.music(false); win ? Audio.win() : Audio.lose();
   if (document.pointerLockElement) document.exitPointerLock();
   $('endTitle').textContent = win ? 'سەرکەوتیت!' : 'گڕوت کەوت…';
   $('endSub').textContent = win ? 'گڕوت میرانی تێکشکاند و گوندەکەی ڕزگار کرد.' : 'خەلیفەکان ئەمجارە بردیانەوە. دووبارە هەوڵ بدەرەوە!';
@@ -1166,8 +1177,8 @@ function endGame(win) {
   paintKhBest();
 }
 function togglePause(force) {
-  if (game.state === 'play' || game.state === 'cine') { game.prev = game.state; game.state = 'paused'; $('pause').classList.remove('hidden'); if (document.pointerLockElement) document.exitPointerLock(); }
-  else if (game.state === 'paused' && force !== true) { game.state = game.prev; $('pause').classList.add('hidden'); }
+  if (game.state === 'play' || game.state === 'cine') { game.prev = game.state; game.state = 'paused'; $('pause').classList.remove('hidden'); Audio.hold(true); if (document.pointerLockElement) document.exitPointerLock(); }
+  else if (game.state === 'paused' && force !== true) { game.state = game.prev; $('pause').classList.add('hidden'); Audio.hold(false); }
 }
 function toMenu() { clearAll(); player.reset(); player.pos.set(0, 0, 0); game.state = 'menu'; Audio.music(false); applyLook(0); ['end', 'pause', 'hud', 'touch'].forEach(id => $(id).classList.add('hidden')); $('start').classList.remove('hidden'); document.body.classList.remove('hts-over'); paintKhBest(); }
 async function goFull() {

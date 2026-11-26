@@ -55,7 +55,7 @@ export function enqueue(item) {
     timestamp: item.timestamp,
   });
   while (queue.length > MAX_QUEUE) queue.shift();
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch { /* private mode */ }
   return queue;
 }
 

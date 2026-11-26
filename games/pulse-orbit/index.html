@@ -67,6 +67,9 @@ h1{font-size:46px;line-height:.95;font-weight:900;letter-spacing:3px;background:
 .toast{position:absolute;z-index:5;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%) translateY(-10px);background:rgba(20,16,50,.92);border:1px solid #7cffb2;color:#7cffb2;font-weight:800;font-size:13px;padding:8px 14px;border-radius:999px;opacity:0;transition:all .25s;white-space:nowrap}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .daily{color:#ffe45e}
+#over .hts-try{margin-top:2px}
+#over .hts-try p{color:#b9b6e6;font-size:13px;letter-spacing:1px;font-weight:700}
+#over .hts-try a{background:rgba(255,255,255,.06);color:#ff9cf0;border:1px solid rgba(255,79,216,.45);border-radius:12px;max-width:300px;font-size:15px}
 </style>
 </head>
 <body>
@@ -117,6 +120,7 @@ h1{font-size:46px;line-height:.95;font-weight:900;letter-spacing:3px;background:
       <div class="chip" id="oAch">Achievements</div>
     </div>
     <a class="link" href="/games/">More games</a>
+    <div id="endTry"></div>
     <div class="hint">Tap anywhere to retry</div>
   </div>
 
@@ -133,6 +137,7 @@ h1{font-size:46px;line-height:.95;font-weight:900;letter-spacing:3px;background:
   </div>
   <div class="toast" id="toast"></div>
 </div>
+<script src="../../assets/js/game-scores.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

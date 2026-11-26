@@ -432,6 +432,12 @@ window.addEventListener('keydown', (event) => {
 });
 window.addEventListener('keyup', (event) => keys.delete(event.code));
 window.addEventListener('blur', () => keys.clear());
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden || phase !== 'play') return;
+  keys.clear();
+  phase = 'pause';
+  updateHud();
+});
 
 function axis(neg, pos) {
   return (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0);

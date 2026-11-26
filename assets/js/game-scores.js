@@ -310,10 +310,12 @@
     var score = Math.max(0, Math.floor(Number(opts.score) || 0));
     var best = Math.max(score, Math.floor(Number(opts.best) || 0));
     var isNew = !!opts.isNew && score > 0;
+    var bestText = best > 0 ? String(best) : '—';
     if (opts.scoreEl) {
-      opts.scoreEl.innerHTML = '<p class="hts-scoreline">Score: <b>' + score + '</b></p>'
-        + '<p class="hts-scoreline">Best: <b>' + best + '</b></p>'
-        + '<p class="hts-new"' + (isNew ? '' : ' hidden') + '>New best!</p>';
+      opts.scoreEl.innerHTML = '<div dir="ltr">'
+        + '<p class="hts-scoreline">Score: <b>' + score + '</b></p>'
+        + '<p class="hts-scoreline">Best: <b>' + bestText + '</b></p>'
+        + '<p class="hts-new"' + (isNew ? '' : ' hidden') + '>New best!</p></div>';
     }
     if (opts.tryEl) {
       var list = others(opts.id);
