@@ -14,8 +14,8 @@ export const CELL = 2;
 export const METERS_PER_CELL = 9;
 export function metersToUnits(m) { return (m / METERS_PER_CELL) * CELL; }
 export function renderRadiusUnits(q) {
-  const key = q === true || q === 'low' ? 'low' : q === 'high' ? 'high' : q === false ? 'high' : (q || 'mid');
-  const meters = key === 'low' ? 70 : 100;
+  const key = q === true || q === 'low' ? 'low' : q === 'ultra' ? 'ultra' : q === 'high' ? 'high' : q === false ? 'high' : (q || 'mid');
+  const meters = key === 'low' ? 70 : key === 'ultra' ? 140 : key === 'high' ? 110 : 100;
   return metersToUnits(meters);
 }
 export const CHUNK_CELLS = 2;

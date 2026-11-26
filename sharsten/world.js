@@ -11,6 +11,8 @@ import { createVillagerRig, poseVillager } from './villagers.js';
 import { Sky } from './vendor/Sky.js';
 import { createChase } from './vendor/chase-camera.js';
 import { grassWind, setGrassTime } from './vendor/grass-wind.js';
+import { makeSurfaces } from './vendor/surfaces.js';
+import { createGrade } from './vendor/grade.js';
 
 const STYLES = [
   { wall: 0xc4a574 },
@@ -174,7 +176,7 @@ export function createView(canvas) {
   if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
   if (THREE.ACESFilmicToneMapping) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 0.96;
   }
   renderer.shadowMap.enabled = true;
   if (THREE.PCFSoftShadowMap) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -254,8 +256,33 @@ export function createView(canvas) {
     clouds.push(sprite);
   }
 
+  const surf = makeSurfaces(THREE);
+  function std(surface, color = 0xffffff) {
+    const m = new THREE.MeshStandardMaterial({
+      color,
+      map: surface.map,
+      normalMap: surface.normalMap,
+      roughnessMap: surface.roughnessMap,
+      roughness: 1,
+      metalness: 0,
+    });
+    m.userData.normal = surface.normalMap || null;
+    return m;
+  }
+  const groundMat = std(surf.grass);
+  const pathMat = std(surf.dirt);
+  const wallMat = std(surf.mud);
+  const roofMat = std(surf.mud);
+  const woodMat = std(surf.wood);
+  const rockMat = std(surf.stone);
   const hillMat = mat(HILL.spring);
-  const valleyMat = mat(GRASS.spring);
+  const valleyMap = surf.grass.map.clone();
+  valleyMap.wrapS = THREE.RepeatWrapping;
+  valleyMap.wrapT = THREE.RepeatWrapping;
+  valleyMap.repeat.set(42, 42);
+  const valleyMat = std(surf.grass);
+  valleyMat.map = valleyMap;
+  valleyMat.color.set(GRASS.spring);
   const valley = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), valleyMat);
   valley.rotation.x = -Math.PI / 2;
   valley.position.y = -0.04;
@@ -311,20 +338,26 @@ export function createView(canvas) {
   scene.add(mounts);
 
   const GROUND_CAP = 1800;
-  const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), mat(0xffffff, { map: grassTexture() }), GROUND_CAP);
-  scene.add(ground);
+  const ground = pool(new THREE.BoxGeometry(CELL * 0.98, 0.16, CELL * 0.98), groundMat, GROUND_CAP);
+  const paths = pool(new THREE.BoxGeometry(CELL * 0.86, 0.16, CELL * 0.86), pathMat, 700);
+  ground.receiveShadow = true;
+  paths.receiveShadow = true;
+  scene.add(ground, paths);
 
-  const walls = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: mudTexture() }), 260);
-  const roofs = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff, { map: roofTexture() }), 80);
-  const beams = pool(new THREE.BoxGeometry(1.5, 0.08, 0.1), mat(0x5a3a22), 48);
-  scene.add(walls, roofs, beams);
+  const walls = pool(new THREE.BoxGeometry(1, 1, 1), wallMat, 260);
+  const roofs = pool(new THREE.BoxGeometry(1, 1, 1), roofMat, 120);
+  const beams = pool(new THREE.BoxGeometry(1.5, 0.08, 0.1), woodMat, 48);
+  const doors = pool(new THREE.BoxGeometry(0.08, 0.46, 0.34), woodMat, 48);
+  walls.castShadow = true;
+  roofs.castShadow = true;
+  scene.add(walls, roofs, beams, doors);
 
   const soil = pool(new THREE.BoxGeometry(1.7, 0.08, 1.7), mat(0x8a623c), 40);
   const wheat = pool(new THREE.BoxGeometry(0.12, 1, 0.12), mat(0xffffff), 240);
   const vines = pool(new THREE.BoxGeometry(0.08, 0.7, 0.08), mat(0x6b4a2a), 80);
   const leaves = pool(new THREE.SphereGeometry(0.28, 5, 4), mat(0xffffff), 80);
-  const trunks = pool(new THREE.CylinderGeometry(0.1, 0.14, 0.8, 5), mat(0x6b4226), 40);
-  const canopy = pool(new THREE.SphereGeometry(0.45, 6, 5), mat(0xffffff), 80);
+  const trunks = pool(new THREE.CylinderGeometry(0.1, 0.14, 0.8, 5), woodMat, 40);
+  const canopy = pool(new THREE.SphereGeometry(0.45, 6, 5), mat(0xffffff), 160);
   const posts = pool(new THREE.BoxGeometry(0.1, 0.7, 0.1), mat(0xc2b49a), 80);
   const boxes = pool(new THREE.BoxGeometry(1, 1, 1), mat(0xffffff), 40);
   scene.add(soil, wheat, vines, leaves, trunks, canopy, posts, boxes);
@@ -537,9 +570,9 @@ export function createView(canvas) {
 
   const mosque = new THREE.Group();
   mosque.rotation.y = Math.PI * 0.75;
-  const stone = mat(0xe4ddd2);
-  const mud = mat(0xd2b48c);
-  const wood = mat(0x6b4226);
+  const stone = rockMat.clone();
+  const mud = wallMat.clone();
+  const wood = woodMat.clone();
   const dark = mat(0x3e4a55);
   const floor = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.08, 3.15), mat(0xc8b090));
   floor.position.y = 0.04;
@@ -579,10 +612,13 @@ export function createView(canvas) {
   flag.position.set(1.4, 2.08, 1.55);
   mosque.add(pole, flag);
 
-  const springMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.12, 8), mat(0x3aa0d8));
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x6ec8ea, map: surf.water.map, roughness: 0.15, metalness: 0.06, transparent: true, opacity: 0.9,
+  });
+  const springMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.12, 10), waterMat);
   const springAt = cellToWorld(1, 8);
   springMesh.position.set(springAt.x, 0.08, springAt.z);
-  const stream = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.05, 3.2), mat(0x4aa8d4));
+  const stream = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.05, 3.2), waterMat);
   stream.position.set(springAt.x - 0.2, 0.06, springAt.z + 1.5);
   scene.add(springMesh, stream);
 
@@ -594,25 +630,46 @@ export function createView(canvas) {
   const ghost = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), mat(0x3dbe6a, { transparent: true, opacity: 0.4 }));
   ghost.visible = false;
   scene.add(ghost);
-  const treeTrunk = pool(new THREE.CylinderGeometry(0.12, 0.16, 0.9, 6), mat(0x6b4226), 40);
-  const treeTop = pool(new THREE.ConeGeometry(0.55, 1.1, 8), mat(0x3aaa40), 40);
-  const treePuff = pool(new THREE.SphereGeometry(0.38, 8, 6), mat(0x2f8a34), 40);
-  const rockMesh = pool(new THREE.DodecahedronGeometry(0.38, 0), mat(0x9aa0a4), 24);
+  const treeTrunk = pool(new THREE.CylinderGeometry(0.12, 0.16, 0.9, 6), woodMat, 40);
+  const treeTop = pool(new THREE.ConeGeometry(0.7, 1.25, 8), mat(0x3aaa40), 40);
+  const treePuff = pool(new THREE.SphereGeometry(0.42, 8, 6), mat(0x2f8a34), 120);
+  const rockMesh = pool(new THREE.DodecahedronGeometry(0.38, 0), rockMat, 24);
   scene.add(treeTrunk, treeTop, treePuff, rockMesh);
   const tuftMat = grassWind(mat(0x3f8a32));
-  const tufts = pool(new THREE.ConeGeometry(0.08, 0.22, 4), tuftMat, 36);
-  for (let i = 0; i < 36; i += 1) {
-    const a = (i / 36) * Math.PI * 2;
-    const p = cellToWorld(LAYOUT.mosque.gx + Math.cos(a) * (2 + (i % 4)), LAYOUT.mosque.gz + Math.sin(a) * (2 + (i % 3)));
-    put(tufts, i, p.x, 0.12, p.z, 1, 1, 1, i, 0x3f8a32);
+  const tufts = pool(new THREE.ConeGeometry(0.08, 0.22, 4), tuftMat, 110);
+  let tuftN = 0;
+  for (let i = 0; i < 160 && tuftN < 110; i += 1) {
+    const gx = 6 + hash(i + 2) * 34;
+    const gz = 16 + hash(i + 11) * 28;
+    if (isRoad(Math.round(gx), Math.round(gz))) continue;
+    const p = cellToWorld(gx, gz);
+    put(tufts, tuftN, p.x, 0.14, p.z, 1, 0.8 + (i % 3) * 0.25, 1, i, 0x3f8a32);
+    tuftN += 1;
   }
-  commit(tufts, 36);
+  commit(tufts, tuftN);
   scene.add(tufts);
+  const flowers = pool(new THREE.SphereGeometry(0.055, 5, 4), mat(0xffffff), 80);
+  const flowerColors = [0xf2d06a, 0xf7f3ea, 0xe07a8a, 0xc4d86a];
+  let flowerN = 0;
+  for (let i = 0; i < 220 && flowerN < 80; i += 1) {
+    const gx = 8 + hash(i + 19) * 30;
+    const gz = 18 + hash(i + 23) * 26;
+    if (isRoad(Math.round(gx), Math.round(gz))) continue;
+    const p = cellToWorld(gx, gz);
+    put(flowers, flowerN, p.x, 0.12, p.z, 1, 0.7, 1, i, flowerColors[i % 4]);
+    flowerN += 1;
+  }
+  commit(flowers, flowerN);
+  scene.add(flowers);
+  const smokeMat = new THREE.MeshBasicMaterial({ color: 0xd9d3cb, transparent: true, opacity: 0.32, depthWrite: false });
+  const smoke = pool(new THREE.SphereGeometry(0.16, 6, 4), smokeMat, 24);
+  scene.add(smoke);
   const handTool = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.08), mat(0xc4a574));
   handTool.visible = false;
   scene.add(handTool);
 
   const cellByInstance = [];
+  const pathCells = [];
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   let low = false;
@@ -659,14 +716,22 @@ export function createView(canvas) {
       tiles.sort((a, b) => a.dist - b.dist);
       tiles.length = GROUND_CAP;
     }
-    tiles.forEach((tile, n) => {
-      let color = ((tile.gx + tile.gz) % 2 === 0) ? CELL_A[key] : CELL_B[key];
-      if (tile.kind === 'stone') color = 0xc8b8a0;
-      else if (tile.kind) color = 0xb7a48a;
-      put(ground, n, tile.p.x, 0.08, tile.p.z, 1, 1, 1, 0, color);
-      cellByInstance[n] = { gx: tile.gx, gz: tile.gz };
+    let gn = 0;
+    let pn = 0;
+    tiles.forEach((tile) => {
+      const grassColor = ((tile.gx + tile.gz) % 2 === 0) ? CELL_A[key] : CELL_B[key];
+      put(ground, gn, tile.p.x, 0.07, tile.p.z, 1, 1, 1, 0, grassColor);
+      cellByInstance[gn] = { gx: tile.gx, gz: tile.gz };
+      gn += 1;
+      if (tile.kind && pn < 700) {
+        const dirt = tile.kind === 'stone' ? 0xd5c4aa : 0xc4a574;
+        put(paths, pn, tile.p.x, 0.1, tile.p.z, 1, 1, 1, 0, dirt);
+        pathCells[pn] = { gx: tile.gx, gz: tile.gz };
+        pn += 1;
+      }
     });
-    commit(ground, tiles.length);
+    commit(ground, gn);
+    commit(paths, pn);
   }
 
   function syncBuildings(state, painted) {
@@ -688,6 +753,7 @@ export function createView(canvas) {
     let wi = 0;
     let ri = 0;
     let beamN = 0;
+    let doorN = 0;
     const nearM = metersToUnits(16);
     houses.forEach((b) => {
       const p = cellToWorld(b.gx, b.gz);
@@ -716,8 +782,16 @@ export function createView(canvas) {
         wi += 1;
         put(walls, wi, p.x - 0.66, 0.26, p.z, 0.08, 0.4, 1.24, 0, s.wall);
         wi += 1;
-        put(walls, wi, p.x + 0.66, 0.26, p.z, 0.08, 0.4, 1.24, 0, 0xe7e0d0);
+        put(walls, wi, p.x + 0.66, 0.26, p.z, 0.08, 0.4, 1.24, 0, s.wall);
         wi += 1;
+        if (doorN < 48) {
+          put(doors, doorN, p.x + 0.72, 0.22, p.z, 1, 0.85, 0.7, 0, 0xffffff);
+          doorN += 1;
+        }
+        if (beamN < 46) {
+          put(beams, beamN, p.x, 0.66, p.z - 0.05, 1, 1, 1, 0, 0xffffff);
+          beamN += 1;
+        }
         put(roofs, ri, p.x - (L ? 0.28 : 0), 0.58, p.z - 0.22, L ? 0.78 : 1.28, 0.08, 0.62, 0, 0xd8c4a4);
         ri += 1;
         if (L && ri < 78) {
@@ -729,6 +803,7 @@ export function createView(canvas) {
     commit(walls, wi);
     commit(roofs, ri);
     commit(beams, beamN);
+    commit(doors, doorN);
 
     let soilN = 0;
     let wheatN = 0;
@@ -812,6 +887,10 @@ export function createView(canvas) {
           canN += 1;
           put(canopy, canN, p.x - 0.22, 0.96, p.z + 0.18, 0.38, 0.32, 0.38, 0, pink ? 0xf48fb4 : 0xfff4ea);
           canN += 1;
+          if (quality !== 'low' && canN < 150) {
+            put(canopy, canN, p.x + 0.05, 1.32, p.z + 0.12, 0.55, 0.4, 0.5, 0, pink ? 0xf7b7cc : 0xe7f0d8);
+            canN += 1;
+          }
         } else if (canN < 79) {
           const crown = painted === 1 ? (pink ? 0xd24a4a : 0x6aaa48) : painted === 2 ? 0xd4893a : 0x6b5344;
           const scale = painted === 3 ? 0.45 : 1;
@@ -871,16 +950,20 @@ export function createView(canvas) {
       if (v.hidden) return;
       const kind = v.role === 'mullah' ? 'mullah' : (v.role === 'child' || v.gender === 'child' ? 'child' : (v.gender === 'woman' ? 'woman' : 'man'));
       let rig = villagerRigs.get(v.id);
-      if (!rig || rig.kind !== kind) {
+      if (!rig || rig.kind !== kind || rig.lookName !== (v.nameCkb || '')) {
         if (rig) scene.remove(rig.root);
-        rig = createVillagerRig(kind, v.id || 0);
+        rig = createVillagerRig(kind, v.id || 0, v.nameCkb || '');
         villagerRigs.set(v.id, rig);
         scene.add(rig.root);
       }
       seen.add(v.id);
       rig.root.visible = true;
       const baseScale = kind === 'child' ? 0.5 : 0.68;
-      rig.root.scale.setScalar(v.tall ? baseScale * 1.28 : baseScale);
+      const prop = rig.proportions;
+      const sx = prop ? prop[0] : (v.tall ? 1.12 : 1);
+      const sy = prop ? prop[1] : (v.tall ? 1.28 : 1);
+      const sz = prop ? prop[2] : sx;
+      rig.root.scale.set(baseScale * sx, baseScale * sy, baseScale * sz);
       const stumble = v.prayer ? 0 : (v.stumble ? 0.15 : 0);
       const prev = rig._step || { x: p.x, z: p.z, t: time };
       const speed = Math.hypot(p.x - prev.x, p.z - prev.z) / Math.max(0.016, time - prev.t);
@@ -892,7 +975,16 @@ export function createView(canvas) {
         ride ? ride.y : 0,
         p.z - ahead.z * (ride ? ride.back : 0),
       );
-      rig.root.rotation.y = modelYaw(faceYaw);
+      const targetYaw = modelYaw(faceYaw);
+      let yTurn = rig._yaw;
+      if (yTurn == null) yTurn = targetYaw;
+      let yawGap = targetYaw - yTurn;
+      while (yawGap > Math.PI) yawGap -= Math.PI * 2;
+      while (yawGap < -Math.PI) yawGap += Math.PI * 2;
+      const turnDt = Math.max(0.016, time - prev.t);
+      yTurn += yawGap * (1 - Math.exp(-10 * Math.min(turnDt, 0.05)));
+      rig._yaw = yTurn;
+      rig.root.rotation.y = yTurn;
       const moving = !ride && speed > 0.22;
       let action = 'idle';
       const act = v.act || '';
@@ -908,17 +1000,32 @@ export function createView(canvas) {
       let tool = v.player ? '' : (v.prop || '');
       if (v.player && action === 'chop') tool = '';
       const sword = (state.tools || {}).sword && v.player ? (state.swordOut ? 'hand' : 'belt') : '';
-      poseVillager(rig, {
-        time,
-        seed: v.id || 0,
-        action,
-        tool,
-        sword,
-        gait: v.player ? PLAYER_GAIT : 1,
-        swing: state.swordSwing > 0 && v.player,
-        blocking: state.block > 0 && v.player,
-        happy: (v.happiness || 0) > 70,
-      });
+      const distHere = Math.hypot(p.x - cull.x, p.z - cull.z);
+      rig._animN = (rig._animN || 0) + 1;
+      const poseNow = quality !== 'low' || distHere < metersToUnits(18) || rig._animN % 3 === 0;
+      if (poseNow) {
+        rig._travel = (rig._travel || 0) + (moving ? Math.hypot(p.x - prev.x, p.z - prev.z) : 0);
+        poseVillager(rig, {
+          time,
+          dt: turnDt,
+          travel: rig._travel,
+          turn: yawGap,
+          seed: v.id || 0,
+          action,
+          tool,
+          sword,
+          gait: v.player ? PLAYER_GAIT : 1,
+          swing: state.swordSwing > 0 && v.player,
+          blocking: state.block > 0 && v.player,
+          happy: (v.happiness || 0) > 70,
+        });
+      }
+      if (portraitId && v.id === portraitId) {
+        const dx = camera.position.x - rig.root.position.x;
+        const dz = camera.position.z - rig.root.position.z;
+        rig.root.rotation.y = modelYaw(Math.atan2(dx, dz));
+        rig._yaw = rig.root.rotation.y;
+      }
     });
     villagerRigs.forEach((rig, id) => { if (!seen.has(id)) rig.root.visible = false; });
     let fi = 0;
@@ -1032,6 +1139,9 @@ export function createView(canvas) {
   let animTime = 0;
   const chase = createChase();
   let quality = 'mid';
+  let portraitId = 0;
+  let grade = null;
+  let sunAngle = 1.1;
   let ghostOk = true;
   function resize() {
     const vv = window.visualViewport;
@@ -1041,15 +1151,25 @@ export function createView(canvas) {
     document.documentElement.style.setProperty('--vv-w', `${w}px`);
     const dpr = window.devicePixelRatio || 1;
     const coarse = matchMedia('(pointer: coarse)').matches;
-    const cap = quality === 'low' ? 1 : quality === 'high' ? (coarse ? 1.75 : 2) : (coarse ? 1.5 : 1.75);
+    let cap = 1;
+    if (quality === 'ultra') cap = coarse ? 1.5 : 1.25;
+    else if (quality === 'high') cap = coarse ? 1.75 : 1.5;
+    else if (quality === 'mid') cap = coarse ? 1.5 : 1.5;
     renderer.setPixelRatio(Math.min(dpr, cap));
     renderer.setSize(Math.max(160, Math.round(w)), Math.max(120, Math.round(h)), false);
     camera.aspect = w / Math.max(1, h);
     camera.updateProjectionMatrix();
     renderer.shadowMap.enabled = quality !== 'low';
     sun.castShadow = quality !== 'low';
-    const mapSize = quality === 'high' ? 1024 : 512;
+    const mapSize = quality === 'ultra' ? (coarse ? 1024 : 2048) : quality === 'high' ? 1024 : 512;
     sun.shadow.mapSize.set(mapSize, mapSize);
+    const fancy = quality === 'high' || quality === 'ultra';
+    [groundMat, pathMat, wallMat, roofMat, woodMat, rockMat, valleyMat].forEach((m) => {
+      if (m && m.userData) m.normalMap = quality === 'low' ? null : m.userData.normal;
+    });
+    if (tufts) tufts.count = quality === 'ultra' ? tuftN : quality === 'high' ? Math.min(70, tuftN) : quality === 'low' ? Math.min(24, tuftN) : Math.min(40, tuftN);
+    if (flowers) flowers.count = quality === 'ultra' ? flowerN : quality === 'high' ? Math.min(48, flowerN) : quality === 'low' ? 0 : Math.min(24, flowerN);
+    void fancy;
   }
 
   let forceDay = true;
@@ -1057,24 +1177,30 @@ export function createView(canvas) {
     const h = previewSpring || forceDay ? 11 : state.hour + (state.acc || 0) / 2;
     const night = !forceDay && !previewSpring && (h < 5 || h >= 21);
     const dawn = !night && !forceDay && ((h >= 5 && h < 7) || (h >= 19 && h < 21));
-    let top = 0x3a8fe0;
-    let horizon = 0xd7f0ff;
-    if (night) { top = 0x7aa6d8; horizon = 0xd4e8f8; }
-    else if (dawn) { top = 0xf0a06a; horizon = 0xffe0c0; }
-    else if (!forceDay && painted === 1) { top = 0x69b4e4; horizon = 0xf0e4c4; }
-    else if (!forceDay && painted === 2) { top = 0x6aa0cc; horizon = 0xf0c8a4; }
-    else if (!forceDay && painted === 3) { top = 0x9eb8cc; horizon = 0xe7eef4; }
+    let top = 0x3d92e6;
+    let horizon = 0xffe7c4;
+    let haze = 0xc9e4f6;
+    let sunHex = 0xfff1c4;
+    let sunPower = 1.35;
+    if (night) { top = 0x6f94c4; horizon = 0xd4e2f0; haze = 0xb7cbe0; sunHex = 0xd7e4ff; sunPower = 0.85; }
+    else if (dawn) { top = 0xf0a06a; horizon = 0xffe0c0; haze = 0xf0c8a4; sunHex = 0xffb070; sunPower = 1.45; }
+    else if (!forceDay && h >= 11 && h < 15) { top = 0x3d92e6; horizon = 0xfff0d2; haze = 0xc5e0f4; sunHex = 0xfff6d4; sunPower = 1.45; }
+    else if (!forceDay && painted === 1) { top = 0x69b4e4; horizon = 0xf0e4c4; haze = 0xe7d7b0; }
+    else if (!forceDay && painted === 2) { top = 0x6aa0cc; horizon = 0xf0c8a4; haze = 0xe4c8a0; }
+    else if (!forceDay && painted === 3) { top = 0x9eb8cc; horizon = 0xe7eef4; haze = 0xd5e0ea; sunHex = 0xe7eef8; sunPower = 1.2; }
     paintSky(top, horizon);
-    const haze = 0xd7f0ff;
     scene.background.set(haze);
     scene.fog.color.set(haze);
     renderer.setClearColor(haze, 1);
-    sun.color.set(night ? 0xe4eeff : 0xffe0a8);
-    sun.intensity = night ? 1.15 : 1.55;
-    hemi.intensity = night ? 0.9 : 1.05;
-    hemi.color.set(0xe7f4ff);
+    sun.color.set(sunHex);
+    sun.intensity = sunPower;
+    hemi.intensity = night ? 0.7 : dawn ? 0.85 : 0.95;
+    ambient.intensity = night ? 0.18 : 0.32;
+    ambient.color.set(dawn ? 0xffd0a8 : 0xfff3e0);
+    hemi.color.set(dawn ? 0xffd2b0 : 0xd7ecff);
     hemi.groundColor.set(painted === 0 ? 0x3e7a34 : (GRASS[SEASONS[painted]] || GRASS.spring));
-    const ang = ((Math.min(18, Math.max(6, h)) - 6) / 12) * Math.PI;
+    sunAngle = ((Math.min(18, Math.max(6, h)) - 6) / 12) * Math.PI;
+    const ang = sunAngle;
     const sunDir = new THREE.Vector3(Math.cos(ang), Math.sin(ang) * 0.85 + 0.15, 0.35).normalize();
     skyUniforms.sunPosition.value.copy(sunDir);
     analyticSky.visible = quality !== 'low';
@@ -1107,7 +1233,7 @@ export function createView(canvas) {
     setQuality(next) {
       if (next === true) quality = 'low';
       else if (next === false) quality = 'high';
-      else if (next === 'low' || next === 'mid' || next === 'high') quality = next;
+      else if (next === 'low' || next === 'mid' || next === 'high' || next === 'ultra') quality = next;
       low = quality === 'low';
       resize();
     },
@@ -1153,9 +1279,10 @@ export function createView(canvas) {
       ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(ndc, camera);
-      const hits = raycaster.intersectObject(ground);
+      const hits = raycaster.intersectObjects([ground, paths]);
       if (!hits.length || hits[0].instanceId == null) return null;
-      return cellByInstance[hits[0].instanceId] || null;
+      const book = hits[0].object === paths ? pathCells : cellByInstance;
+      return book[hits[0].instanceId] || null;
     },
     lookAtBuild(cam) {
       const cp = Math.cos(cam.pitch);
@@ -1169,6 +1296,18 @@ export function createView(canvas) {
       camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     },
     lookAtWalk(gx, gz, yaw, pitch) {
+      if (portraitId) {
+        const rig = villagerRigs.get(portraitId);
+        if (rig && rig.root.visible) {
+          const p = rig.root.position;
+          const headY = p.y + rig.root.scale.y * 1.15;
+          camera.position.set(p.x + 1.15, headY + 0.35, p.z + 3.6);
+          camera.lookAt(p.x, headY, p.z);
+          camera.updateMatrixWorld(true);
+          camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+          return;
+        }
+      }
       const p = cellToWorld(gx, gz);
       const dist = 5.2;
       const cp = Math.cos(pitch);
@@ -1234,10 +1373,35 @@ export function createView(canvas) {
         ghost.material.color.set(ghostOk ? 0x3dbe6a : 0xd04545);
         ghost.visible = true;
       } else ghost.visible = false;
-      sunTarget.position.set(cull.x, 0, cull.z);
-      sun.position.set(cull.x + 12, 20, cull.z + 8);
-      sunBall.position.set(cull.x + 10, 16, cull.z + 6);
+      const span = quality === 'ultra' ? 11 : quality === 'high' ? 12 : 14;
+      sun.position.set(cull.x + Math.cos(sunAngle) * 18, 8 + Math.sin(sunAngle) * 16, cull.z + 7);
+      sunTarget.position.set(cull.x, 0.6, cull.z);
+      sun.shadow.camera.left = -span;
+      sun.shadow.camera.right = span;
+      sun.shadow.camera.top = span;
+      sun.shadow.camera.bottom = -span;
+      sun.shadow.camera.updateProjectionMatrix();
+      sun.shadow.bias = -0.00035;
+      sun.shadow.normalBias = 0.035;
+      sunBall.position.copy(sun.position);
+      if (surf.water.map) surf.water.map.offset.x = (time || 0) * 0.03;
+      let sm = 0;
+      if (quality !== 'low') {
+        state.buildings.forEach((b) => {
+          if (sm >= 22) return;
+          if (b.type !== 'tandoor' && !(b.type === 'house' && b.style % 4 === 0)) return;
+          const bp = cellToWorld(b.gx, b.gz);
+          if (Math.hypot(bp.x - cull.x, bp.z - cull.z) > cull.radius) return;
+          for (let k = 0; k < 3 && sm < 24; k += 1) {
+            const puff = ((time || 0) * 0.35 + k * 0.33) % 1;
+            put(smoke, sm, bp.x + 0.15, 1.15 + puff * 1.15, bp.z - 0.05, 0.35 + puff, 0.35 + puff, 0.35 + puff, 0, 0xe7e2da);
+            sm += 1;
+          }
+        });
+      }
+      commit(smoke, sm);
       let ti = 0;
+      let puffN = 0;
       let ri2 = 0;
       (state.nodes || []).forEach((n) => {
         if (!n.alive) return;
@@ -1250,13 +1414,19 @@ export function createView(canvas) {
           put(treeTrunk, ti, p.x, 0.45, p.z, 1, 1, 1, 0, 0x6b4226);
           const farTree = Math.hypot(p.x - cull.x, p.z - cull.z) > metersToUnits(40);
           put(treeTop, ti, p.x, farTree ? 1.05 : 1.25, p.z, farTree ? 0.7 : 1, farTree ? 0.7 : 1, farTree ? 0.7 : 1, 0, 0x3aaa40);
-          put(treePuff, ti, p.x, farTree ? 1.15 : 1.45, p.z, farTree ? 0.65 : 1.05, farTree ? 0.65 : 0.9, farTree ? 0.65 : 1.05, 0, 0x2f8a34);
+          put(treePuff, ti, p.x, farTree ? 1.15 : 1.45, p.z, farTree ? 0.65 : 1.15, farTree ? 0.65 : 0.95, farTree ? 0.65 : 1.15, 0, 0x2f8a34);
+          puffN = Math.max(puffN, ti + 1);
+          if (!farTree && quality !== 'low' && ti + 80 < 118) {
+            put(treePuff, ti + 40, p.x + 0.28, 1.2, p.z - 0.1, 0.7, 0.6, 0.7, 0, 0x3aaa40);
+            put(treePuff, ti + 80, p.x - 0.22, 1.55, p.z + 0.12, 0.55, 0.5, 0.55, 0, 0x267a30);
+            puffN = ti + 81;
+          }
           ti += 1;
         }
       });
       commit(treeTrunk, ti);
       commit(treeTop, ti);
-      commit(treePuff, ti);
+      commit(treePuff, puffN);
       commit(rockMesh, ri2);
       const who = state.villagers.find((v) => v.player);
       if (who && state.equipped && (state.tools || {})[state.equipped]) {
@@ -1268,6 +1438,16 @@ export function createView(canvas) {
         handTool.visible = true;
       } else handTool.visible = false;
     },
-    render() { renderer.render(scene, camera); },
+    setPortrait(id) { portraitId = id || 0; },
+    drawCalls() { return renderer.info.render.calls; },
+    render() {
+      if (quality === 'high' || quality === 'ultra') {
+        if (!grade) grade = createGrade(renderer);
+        grade.render(scene, camera, quality === 'ultra');
+      } else {
+        renderer.setRenderTarget(null);
+        renderer.render(scene, camera);
+      }
+    },
   };
 }
