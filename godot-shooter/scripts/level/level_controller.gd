@@ -5,6 +5,7 @@ enum Flow { PLAY, PAUSED, DEAD, CLEAR }
 var flow: int = Flow.PLAY
 var alive: int = 0
 var total: int = 0
+var points: int = 0
 var ui: CanvasLayer
 var player: PlayerBody
 
@@ -34,9 +35,22 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	get_tree().call_group("enemy", "start_ai")
 	print("LEVEL_READY")
+	_maybe_show_tips()
+
+
+func _maybe_show_tips() -> void:
+	if not Settings.should_show_tips():
+		return
+	flow = Flow.PAUSED
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	ui.call("show_tips")
 
 
 func toggle_pause() -> void:
+	if ui and bool(ui.call("tips_open")):
+		ui.call("dismiss_tips")
+		return
 	if flow == Flow.DEAD or flow == Flow.CLEAR:
 		return
 	if flow == Flow.PAUSED:
@@ -53,7 +67,7 @@ func resume_game() -> void:
 		return
 	flow = Flow.PLAY
 	get_tree().paused = false
-	if player.alive:
+	if player.alive and not DisplayServer.is_touchscreen_available():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	ui.call("hide_menus")
 	get_viewport().gui_release_focus()
@@ -178,6 +192,7 @@ func _build_ui() -> void:
 	ui.call("bind", self)
 	ui.call("set_enemies", 0, 0)
 	ui.call("set_health", player.health, player.max_health)
+	ui.call("pop_score", 0)
 
 
 func _connect_player() -> void:
@@ -208,7 +223,7 @@ func _spawn_enemies() -> void:
 		soldier.process_mode = Node.PROCESS_MODE_PAUSABLE
 		parent.add_child(soldier)
 		soldier.global_position = entry[1]
-		soldier.died.connect(_on_enemy_died)
+		soldier.died.connect(_on_enemy_died.bind(soldier))
 		alive += 1
 	total = alive
 	ui.call("set_enemies", alive, total)
@@ -223,9 +238,15 @@ func _spawn_pickups() -> void:
 		crate.global_position = pos
 
 
-func _on_enemy_died() -> void:
+func _on_enemy_died(soldier: Node) -> void:
 	alive = maxi(0, alive - 1)
+	points += 1
 	ui.call("set_enemies", alive, total)
+	ui.call("pop_score", points)
+	if player:
+		player.add_shake(0.2)
+	if soldier is Node3D:
+		ImpactEffect.spawn((soldier as Node3D).global_position + Vector3(0, 1.2, 0), Vector3.UP, "spark")
 	if alive == 0 and flow == Flow.PLAY:
 		flow = Flow.CLEAR
 		player.control_enabled = false
@@ -237,7 +258,8 @@ func _on_enemy_died() -> void:
 func _show_clear() -> void:
 	if flow != Flow.CLEAR:
 		return
-	ui.call("show_level_complete")
+	var result := Settings.record_score(points)
+	ui.call("show_level_complete", result.score, result.best, result.is_new)
 	get_tree().paused = true
 
 
@@ -252,8 +274,19 @@ func _on_player_died() -> void:
 func _show_dead() -> void:
 	if flow != Flow.DEAD:
 		return
-	ui.call("show_game_over")
+	var result := Settings.record_score(points)
+	ui.call("show_game_over", result.score, result.best, result.is_new)
 	get_tree().paused = true
+
+
+func _notification(what: int) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if OS.get_environment("SHOOTER_SMOKE") == "1" or OS.get_environment("SHOOTER_SCREENSHOTS") == "1":
+		return
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		if flow == Flow.PLAY:
+			toggle_pause()
 
 
 func _ambience() -> void:

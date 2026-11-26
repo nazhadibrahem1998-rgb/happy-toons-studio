@@ -26,6 +26,8 @@ func _ready() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
 	SoraniTheme.apply(panel)
+	SoraniTheme.fit_center(panel, 280.0, 230.0)
+	get_viewport().size_changed.connect(func() -> void: SoraniTheme.fit_center(panel, 280.0, 230.0))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
@@ -36,7 +38,7 @@ func _ready() -> void:
 	_volume.max_value = 100
 	_volume.step = 1
 	_volume.value = Settings.volume * 100.0
-	_volume.custom_minimum_size = Vector2(0, 28)
+	_volume.custom_minimum_size = Vector2(0, 48)
 	_volume.value_changed.connect(func(v: float) -> void:
 		Settings.set_volume(v / 100.0)
 		_volume_value.text = "%d" % int(v)
@@ -50,7 +52,7 @@ func _ready() -> void:
 	_sens.max_value = 2.2
 	_sens.step = 0.05
 	_sens.value = Settings.sensitivity_multiplier()
-	_sens.custom_minimum_size = Vector2(0, 28)
+	_sens.custom_minimum_size = Vector2(0, 48)
 	_sens.value_changed.connect(func(v: float) -> void:
 		Settings.set_sensitivity_multiplier(v)
 		_sens_value.text = "%.2f" % v
@@ -66,7 +68,8 @@ func _ready() -> void:
 	for id in ["low", "medium", "high"]:
 		var button := Button.new()
 		button.text = GameConfig.STR[id]
-		button.custom_minimum_size = Vector2(120, 44)
+		button.custom_minimum_size = Vector2(0, 48)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(_on_quality.bind(id))
 		row.add_child(button)
 		_quality_buttons[id] = button

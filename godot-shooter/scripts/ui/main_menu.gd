@@ -20,6 +20,8 @@ func _ready() -> void:
 	panel.offset_bottom = 250
 	_menu.add_child(panel)
 	SoraniTheme.apply(panel)
+	SoraniTheme.fit_center(panel, 260.0, 250.0)
+	get_viewport().size_changed.connect(func() -> void: SoraniTheme.fit_center(panel, 260.0, 250.0))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
@@ -42,6 +44,7 @@ func _ready() -> void:
 	var against := Label.new()
 	against.text = GameConfig.STR["against"]
 	against.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	against.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	against.add_theme_color_override("font_color", Color(0.78, 0.62, 0.48))
 	box.add_child(against)
 	box.add_child(_button(GameConfig.STR["play"], _on_play))

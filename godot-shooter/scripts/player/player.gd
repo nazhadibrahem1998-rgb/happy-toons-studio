@@ -32,6 +32,7 @@ var recoil_yaw: float = 0.0
 var look_delta: Vector2 = Vector2.ZERO
 var crouch_weight: float = 0.0
 var foot_time: float = 0.0
+var shake_amt: float = 0.0
 
 @onready var shape_node: CollisionShape3D = $CollisionShape3D
 @onready var visual: Node3D = $Visual
@@ -61,7 +62,7 @@ func _ready() -> void:
 	camera.near = 0.06
 	spring.collision_mask = 5
 	spring.margin = 0.18
-	if control_enabled and DisplayServer.get_name() != "headless":
+	if control_enabled and DisplayServer.get_name() != "headless" and not _touch_play():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -85,6 +86,7 @@ func add_recoil(pitch_add: float, yaw_add: float) -> void:
 
 func notify_hit() -> void:
 	hit_marker = 1.0
+	add_shake(0.14)
 
 
 func add_ammo(amount: int) -> bool:
@@ -101,6 +103,7 @@ func apply_damage(amount: int, from_pos: Vector3) -> void:
 	health = maxi(0, health - amount)
 	health_changed.emit(health, max_health)
 	damaged.emit(from_pos)
+	add_shake(0.45)
 	add_recoil(deg_to_rad(1.1), randf_range(-0.01, 0.01))
 	AudioDirector.play_2d("hurt", -8.0)
 	if health <= 0:
@@ -139,6 +142,7 @@ func _physics_process(delta: float) -> void:
 		_apply_look(look_delta)
 	look_delta = Vector2.ZERO
 	_decay_recoil(delta)
+	_apply_shake(delta)
 	hit_marker = maxf(0.0, hit_marker - delta * 4.0)
 	if toast_left > 0.0:
 		toast_left -= delta
@@ -229,6 +233,29 @@ func _apply_look(relative: Vector2) -> void:
 	var view_pitch := pitch + recoil_pitch
 	head.rotation.x = view_pitch
 	weapon_mount.rotation.x = view_pitch
+
+
+func add_shake(amount: float) -> void:
+	if Settings.prefers_reduced_motion():
+		shake_amt = 0.0
+		return
+	shake_amt = minf(1.0, shake_amt + amount)
+
+
+func _apply_shake(delta: float) -> void:
+	if Settings.prefers_reduced_motion() or shake_amt <= 0.0:
+		shake_amt = 0.0
+		camera.h_offset = 0.0
+		camera.v_offset = 0.0
+		return
+	shake_amt = maxf(0.0, shake_amt - delta * 1.8)
+	var amp := shake_amt * 0.12
+	camera.h_offset = randf_range(-amp, amp)
+	camera.v_offset = randf_range(-amp, amp)
+
+
+func _touch_play() -> bool:
+	return DisplayServer.is_touchscreen_available()
 
 
 func _decay_recoil(delta: float) -> void:

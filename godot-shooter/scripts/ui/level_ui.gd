@@ -22,11 +22,22 @@ var _help: Control
 var _game_over: Control
 var _complete: Control
 var _soon: Label
+var _hud_root: Control
+var score_label: Label
+var _fitted: Array = []
+var _over_score: Label
+var _over_best: Label
+var _over_new: Label
+var _clear_score: Label
+var _clear_best: Label
+var _clear_new: Label
+var _tips: Control
 
 
 func _ready() -> void:
 	layer = 10
 	_build_hud()
+	_build_touch()
 	_pause = _overlay_shell()
 	_pause.name = "Pause"
 	_pause.hide()
@@ -54,6 +65,11 @@ func _ready() -> void:
 	_complete.hide()
 	add_child(_complete)
 	_fill_end(_complete, GameConfig.STR["level_complete"], true)
+	_tips = _build_tips()
+	add_child(_tips)
+	_tips.hide()
+	get_viewport().size_changed.connect(_refit)
+	_refit()
 
 
 func bind(level: Node) -> void:
@@ -126,14 +142,53 @@ func hide_menus() -> void:
 	_help.hide()
 
 
-func show_game_over() -> void:
+func show_game_over(points: int = 0, best: int = 0, is_new: bool = false) -> void:
 	hide_menus()
+	_paint_score(_over_score, _over_best, _over_new, points, best, is_new)
 	_game_over.show()
 
 
-func show_level_complete() -> void:
+func show_level_complete(points: int = 0, best: int = 0, is_new: bool = false) -> void:
 	hide_menus()
+	_paint_score(_clear_score, _clear_best, _clear_new, points, best, is_new)
 	_complete.show()
+
+
+func pop_score(points: int) -> void:
+	if score_label == null:
+		return
+	score_label.text = "%s: %d" % [GameConfig.STR["score"], points]
+	if Settings.prefers_reduced_motion():
+		score_label.scale = Vector2.ONE
+		return
+	score_label.pivot_offset = score_label.size * 0.5
+	score_label.scale = Vector2(1.35, 1.35)
+	var tw := create_tween()
+	tw.tween_property(score_label, "scale", Vector2.ONE, 0.22)
+
+
+func show_tips() -> void:
+	if _tips:
+		_tips.show()
+
+
+func tips_open() -> bool:
+	return _tips != null and _tips.visible
+
+
+func dismiss_tips() -> void:
+	if _tips == null or not _tips.visible:
+		return
+	Settings.mark_tips_seen()
+	_tips.hide()
+	if _level and _level.has_method("resume_game"):
+		_level.call("resume_game")
+
+
+func _build_touch() -> void:
+	var touch: Control = load("res://scripts/ui/touch_controls.gd").new()
+	touch.name = "Touch"
+	add_child(touch)
 
 
 func show_soon(text: String) -> void:
@@ -183,6 +238,7 @@ func _build_hud() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	_hud_root = root
 	vignette = ColorRect.new()
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -208,6 +264,10 @@ func _build_hud() -> void:
 	objective_label = objective
 	enemy_label = _anchored_label(root, Control.PRESET_TOP_RIGHT, Vector2(-420, 52), Vector2(-20, 84))
 	enemy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	score_label = _anchored_label(root, Control.PRESET_TOP_RIGHT, Vector2(-420, 86), Vector2(-20, 122))
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	score_label.text = "%s: 0" % GameConfig.STR["score"]
+	score_label.add_theme_font_override("font", SoraniTheme.bold())
 	var level_name := _anchored_label(root, Control.PRESET_TOP_LEFT, Vector2(20, 18), Vector2(420, 52))
 	level_name.text = GameConfig.STR["level_name"]
 	level_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -311,6 +371,7 @@ func _fill_pause(root: Control) -> void:
 	panel.offset_bottom = 210
 	root.add_child(panel)
 	SoraniTheme.apply(panel)
+	_track(panel, 240.0, 210.0)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
@@ -324,7 +385,7 @@ func _fill_pause(root: Control) -> void:
 	box.add_child(_action_button(GameConfig.STR["restart"], "restart_game"))
 	var settings := Button.new()
 	settings.text = GameConfig.STR["settings"]
-	settings.custom_minimum_size = Vector2(0, 46)
+	settings.custom_minimum_size = Vector2(0, 48)
 	settings.pressed.connect(func() -> void:
 		_pause.hide()
 		_settings.show()
@@ -332,7 +393,7 @@ func _fill_pause(root: Control) -> void:
 	box.add_child(settings)
 	var help := Button.new()
 	help.text = GameConfig.STR["controls"]
-	help.custom_minimum_size = Vector2(0, 46)
+	help.custom_minimum_size = Vector2(0, 48)
 	help.pressed.connect(func() -> void:
 		_pause.hide()
 		_help.show()
@@ -350,6 +411,7 @@ func _fill_end(root: Control, title_text: String, victory: bool) -> void:
 	panel.offset_bottom = 190
 	root.add_child(panel)
 	SoraniTheme.apply(panel)
+	_track(panel, 280.0, 220.0)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
@@ -359,6 +421,15 @@ func _fill_end(root: Control, title_text: String, victory: bool) -> void:
 	title.add_theme_font_override("font", SoraniTheme.bold())
 	title.add_theme_font_size_override("font_size", 40)
 	box.add_child(title)
+	var lines := _score_lines(box)
+	if victory:
+		_clear_score = lines[0]
+		_clear_best = lines[1]
+		_clear_new = lines[2]
+	else:
+		_over_score = lines[0]
+		_over_best = lines[1]
+		_over_new = lines[2]
 	if victory:
 		var sub := Label.new()
 		sub.text = GameConfig.STR["cleared"]
@@ -370,7 +441,7 @@ func _fill_end(root: Control, title_text: String, victory: bool) -> void:
 		box.add_child(_soon)
 		var next := Button.new()
 		next.text = GameConfig.STR["next_level"]
-		next.custom_minimum_size = Vector2(0, 46)
+		next.custom_minimum_size = Vector2(0, 48)
 		next.pressed.connect(func() -> void:
 			if _level:
 				_level.call("try_next")
@@ -383,7 +454,7 @@ func _fill_end(root: Control, title_text: String, victory: bool) -> void:
 func _action_button(text: String, method: String) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(0, 46)
+	button.custom_minimum_size = Vector2(0, 48)
 	button.pressed.connect(func() -> void:
 		if _level:
 			_level.call(method)
@@ -397,3 +468,98 @@ func _ignore(node: Node) -> void:
 			(node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for child in node.get_children():
 		_ignore(child)
+
+
+func _score_lines(box: VBoxContainer) -> Array:
+	var score := Label.new()
+	score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	score.text_direction = Control.TEXT_DIRECTION_RTL
+	box.add_child(score)
+	var best := Label.new()
+	best.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	best.text_direction = Control.TEXT_DIRECTION_RTL
+	box.add_child(best)
+	var fresh := Label.new()
+	fresh.text = GameConfig.STR["new_best"]
+	fresh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fresh.text_direction = Control.TEXT_DIRECTION_RTL
+	fresh.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
+	fresh.hide()
+	box.add_child(fresh)
+	return [score, best, fresh]
+
+
+func _paint_score(score: Label, best: Label, fresh: Label, points: int, best_points: int, is_new: bool) -> void:
+	if score:
+		score.text = "%s: %d" % [GameConfig.STR["score"], points]
+	if best:
+		best.text = "%s: %d" % [GameConfig.STR["best"], best_points]
+	if fresh:
+		fresh.visible = is_new
+
+
+func _build_tips() -> Control:
+	var root := _overlay_shell()
+	root.name = "Tips"
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	root.add_child(panel)
+	SoraniTheme.apply(panel)
+	_track(panel, 260.0, 160.0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = GameConfig.STR["tips_title"]
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.text_direction = Control.TEXT_DIRECTION_RTL
+	title.add_theme_font_override("font", SoraniTheme.bold())
+	title.add_theme_font_size_override("font_size", 32)
+	box.add_child(title)
+	var body := Label.new()
+	body.text = GameConfig.STR["tips_touch"] if DisplayServer.is_touchscreen_available() else GameConfig.STR["tips_keys"]
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.text_direction = Control.TEXT_DIRECTION_RTL
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(body)
+	var ok := Button.new()
+	ok.text = GameConfig.STR["tips_ok"]
+	ok.custom_minimum_size = Vector2(0, 48)
+	ok.pressed.connect(dismiss_tips)
+	box.add_child(ok)
+	return root
+
+
+func _track(panel: Control, half_w: float, half_h: float) -> void:
+	_fitted.append([panel, half_w, half_h])
+	SoraniTheme.fit_center(panel, half_w, half_h)
+
+
+func _refit() -> void:
+	for item in _fitted:
+		SoraniTheme.fit_center(item[0], item[1], item[2])
+	_apply_safe_area()
+
+
+func _apply_safe_area() -> void:
+	if _hud_root == null:
+		return
+	var safe := DisplayServer.get_display_safe_area()
+	var screen := DisplayServer.screen_get_size()
+	var win := get_viewport().get_visible_rect().size
+	var left := 12.0
+	var top := 12.0
+	var right := 12.0
+	var bottom := 12.0
+	if screen.x > 0 and screen.y > 0:
+		var sx := win.x / float(screen.x)
+		var sy := win.y / float(screen.y)
+		left = maxf(12.0, safe.position.x * sx)
+		top = maxf(12.0, safe.position.y * sy)
+		right = maxf(12.0, (screen.x - safe.end.x) * sx)
+		bottom = maxf(12.0, (screen.y - safe.end.y) * sy)
+	_hud_root.offset_left = left
+	_hud_root.offset_top = top
+	_hud_root.offset_right = -right
+	_hud_root.offset_bottom = -bottom

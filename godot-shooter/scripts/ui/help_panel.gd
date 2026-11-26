@@ -18,6 +18,8 @@ func _ready() -> void:
 	panel.offset_bottom = 250
 	add_child(panel)
 	SoraniTheme.apply(panel)
+	SoraniTheme.fit_center(panel, 320.0, 250.0)
+	get_viewport().size_changed.connect(func() -> void: SoraniTheme.fit_center(panel, 320.0, 250.0))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	panel.add_child(box)
@@ -43,6 +45,7 @@ func _ready() -> void:
 		label.text = "%s    %s" % [row[0], row[1]]
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.text_direction = Control.TEXT_DIRECTION_RTL
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(label)
 	var back := Button.new()
 	back.text = GameConfig.STR["back"]
