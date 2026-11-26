@@ -459,12 +459,13 @@
     ctx.fillStyle = '#d7f7ff';
     ctx.font = '700 13px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('PARCEL', C.HUB.x, C.HUB.y - 86);
+    ctx.textBaseline = 'middle';
+    label(ctx, 'PARCEL', C.HUB.x, C.HUB.y, -86, rot);
 
     if (state.sideOffer) {
       drawRing(ctx, state.sideOffer.x, state.sideOffer.y, 64 + Math.sin(time * 4) * 4, 'rgba(255,211,110,0.9)');
       ctx.fillStyle = '#ffe7a8';
-      ctx.fillText('SIDE', state.sideOffer.x, state.sideOffer.y - 74);
+      label(ctx, 'SIDE', state.sideOffer.x, state.sideOffer.y, -74, rot);
     }
     for (let i = 0; i < state.cargo.length; i++) {
       const c = state.cargo[i];
@@ -472,7 +473,8 @@
       drawRing(ctx, c.x, c.y, 70 + Math.sin(time * 3.4 + i) * 4, col);
       if (Math.hypot(c.x - state.x, c.y - state.y) < 340) {
         ctx.fillStyle = '#fff';
-        ctx.fillText(c.name, c.x, c.y - 80);
+        ctx.font = '700 13px system-ui, sans-serif';
+        label(ctx, c.name, c.x, c.y, -80, rot);
       }
     }
     for (let i = 0; i < state.fuels.length; i++) {
@@ -482,7 +484,7 @@
       ctx.fill();
       ctx.fillStyle = '#3a2408';
       ctx.font = '700 10px system-ui, sans-serif';
-      ctx.fillText('F', f.x, f.y + 3);
+      label(ctx, 'F', f.x, f.y, 1, rot);
     }
     for (let i = 0; i < state.clocks.length; i++) {
       const f = state.clocks[i];
@@ -492,7 +494,7 @@
       ctx.fill();
       ctx.fillStyle = '#062028';
       ctx.font = '700 11px system-ui, sans-serif';
-      ctx.fillText('T', f.x, f.y + 4);
+      label(ctx, 'T', f.x, f.y, 1, rot);
     }
 
     const paint = paintOf(state.paintIndex || 0);
@@ -566,7 +568,7 @@
         ctx.arc(f.x, f.y, 11, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#14081f';
-        ctx.fillText('E', f.x, f.y + 4);
+        label(ctx, 'E', f.x, f.y, 1, rot);
       }
     }
     if (state.pulses) {
@@ -646,10 +648,7 @@
       ctx.save();
       ctx.translate(state.x, state.y);
       ctx.rotate(state.angle);
-      const hg = ctx.createLinearGradient(0, 0, 70, 0);
-      hg.addColorStop(0, 'rgba(220,250,255,0.28)');
-      hg.addColorStop(1, 'rgba(220,250,255,0)');
-      ctx.fillStyle = hg;
+      ctx.fillStyle = 'rgba(220,250,255,0.22)';
       ctx.beginPath();
       ctx.moveTo(12, -6);
       ctx.lineTo(78, -28);
@@ -661,11 +660,12 @@
 
     ctx.font = '700 14px system-ui, sans-serif';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     for (let i = 0; i < state.popups.length; i++) {
       const p = state.popups[i];
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
       ctx.fillStyle = p.color;
-      ctx.fillText(p.text, p.x, p.y);
+      label(ctx, p.text, p.x, p.y, 0, rot);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -675,17 +675,12 @@
       ctx.fillRect(0, 0, viewW, viewH);
     }
 
-    const west = ctx.createLinearGradient(0, 0, Math.min(220, viewW * 0.3), 0);
-    west.addColorStop(0, state.weather === 'midnight' ? 'rgba(40,60,140,0.18)' : 'rgba(255,120,60,0.16)');
-    west.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = west;
+    const shades = screenShades(ctx, viewW, viewH, state.weather === 'midnight');
+    ctx.fillStyle = shades.west;
     ctx.fillRect(0, 0, viewW, viewH);
 
     if (quality !== 'low') {
-      const vg = ctx.createRadialGradient(viewW / 2, viewH / 2, viewW * 0.25, viewW / 2, viewH / 2, viewW * 0.72);
-      vg.addColorStop(0, 'rgba(0,0,0,0)');
-      vg.addColorStop(1, 'rgba(8,0,16,0.42)');
-      ctx.fillStyle = vg;
+      ctx.fillStyle = shades.vg;
       ctx.fillRect(0, 0, viewW, viewH);
     }
 
@@ -790,9 +785,31 @@
     };
   }
 
-  function headingVector(angle) {
-    return { x: Math.cos(angle), y: Math.sin(angle) };
+function headingVector(angle) {
+  return { x: Math.cos(angle), y: Math.sin(angle) };
+}
+
+function label(ctx, text, x, y, dy, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (rot) ctx.rotate(-rot);
+  ctx.fillText(text, 0, dy);
+  ctx.restore();
+}
+
+let shadeCache = null;
+function screenShades(ctx, viewW, viewH, midnight) {
+  if (!shadeCache || shadeCache.w !== viewW || shadeCache.h !== viewH || shadeCache.midnight !== midnight) {
+    const west = ctx.createLinearGradient(0, 0, Math.min(220, viewW * 0.3), 0);
+    west.addColorStop(0, midnight ? 'rgba(40,60,140,0.18)' : 'rgba(255,120,60,0.16)');
+    west.addColorStop(1, 'rgba(0,0,0,0)');
+    const vg = ctx.createRadialGradient(viewW / 2, viewH / 2, viewW * 0.25, viewW / 2, viewH / 2, viewW * 0.72);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(8,0,16,0.42)');
+    shadeCache = { w: viewW, h: viewH, midnight: midnight, west: west, vg: vg };
   }
+  return shadeCache;
+}
 
   function drawArrow(ctx, state, viewW, viewH, cam) {
     if (!state.objective || state.phase !== 'play') return;
@@ -803,10 +820,11 @@
     const sy = target.y;
     const cx = viewW / 2;
     const cy = viewH / 2;
-    const left = Math.min(250, viewW * 0.34);
-    const top = Math.min(176, viewH * 0.46);
-    const right = viewW - Math.min(160, viewW * 0.22);
-    const bottom = viewH - 40;
+    const short = viewH < 480;
+    const left = Math.min(short ? 248 : 250, viewW * 0.34);
+    const top = short ? Math.max(44, viewH * 0.1) : Math.min(176, viewH * 0.46);
+    const right = viewW - (short ? Math.min(230, viewW * 0.34) : Math.min(160, viewW * 0.22));
+    const bottom = viewH - (short ? 168 : 40);
     const onPlayfield = sx >= left && sx <= right && sy >= top && sy <= bottom;
     if (onPlayfield) return;
     const dx = sx - cx;

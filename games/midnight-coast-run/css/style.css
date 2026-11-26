@@ -82,7 +82,7 @@ h2{font-size:clamp(22px,5vw,32px);letter-spacing:.08em;font-weight:900}
 body.show-touch #touch{display:block}
 .pad{position:absolute;pointer-events:auto;width:78px;height:78px;border-radius:22px;border:1px solid rgba(255,255,255,.22);background:rgba(10,6,24,.55);color:#fff;font-weight:900;font-size:12px;letter-spacing:.04em}
 .pad:active,.pad.held{background:rgba(124,246,255,.28);border-color:#7cf6ff}
-#steer-zone{position:absolute;left:0;bottom:0;width:38%;height:52%;pointer-events:auto}
+#steer-zone{position:absolute;left:env(safe-area-inset-left);bottom:env(safe-area-inset-bottom);width:min(38%,320px);height:52%;pointer-events:auto}
 #steer-idle{position:absolute;left:50%;top:62%;width:116px;height:116px;margin:-58px 0 0 -58px;border-radius:50%;border:2px solid rgba(124,246,255,.45);background:rgba(8,6,20,.28);pointer-events:none}
 #steer-idle i{position:absolute;left:40px;top:40px;width:36px;height:36px;border-radius:50%;background:rgba(124,246,255,.4)}
 #steer-zone.hot #steer-idle{opacity:.35}

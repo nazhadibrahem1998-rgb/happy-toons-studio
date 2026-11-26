@@ -41,6 +41,11 @@
   const hudCache = {};
   const cam = { x: 0, y: 0, angle: -Math.PI / 2, zoom: 1, ready: false, rotating: true };
   const gpWas = { lb: false, rb: false };
+  const heldPointers = [];
+
+  function releaseHeld(e) {
+    for (let i = 0; i < heldPointers.length; i++) heldPointers[i](e);
+  }
 
   applyAudio();
   bindUi();
@@ -621,35 +626,45 @@
       knob.style.transform = 'translate(' + (dx / mag * clamped) + 'px,' + (dy / mag * clamped) + 'px)';
     }
     function up(e) {
-      if (e.pointerId !== pid) return;
+      if (pid == null) return;
+      if (e && e.pointerId != null && e.pointerId !== pid) return;
       pid = null;
       holds.steer = 0;
       stick.hidden = true;
       zone.classList.remove('hot');
     }
+    heldPointers.push(up);
     zone.addEventListener('pointerdown', down);
     zone.addEventListener('pointermove', move);
     zone.addEventListener('pointerup', up);
     zone.addEventListener('pointercancel', up);
+    zone.addEventListener('lostpointercapture', up);
   }
 
   function bindHold(el, prop) {
     if (!el) return;
+    let pid = null;
     function down(e) {
-      if (e.button != null && e.button !== 0) return;
+      if (pid != null || (e.button != null && e.button !== 0)) return;
       e.preventDefault();
+      pid = e.pointerId;
       try { el.setPointerCapture(e.pointerId); } catch (err) {}
       holds[prop] += 1;
       el.classList.add('held');
       audio.resume();
     }
     function up(e) {
+      if (pid == null) return;
+      if (e && e.pointerId != null && e.pointerId !== pid) return;
+      pid = null;
       holds[prop] = Math.max(0, holds[prop] - 1);
       if (holds[prop] === 0) el.classList.remove('held');
     }
+    heldPointers.push(up);
     el.addEventListener('pointerdown', down);
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
+    el.addEventListener('lostpointercapture', up);
   }
 
   function clearTouch() {
@@ -773,6 +788,8 @@
     bindStick();
 
     window.addEventListener('pointerdown', function () { audio.resume(); }, { passive: true });
+    window.addEventListener('pointerup', releaseHeld);
+    window.addEventListener('pointercancel', releaseHeld);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', function (e) { keys[e.code] = false; });
     window.addEventListener('blur', clearKeys);
@@ -1065,6 +1082,7 @@
           x: s.objective.x, y: s.objective.y, kind: s.objective.kind, name: s.objective.name, required: s.objective.required
         } : null,
         cargo: s ? s.cargo.length : 0,
+        drops: s && s.cargo ? s.cargo.map(function (c) { return { x: c.x, y: c.y }; }) : [],
         delivered: s ? s.delivered : 0,
         cleared: !!(s && s.result && s.result.cleared),
         stars: s && s.result ? s.result.stars : 0,

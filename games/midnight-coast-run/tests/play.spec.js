@@ -294,6 +294,41 @@ async function hudGaps(page) {
   });
 }
 
+test('labels stay upright, end screen saves best, restart works', async function ({ page }, testInfo) {
+  test.skip(testInfo.project.name !== 'desktop', 'short desktop pass');
+  test.setTimeout(30000);
+  const errors = [];
+  track(page, errors);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/');
+  await page.locator('#btn-play').click();
+  await page.locator('#btn-start-run').click();
+  await expect(page.locator('#hud')).toBeVisible();
+  const hub = await page.evaluate(function () { return window.City.HUB; });
+  await page.evaluate(function (h) { window.MCR.place(h.x + 240, h.y, Math.PI, 30); }, hub);
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: ART + '/midnight-coast-run-desktop.png' });
+  for (let i = 0; i < 4; i++) {
+    const drop = await page.evaluate(function () {
+      const s = window.MCR.snapshot();
+      return s.drops && s.drops.length ? s.drops[0] : null;
+    });
+    if (!drop) break;
+    await page.evaluate(function (p) { window.MCR.place(p.x, p.y, 0, 0); }, drop);
+    await page.waitForTimeout(500);
+  }
+  await expect(page.locator('#screen-summary')).toBeVisible({ timeout: 4000 });
+  await expect(page.locator('#sum-stars')).toContainText('★');
+  const saved = await page.evaluate(function () {
+    return JSON.parse(localStorage.getItem('mcr-midnight-coast-v1')).bestStars;
+  });
+  expect(saved['1'] || saved[1]).toBeGreaterThan(0);
+  await page.locator('#btn-sum-retry').click();
+  await expect(page.locator('#hud')).toBeVisible();
+  await expect(page.locator('#clock')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('desktop HUD meters sit above the objective', async function ({ page }, testInfo) {
   test.skip(testInfo.project.name !== 'desktop', 'desktop hud');
   const errors = [];
@@ -321,7 +356,28 @@ test('phone landscape HUD and idle steer wheel', async function ({ page }, testI
   expect(gap.gap).toBeGreaterThan(4);
   const wheel = await page.locator('#steer-idle').boundingBox();
   expect(wheel.width).toBeGreaterThan(80);
-  await page.screenshot({ path: ART + '/midnight-coast-run-hud-phone.png' });
+  const audio = await page.evaluate(function () { return window.MCR.audioState(); });
+  expect(['running', 'suspended', 'closed']).toContain(audio);
+  await page.evaluate(function () {
+    const el = document.querySelector('#t-brake');
+    const r = el.getBoundingClientRect();
+    el.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true, cancelable: true, pointerId: 9, pointerType: 'touch', isPrimary: true, button: 0,
+      clientX: r.left + 8, clientY: r.top + 8
+    }));
+  });
+  await page.waitForTimeout(250);
+  const slowed = await page.evaluate(function () { return window.MCR.snapshot().speed; });
+  await page.evaluate(function () {
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true, cancelable: true, pointerId: 9, pointerType: 'touch', button: 0, clientX: 8, clientY: 8
+    }));
+  });
+  await page.waitForTimeout(400);
+  const recovered = await page.evaluate(function () { return window.MCR.snapshot().speed; });
+  expect(recovered).toBeGreaterThan(slowed + 4);
+  await expect(page.locator('#t-brake')).not.toHaveClass(/held/);
+  await page.screenshot({ path: ART + '/midnight-coast-run-phone.png' });
   expect(errors).toEqual([]);
 });
 

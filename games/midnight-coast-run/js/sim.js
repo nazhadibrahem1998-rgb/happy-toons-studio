@@ -1023,6 +1023,7 @@ const PAINTS = [
     return Math.hypot(px - (x1 + vx * t), py - (y1 + vy * t));
   }
 
+  const barricadeBox = { x: 0, y: 0, w: 0, h: 0 };
   function slideBarricades(state) {
     if (!state.barricades) return;
     const r = City.CAR_R;
@@ -1033,8 +1034,11 @@ const PAINTS = [
     for (let i = 0; i < state.barricades.length; i++) {
       const b = state.barricades[i];
       if (b.hp <= 0) continue;
-      const box = { x: b.x - b.hw, y: b.y - b.hh, w: b.hw * 2, h: b.hh * 2 };
-      const hit = City.circleAABB(state.x, state.y, r, box);
+      barricadeBox.x = b.x - b.hw;
+      barricadeBox.y = b.y - b.hh;
+      barricadeBox.w = b.hw * 2;
+      barricadeBox.h = b.hh * 2;
+      const hit = City.circleAABB(state.x, state.y, r, barricadeBox);
       if (!hit) continue;
       state.x = hit.x;
       state.y = hit.y;
@@ -1256,7 +1260,9 @@ const PAINTS = [
         pushEvent(state, { t: 'cell' });
       }
     }
-    state.barricades = state.barricades.filter(function (b) { return b.hp > 0; });
+    for (let i = state.barricades.length - 1; i >= 0; i--) {
+      if (state.barricades[i].hp <= 0) state.barricades.splice(i, 1);
+    }
   }
 
   function shock(state, radius, dmg, emp) {
